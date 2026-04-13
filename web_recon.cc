@@ -122,6 +122,20 @@ static const char *builtin_paths[] = {
   "/backup.tar.gz", "/site.tar.gz", "/www.zip",
   "/old", "/archive", "/temp", "/tmp",
   "/.backup", "/data.sql", "/site.sql",
+  /* Additional cloud/container metadata */
+  "/latest/meta-data/", "/computeMetadata/v1/",
+  "/v1/agent/self", "/v1/catalog/services",
+  /* Additional CMS/framework paths */
+  "/typo3/", "/typo3conf/LocalConfiguration.php",
+  "/sites/default/settings.php", "/app/config/parameters.yml",
+  "/laravel/.env", "/storage/logs/laravel.log",
+  "/rails/info/properties", "/.svn/wc.db",
+  /* Additional sensitive endpoints */
+  "/metrics", "/prometheus", "/health",
+  "/status", "/server-status?auto",
+  "/debug/default/view", "/trace",
+  "/.well-known/apple-app-site-association",
+  "/feed", "/feeds", "/rss",
   nullptr
 };
 

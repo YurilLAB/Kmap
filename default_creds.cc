@@ -338,6 +338,41 @@ static const CredPair builtin_creds[] = {
   {"mongodb", "mongouser","mongouser"},  /* Mongo user account */
   {"mongodb", "app",     "app"},         /* Application account */
 
+  /* ---- Additional IoT/Router/Appliance defaults ---- */
+  {"ssh", "default",    "default"},
+  {"ssh", "admin",      "aerohive"},
+  {"ssh", "root",       "rootpasswd"},
+  {"ssh", "admin",      "symbol"},
+  {"ssh", "admin",      "motorola"},
+  {"ssh", "recovery",   "recovery"},
+  {"telnet", "admin",   "cisco"},
+  {"telnet", "cisco",   ""},
+  {"telnet", "root",    "rootme"},
+  {"telnet", "admin",   "system"},
+  {"telnet", "admin",   "switch"},
+  {"telnet", "admin",   "OCS"},
+  {"telnet", "admin",   "micros"},
+  {"http", "admin",     "admin1234"},
+  {"http", "admin",     "passw0rd"},
+  {"http", "supervisor","supervisor"},
+  {"http", "admin",     "motorola"},
+  {"http", "admin",     "symbol"},
+  {"http", "admin",     "cisco"},
+  {"http", "admin",     "arris"},
+  {"mysql", "root",     "123"},
+  {"mysql", "root",     "letmein"},
+  {"mysql", "admin",    "123456"},
+  {"mysql", "backup",   "backup"},
+  {"postgresql", "postgres",  "postgres123"},
+  {"postgresql", "postgres",  "trust"},
+  {"postgresql", "app",       "app"},
+  {"mssql", "sa",       "Passw0rd"},
+  {"mssql", "sa",       "s3cret"},
+  {"mssql", "sa",       "SQLServer123"},
+  {"mongodb", "admin",  "admin123"},
+  {"mongodb", "admin",  "secret"},
+  {"mongodb", "root",   "admin"},
+
   {nullptr, nullptr, nullptr}
 };
 

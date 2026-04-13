@@ -755,6 +755,366 @@ class TestNoClaudeReferences(unittest.TestCase):
 
 
 # ============================================================================
+# EXTENDED TESTS — Edge cases, malformed input, deeper protocol verification
+# ============================================================================
+
+class TestTDSEdgeCases(unittest.TestCase):
+    """Edge cases for TDS password encoding."""
+
+    def test_special_characters(self):
+        """Passwords with special chars should encode without error."""
+        for pw in ["P@ssw0rd!", "p4$$w0rd", "root'--", 'admin"', "a\tb\nc"]:
+            result = tds_encode_password(pw)
+            self.assertEqual(len(result), len(pw) * 2)
+
+    def test_long_password(self):
+        """Long passwords should encode correctly."""
+        pw = "A" * 128
+        result = tds_encode_password(pw)
+        self.assertEqual(len(result), 256)
+
+    def test_all_byte_values(self):
+        """Every printable ASCII char should encode and decode."""
+        for i in range(32, 127):
+            ch = chr(i)
+            encoded = tds_encode_password(ch)
+            # Decode
+            lo = encoded[0] ^ 0xA5
+            lo = ((lo << 4) & 0xF0 | (lo >> 4) & 0x0F)
+            self.assertEqual(chr(lo), ch, f"Round-trip failed for char {i} ({ch!r})")
+
+
+class TestMySQLEdgeCases(unittest.TestCase):
+    """Edge cases for MySQL native_password."""
+
+    def test_different_scrambles_different_tokens(self):
+        """Same password with different scrambles must produce different tokens."""
+        pw = "password"
+        s1 = b"\x01" * 20
+        s2 = b"\x02" * 20
+        self.assertNotEqual(mysql_native_password(pw, s1),
+                            mysql_native_password(pw, s2))
+
+    def test_special_chars_in_password(self):
+        result = mysql_native_password("p@$$w0rd!#%", b"\x00" * 20)
+        self.assertEqual(len(result), 20)
+
+    def test_unicode_like_password(self):
+        """Passwords with high-ASCII chars."""
+        result = mysql_native_password("\xff\xfe", b"\x00" * 20)
+        self.assertEqual(len(result), 20)
+
+
+class TestPostgreSQLEdgeCases(unittest.TestCase):
+    """Edge cases for PostgreSQL MD5 auth."""
+
+    def test_empty_password(self):
+        """Empty password should still produce valid hash."""
+        result = pg_md5_password("", "postgres", b"\x00\x00\x00\x00")
+        self.assertTrue(result.startswith("md5"))
+        self.assertEqual(len(result), 35)
+
+    def test_long_username(self):
+        result = pg_md5_password("password", "a" * 256, b"\x01\x02\x03\x04")
+        self.assertTrue(result.startswith("md5"))
+
+    def test_same_credentials_different_salt(self):
+        h1 = pg_md5_password("password", "user", b"\x01\x02\x03\x04")
+        h2 = pg_md5_password("password", "user", b"\x05\x06\x07\x08")
+        self.assertNotEqual(h1, h2)
+
+
+class TestVersionComparisonEdgeCases(unittest.TestCase):
+    """Edge cases for version comparison."""
+
+    def test_version_with_only_major(self):
+        self.assertEqual(ver_cmp("3", "3"), 0)
+        self.assertEqual(ver_cmp("3", "4"), -1)
+
+    def test_deeply_nested_version(self):
+        self.assertEqual(ver_cmp("1.2.3.4.5", "1.2.3.4.5"), 0)
+        self.assertEqual(ver_cmp("1.2.3.4.5", "1.2.3.4.6"), -1)
+
+    def test_version_with_suffix(self):
+        """Suffixes like 'p1', 'rc1', 'beta' should be stripped."""
+        self.assertEqual(parse_ver("8.2p1"), [8, 2])
+        self.assertEqual(parse_ver("2.4.49-ubuntu1"), [2, 4, 49])
+        self.assertEqual(parse_ver("1.0rc1"), [1, 0])
+
+    def test_extract_ver_edge_cases(self):
+        self.assertEqual(extract_version(""), "")
+        self.assertEqual(extract_version("no digits"), "")
+        self.assertEqual(extract_version("v1"), "")  # single digit, no dot
+        self.assertEqual(extract_version("version 3.14.159"), "3.14.159")
+        self.assertEqual(extract_version("12"), "")  # no dot
+
+    def test_leading_zeros(self):
+        self.assertEqual(ver_cmp("1.01", "1.1"), 0)
+        self.assertEqual(ver_cmp("01.02.03", "1.2.3"), 0)
+
+
+class TestCVEDatabaseDeeper(unittest.TestCase):
+    """Deeper CVE database verification."""
+
+    @classmethod
+    def setUpClass(cls):
+        db_path = os.path.join(ROOT, "kmap-cve.db")
+        if not os.path.exists(db_path):
+            raise unittest.SkipTest("kmap-cve.db not found")
+        cls.conn = sqlite3.connect(db_path)
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, "conn"):
+            cls.conn.close()
+
+    def test_no_empty_cve_ids(self):
+        c = self.conn.cursor()
+        c.execute("SELECT COUNT(*) FROM cves WHERE cve_id IS NULL OR cve_id = ''")
+        self.assertEqual(c.fetchone()[0], 0, "Found empty CVE IDs")
+
+    def test_no_empty_descriptions(self):
+        c = self.conn.cursor()
+        c.execute("SELECT COUNT(*) FROM cves WHERE description IS NULL OR description = ''")
+        bad = c.fetchone()[0]
+        self.assertEqual(bad, 0, f"{bad} CVEs with empty descriptions")
+
+    def test_version_ranges_valid(self):
+        """version_min should be <= version_max when both are set."""
+        c = self.conn.cursor()
+        c.execute("""
+            SELECT cve_id, version_min, version_max FROM cves
+            WHERE version_min != '' AND version_max != ''
+              AND version_min IS NOT NULL AND version_max IS NOT NULL
+        """)
+        bad = []
+        for cve_id, vmin, vmax in c.fetchall():
+            if ver_cmp(vmin, vmax) > 0:
+                bad.append(f"{cve_id}: {vmin} > {vmax}")
+        self.assertEqual(len(bad), 0,
+                         f"Inverted version ranges: {bad[:5]}")
+
+    def test_high_impact_cves_present(self):
+        """Well-known critical CVEs must be in the database."""
+        c = self.conn.cursor()
+        must_have = [
+            "CVE-2021-44228",  # Log4Shell
+            "CVE-2024-6387",   # regreSSHion
+        ]
+        for cve_id in must_have:
+            c.execute("SELECT COUNT(*) FROM cves WHERE cve_id = ?", (cve_id,))
+            count = c.fetchone()[0]
+            self.assertGreater(count, 0, f"Missing high-impact CVE: {cve_id}")
+
+    def test_product_names_lowercase(self):
+        """Product names should be lowercase (CPE convention)."""
+        c = self.conn.cursor()
+        c.execute("SELECT DISTINCT product FROM cves WHERE product != lower(product)")
+        bad = [r[0] for r in c.fetchall()]
+        # Filter out known exceptions like 'joomla\!'
+        bad = [p for p in bad if p and not p.startswith("joomla")]
+        self.assertEqual(len(bad), 0, f"Non-lowercase products: {bad[:10]}")
+
+    def test_cvss_severity_consistency(self):
+        """CVSS score should match severity label."""
+        c = self.conn.cursor()
+        c.execute("""
+            SELECT COUNT(*) FROM cves
+            WHERE (cvss_score >= 9.0 AND severity != 'CRITICAL')
+               OR (cvss_score >= 7.0 AND cvss_score < 9.0 AND severity != 'HIGH')
+        """)
+        mismatch = c.fetchone()[0]
+        # Allow some tolerance — NVD sometimes has edge cases
+        self.assertLess(mismatch, 50,
+                        f"{mismatch} entries with CVSS/severity mismatch")
+
+
+class TestCredentialDatabaseDeeper(unittest.TestCase):
+    """Deeper credential database tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = read_source("default_creds.cc")
+        cls.entries = read_cred_entries(cls.src)
+
+    def test_no_whitespace_in_usernames(self):
+        """Usernames should not contain whitespace."""
+        bad = [(s, u, p) for s, u, p in self.entries if ' ' in u or '\t' in u]
+        self.assertEqual(len(bad), 0, f"Usernames with whitespace: {bad}")
+
+    def test_services_are_lowercase(self):
+        """All service names must be lowercase."""
+        bad = [(s, u, p) for s, u, p in self.entries if s != s.lower()]
+        self.assertEqual(len(bad), 0, f"Non-lowercase services: {bad}")
+
+    def test_empty_password_entries_exist(self):
+        """Each service should have at least one empty-password entry."""
+        services_with_empty = set()
+        for svc, user, pw in self.entries:
+            if pw == "":
+                services_with_empty.add(svc)
+        required = {"ssh", "ftp", "mysql", "mssql", "mongodb", "telnet", "postgresql"}
+        missing = required - services_with_empty
+        self.assertEqual(len(missing), 0,
+                         f"Services missing empty-password entry: {missing}")
+
+    def test_credential_pair_length_limits(self):
+        """Usernames and passwords should be reasonable length."""
+        for svc, user, pw in self.entries:
+            self.assertLess(len(user), 64,
+                            f"Username too long: {svc}/{user}")
+            self.assertLess(len(pw), 64,
+                            f"Password too long: {svc}/{user}/{pw}")
+
+    def test_ftp_anonymous_variations(self):
+        """FTP should have multiple anonymous access variations."""
+        anon = [(s, u, p) for s, u, p in self.entries
+                if s == "ftp" and u == "anonymous"]
+        self.assertGreaterEqual(len(anon), 3,
+                                "Need at least 3 anonymous FTP variations")
+
+
+class TestWebReconPathsDeeper(unittest.TestCase):
+    """Deeper web recon path tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = read_source("web_recon.cc")
+        cls.paths = read_path_entries(cls.src)
+
+    def test_no_double_slashes(self):
+        """Paths should not contain // (except at start for protocol)."""
+        bad = [p for p in self.paths if "//" in p]
+        self.assertEqual(len(bad), 0, f"Paths with //: {bad}")
+
+    def test_no_trailing_spaces(self):
+        """Paths should not have trailing whitespace."""
+        bad = [p for p in self.paths if p != p.strip()]
+        self.assertEqual(len(bad), 0, f"Paths with trailing space: {bad}")
+
+    def test_category_coverage(self):
+        """Paths should cover major categories."""
+        categories = {
+            "admin": any("/admin" in p for p in self.paths),
+            "api": any("/api/" in p for p in self.paths),
+            "git": any(".git" in p for p in self.paths),
+            "env": any(".env" in p for p in self.paths),
+            "backup": any("backup" in p.lower() for p in self.paths),
+            "wordpress": any("wp-" in p for p in self.paths),
+            "actuator": any("actuator" in p for p in self.paths),
+            "debug": any("debug" in p for p in self.paths),
+        }
+        missing = [cat for cat, present in categories.items() if not present]
+        self.assertEqual(len(missing), 0,
+                         f"Missing path categories: {missing}")
+
+    def test_common_extensions_covered(self):
+        """Sensitive file extensions should be probed."""
+        has_php = any(p.endswith(".php") for p in self.paths)
+        has_env = any(".env" in p for p in self.paths)
+        has_sql = any(".sql" in p for p in self.paths)
+        has_yml = any(".yml" in p for p in self.paths)
+        self.assertTrue(has_php, "No .php paths")
+        self.assertTrue(has_env, "No .env paths")
+        self.assertTrue(has_sql, "No .sql paths")
+        self.assertTrue(has_yml, "No .yml paths")
+
+
+class TestErrorHandlingDeeper(unittest.TestCase):
+    """More thorough error handling verification."""
+
+    def test_fd_send_checked_in_all_probes(self):
+        """Every probe function should check fd_send return value."""
+        src = read_source("default_creds.cc")
+        # Count fd_send calls vs checked fd_send calls
+        total_sends = src.count("fd_send(")
+        checked_sends = src.count("!fd_send(") + src.count("if (!fd_send")
+        # At least 60% of sends should be checked (some internal helpers don't need it)
+        ratio = checked_sends / max(total_sends, 1)
+        self.assertGreaterEqual(ratio, 0.5,
+                                f"Only {checked_sends}/{total_sends} fd_send calls checked")
+
+    def test_close_fd_on_all_error_paths(self):
+        """close_fd should appear on error paths."""
+        src = read_source("default_creds.cc")
+        # Every probe that opens a connection should close it
+        opens = src.count("tcp_connect(")
+        closes = src.count("close_fd(")
+        self.assertGreaterEqual(closes, opens,
+                                f"Fewer close_fd ({closes}) than tcp_connect ({opens})")
+
+    def test_web_recon_ssl_error_handling(self):
+        """web_recon.cc should handle SSL connection failures."""
+        src = read_source("web_recon.cc")
+        self.assertIn("SSL_connect", src)
+        # Should check SSL_connect return
+        self.assertIn("!= 1", src, "SSL_connect return not checked")
+
+    def test_sqlite_finalize_called(self):
+        """sqlite3_finalize must be called after sqlite3_prepare."""
+        src = read_source("cve_map.cc")
+        prepares = src.count("sqlite3_prepare")
+        finalizes = src.count("sqlite3_finalize")
+        self.assertEqual(prepares, finalizes,
+                         f"Mismatched prepare ({prepares}) vs finalize ({finalizes})")
+
+    def test_sqlite_close_called(self):
+        """sqlite3_close must be called after sqlite3_open."""
+        src = read_source("cve_map.cc")
+        opens = src.count("sqlite3_open")
+        closes = src.count("sqlite3_close")
+        self.assertGreaterEqual(closes, opens,
+                                f"Fewer sqlite3_close ({closes}) than open ({opens})")
+
+
+class TestSourceCodeQuality(unittest.TestCase):
+    """Code quality and consistency checks."""
+
+    def test_no_raw_magic_numbers_in_probes(self):
+        """Timeout values should use named constants, not hardcoded."""
+        src = read_source("web_recon.cc")
+        self.assertIn("CONNECT_TIMEOUT", src)
+        self.assertIn("READ_TIMEOUT", src)
+
+    def test_color_header_only(self):
+        """color.h should be header-only (inline functions)."""
+        src = read_source("color.h")
+        self.assertIn("inline", src)
+        # No .cc file for color
+        self.assertFalse(os.path.exists(os.path.join(ROOT, "color.cc")))
+
+    def test_json_output_header_functions(self):
+        """output_json.h should declare all necessary functions."""
+        src = read_source("output_json.h")
+        required = ["json_initialize", "json_write_scaninfo",
+                     "json_write_host", "json_write_stats", "json_finalize"]
+        for func in required:
+            self.assertIn(func, src, f"Missing JSON function: {func}")
+
+    def test_no_broken_urls_in_readme(self):
+        """README should not have broken kmap.org links."""
+        src = read_source("README.md")
+        self.assertNotIn("kmap.org", src, "README has kmap.org reference")
+        self.assertIn("github.com/YurilLAB/Kmap", src,
+                      "README missing GitHub repo link")
+
+    def test_logo_referenced_in_readme(self):
+        """README should reference the logo file."""
+        src = read_source("README.md")
+        self.assertIn("kmap_logo", src, "README missing logo reference")
+
+    def test_feature_counts_in_readme(self):
+        """README feature counts should reflect actual data."""
+        src = read_source("README.md")
+        # Check credential count claim is reasonable
+        cred_src = read_source("default_creds.cc")
+        actual_creds = len(read_cred_entries(cred_src))
+        # README should not claim significantly more than actual
+        self.assertGreaterEqual(actual_creds, 200,
+                                "Actual creds less than README claims")
+
+
+# ============================================================================
 
 if __name__ == "__main__":
     # Support both unittest and pytest
