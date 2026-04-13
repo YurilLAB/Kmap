@@ -671,8 +671,14 @@ static int insert_cve(sqlite3_stmt *stmt, const std::string &cve_id,
     sqlite3_bind_null(stmt, 3);
   else
     sqlite3_bind_text(stmt, 3, vendor.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 4, vmin.empty() ? nullptr : vmin.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 5, vmax.empty() ? nullptr : vmax.c_str(), -1, SQLITE_TRANSIENT);
+  if (vmin.empty())
+    sqlite3_bind_null(stmt, 4);
+  else
+    sqlite3_bind_text(stmt, 4, vmin.c_str(), -1, SQLITE_TRANSIENT);
+  if (vmax.empty())
+    sqlite3_bind_null(stmt, 5);
+  else
+    sqlite3_bind_text(stmt, 5, vmax.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_double(stmt, 6, static_cast<double>(cvss));
   sqlite3_bind_text(stmt, 7, severity.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 8, desc.c_str(), -1, SQLITE_TRANSIENT);
@@ -731,7 +737,7 @@ static int import_from_text(const char *path, sqlite3 *db) {
     std::string vendor  = fields.size() > 2 ? str_lower(fields[2]) : "";
     std::string vmin    = fields.size() > 3 ? fields[3] : "";
     std::string vmax    = fields.size() > 4 ? fields[4] : "";
-    float cvss          = fields.size() > 5 ? 0.0f : 0.0f;
+    float cvss          = 0.0f;
     std::string severity = fields.size() > 6 ? fields[6] : "";
     std::string desc    = fields.size() > 7 ? fields[7] : "";
 

@@ -32,7 +32,7 @@ stamp-h1
 /nping/nping_config.h
 /nsock/include/nsock_config.h
 /nsock/tests/tests_main
-/tests/*_test
+/tests/
 /zekmap/build/
 /zekmap/INSTALLED_FILES
 TAGS

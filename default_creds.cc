@@ -496,7 +496,13 @@ static void close_fd(int fd) {
 }
 
 static bool fd_send(int fd, const char *buf, size_t len) {
-  return send(fd, buf, static_cast<int>(len), 0) == static_cast<int>(len);
+  size_t sent = 0;
+  while (sent < len) {
+    int n = send(fd, buf + sent, static_cast<int>(len - sent), 0);
+    if (n <= 0) return false;
+    sent += static_cast<size_t>(n);
+  }
+  return true;
 }
 
 static int fd_recv(int fd, char *buf, size_t len, int timeout_ms) {
@@ -966,7 +972,9 @@ static bool probe_postgresql(const char *ip, uint16_t port,
     for (char c : pg_pass) pw_msg.push_back(static_cast<uint8_t>(c));
     pw_msg.push_back(0);
 
-    fd_send(fd, reinterpret_cast<const char *>(pw_msg.data()), pw_msg.size());
+    if (!fd_send(fd, reinterpret_cast<const char *>(pw_msg.data()), pw_msg.size())) {
+      close_fd(fd); return false;
+    }
     memset(buf, 0, sizeof(buf));
     n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
     close_fd(fd);

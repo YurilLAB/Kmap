@@ -213,7 +213,13 @@ static void close_fd_wr(int fd) {
 }
 
 static bool send_all(int fd, const char *buf, size_t len) {
-  return send(fd, buf, static_cast<int>(len), 0) == static_cast<int>(len);
+  size_t sent = 0;
+  while (sent < len) {
+    int n = send(fd, buf + sent, static_cast<int>(len - sent), 0);
+    if (n <= 0) return false;
+    sent += static_cast<size_t>(n);
+  }
+  return true;
 }
 
 static std::string recv_response(int fd, int timeout_ms, size_t max_bytes = 65536) {
@@ -380,7 +386,12 @@ static std::string https_get(const char *ip, uint16_t port,
   }
 
   std::string req = build_request(path, ip);
-  SSL_write(ssl, req.c_str(), static_cast<int>(req.size()));
+  if (SSL_write(ssl, req.c_str(), static_cast<int>(req.size())) <= 0) {
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    close_fd_wr(fd);
+    return "";
+  }
 
   std::string response;
   char chunk[4096];
