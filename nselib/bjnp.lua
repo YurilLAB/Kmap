@@ -8,7 +8,7 @@
 -- @author Patrik Karlsson <patrik [at] cqure.net>
 --
 
-local nmap = require("nmap")
+local kmap = require("kmap")
 local os = require("os")
 local stdnse = require("stdnse")
 local table = require("table")
@@ -230,7 +230,7 @@ Helper = {
   -- @return status, true on success, false on failure
   -- @return err string containing the error message if status is false
   connect = function(self)
-    self.socket = nmap.new_socket(( self.options.bcast and "udp" ))
+    self.socket = kmap.new_socket(( self.options.bcast and "udp" ))
     self.socket:set_timeout(self.options.timeout)
     if ( not(self.options.bcast) ) then
       return self.socket:connect(self.host, self.port)

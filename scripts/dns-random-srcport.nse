@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local stdnse = require "stdnse"
@@ -17,7 +17,7 @@ server. In addition your IP address will be sent along with the
 porttest query to the DNS server running on the target.
 ]]
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 author = [[
 Script: Brandon Enright <bmenrigh@ucsd.edu>
@@ -26,7 +26,7 @@ porttest.dns-oarc.net: Duane Wessels <wessels@dns-oarc.net>
 
 ---
 -- @usage
--- nmap -sU -p 53 --script=dns-random-srcport <target>
+-- kmap -sU -p 53 --script=dns-random-srcport <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 53/udp open  domain  udp-response
@@ -36,7 +36,7 @@ porttest.dns-oarc.net: Duane Wessels <wessels@dns-oarc.net>
 -- service.  Duane/OARC believe the service is valuable to the community
 -- and have no plans to ever turn the service off.
 -- The likely long-term availability makes this script a good candidate
--- for inclusion in Nmap proper.
+-- for inclusion in Kmap proper.
 
 categories = {"external", "intrusive"}
 
@@ -81,7 +81,7 @@ action = function(host, port)
   end
 
   -- Update the port
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   -- Now we need to "parse" the results to check to see if they are good
 

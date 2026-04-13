@@ -1,6 +1,6 @@
 local comm = require "comm"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -19,7 +19,7 @@ _ENV = stdnse.module("mqtt", stdnse.seeall)
 -- should not be difficult.
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 MQTT = {
   -- Types of control packets
@@ -460,7 +460,7 @@ Helper = {
     end
     assert(type(timeout) == "number")
 
-    local end_time = nmap.clock_ms() + timeout * 1000
+    local end_time = kmap.clock_ms() + timeout * 1000
     while true do
       -- Get the raw packet from the socket.
       local status, pkt = self.comm:receive()
@@ -483,7 +483,7 @@ Helper = {
 
       -- Check timeout, but only if we care about it.
       if timeout > 0 then
-        if nmap.clock_ms() >= end_time then
+        if kmap.clock_ms() >= end_time then
           break
         end
       end
@@ -536,7 +536,7 @@ MQTT.packet["CONNECT"].build = function(options)
   if not client_id then
     -- We throw in randomness in case there are multiple scripts using this
     -- library on a single port.
-    client_id = "nmap" .. rand.random_alpha(16)
+    client_id = "kmap" .. rand.random_alpha(16)
   end
   assert(type(client_id) == "string")
   tail = tail .. MQTT.utf8_build(client_id)

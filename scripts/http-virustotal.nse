@@ -24,7 +24,7 @@ where status of the queued file may be checked.
 
 ---
 -- @usage
--- nmap --script http-virustotal --script-args='http-virustotal.apikey="<key>",http-virustotal.checksum="275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"'
+-- kmap --script http-virustotal --script-args='http-virustotal.apikey="<key>",http-virustotal.checksum="275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"'
 --
 -- @output
 -- Pre-scan script results:
@@ -90,7 +90,7 @@ where status of the queued file may be checked.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories={"safe", "malware", "external"}
 
 
@@ -122,7 +122,7 @@ local function requestFileScan(filename)
   end
 
   local shortfile = filename:match("^.*[\\/](.*)$")
-  local boundary = "----------------------------nmapboundary"
+  local boundary = "----------------------------kmapboundary"
   local header = { ["Content-Type"] = ("multipart/form-data; boundary=%s"):format(boundary) }
   local postdata = ("--%s\r\n"
   .. 'Content-Disposition: form-data; name="apikey"\r\n\r\n'

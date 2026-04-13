@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local dhcp6 = require "dhcp6"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 
@@ -9,7 +9,7 @@ Sends a DHCPv6 request (Solicit) to the DHCPv6 multicast address,
 parses the response, then extracts and prints the address along with
 any options returned by the server.
 
-The script requires Nmap to be run in privileged mode as it binds the socket
+The script requires Kmap to be run in privileged mode as it binds the socket
 to a privileged port (udp/546).
 ]]
 
@@ -18,7 +18,7 @@ to a privileged port (udp/546).
 -- @see dhcp-discover.nse
 --
 -- @usage
--- nmap -6 --script broadcast-dhcp6-discover
+-- kmap -6 --script broadcast-dhcp6-discover
 --
 -- @output
 -- | broadcast-dhcp6-discover:
@@ -35,17 +35,17 @@ to a privileged port (udp/546).
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
 
-  if nmap.address_family() ~= 'inet6' then
+  if kmap.address_family() ~= 'inet6' then
     stdnse.debug1("is IPv6 compatible only.")
     return false
   end
@@ -53,7 +53,7 @@ prerule = function()
 end
 
 local function solicit(iface, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local helper = dhcp6.Helper:new(iface)
   if ( not(helper) ) then
     condvar "signal"
@@ -71,7 +71,7 @@ end
 action = function(host, port)
 
   local ifs, result, threads = {}, {}, {}
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
 
   local ifs = {}
   local collect_interfaces = function (if_table)

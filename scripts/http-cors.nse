@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -22,7 +22,7 @@ the responses.
 -- <code>example.com</code>.
 --
 -- @usage
--- nmap -p 80 --script http-cors <target>
+-- kmap -p 80 --script http-cors <target>
 --
 -- @output
 -- 80/tcp open
@@ -30,7 +30,7 @@ the responses.
 
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -86,8 +86,8 @@ local function test(host, port, method, origin)
 end
 
 action = function(host, port)
-  local path = nmap.registry.args["http-cors.path"] or "/"
-  local origin =  nmap.registry.args["http-cors.origin"] or "example.com"
+  local path = kmap.registry.args["http-cors.path"] or "/"
+  local origin =  kmap.registry.args["http-cors.origin"] or "example.com"
   local allowed = {}
   for _, method in ipairs(methods) do
     if test(host, port, method, origin) then

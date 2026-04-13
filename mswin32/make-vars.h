@@ -1,14 +1,14 @@
 define IGNORE
-#include "../nmap.h"
+#include "../kmap.h"
 endef
 
-#define EXPORT(_var) export $(name)##_var:= $(patsubst "%,%,$(patsubst %",%,$(subst " ",,NMAP##_var)))
+#define EXPORT(_var) export $(name)##_var:= $(patsubst "%,%,$(patsubst %",%,$(subst " ",,KMAP##_var)))
 
-name = NMAP
+name = KMAP
 EXPORT(_NAME)
 EXPORT(_VERSION)
 EXPORT(_NUM_VERSION)
-#undef NMAP_NAME
-#include "../../nmap-build/nmap-oem.h"
-#define NMAP_OEM_NAME NMAP_NAME
+#undef KMAP_NAME
+#include "../../kmap-build/kmap-oem.h"
+#define KMAP_OEM_NAME KMAP_NAME
 EXPORT(_OEM_NAME)

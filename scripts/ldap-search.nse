@@ -1,6 +1,6 @@
 local comm = require "comm"
 local ldap = require "ldap"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -9,7 +9,7 @@ local table = require "table"
 description = [[
 Attempts to perform an LDAP search and returns all matches.
 
-If no username and password is supplied to the script the Nmap registry
+If no username and password is supplied to the script the Kmap registry
 is consulted. If the <code>ldap-brute</code> script has been selected
 and it found a valid account, this account will be used. If not
 anonymous bind will be used as a last attempt.
@@ -47,10 +47,10 @@ anonymous bind will be used as a last attempt.
 --       the output type selected.
 --
 -- @usage
--- nmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
+-- kmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
 -- ldap.qfilter=users,ldap.attrib=sAMAccountName' <host>
 --
--- nmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
+-- kmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
 -- ldap.qfilter=custom,ldap.searchattrib="operatingSystem",ldap.searchvalue="Windows *Server*",ldap.attrib={operatingSystem,whencreated,OperatingSystemServicePack}' <host>
 --
 -- @output
@@ -98,7 +98,7 @@ anonymous bind will be used as a last attempt.
 -- Created 01/12/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 01/20/2010 - v0.2 - added SSL support
 -- Revised 01/26/2010 - v0.3 - Changed SSL support to comm.tryssl, prefixed arguments with ldap, changes in determination of namingContexts
--- Revised 02/17/2010 - v0.4 - Added dependency to ldap-brute and the abilitity to check for ldap accounts (credentials) stored in nmap registry
+-- Revised 02/17/2010 - v0.4 - Added dependency to ldap-brute and the abilitity to check for ldap accounts (credentials) stored in kmap registry
 --                             Capped output to 20 entries, use ldap.maxObjects to override
 -- Revised 07/16/2010 - v0.5 - Fixed bug with empty contexts, added objectClass person to qfilter users, add error msg for invalid credentials
 -- Revised 09/05/2011 - v0.6 - Added support for saving searches to a file via argument ldap.savesearch
@@ -107,7 +107,7 @@ anonymous bind will be used as a last attempt.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -120,7 +120,7 @@ function action(host,port)
 
   local status
   local socket, opt
-  local args = nmap.registry.args
+  local args = kmap.registry.args
   local username = stdnse.get_script_args('ldap.username')
   local password = stdnse.get_script_args('ldap.password')
   local qfilter = stdnse.get_script_args('ldap.qfilter')
@@ -144,8 +144,8 @@ function action(host,port)
   end
 
   -- Check if ldap-brute stored us some credentials
-  if ( not(username) and nmap.registry.ldapaccounts~=nil ) then
-    accounts = nmap.registry.ldapaccounts
+  if ( not(username) and kmap.registry.ldapaccounts~=nil ) then
+    accounts = kmap.registry.ldapaccounts
   end
 
   -- We close and re-open the socket so that the anonymous bind does not distract us

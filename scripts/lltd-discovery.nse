@@ -1,6 +1,6 @@
 local datafiles = require "datafiles"
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -20,7 +20,7 @@ http://www.microsoft.com/whdc/connect/Rally/LLTD-spec.mspx
 
 ---
 -- @usage
--- nmap -e <interface> --script lltd-discovery
+-- kmap -e <interface> --script lltd-discovery
 --
 -- @args lltd-discovery.interface string specifying which interface to do lltd discovery on.  If not specified, all ethernet interfaces are tried.
 -- @args lltd-discovery.timeout timespec specifying how long to listen for replies (default 30s)
@@ -41,17 +41,17 @@ http://www.microsoft.com/whdc/connect/Rally/LLTD-spec.mspx
 --
 
 author = {"Gorjan Petrovski", "Hani Benhabiles"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast","discovery","safe"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return nil
   end
 
@@ -63,7 +63,7 @@ end
 -- @return formatted string suitable for printing
 local function get_mac_addr( mac )
   local catch = function() return end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local mac_prefixes = try(datafiles.parse_mac_prefixes())
 
   if mac:len() ~= 6 then
@@ -190,12 +190,12 @@ end
 --- Runs a thread which discovers LLTD Responders on a certain interface
 local LLTDDiscover = function(if_table, lltd_responders, timeout)
   local timeout_s = 3
-  local condvar = nmap.condvar(lltd_responders)
-  local pcap = nmap.new_socket()
+  local condvar = kmap.condvar(lltd_responders)
+  local pcap = kmap.new_socket()
   pcap:set_timeout(5000)
 
-  local dnet = nmap.new_dnet()
-  local try = nmap.new_try(function() dnet:ethernet_close() pcap:close() end)
+  local dnet = kmap.new_dnet()
+  local try = kmap.new_try(function() dnet:ethernet_close() pcap:close() end)
 
   pcap:pcap_open(if_table.device, 256, false, "")
   try(dnet:ethernet_open(if_table.device))
@@ -264,7 +264,7 @@ action = function()
 
   local lltd_responders={}
   local threads ={}
-  local condvar = nmap.condvar(lltd_responders)
+  local condvar = kmap.condvar(lltd_responders)
 
   -- party time
   for dev, if_table in pairs(interfaces) do
@@ -288,7 +288,7 @@ action = function()
   end
   
   if target.ALLOW_NEW_TARGETS then
-    local addrtype = nmap.address_family() == "inet" and "ipv4" or "ipv6"
+    local addrtype = kmap.address_family() == "inet" and "ipv4" or "ipv6"
     for key, info in pairs(lltd_responders) do
       if info[addrtype] then
         target.add(info[addrtype])

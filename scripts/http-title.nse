@@ -13,7 +13,7 @@ http library.
 ---
 --@args http-title.url The url to fetch. Default: /
 --@output
--- Nmap scan report for scanme.nmap.org (74.207.244.221)
+-- Kmap scan report for scanme.kmap.org (74.207.244.221)
 -- PORT   STATE SERVICE
 -- 80/tcp open  http
 -- |_http-title: Go ahead and ScanMe!
@@ -26,7 +26,7 @@ http library.
 
 author = "Diman Todorov"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 

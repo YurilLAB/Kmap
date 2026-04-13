@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local sip = require "sip"
 local stdnse = require "stdnse"
@@ -28,9 +28,9 @@ Timeout (408) or Hang up (200).
 -- <code>5s</code>
 --
 -- @usage
--- nmap --script=sip-call-spoof -sU -p 5060 <targets>
--- nmap --script=sip-call-spoof -sU -p 5060 --script-args
--- 'sip-call-spoof.ua=Nmap, sip-call-spoof.from=Boss' <targets>
+-- kmap --script=sip-call-spoof -sU -p 5060 <targets>
+-- kmap --script=sip-call-spoof -sU -p 5060 --script-args
+-- 'sip-call-spoof.ua=Kmap, sip-call-spoof.from=Boss' <targets>
 --
 --@output
 -- 5060/udp open  sip
@@ -40,7 +40,7 @@ Timeout (408) or Hang up (200).
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive"}
 
@@ -79,14 +79,14 @@ end
 --  could be 180, 200, 486, 408 or 603
 local waitresponses = function(session,timeout)
   local response, status, data, responsecode, ringing, waittime
-  local start = nmap.clock_ms()
+  local start = kmap.clock_ms()
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, data = session.conn:recv()
     if status then
       response = sip.Response:new(data)
       responsecode = response:getErrorCode()
-      waittime = nmap.clock_ms() - start
+      waittime = kmap.clock_ms() - start
       if responsecode == sip.Error.RING then
         ringing = true
       elseif responsecode == sip.Error.BUSY then
@@ -146,8 +146,8 @@ action = function(host, port)
   local ringing, result, waittime = invitespoof(session, ua, from, src, extension, timeout)
   -- If we get a response, we set the port to open.
   if result then
-    if nmap.get_port_state(host, port) ~= "open" then
-      nmap.set_port_state(host, port, "open")
+    if kmap.get_port_state(host, port) ~= "open" then
+      kmap.set_port_state(host, port, "open")
     end
   end
 

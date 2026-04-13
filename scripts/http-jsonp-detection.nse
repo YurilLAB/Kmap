@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local http = require "http"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -24,7 +24,7 @@ References : https://securitycafe.ro/2017/01/18/practical-jsonp-injection/
 
 ---
 -- @usage
--- nmap -p 80 --script http-jsonp-detection <target>
+-- kmap -p 80 --script http-jsonp-detection <target>
 --
 -- @output
 -- 80/tcp open  http    syn-ack
@@ -42,7 +42,7 @@ References : https://securitycafe.ro/2017/01/18/practical-jsonp-injection/
 ---
 
 author = {"Vinamra Bhatia"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "vuln", "discovery"}
 
 portrule = shortport.http
@@ -182,7 +182,7 @@ action = function(host, port)
   if next(output_xml['jsonp-endpoints']) then
     return output_xml, output_str
   else
-    if nmap.verbosity() > 1 then
+    if kmap.verbosity() > 1 then
       return "Couldn't find any JSONP endpoints."
     end
   end

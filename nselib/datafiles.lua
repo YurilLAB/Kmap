@@ -1,22 +1,22 @@
 ---
--- Read and parse some of Nmap's data files: <code>nmap-protocols</code>,
--- <code>nmap-rpc</code>, <code>nmap-services</code>, and
--- <code>nmap-mac-prefixes</code>.
+-- Read and parse some of Kmap's data files: <code>kmap-protocols</code>,
+-- <code>kmap-rpc</code>, <code>kmap-services</code>, and
+-- <code>kmap-mac-prefixes</code>.
 --
 -- The functions in this module return values appropriate for use with exception
--- handling via <code>nmap.new_try</code>. On success, they return true and
+-- handling via <code>kmap.new_try</code>. On success, they return true and
 -- the function result. On failure, they return false and an error message.
 -- @author Kris Katterjohn 03/2008
 -- @author jah 08/2008
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
--- mostly undocumented library for direct lookups in Nmap datafiles:
-local nmapdb = require "nmapdb"
+-- mostly undocumented library for direct lookups in Kmap datafiles:
+local kmapdb = require "kmapdb"
 _ENV = stdnse.module("datafiles", stdnse.seeall)
 
 
@@ -26,32 +26,32 @@ _ENV = stdnse.module("datafiles", stdnse.seeall)
 -- @name common_files
 -- @see parse_file
 local common_files = {
-  ["nmap-rpc"]       = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)" ) ) end] = "^%s*([^%s#]+)%s+%d+" },
-  ["nmap-protocols"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)" ) ) end] = "^%s*([^%s#]+)%s+%d+" },
-  ["nmap-services"]  = { ["tcp"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)/tcp" ) ) end] = "^%s*([^%s#]+)%s+%d+/tcp" },
+  ["kmap-rpc"]       = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)" ) ) end] = "^%s*([^%s#]+)%s+%d+" },
+  ["kmap-protocols"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)" ) ) end] = "^%s*([^%s#]+)%s+%d+" },
+  ["kmap-services"]  = { ["tcp"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)/tcp" ) ) end] = "^%s*([^%s#]+)%s+%d+/tcp" },
     ["udp"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)/udp" ) ) end] = "^%s*([^%s#]+)%s+%d+/udp" }
   },
-  ["nmap-mac-prefixes"] = { [ "^%s*(%w+)%s+[^#]+" ] = "^%s*%w+%s+([^#]+)" }
+  ["kmap-mac-prefixes"] = { [ "^%s*(%w+)%s+[^#]+" ] = "^%s*%w+%s+([^#]+)" }
 
 }
 
 -- Helper for parse_* functions
 local parse_and_cache = function(filename)
-  nmap.registry.datafiles = nmap.registry.datafiles or {}
-  if not nmap.registry.datafiles[filename] then
+  kmap.registry.datafiles = kmap.registry.datafiles or {}
+  if not kmap.registry.datafiles[filename] then
     local status
-    status, nmap.registry.datafiles[filename] = parse_file(filename)
+    status, kmap.registry.datafiles[filename] = parse_file(filename)
     if not status then
       return false, string.format("Error parsing %s", filename)
     end
   end
 
-  return true, nmap.registry.datafiles[filename]
+  return true, kmap.registry.datafiles[filename]
 end
 
 
 ---
--- Read and parse <code>nmap-protocols</code>.
+-- Read and parse <code>kmap-protocols</code>.
 --
 -- On success, return true and a table mapping protocol numbers to protocol
 -- names.
@@ -59,19 +59,19 @@ end
 -- @return Table (if status is true) or error string (if status is false).
 -- @see parse_file
 parse_protocols = function()
-  return parse_and_cache("nmap-protocols")
+  return parse_and_cache("kmap-protocols")
 end
 
 
 ---
--- Read and parse <code>nmap-rpc</code>.
+-- Read and parse <code>kmap-rpc</code>.
 --
 -- On success, return true and a table mapping RPC numbers to RPC names.
 -- @return Status (true or false).
 -- @return Table (if status is true) or error string (if status is false).
 -- @see parse_file
 parse_rpc = function()
-  return parse_and_cache("nmap-rpc")
+  return parse_and_cache("kmap-rpc")
 end
 
 local prohibited = function()
@@ -80,7 +80,7 @@ end
 local services_table = {}
 local portlookup_mt = {
   __index = function(t, port)
-    return nmapdb.getservbyport(port, rawget(t, "proto"))
+    return kmapdb.getservbyport(port, rawget(t, "proto"))
   end,
   __newindex = prohibited,
 }
@@ -89,7 +89,7 @@ for _, proto in ipairs({"tcp", "udp", "sctp"}) do
 end
 
 ---
--- Read and parse <code>nmap-services</code>.
+-- Read and parse <code>kmap-services</code>.
 --
 -- On success, return true and a table containing subtables indexed by the
 -- keys "tcp", "udp", and "sctp". You can
@@ -105,7 +105,7 @@ parse_services = function(protocol)
   if protocol then
     t = services_table[protocol]
     if not t then
-      return false, "Bad protocol for nmap-services"
+      return false, "Bad protocol for kmap-services"
     end
   else
     t = services_table
@@ -124,16 +124,16 @@ local mac_table = setmetatable({}, {
       -- probably hex
       mac = mac .. ("0"):rep(12 - #mac)
     end
-    return nmapdb.mac2corp(mac)
+    return kmapdb.mac2corp(mac)
   end,
   __newindex = prohibited,
 })
 ---
--- Read and parse <code>nmap-mac-prefixes</code>.
+-- Read and parse <code>kmap-mac-prefixes</code>.
 --
 -- On success, return true and a table mapping MAC prefixes to manufacturer
 -- names. The whole MAC can also be used as a key, since the table calls an
--- internal Nmap function to do the lookup.
+-- internal Kmap function to do the lookup.
 -- @return Status (true or false).
 -- @return Table (if status is true) or error string (if status is false).
 -- @see parse_file
@@ -268,9 +268,9 @@ end
 function read_from_file( file )
 
   -- get path to file
-  local filepath = nmap.fetchfile( file )
+  local filepath = kmap.fetchfile( file )
   if not filepath then
-    return false, ( "Error in nmap.fetchfile: Could not find file %s." ):format( file )
+    return false, ( "Error in kmap.fetchfile: Could not find file %s." ):format( file )
   end
 
   local f, err, _ = io.open( filepath, "r" )

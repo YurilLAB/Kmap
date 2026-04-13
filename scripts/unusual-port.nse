@@ -1,5 +1,5 @@
 local datafiles = require "datafiles"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -12,7 +12,7 @@ service is actually running on each port.
 
 ---
 -- @usage
--- nmap --script unusual-port <ip>
+-- kmap --script unusual-port <ip>
 --
 -- @output
 -- 23/tcp open   ssh     OpenSSH 5.8p1 Debian 7ubuntu1 (protocol 2.0)
@@ -21,7 +21,7 @@ service is actually running on each port.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "safe" }
 
 
@@ -47,7 +47,7 @@ hostaction = function(host)
   -- suggest that a version scan has been run
   for _, proto in ipairs({"tcp", "udp"}) do
     repeat
-      port = nmap.get_ports(host, port, proto, state)
+      port = kmap.get_ports(host, port, proto, state)
       if ( port and port.version.name_confidence > 3 ) then
         is_version_scan = true
         break
@@ -58,7 +58,7 @@ hostaction = function(host)
   -- if no version scan has been run, warn the user as the script requires a
   -- version scan in order to work.
   if ( not(is_version_scan) ) then
-    return stdnse.format_output(true, "WARNING: this script depends on Nmap's service/version detection (-sV)")
+    return stdnse.format_output(true, "WARNING: this script depends on Kmap's service/version detection (-sV)")
   end
 
 end

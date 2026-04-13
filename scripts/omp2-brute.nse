@@ -9,7 +9,7 @@ Performs brute force password auditing against the OpenVAS manager using OMPv2.
 
 ---
 -- @usage
--- nmap -p 9390 --script omp2-brute <target>
+-- kmap -p 9390 --script omp2-brute <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -20,7 +20,7 @@ Performs brute force password auditing against the OpenVAS manager using OMPv2.
 --
 
 author = "Henri Doreau"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 

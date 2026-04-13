@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local tab = require "tab"
@@ -34,16 +34,16 @@ firewalk tool.
 
 ---
 -- @usage
--- nmap --script=firewalk --traceroute <host>
+-- kmap --script=firewalk --traceroute <host>
 --
 -- @usage
--- nmap --script=firewalk --traceroute --script-args=firewalk.max-retries=1 <host>
+-- kmap --script=firewalk --traceroute --script-args=firewalk.max-retries=1 <host>
 --
 -- @usage
--- nmap --script=firewalk --traceroute --script-args=firewalk.probe-timeout=400ms <host>
+-- kmap --script=firewalk --traceroute --script-args=firewalk.probe-timeout=400ms <host>
 --
 -- @usage
--- nmap --script=firewalk --traceroute --script-args=firewalk.max-probed-ports=7 <host>
+-- kmap --script=firewalk --traceroute --script-args=firewalk.max-probed-ports=7 <host>
 --
 --
 -- @args firewalk.max-retries the maximum number of allowed retransmissions.
@@ -71,7 +71,7 @@ firewalk tool.
 
 author = "Henri Doreau"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -433,13 +433,13 @@ local Firewalk_v4 = {
   init = function(scanner)
     local saddr = ipOps.str_to_ip(scanner.target.bin_ip_src)
 
-    scanner.sock = nmap.new_dnet()
-    scanner.pcap = nmap.new_socket()
+    scanner.sock = kmap.new_dnet()
+    scanner.pcap = kmap.new_socket()
 
     -- filter for incoming ICMP time exceeded replies
     scanner.pcap:pcap_open(scanner.target.interface, 104, false, "icmp and dst host " .. saddr)
 
-    local try = nmap.new_try()
+    local try = kmap.new_try()
     try(scanner.sock:ip_open())
   end,
 
@@ -499,13 +499,13 @@ local Firewalk_v6 = {
   init = function(scanner)
     local saddr = ipOps.str_to_ip(scanner.target.bin_ip_src)
 
-    scanner.sock = nmap.new_dnet()
-    scanner.pcap = nmap.new_socket()
+    scanner.sock = kmap.new_dnet()
+    scanner.pcap = kmap.new_socket()
 
     -- filter for incoming ICMP time exceeded replies
     scanner.pcap:pcap_open(scanner.target.interface, 1500, false, "icmp6 and dst host " .. saddr)
 
-    local try = nmap.new_try()
+    local try = kmap.new_try()
     try(scanner.sock:ip_open())
   end,
 
@@ -558,7 +558,7 @@ local Firewalk_v6 = {
 
 --- Initialize global function tables according to the current address family
 local function firewalk_init()
-  if nmap.address_family() == "inet" then
+  if kmap.address_family() == "inet" then
     proto_vtable.tcp = tcp_funcs_v4
     proto_vtable.udp = udp_funcs_v4
     Firewalk = Firewalk_v4
@@ -586,7 +586,7 @@ local function build_portlist(host)
     local state = combo[2]
 
     repeat
-      port = nmap.get_ports(host, port, proto, state)
+      port = kmap.get_ports(host, port, proto, state)
 
       -- do not include administratively prohibited ports
       if port and port.reason == "no-response" then
@@ -673,12 +673,12 @@ end
 
 --- host rule, check for requirements before to launch the script
 hostrule = function(host)
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return false
   end
 
@@ -705,17 +705,17 @@ end
 local function initial_ttl(host)
 
   if not host.traceroute then
-    if not nmap.registry['firewalk'] then
-      nmap.registry['firewalk'] = {}
+    if not kmap.registry['firewalk'] then
+      kmap.registry['firewalk'] = {}
     end
 
-    if nmap.registry['firewalk']['traceroutefail'] then
+    if kmap.registry['firewalk']['traceroutefail'] then
       return nil
     end
 
-    nmap.registry['firewalk']['traceroutefail'] = true
+    kmap.registry['firewalk']['traceroutefail'] = true
 
-    if nmap.verbosity() > 0 then
+    if kmap.verbosity() > 0 then
       stdnse.debug1("requires unavailable traceroute information.")
     end
 
@@ -896,7 +896,7 @@ end
 -- @param probe the probe specifications and related information
 local function send_probe(scanner, probe)
 
-  local try = nmap.new_try(function() scanner.sock:ip_close() end)
+  local try = kmap.new_try(function() scanner.sock:ip_close() end)
 
   stdnse.debug1("Sending new probe (%d/%s ttl=%d)", probe.portno, probe.proto, probe.ttl)
 
@@ -907,7 +907,7 @@ local function send_probe(scanner, probe)
 
   -- update probe information
   probe.retry = probe.retry + 1
-  probe.sent_time = nmap.clock_ms()
+  probe.sent_time = kmap.clock_ms()
 
 end
 
@@ -951,7 +951,7 @@ local function read_replies(scanner)
   local timeout = RecvTimeout
   repeat
 
-    local start = nmap.clock_ms()
+    local start = kmap.clock_ms()
 
     scanner.pcap:set_timeout(timeout)
 
@@ -961,7 +961,7 @@ local function read_replies(scanner)
       Firewalk.parse_reply(scanner, l3)
     end
 
-    timeout = timeout - (nmap.clock_ms() - start)
+    timeout = timeout - (kmap.clock_ms() - start)
 
   until timeout <= 0 or #scanner.active_probes == 0
 end
@@ -970,7 +970,7 @@ end
 -- @param scanner the scanner handle
 local function update_probe_queues(scanner)
 
-  local now = nmap.clock_ms()
+  local now = kmap.clock_ms()
 
   -- remove timedout probes
   for i, probe in ipairs(scanner.active_probes) do

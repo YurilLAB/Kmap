@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local comm = require "comm"
@@ -6,7 +6,7 @@ local ipOps = require "ipOps"
 
 description = [[
 Tridium Niagara Fox is a protocol used within Building Automation Systems. Based
-off Billy Rios and Terry McCorkle's work this Nmap NSE will collect information
+off Billy Rios and Terry McCorkle's work this Kmap NSE will collect information
 from A Tridium Niagara system.
 
 http://digitalbond.com
@@ -15,7 +15,7 @@ http://digitalbond.com
 
 ---
 -- @usage
--- nmap --script fox-info.nse -p 1911 <host>
+-- kmap --script fox-info.nse -p 1911 <host>
 --
 -- @output
 -- 1911/tcp open  Niagara Fox
@@ -48,19 +48,19 @@ http://digitalbond.com
 --<elem key="brandId">vykon</elem>
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version"}
 
 
 portrule = shortport.version_port_or_service({1911, 4911}, "niagara-fox", "tcp")
 
 --  Action Function that is used to run the NSE. This function will send the
---  initial query to the host and port that were passed in via nmap. The
+--  initial query to the host and port that were passed in via kmap. The
 --  initial response is parsed to determine if host is a Niagara Fox device. If it
 --  is then more actions are taken to gather extra information.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host, port)
   --set the first query data for sending
   local orig_query =
@@ -89,7 +89,7 @@ id=i:1
     return nil
   end
 
-  -- output table that will be returned to nmap
+  -- output table that will be returned to kmap
   local to_return = stdnse.output_table()
 
   local set = function (key, value)
@@ -132,8 +132,8 @@ id=i:1
   end
 
   port.version.name = "niagara-fox"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
-  -- return output table to nmap
+  -- return output table to kmap
   return to_return
 end

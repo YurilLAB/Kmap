@@ -18,7 +18,7 @@ needs to be obtained through free registration for this service:
 
 ---
 -- @usage
--- nmap --script ip-geolocation-ipinfodb <target> --script-args ip-geolocation-ipinfodb.apikey=<API_key>
+-- kmap --script ip-geolocation-ipinfodb <target> --script-args ip-geolocation-ipinfodb.apikey=<API_key>
 --
 -- @args ip-geolocation-ipinfodb.apikey A sting specifying the api-key which
 --       the user wants to use to access this service
@@ -42,7 +42,7 @@ needs to be obtained through free registration for this service:
 -- @see ip-geolocation-maxmind.nse
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","external","safe"}
 
 

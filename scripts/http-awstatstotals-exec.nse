@@ -1,6 +1,6 @@
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -28,8 +28,8 @@ References:
 
 ---
 -- @usage
--- nmap -sV --script http-awstatstotals-exec.nse --script-args 'http-awstatstotals-exec.cmd="uname -a", http-awstatstotals-exec.uri=/awstats/index.php' <target>
--- nmap -sV --script http-awstatstotals-exec.nse <target>
+-- kmap -sV --script http-awstatstotals-exec.nse --script-args 'http-awstatstotals-exec.cmd="uname -a", http-awstatstotals-exec.uri=/awstats/index.php' <target>
+-- kmap -sV --script http-awstatstotals-exec.nse <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -46,7 +46,7 @@ References:
 --
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive", "exploit"}
 
 
@@ -124,7 +124,7 @@ action = function(host, port)
     end
 
   else
-    if nmap.verbosity()>= 2 then
+    if kmap.verbosity()>= 2 then
       output[#output+1] = "[Error] Request did not return 200. Make sure your URI value is correct. A WAF might be blocking your request"
     end
   end

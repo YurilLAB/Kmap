@@ -15,7 +15,7 @@ exist. See the http library's documentation to set your own cookie.
 ]]
 
 ---
--- @usage nmap -p80 --script http-csrf.nse <target>
+-- @usage kmap -p80 --script http-csrf.nse <target>
 --
 -- @args http-csrf.singlepages The pages that contain the forms to check.
 --       For example, {/upload.php,  /login.php}. Default: nil (crawler
@@ -47,7 +47,7 @@ exist. See the http library's documentation to set your own cookie.
 
 categories = {"intrusive", "exploit", "vuln"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local formulas = require "formulas"

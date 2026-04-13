@@ -19,7 +19,7 @@ References:
 
 ---
 -- @usage
--- nmap --script=rmi-vuln-classloader -p 1099 <target>
+-- kmap --script=rmi-vuln-classloader -p 1099 <target>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -35,7 +35,7 @@ References:
 -- |_      https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/misc/java_rmi_server.rb
 
 author = "Aleksandar Nikolic";
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html";
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html";
 categories = {
   "intrusive",
   "vuln"

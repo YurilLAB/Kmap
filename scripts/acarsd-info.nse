@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -18,7 +18,7 @@ For more information about acarsd, see:
 
 ---
 -- @usage
--- nmap --script acarsd-info --script-args "acarsd-info.timeout=10,acarsd-info.bytes=512" -p <port> <host>
+-- kmap --script acarsd-info --script-args "acarsd-info.timeout=10,acarsd-info.bytes=512" -p <port> <host>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -41,7 +41,7 @@ For more information about acarsd, see:
 --
 
 author = "Brendan Coles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe","discovery"}
 
 
@@ -56,7 +56,7 @@ action = function(host, port)
   if not timeout or timeout < 0 then timeout = 10 end
 
   -- Set bytes
-  local bytes = tonumber(nmap.registry.args[SCRIPT_NAME .. '.bytes']) or 512
+  local bytes = tonumber(kmap.registry.args[SCRIPT_NAME .. '.bytes']) or 512
 
   -- Connect and retrieve acarsd info in XML format over TCP
   stdnse.debug1("Connecting to %s:%s [Timeout: %ss]", host.targetname or host.ip, port.number, timeout)
@@ -106,7 +106,7 @@ action = function(host, port)
   end
   port.version.name = "acarsd"
   port.version.product = "ACARS Decoder"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   -- Return results
   return stdnse.format_output(true, result)

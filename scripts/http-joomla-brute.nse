@@ -20,10 +20,10 @@ Joomla's default uri and form names:
 
 ---
 -- @usage
--- nmap -sV --script http-joomla-brute
+-- kmap -sV --script http-joomla-brute
 --   --script-args 'userdb=users.txt,passdb=passwds.txt,http-joomla-brute.hostname=domain.com,
 --                  http-joomla-brute.threads=3,brute.firstonly=true' <target>
--- nmap -sV --script http-joomla-brute <target>
+-- kmap -sV --script http-joomla-brute <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -53,7 +53,7 @@ Joomla's default uri and form names:
 -- @see http-form-brute.nse
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -68,7 +68,7 @@ local security_token
 local session_cookie_str
 
 ---
---This class implements the Brute library (https://nmap.org/nsedoc/lib/brute.html)
+--This class implements the Brute library (https://kmap.org/nsedoc/lib/brute.html)
 ---
 Driver = {
   new = function(self, host, port, options)

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -14,7 +14,7 @@ content filtering and antivirus scanning.
 
 ---
 -- @usage
--- nmap -p 1344 <ip> --script icap-info
+-- kmap -p 1344 <ip> --script icap-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -36,7 +36,7 @@ content filtering and antivirus scanning.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 
@@ -74,19 +74,19 @@ end
 
 action = function(host, port)
 
-  local services = {"/avscan", "/echo", "/srv_clamav", "/url_check", "/nmap" }
+  local services = {"/avscan", "/echo", "/srv_clamav", "/url_check", "/kmap" }
   local headers = {"Service", "ISTag"}
   local probe = {
     "OPTIONS icap://%s%s ICAP/1.0",
     "Host: %s",
-    "User-Agent: nmap icap-client/0.01",
+    "User-Agent: kmap icap-client/0.01",
     "Encapsulated: null-body=0"
   }
   local hostname = stdnse.get_hostname(host)
   local result = {}
 
   for _, service in ipairs(services) do
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     socket:set_timeout(5000)
     if ( not(socket:connect(host, port)) ) then
       return fail("Failed to connect to server")

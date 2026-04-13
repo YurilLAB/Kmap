@@ -1,11 +1,11 @@
 #!/bin/sh -e
 set -x
 
-test -n "${NMAP_VERSION}" || exit 1
+test -n "${KMAP_VERSION}" || exit 1
 export source=$1
-export title="nmap-${NMAP_VERSION}"
+export title="kmap-${KMAP_VERSION}"
 export size=50000
-export backgroundPictureName="nmap.png"
+export backgroundPictureName="kmap.png"
 export finalDMGName="${title}.dmg"
 export applicationName="${title}.mpkg"
 NB_FILES=7

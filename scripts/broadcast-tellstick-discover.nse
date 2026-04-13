@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 
@@ -10,7 +10,7 @@ dimmers and electric outlets. For more information: http://www.telldus.com/
 
 ---
 -- @usage
--- nmap --script broadcast-tellstick-discover
+-- kmap --script broadcast-tellstick-discover
 --
 -- @output
 -- | broadcast-tellstick-discover:
@@ -22,13 +22,13 @@ dimmers and electric outlets. For more information: http://www.telldus.com/
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-prerule = function() return ( nmap.address_family() == 'inet' ) end
+prerule = function() return ( kmap.address_family() == 'inet' ) end
 
 action = function()
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   local host, port = { ip = "255.255.255.255" }, { number = 30303, protocol = "udp" }
 
   socket:set_timeout(5000)

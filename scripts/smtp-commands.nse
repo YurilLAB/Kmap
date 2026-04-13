@@ -11,7 +11,7 @@ SMTP server.
 
 ---
 -- @usage
--- nmap --script smtp-commands.nse [--script-args smtp-commands.domain=<domain>] -pT:25,465,587 <host>
+-- kmap --script smtp-commands.nse [--script-args smtp-commands.domain=<domain>] -pT:25,465,587 <host>
 --
 -- @output
 -- PORT   STATE SERVICE REASON  VERSION
@@ -51,7 +51,7 @@ SMTP server.
 -- + Complete rewrite based off of Arturo 'Buanzo' Busleiman's SMTP open
 --   relay detector script.
 -- 2.0.1.0 - 2010-04-27
--- + Incorporated advice from Duarte Silva (http://seclists.org/nmap-dev/2010/q2/277)
+-- + Incorporated advice from Duarte Silva (http://seclists.org/kmap-dev/2010/q2/277)
 --   - 'domain' can be specified via a script-arg
 --   - removed extra EHLO command that was redundant and not needed
 --   - fixed two quit()s to include a return value
@@ -63,7 +63,7 @@ SMTP server.
 -- + Rewrite the script to use the smtp.lua library.
 
 author = "Jasey DePriest"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

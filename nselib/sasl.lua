@@ -34,7 +34,7 @@
 -- and they can also use the low level functions to customize their
 -- encoding functions.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- Version 0.2
 -- Created 07/17/2011 - v0.1 - Created by Djalal Harouni
@@ -207,7 +207,7 @@ if HAVE_SSL then
       self.is_extended = ( (self.flags & NTLM_NegotiateExtendedSecurity) == NTLM_NegotiateExtendedSecurity )
       local is_unicode  = ( (self.flags & NTLM_NegotiateUnicode) == NTLM_NegotiateUnicode )
 
-      self.workstation = "NMAP-HOST"
+      self.workstation = "KMAP-HOST"
       self.domain = self.username:match("^(.-)\\(.*)$") or "DOMAIN"
 
       if ( is_unicode ) then
@@ -272,7 +272,7 @@ if HAVE_SSL then
   -- @param username string.
   -- @param password string.
   -- @param challenge The challenge as it is returned by the server.
-  -- @return string The encoded string on success, or nil if Nmap was
+  -- @return string The encoded string on success, or nil if Kmap was
   --         compiled without OpenSSL.
   function cram_md5_enc(username, password, challenge)
     local encode = stdnse.tohex(openssl.hmac('md5',
@@ -289,7 +289,7 @@ if HAVE_SSL then
   -- @param service string containing the service that is requesting the
   --        encryption (eg. POP, IMAP, STMP)
   -- @param uri string containing the URI
-  -- @return string The encoded string on success, or nil if Nmap was
+  -- @return string The encoded string on success, or nil if Kmap was
   --         compiled without OpenSSL.
   function digest_md5_enc(username, password, challenge, service, uri)
     return DigestMD5:new(challenge,

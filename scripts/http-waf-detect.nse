@@ -34,8 +34,8 @@ following products:
 
 ---
 -- @usage
--- nmap -p80 --script http-waf-detect <host>
--- nmap -p80 --script http-waf-detect --script-args="http-waf-detect.aggro,http-waf-detect.uri=/testphp.vulnweb.com/artists.php" www.modsecurity.org
+-- kmap -p80 --script http-waf-detect <host>
+-- kmap -p80 --script http-waf-detect --script-args="http-waf-detect.aggro,http-waf-detect.uri=/testphp.vulnweb.com/artists.php" www.modsecurity.org
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -50,7 +50,7 @@ following products:
 --                                         the document's body
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 

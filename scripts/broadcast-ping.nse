@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local tab = require "tab"
@@ -17,7 +17,7 @@ as targets.  Root privileges on UNIX are required to run this script since it
 uses raw sockets.  Most operating systems don't respond to broadcast-ping
 probes, but they can be configured to do so.
 
-The interface on which is broadcasted can be specified using the -e Nmap option
+The interface on which is broadcasted can be specified using the -e Kmap option
 or the <code>broadcast-ping.interface</code> script-arg. If no interface is
 specified this script broadcasts on all ethernet interfaces which have an IPv4
 address defined.
@@ -33,7 +33,7 @@ The number of sent probes can be specified using the <code>num-probes</code>
 script-arg. The default number is 1. A higher value might get more results on
 larger networks.
 
-The ICMP probes sent comply with the --ttl and --data-length Nmap options, so
+The ICMP probes sent comply with the --ttl and --data-length Kmap options, so
 you can use those to control the TTL(time to live) and ICMP payload length
 respectively. The default value for TTL is 64, and the length of the payload
 is 0. The payload is consisted of random bytes.
@@ -41,7 +41,7 @@ is 0. The payload is consisted of random bytes.
 
 ---
 -- @usage
--- nmap -e <interface> [--ttl <ttl>] [--data-length <payload_length>]
+-- kmap -e <interface> [--ttl <ttl>] [--data-length <payload_length>]
 -- --script broadcast-ping [--script-args [broadcast-ping.timeout=<ms>],[num-probes=<n>]]
 --
 -- @args broadcast-ping.interface string specifying which interface to use for this script (default all interfaces)
@@ -57,21 +57,21 @@ is 0. The payload is consisted of random bytes.
 --
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","safe","broadcast"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return nil
   end
 
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -136,26 +136,26 @@ local icmp_packet = function(srcIP, dstIP, ttl, data_length, mtu, seqNo, icmp_id
 end
 
 local broadcast_if = function(if_table,icmp_responders)
-  local condvar = nmap.condvar(icmp_responders)
+  local condvar = kmap.condvar(icmp_responders)
 
   local num_probes = tonumber(stdnse.get_script_args(SCRIPT_NAME .. ".num-probes")) or 1
 
   local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
   timeout =  (timeout or 3) * 1000
 
-  local ttl = nmap.get_ttl()
+  local ttl = kmap.get_ttl()
 
-  local data_length = nmap.get_payload_length()
+  local data_length = kmap.get_payload_length()
   local sequence_number = 1
   local destination_IP = "255.255.255.255"
 
   -- raw IPv4 socket
-  local dnet = nmap.new_dnet()
-  local try = nmap.new_try()
-  try = nmap.new_try(function() dnet:ethernet_close() end)
+  local dnet = kmap.new_dnet()
+  local try = kmap.new_try()
+  try = kmap.new_try(function() dnet:ethernet_close() end)
 
   -- raw sniffing socket (icmp echoreply style)
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
 
   local mtu = if_table.mtu or 256  -- 256 is minimal mtu
 
@@ -184,7 +184,7 @@ local broadcast_if = function(if_table,icmp_responders)
     try( dnet:ethernet_send(ethernet_icmp) )
   end
 
-  local start_time = nmap.clock_ms()
+  local start_time = kmap.clock_ms()
   local now = start_time
   while( now - start_time < timeout ) do
     pcap:set_timeout(timeout - (now - start_time))
@@ -205,7 +205,7 @@ local broadcast_if = function(if_table,icmp_responders)
     else
       stdnse.debug1("Erroneous ICMP packet received; Cannot parse IP header.")
     end
-    now = nmap.clock_ms()
+    now = kmap.clock_ms()
   end
 
   pcap:close()
@@ -234,7 +234,7 @@ action = function()
 
   local icmp_responders={}
   local threads ={}
-  local condvar = nmap.condvar(icmp_responders)
+  local condvar = kmap.condvar(icmp_responders)
 
   -- party time
   for _, if_table in ipairs(interfaces) do

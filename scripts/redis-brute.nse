@@ -10,7 +10,7 @@ Performs brute force passwords auditing against a Redis key-value store.
 
 ---
 -- @usage
--- nmap -p 6379 <ip> --script redis-brute
+-- kmap -p 6379 <ip> --script redis-brute
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -24,7 +24,7 @@ Performs brute force passwords auditing against a Redis key-value store.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -19,7 +19,7 @@ Murmur servers.
 
 The IP address from which service detection is being ran will most
 likely be temporarily banned by the target Murmur server due to
-multiple incorrect handshakes (Nmap service probes). This ban makes
+multiple incorrect handshakes (Kmap service probes). This ban makes
 identifying the service via TCP impossible in practice, but does not
 affect the UDP probe used by this script.
 
@@ -37,13 +37,13 @@ See http://mumble.sourceforge.net/Protocol.
 -- 64740/udp open  murmur  Murmur 1.2.4 (voice port; users: 35; max. users: 100; bandwidth: 72000 b/s)
 
 author = "Marin Maržić"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "version" }
 
 portrule = shortport.version_port_or_service({64738}, "murmur", {"tcp", "udp"})
 
 action = function(host, port)
-  local mutex = nmap.mutex("murmur-version:" .. host.ip .. ":" .. port.number)
+  local mutex = kmap.mutex("murmur-version:" .. host.ip .. ":" .. port.number)
   mutex("lock")
 
   if host.registry["murmur-version"] == nil then
@@ -63,7 +63,7 @@ action = function(host, port)
     end
 
     -- UDP port is open
-    nmap.set_port_state(host, { number = port.number, protocol = "udp" }, "open")
+    kmap.set_port_state(host, { number = port.number, protocol = "udp" }, "open")
 
     if not string.match(result, "^%z...abcdefgh............$") then
       mutex("done")
@@ -95,7 +95,7 @@ action = function(host, port)
     port.version.extrainfo = "voice port" .. port.version.extrainfo
   end
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   return
 end

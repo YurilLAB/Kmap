@@ -1,7 +1,7 @@
---- The credential class stores found credentials in the Nmap registry
+--- The credential class stores found credentials in the Kmap registry
 --
 -- The credentials library may be used by scripts to store credentials in
--- a common format in the nmap registry. The Credentials class serves as
+-- a common format in the kmap registry. The Credentials class serves as
 -- a primary interface for scripts to the library.
 --
 -- The State table keeps track of possible account states and a corresponding
@@ -92,7 +92,7 @@
 --                       creds.http=admin:password
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- Version 0.5
 -- Created 2011/02/06 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
@@ -117,7 +117,7 @@
 local coroutine = require "coroutine"
 local io = require "io"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -135,7 +135,7 @@ _ENV = stdnse.module("creds", stdnse.seeall)
 -- @field VALID Valid credentials
 -- @field DISABLED Account is disabled
 -- @field CHANGEPW Valid credentials, password must be changed at next logon
--- @field PARAM Credentials passed to script during Nmap execution
+-- @field PARAM Credentials passed to script during Kmap execution
 -- @field EXPIRED Valid credentials, account expired
 -- @field TIME_RESTRICTED Valid credentials, account cannot log in at current time
 -- @field HOST_RESTRICTED Valid credentials, account cannot log in from current host
@@ -161,7 +161,7 @@ StateMsg = {
   [State.VALID]     = 'Valid credentials',
   [State.DISABLED]  = 'Account is disabled',
   [State.CHANGEPW]  = 'Valid credentials, password must be changed at next logon',
-  [State.PARAM]  = 'Credentials passed to script during Nmap execution',
+  [State.PARAM]  = 'Credentials passed to script during Kmap execution',
   [State.EXPIRED]   = 'Valid credentials, account expired',
   [State.TIME_RESTRICTED] = 'Valid credentials, account cannot log in at current time',
   [State.HOST_RESTRICTED] = 'Valid credentials, account cannot log in from current host',
@@ -208,8 +208,8 @@ RegStorage = {
       pass = pass,
       state = state
     }
-    nmap.registry.creds = nmap.registry.creds or {}
-    table.insert( nmap.registry.creds, cred )
+    kmap.registry.creds = kmap.registry.creds or {}
+    table.insert( kmap.registry.creds, cred )
   end,
 
   --- Sets the storage filter
@@ -232,9 +232,9 @@ RegStorage = {
     local function get_next()
       local host, port = self.filter.host, self.filter.port
 
-      if ( not(nmap.registry.creds) ) then return end
+      if ( not(kmap.registry.creds) ) then return end
 
-      for _, v in pairs(nmap.registry.creds) do
+      for _, v in pairs(kmap.registry.creds) do
         local h = ( v.host.ip or v.host )
         if ( not(host) and not(port) ) then
           if ( not(self.filter.state) or ( v.state == self.filter.state ) ) then

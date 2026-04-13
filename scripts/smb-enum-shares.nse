@@ -29,8 +29,8 @@ for shares that require a user account.
 
 ---
 --@usage
--- nmap --script smb-enum-shares.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-enum-shares.nse -p U:137,T:139 <host>
+-- kmap --script smb-enum-shares.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-enum-shares.nse -p U:137,T:139 <host>
 --
 --@output
 -- Host script results:
@@ -93,7 +93,7 @@ for shares that require a user account.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 

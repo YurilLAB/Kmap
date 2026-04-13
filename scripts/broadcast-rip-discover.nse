@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"
@@ -13,7 +13,7 @@ from all devices responding to the request.
 
 ---
 -- @usage
--- nmap --script broadcast-rip-discover
+-- kmap --script broadcast-rip-discover
 --
 -- @output
 -- Pre-scan script results:
@@ -40,11 +40,11 @@ from all devices responding to the request.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
-prerule = function() return not( nmap.address_family() == "inet6") end
+prerule = function() return not( kmap.address_family() == "inet6") end
 
 RIPv2 = {
 
@@ -150,7 +150,7 @@ action = function()
   local timeout = stdnse.parse_timespec(stdnse.get_script_args('broadcast-rip-discover.timeout'))
   timeout = (timeout or 5) * 1000
 
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(timeout)
 
   local rip = RIPv2.Request:new(RIPv2.Command.Request)

@@ -9,8 +9,8 @@ extension number.
 ]]
 
 ---
--- @usage nmap -p80 --script http-avaya-ipoffice-users <target>
--- @usage nmap -sV --script http-avaya-ipoffice-users <target>
+-- @usage kmap -p80 --script http-avaya-ipoffice-users <target>
+-- @usage kmap -sV --script http-avaya-ipoffice-users <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON         VERSION
@@ -25,7 +25,7 @@ extension number.
 -- |_  data_source: IPOFFICE/7.0(27) xxx.xxx.xxx.xxx
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"

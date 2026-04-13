@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -15,7 +15,7 @@ that form addresses in a given subnet.
 
 ---
 -- @usage
--- nmap -6 -p 80 --script targets-ipv6-wordlist --script-args newtargets,targets-ipv6-subnet={2001:db8:c0ca::/64}
+-- kmap -6 -p 80 --script targets-ipv6-wordlist --script-args newtargets,targets-ipv6-subnet={2001:db8:c0ca::/64}
 --
 -- @output
 -- Pre-scan script results:
@@ -36,14 +36,14 @@ that form addresses in a given subnet.
 --                         address with prefix (Ex. 2001:db8:c0ca::/48 or
 --                         { 2001:db8:c0ca::/48, 2001:db8:FEA::/48 } )
 
---  Updated 03/12/2014 - V1.4 Update for inclusion in Nmap
+--  Updated 03/12/2014 - V1.4 Update for inclusion in Kmap
 --  Updated 21/05/2014 - V1.3 Eliminate the host phase.
 --  Updated 06/05/2014 - V1.2 Minor corrections and standardization.
---  Created 29/04/2013 - v1.0 Created by Raul Fuentes <ra.fuentess.sam+nmap@gmail.com>
+--  Created 29/04/2013 - v1.0 Created by Raul Fuentes <ra.fuentess.sam+kmap@gmail.com>
 --
 
 author = "Raúl Fuentes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {
   "discovery"
 }
@@ -240,7 +240,7 @@ end
 ---
 -- The script need to be working with IPv6
 function prerule ()
-  if not (nmap.address_family() == "inet6") then
+  if not (kmap.address_family() == "inet6") then
     stdnse.verbose1("Need to be executed for IPv6.")
     return false
   end

@@ -10,7 +10,7 @@ Queries information managed by the Windows Master Browser.
 
 ---
 -- @usage
--- nmap -p 445 <host> --script smb-mbenum
+-- kmap -p 445 <host> --script smb-mbenum
 --
 -- @output
 -- | smb-mbenum:
@@ -57,7 +57,7 @@ Queries information managed by the Windows Master Browser.
 -- Created 06/11/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

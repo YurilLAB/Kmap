@@ -97,7 +97,7 @@
 -- Scripts that use this module can use the script arguments listed below
 -- example of using these script arguments:
 -- <code>
--- nmap --script=smb-<script>.nse --script-args=smbuser=ron,smbpass=iagotest2k3,smbbasic=1,smbsign=force <host>
+-- kmap --script=smb-<script>.nse --script-args=smbuser=ron,smbpass=iagotest2k3,smbbasic=1,smbsign=force <host>
 -- </code>
 --
 -- @args  smbbasic    Forces the authentication to use basic security, as opposed to "extended security".
@@ -119,7 +119,7 @@
 -- @args randomseed   Set to a value to change the filenames/service names that are randomly generated.
 --
 -- @author Ron Bowes <ron@skullsecurity.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -----------------------------------------------------------------------
 local asn1 = require "asn1"
 local datetime = require "datetime"
@@ -127,7 +127,7 @@ local io = require "io"
 local math = require "math"
 local match = require "match"
 local netbios = require "netbios"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smbauth = require "smbauth"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -215,13 +215,13 @@ end
 --@param host The host object.
 --@return The port number to use, or nil if we don't have an SMB port
 function get_port(host)
-  local port_u137 = nmap.get_port_state(host, {number=137, protocol="udp"})
-  local port_t139 = nmap.get_port_state(host, {number=139, protocol="tcp"})
-  local port_t445 = nmap.get_port_state(host, {number=445, protocol="tcp"})
+  local port_u137 = kmap.get_port_state(host, {number=137, protocol="udp"})
+  local port_t139 = kmap.get_port_state(host, {number=139, protocol="tcp"})
+  local port_t445 = kmap.get_port_state(host, {number=445, protocol="tcp"})
   local custom_port = nil
 
-  if(nmap.registry.args.smbport ~= nil) then
-    custom_port = nmap.get_port_state(host, {number=tonumber(nmap.registry.args.smbport), protocol="tcp"})
+  if(kmap.registry.args.smbport ~= nil) then
+    custom_port = kmap.get_port_state(host, {number=tonumber(kmap.registry.args.smbport), protocol="tcp"})
   end
 
   -- Try a user-defined port first
@@ -281,7 +281,7 @@ function start(host)
   end
 
   -- Store the name of the server
-  local nbcache_mutex = nmap.mutex("Netbios lookup mutex")
+  local nbcache_mutex = kmap.mutex("Netbios lookup mutex")
   nbcache_mutex "lock"
   if ( not(host.registry['netbios_name']) ) then
     status, result = netbios.get_server_name(host.ip)
@@ -446,7 +446,7 @@ end
 --        Otherwise, socket is the error message.
 function start_raw(host, port)
   local status, err
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   socket:set_timeout(TIMEOUT)
   status, err = socket:connect(host, port, "tcp")
@@ -511,7 +511,7 @@ function start_netbios(host, port, name)
   local i
   local status, err
   local pos, result, flags, length
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- First, populate the name array with all possible names, in order of significance
   local names = {}
@@ -555,7 +555,7 @@ function start_netbios(host, port, name)
       0x00,                        -- flags
       0x44,                        -- length
       netbios.name_encode(name),   -- server name
-      netbios.name_encode("NMAP")  -- client name
+      netbios.name_encode("KMAP")  -- client name
       );
 
     stdnse.debug3("SMB: Connecting to %s", host.ip)
@@ -652,7 +652,7 @@ function smb_encode_header(smb, command, overrides)
   local flags2 = (0x4000 | 0x2000 | 0x0040 | 0x0001) -- SMB_FLAGS2_32BIT_STATUS | SMB_FLAGS2_EXECUTE_ONLY_READS | SMB_FLAGS2_IS_LONG_NAME | SMB_FLAGS2_KNOWS_LONG_NAMES
 
   -- Unless the user's disabled the security signature, add it
-  if(nmap.registry.args.smbsign ~= "disable") then
+  if(kmap.registry.args.smbsign ~= "disable") then
     flags2 = (flags2 | 0x0004) -- SMB_FLAGS2_SECURITY_SIGNATURE
   end
 
@@ -733,7 +733,7 @@ local function message_sign(smb, body)
   if(smb['mac_key'] == nil) then
     stdnse.debug3("SMB: Not signing message (missing mac_key)")
     return body
-  elseif(nmap.registry.args.smbsign == "disable") then
+  elseif(kmap.registry.args.smbsign == "disable") then
     stdnse.debug3("SMB: Not signing message (disabled by user)")
 
     return body
@@ -762,10 +762,10 @@ local function message_check_signature(smb, body)
   if(smb['mac_key'] == nil) then
     stdnse.debug3("SMB: Not signing message (missing mac_key)")
     return true
-  elseif(nmap.registry.args.smbsign ~= "force" and (smb['security_mode'] & 0x0A) ~= 0) then
+  elseif(kmap.registry.args.smbsign ~= "force" and (smb['security_mode'] & 0x0A) ~= 0) then
     stdnse.debug3("SMB: Not signing message (server doesn't support it -- default)")
     return true
-  elseif(nmap.registry.args.smbsign == "disable" or nmap.registry.args.smbsign == "ignore") then
+  elseif(kmap.registry.args.smbsign == "disable" or kmap.registry.args.smbsign == "ignore") then
     stdnse.debug3("SMB: Not signing message (disabled by user)")
     return true
   end
@@ -1199,7 +1199,7 @@ local function start_session_basic(smb, log_errors, overrides)
     .. string.pack("<zzzz",
       username,               -- Account
       domain,                 -- Domain
-      "Nmap",                 -- OS
+      "Kmap",                 -- OS
       "Native Lanman"         -- Native LAN Manager
       )
 
@@ -1398,7 +1398,7 @@ local function start_session_extended(smb, log_errors, overrides)
       -- Data is a list of strings, terminated by a blank one.
       data = security_blob -- Security blob
       .. string.pack("<zzz",
-        "Nmap",                -- OS
+        "Kmap",                -- OS
         "Native Lanman",       -- Native LAN Manager
         ""                     -- Primary domain
         )
@@ -1556,7 +1556,7 @@ end
 -- * Negotiated parameters (multiplexed connections, virtual circuit, capabilities)
 -- * Passwords (plaintext, unicode, lanman, ntlm, lmv2, ntlmv2, etc)
 -- * Account name
--- * OS (I just send "Nmap")
+-- * OS (I just send "Kmap")
 -- * Native LAN Manager (no clue what that is, but it seems to be ignored)
 --
 -- Receives the following:
@@ -1565,7 +1565,7 @@ end
 --
 --@param smb          The SMB object associated with the connection
 --@param overrides    [optional] A table of overrides for username, domain, password, password_hash, and hash_type.
---                    If any of these are given, it's used first. If they aren't, then Nmap parameters, Nmap registry entries,
+--                    If any of these are given, it's used first. If they aren't, then Kmap parameters, Kmap registry entries,
 --                    guest, and NULL sessions are used.
 --@param log_errors   [optional] If set, will display login. Default: true.
 --@return (status, result) If status is false, result is an error message. Otherwise, result is nil and the following
@@ -1575,8 +1575,8 @@ end
 --    *  'os'          The operating system
 --    *  'lanmanager'  The server's LAN Manager
 function start_session(smb, overrides, log_errors)
-  -- Use a mutex to avoid some issues (see http://seclists.org/nmap-dev/2011/q1/464)
-  local smb_auth_mutex = nmap.mutex( "SMB Authentication Mutex" )
+  -- Use a mutex to avoid some issues (see http://seclists.org/kmap-dev/2011/q1/464)
+  local smb_auth_mutex = kmap.mutex( "SMB Authentication Mutex" )
   smb_auth_mutex( "lock" )
 
   local status, result
@@ -1782,7 +1782,7 @@ function create_file(smb, path, overrides)
 
   local status, pos
   repeat
-    local mutex = nmap.mutex(smb['host'])
+    local mutex = kmap.mutex(smb['host'])
     mutex "lock"
 
     -- Make sure we have overrides
@@ -2472,7 +2472,7 @@ end
 ---Upload a file from the local machine to the remote machine, on the given share.
 --
 --@param host       The host object
---@param localfile  The file on the local machine, relative to the nmap path
+--@param localfile  The file on the local machine, relative to the kmap path
 --@param share      The share to upload it to (eg, C$).
 --@param remotefile The remote file on the machine. It is relative to the share's root.
 --@param overrides  A table of override values that's passed to the smb functions.
@@ -2487,8 +2487,8 @@ function file_upload(host, localfile, share, remotefile, overrides, encoded)
 
   -- If the open failed, try to search for the file
   if(not(handle)) then
-    stdnse.debug1("Couldn't open %s directly, searching Nmap's paths...", localfile)
-    local filename = nmap.fetchfile(localfile)
+    stdnse.debug1("Couldn't open %s directly, searching Kmap's paths...", localfile)
+    local filename = kmap.fetchfile(localfile)
 
     -- Check if it was found
     if(filename == nil) then
@@ -2938,7 +2938,7 @@ function share_anonymous_can_write(host, share)
   local filename, status, err
 
   -- First, choose a filename. This should be random.
-  filename = "nmap-test-file"
+  filename = "kmap-test-file"
 
   -- Next, attempt to write to that file
   status, err = file_write(host, string.rep("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), share, filename, true)
@@ -2977,7 +2977,7 @@ function share_user_can_write(host, share)
   local filename, status, err
 
   -- First, choose a filename. This should be random.
-  filename = "nmap-test-file"
+  filename = "kmap-test-file"
 
   -- Next, attempt to write to that file
   status, err = file_write(host, string.rep("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), share, filename)
@@ -3114,7 +3114,7 @@ end
 --        true if the file was successfully written, false if it was not.
 function share_host_returns_proper_error(host, use_anonymous)
   local status, smbstate, err
-  local share = "nmap-share-test"
+  local share = "kmap-share-test"
   local overrides
 
   if ( use_anonymous ) then
@@ -3525,7 +3525,7 @@ function get_uniqueish_name(host, extension, seed)
   -- I tested this, and in 255 tests, there were roughly 10 collisions. That's about what I'm looking for.
   local hash = 0
   local i
-  local str = lhost .. (seed or "") .. (extension or "") .. (nmap.registry.args.randomseed or "")
+  local str = lhost .. (seed or "") .. (extension or "") .. (kmap.registry.args.randomseed or "")
 
   for i = 1, #str, 1 do
     local chr = str:byte(i)
@@ -4122,7 +4122,7 @@ status_codes =
   NT_STATUS_FT_MISSING_MEMBER                 = 0xc000015f,
   NT_STATUS_ILL_FORMED_SERVICE_ENTRY          = 0xc0000160,
   NT_STATUS_ILLEGAL_CHARACTER                 = 0xc0000161,
-  NT_STATUS_UNMAPPABLE_CHARACTER              = 0xc0000162,
+  NT_STATUS_UKMAPPABLE_CHARACTER              = 0xc0000162,
   NT_STATUS_UNDEFINED_CHARACTER               = 0xc0000163,
   NT_STATUS_FLOPPY_VOLUME                     = 0xc0000164,
   NT_STATUS_FLOPPY_ID_MARK_NOT_FOUND          = 0xc0000165,

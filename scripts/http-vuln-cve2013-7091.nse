@@ -18,8 +18,8 @@ Then, send some payload to create the new mail account.
 
 ---
 -- @usage
--- nmap -sV --script http-vuln-cve2013-7091 <target>
--- nmap -p80 --script http-vuln-cve2013-7091 --script-args http-vuln-cve2013-7091=/ZimBra <target>
+-- kmap -sV --script http-vuln-cve2013-7091 <target>
+-- kmap -p80 --script http-vuln-cve2013-7091 --script-args http-vuln-cve2013-7091=/ZimBra <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 80/tcp open  http    syn-ack
@@ -50,7 +50,7 @@ Then, send some payload to create the new mail account.
 ---
 
 author = {"Paul AMAR <aos.paul@gmail.com>", "Ron Bowes"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.http

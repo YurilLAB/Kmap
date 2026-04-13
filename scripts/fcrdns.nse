@@ -1,6 +1,6 @@
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -15,7 +15,7 @@ References:
 
 ---
 -- @usage
--- nmap -sn -Pn --script fcrdns <target>
+-- kmap -sn -Pn --script fcrdns <target>
 --
 -- @output
 -- Host script results:
@@ -63,7 +63,7 @@ References:
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 -- not default, because user may choose -n and expect no DNS
 categories = {"discovery", "safe"}
@@ -91,7 +91,7 @@ action = function(host)
   local names = stdnse.output_table()
   local fcrdns
   local fail_addrs = {}
-  local forward_type = nmap.address_family() == "inet" and "A" or "AAAA"
+  local forward_type = kmap.address_family() == "inet" and "A" or "AAAA"
   local no_record_err = string.format("No %s record", forward_type)
   table.sort(rdns)
   for _, n in ipairs(rdns) do
@@ -123,7 +123,7 @@ action = function(host)
     end
   end
 
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     -- use default structured output for verbosity
     str_out = nil
   elseif str_out == nil then

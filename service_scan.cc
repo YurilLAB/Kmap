@@ -4,59 +4,59 @@
  * what application-level protocol is listening on a given port            *
  * (e.g. snmp, http, ftp, smtp, etc.)                                      *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -65,17 +65,17 @@
 
 #include "service_scan.h"
 #include "timing.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "nsock.h"
 #include "Target.h"
 #include "utils.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "payload.h"
 #include "protocols.h"
 #include "scan_lists.h"
 #include "charpool.h"
 
-#include "nmap_tty.h"
+#include "kmap_tty.h"
 
 #include <errno.h>
 
@@ -108,7 +108,7 @@
 #include <algorithm>
 #include <list>
 
-extern NmapOps o;
+extern KmapOps o;
 
 #define SERVICE_FIELD_LEN 80
 #define SERVICE_EXTRA_LEN 256
@@ -322,12 +322,12 @@ static bool next_template(const char **matchtext, char modestr[4], char **tmplt,
   if (*q == ':' && 0 == strcmp(modestr, "cpe")) {
     q++;
     if (*q != '/')
-      fatal("%s: parse error (cpe delimiter not '/') on line %d of nmap-service-probes", __func__, lineno);
+      fatal("%s: parse error (cpe delimiter not '/') on line %d of kmap-service-probes", __func__, lineno);
     // p == "cpe:/..."
   }
   else {
     if (*q == '\0' || isspace(*q))
-      fatal("%s: parse error (bare word) on line %d of nmap-service-probes", __func__, lineno);
+      fatal("%s: parse error (bare word) on line %d of kmap-service-probes", __func__, lineno);
     // p == start of template
     p = q + 1;
   }
@@ -336,7 +336,7 @@ static bool next_template(const char **matchtext, char modestr[4], char **tmplt,
 
   q = strchr(q + 1, delimchar);
   if (q == NULL)
-    fatal("%s: parse error (missing end delimiter) on line %d of nmap-service-probes", __func__, lineno);
+    fatal("%s: parse error (missing end delimiter) on line %d of kmap-service-probes", __func__, lineno);
 
   *tmplt = mkstr(p, q);
 
@@ -349,7 +349,7 @@ static bool next_template(const char **matchtext, char modestr[4], char **tmplt,
 
   q = p + i;
   if (!isspace(*q))
-    fatal("%s: parse error (flags too long) on line %d of nmap-service-probes", __func__, lineno);
+    fatal("%s: parse error (flags too long) on line %d of kmap-service-probes", __func__, lineno);
 
   /* Update pointer for caller. */
   *matchtext = q;
@@ -357,10 +357,10 @@ static bool next_template(const char **matchtext, char modestr[4], char **tmplt,
   return true;
 }
 
-// match text from the nmap-service-probes file.  This must be called
+// match text from the kmap-service-probes file.  This must be called
 // before you try and do anything with this match.  This function
 // should be passed the whole line starting with "match" or
-// "softmatch" in nmap-service-probes.  The line number that the text
+// "softmatch" in kmap-service-probes.  The line number that the text
 // is provided so that it can be reported in error messages.  This
 // function will abort the program if there is a syntax problem.
 void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
@@ -375,7 +375,7 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
 
   if (isInitialized) fatal("Sorry ... %s does not yet support reinitializion", __func__);
   if (!matchtext || !*matchtext)
-    fatal("%s: no matchtext passed in (line %d of nmap-service-probes)", __func__, lineno);
+    fatal("%s: no matchtext passed in (line %d of kmap-service-probes)", __func__, lineno);
   isInitialized = true;
 
   deflineno = lineno;
@@ -389,11 +389,11 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
     isSoft = false;
     matchtext += 6;
   } else
-    fatal("%s: parse error on line %d of nmap-service-probes - must begin with \"match\" or \"softmatch\"", __func__, lineno);
+    fatal("%s: parse error on line %d of kmap-service-probes - must begin with \"match\" or \"softmatch\"", __func__, lineno);
 
   // next comes the service name
   p = strchr(matchtext, ' ');
-  if (!p) fatal("%s: parse error on line %d of nmap-service-probes: could not find service name", __func__, lineno);
+  if (!p) fatal("%s: parse error on line %d of kmap-service-probes: could not find service name", __func__, lineno);
 
   servicename = cp_strndup(matchtext, p - matchtext);
 
@@ -406,10 +406,10 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
   // newlines (both are just as in perl)
   matchtext = p;
   if (!next_template(&matchtext, modestr, &matchstr, flags, lineno))
-    fatal("%s: parse error on line %d of nmap-service-probes", __func__, lineno);
+    fatal("%s: parse error on line %d of kmap-service-probes", __func__, lineno);
 
   if (strcmp(modestr, "m") != 0)
-    fatal("%s: parse error on line %d of nmap-service-probes: matchtext must begin with 'm'", __func__, lineno);
+    fatal("%s: parse error on line %d of kmap-service-probes: matchtext must begin with 'm'", __func__, lineno);
 
   // any options?
   for (p = flags; *p != '\0'; p++) {
@@ -418,7 +418,7 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
     else if (*p == 's')
       matchops_dotall = true;
     else
-      fatal("%s: illegal regexp option on line %d of nmap-service-probes", __func__, lineno);
+      fatal("%s: illegal regexp option on line %d of kmap-service-probes", __func__, lineno);
   }
 
   // Next we compile and study the regular expression to match
@@ -432,7 +432,7 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
                                    &pcre2_erroffset, NULL);
 
   if (regex_compiled == NULL)
-    fatal("%s: illegal regexp on line %d of nmap-service-probes (at regexp offset %ld): %d\n", __func__, lineno, pcre2_erroffset, pcre2_errcode);
+    fatal("%s: illegal regexp on line %d of kmap-service-probes (at regexp offset %ld): %d\n", __func__, lineno, pcre2_erroffset, pcre2_errcode);
 
   // creates a new match data block for holding the result of a match
   match_data = pcre2_match_data_create_from_pattern(
@@ -490,14 +490,14 @@ void ServiceProbeMatch::InitMatch(const char *matchtext, int lineno) {
           break;
         }
       default:
-        fatal("%s: Unknown template specifier '%s' on line %d of nmap-service-probes", __func__, modestr, lineno);
+        fatal("%s: Unknown template specifier '%s' on line %d of kmap-service-probes", __func__, modestr, lineno);
         break;
     }
 
     /* This one already defined? */
     if (*curr_tmp) {
       if (o.debugging) {
-        error("WARNING: Template \"%s/%s/\" replaced with \"%s/%s/\" on line %d of nmap-service-probes",
+        error("WARNING: Template \"%s/%s/\" replaced with \"%s/%s/\" on line %d of kmap-service-probes",
               modestr, *curr_tmp, modestr, tmptemplate, lineno);
       }
       free(*curr_tmp);
@@ -1115,7 +1115,7 @@ ServiceProbe::~ServiceProbe() {
   if (fallbackStr) free(fallbackStr);
 }
 
-  // Parses the "probe " line in the nmap-service-probes file.  Pass the rest of the line
+  // Parses the "probe " line in the kmap-service-probes file.  Pass the rest of the line
   // after "probe ".  The format better be:
   // [TCP|UDP] [probename] q|probetext|
   // Note that the delimiter (|) of the probetext can be anything (within reason)
@@ -1127,32 +1127,32 @@ void ServiceProbe::setProbeDetails(char *pd, int lineno) {
   char delimiter;
 
   if (!pd || !*pd)
-    fatal("Parse error on line %d of nmap-service-probes: no arguments found!", lineno);
+    fatal("Parse error on line %d of kmap-service-probes: no arguments found!", lineno);
 
   // First the protocol
   if (strncmp(pd, "TCP ", 4) == 0)
       probeprotocol = IPPROTO_TCP;
   else if (strncmp(pd, "UDP ", 4) == 0)
       probeprotocol = IPPROTO_UDP;
-  else fatal("Parse error on line %d of nmap-service-probes: invalid protocol", lineno);
+  else fatal("Parse error on line %d of kmap-service-probes: invalid protocol", lineno);
   pd += 4;
 
   // Next the service name
-  if (!isalnum((int) (unsigned char) *pd)) fatal("Parse error on line %d of nmap-service-probes - bad probe name", lineno);
+  if (!isalnum((int) (unsigned char) *pd)) fatal("Parse error on line %d of kmap-service-probes - bad probe name", lineno);
   p = strchr(pd, ' ');
-  if (!p) fatal("Parse error on line %d of nmap-service-probes - nothing after probe name", lineno);
+  if (!p) fatal("Parse error on line %d of kmap-service-probes - nothing after probe name", lineno);
   probename = cp_strndup(pd, p - pd);
 
   // Now for the probe itself
   pd = p+1;
 
-  if (*pd != 'q') fatal("Parse error on line %d of nmap-service-probes - probe string must begin with 'q'", lineno);
+  if (*pd != 'q') fatal("Parse error on line %d of kmap-service-probes - probe string must begin with 'q'", lineno);
   delimiter = *(++pd);
   p = strchr(++pd, delimiter);
-  if (!p) fatal("Parse error on line %d of nmap-service-probes -- no ending delimiter for probe string", lineno);
+  if (!p) fatal("Parse error on line %d of kmap-service-probes -- no ending delimiter for probe string", lineno);
   *p = '\0';
   if (!cstring_unescape(pd, &len)) {
-    fatal("Parse error on line %d of nmap-service-probes: bad probe string escaping", lineno);
+    fatal("Parse error on line %d of kmap-service-probes: bad probe string escaping", lineno);
   }
   setProbeString((const u8 *)pd, len);
   // Optional extensible flags
@@ -1187,12 +1187,12 @@ void ServiceProbe::setPortVector(std::vector<u16> *portv, const char *portstr,
     if (isdigit((int) (unsigned char) *current_range)) {
       rangestart = strtol(current_range, &endptr, 10);
       if (rangestart < 0 || rangestart > 65535) {
-        fatal("Parse error on line %d of nmap-service-probes: Ports must be between 0 and 65535 inclusive", lineno);
+        fatal("Parse error on line %d of kmap-service-probes: Ports must be between 0 and 65535 inclusive", lineno);
       }
       current_range = endptr;
       while(isspace((int) (unsigned char) *current_range)) current_range++;
     } else {
-      fatal("Parse error on line %d of nmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
+      fatal("Parse error on line %d of kmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
     }
 
     /* Now I have a rangestart, time to go after rangeend */
@@ -1204,14 +1204,14 @@ void ServiceProbe::setPortVector(std::vector<u16> *portv, const char *portstr,
       if (isdigit((int) (unsigned char) *current_range)) {
         rangeend = strtol(current_range, &endptr, 10);
         if (rangeend < 0 || rangeend > 65535 || rangeend < rangestart) {
-          fatal("Parse error on line %d of nmap-service-probes: Ports must be between 0 and 65535 inclusive", lineno);
+          fatal("Parse error on line %d of kmap-service-probes: Ports must be between 0 and 65535 inclusive", lineno);
         }
         current_range = endptr;
       } else {
-        fatal("Parse error on line %d of nmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
+        fatal("Parse error on line %d of kmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
       }
     } else {
-      fatal("Parse error on line %d of nmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
+      fatal("Parse error on line %d of kmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
     }
 
     /* Now I have a rangestart and a rangeend, so I can add these ports */
@@ -1223,7 +1223,7 @@ void ServiceProbe::setPortVector(std::vector<u16> *portv, const char *portstr,
     /* Find the next range */
     while(isspace((int) (unsigned char) *current_range)) current_range++;
     if (*current_range && *current_range != ',') {
-      fatal("Parse error on line %d of nmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
+      fatal("Parse error on line %d of kmap-service-probes: An example of proper portlist form is \"21-25,53,80\"", lineno);
     }
     if (*current_range == ',')
       current_range++;
@@ -1231,7 +1231,7 @@ void ServiceProbe::setPortVector(std::vector<u16> *portv, const char *portstr,
 }
 
   // Takes a string as given in the 'ports '/'sslports ' line of
-  // nmap-service-probes.  Pass in the list from the appropriate
+  // kmap-service-probes.  Pass in the list from the appropriate
   // line.  For 'sslports', tunnel should be specified as
   // SERVICE_TUNNEL_SSL.  Otherwise use SERVICE_TUNNEL_NONE.  The line
   // number is requested because this function will bail with an error
@@ -1283,7 +1283,7 @@ void ServiceProbe::setRarity(const char *portstr, int lineno) {
   tp = atoi(portstr);
 
   if (tp < 1 || tp > 9)
-    fatal("%s: Rarity directive on line %d of nmap-service-probes must be between 1 and 9", __func__, lineno);
+    fatal("%s: Rarity directive on line %d of kmap-service-probes must be between 1 and 9", __func__, lineno);
 
   rarity = tp;
 }
@@ -1292,7 +1292,7 @@ void ServiceProbe::setRarity(const char *portstr, int lineno) {
   // Takes a match line in a probe description and adds it to the
   // list of matches for this probe.  This function should be passed
   // the whole line starting with "match" or "softmatch" in
-  // nmap-service-probes.  The line number is requested because this
+  // kmap-service-probes.  The line number is requested because this
   // function will bail with an error (giving the line number) if it
   // fails to parse the string.
 void ServiceProbe::addMatch(const char *match, int lineno) {
@@ -1305,10 +1305,10 @@ void ServiceProbe::addMatch(const char *match, int lineno) {
   matches.push_back(newmatch);
 }
 
-/* Parses the given nmap-service-probes file into the AP class Must
+/* Parses the given kmap-service-probes file into the AP class Must
    NOT be made static because I have external maintenance tools
    (servicematch) which use this */
-void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
+void parse_kmap_service_probe_file(AllProbes *AP, const char *filename) {
   ServiceProbe *newProbe = NULL;
   char line[2048];
   int lineno = 0;
@@ -1317,7 +1317,7 @@ void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
   // We better start by opening the file
   fp = fopen(filename, "r");
   if (!fp)
-    pfatal("Failed to open nmap-service-probes file %s for reading", filename);
+    pfatal("Failed to open kmap-service-probes file %s for reading", filename);
 
   while(fgets(line, sizeof(line), fp)) {
     lineno++;
@@ -1327,7 +1327,7 @@ void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
 
     if (strncmp(line, "Exclude ", 8) == 0) {
       if (AP->excluded_seen)
-        fatal("Only 1 Exclude directive is allowed in the nmap-service-probes file");
+        fatal("Only 1 Exclude directive is allowed in the kmap-service-probes file");
       getpts(line+8, &AP->excludedports);
       AP->excluded_seen = true;
       continue;
@@ -1336,7 +1336,7 @@ void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
   anotherprobe:
 
     if (strncmp(line, "Probe ", 6) != 0)
-      fatal("Parse error on line %d of nmap-service-probes file: %s -- line was expected to begin with \"Probe \" or \"Exclude \"", lineno, filename);
+      fatal("Parse error on line %d of kmap-service-probes file: %s -- line was expected to begin with \"Probe \" or \"Exclude \"", lineno, filename);
 
     newProbe = new ServiceProbe();
     newProbe->setProbeDetails(line + 6, lineno);
@@ -1366,18 +1366,18 @@ void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
       } else if (strncmp(line, "totalwaitms ", 12) == 0) {
         long waitms = strtol(line + 12, NULL, 10);
         if (waitms < 100 || waitms > 300000)
-          fatal("Error on line %d of nmap-service-probes file (%s): bad totalwaitms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
+          fatal("Error on line %d of kmap-service-probes file (%s): bad totalwaitms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
         newProbe->totalwaitms = waitms;
       } else if (strncmp(line, "tcpwrappedms ", 13) == 0) {
         long waitms = strtol(line + 13, NULL, 10);
         if (waitms < 100 || waitms > 300000)
-          fatal("Error on line %d of nmap-service-probes file (%s): bad tcpwrappedms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
+          fatal("Error on line %d of kmap-service-probes file (%s): bad tcpwrappedms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
         newProbe->tcpwrappedms = waitms;
       } else if (strncmp(line, "match ", 6) == 0 || strncmp(line, "softmatch ", 10) == 0) {
         newProbe->addMatch(line, lineno);
       } else if (strncmp(line, "Exclude ", 8) == 0) {
-        fatal("The Exclude directive must precede all Probes in nmap-service-probes");
-      } else fatal("Parse error on line %d of nmap-service-probes file: %s -- unknown directive", lineno, filename);
+        fatal("The Exclude directive must precede all Probes in kmap-service-probes");
+      } else fatal("Parse error on line %d of kmap-service-probes file: %s -- unknown directive", lineno, filename);
     }
   }
 
@@ -1394,18 +1394,18 @@ void parse_nmap_service_probe_file(AllProbes *AP, const char *filename) {
   AP->compileFallbacks();
 }
 
-// Parses the nmap-service-probes file, and adds each probe to
+// Parses the kmap-service-probes file, and adds each probe to
 // the already-created 'probes' vector.
-static void parse_nmap_service_probes(AllProbes *AP) {
+static void parse_kmap_service_probes(AllProbes *AP) {
   char filename[256];
 
-  if (nmap_fetchfile(filename, sizeof(filename), "nmap-service-probes") != 1){
-    fatal("Service scan requested but I cannot find nmap-service-probes file.");
+  if (kmap_fetchfile(filename, sizeof(filename), "kmap-service-probes") != 1){
+    fatal("Service scan requested but I cannot find kmap-service-probes file.");
   }
 
-  parse_nmap_service_probe_file(AP, filename);
+  parse_kmap_service_probe_file(AP, filename);
   /* Record where this data file was found. */
-  o.loaded_data_files["nmap-service-probes"] = filename;
+  o.loaded_data_files["kmap-service-probes"] = filename;
 }
 
 AllProbes *AllProbes::global_AP;
@@ -1414,7 +1414,7 @@ AllProbes *AllProbes::service_scan_init(void)
   if(global_AP)
     return global_AP;
   global_AP = new AllProbes();
-  parse_nmap_service_probes(global_AP);
+  parse_kmap_service_probes(global_AP);
 
   return global_AP;
 }
@@ -1522,7 +1522,7 @@ ServiceProbe *AllProbes::getProbeByName(const char *name, int proto) const {
 
 
 // Returns nonzero if port was specified in the excludeports
-// directive in nmap-service-probes. Zero otherwise.
+// directive in kmap-service-probes. Zero otherwise.
 // Proto should be IPPROTO_TCP for TCP and IPPROTO_UDP for UDP
 // Note that although getpts() can set protocols (for protocol
 // scanning), this is ignored here because you can't version
@@ -1711,9 +1711,9 @@ void ServiceNFO::addToServiceFingerprint(const char *probeName, const u8 *resp,
     if (err)
       error("Error in localtime: %s", strerror(err));
     Snprintf(buf, sizeof(buf), "SF-Port%hu-%s:V=%s%s%%I=%d%%D=%d/%d%%Time=%X%%P=%s",
-        portno, proto2ascii_uppercase(proto), NMAP_VERSION,
+        portno, proto2ascii_uppercase(proto), KMAP_VERSION,
         (tunnel == SERVICE_TUNNEL_SSL)? "%T=SSL" : "", o.version_intensity,
-        err ? 0 : ltime.tm_mon + 1, err ? 0 : ltime.tm_mday, (int) timep, NMAP_PLATFORM);
+        err ? 0 : ltime.tm_mon + 1, err ? 0 : ltime.tm_mday, (int) timep, KMAP_PLATFORM);
     addServiceString(buf, servicewrap);
   }
 
@@ -2104,7 +2104,7 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
             svc->probe_timemsleft(probe, nsock_gettimeofday()), svc);
       }
     } else {
-      // Should only happen if someone has a highly perverse nmap-service-probes
+      // Should only happen if someone has a highly perverse kmap-service-probes
       // file.  Null scan should generally never be the only probe.
       end_svcprobe((svc->softMatchFound)? PROBESTATE_FINISHED_SOFTMATCHED : PROBESTATE_FINISHED_NOMATCH, SG, svc, NULL);
     }
@@ -2214,7 +2214,7 @@ static int scanThroughTunnel(ServiceNFO *svc) {
 static void considerPrintingStats(ServiceGroup *SG) {
    /* Check for status requests */
    if (keyWasPressed()) {
-      nmap_adjust_loglevel(o.versionTrace());
+      kmap_adjust_loglevel(o.versionTrace());
       SG->SPM->printStats(SG->services_finished.size() /
                           ((double)SG->services_remaining.size() + SG->services_in_progress.size() +
                            SG->services_finished.size()), nsock_gettimeofday());
@@ -2706,7 +2706,7 @@ static int shouldWePrintFingerprint(ServiceNFO *svc) {
 
 // This is passed a completed ServiceGroup which contains the scanning results for every service.
 // The function iterates through each finished service and adds the results to Target structure for
-// Nmap to output later.
+// Kmap to output later.
 
 static void processResults(ServiceGroup *SG) {
 std::list<ServiceNFO *>::iterator svc;
@@ -2828,8 +2828,8 @@ int service_scan(std::vector<Target *> &Targets) {
   if ((nsp = nsock_pool_new(SG)) == NULL) {
     fatal("%s() failed to create new nsock pool.", __func__);
   }
-  nmap_set_nsock_logger();
-  nmap_adjust_loglevel(o.versionTrace());
+  kmap_set_nsock_logger();
+  kmap_adjust_loglevel(o.versionTrace());
 
   if (*o.device)
     nsock_pool_set_device(nsp, o.device);

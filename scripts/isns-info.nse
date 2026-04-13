@@ -11,7 +11,7 @@ Service (iSNS).
 
 ---
 -- @usage
--- nmap -p 3205 <ip> --script isns-info
+-- kmap -p 3205 <ip> --script isns-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -31,7 +31,7 @@ Service (iSNS).
 portrule = shortport.port_or_service(3205, 'isns')
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 local function fail(err) return stdnse.format_output(false, err) end

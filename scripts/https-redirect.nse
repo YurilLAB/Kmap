@@ -1,7 +1,7 @@
 local comm = require "comm"
 local string = require "string"
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local url = require "url"
 local U = require "lpeg-utility"
 
@@ -12,7 +12,7 @@ Check for HTTP services that redirect to the HTTPS on the same port.
 
 author = {"Daniel Miller"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"version"}
 
@@ -23,7 +23,7 @@ portrule = function (host, port)
   end
   -- Otherwise, match HTTP services
   -- always respecting version_intensity
-  return (shortport.http(host, port) and nmap.version_intensity() >= 7)
+  return (shortport.http(host, port) and kmap.version_intensity() >= 7)
 end
 
 action = function (host, port)
@@ -47,7 +47,7 @@ action = function (host, port)
     if proto == "ssl" then
       -- Unlikely, but we could have negotiated SSL already.
       port.version.service_tunnel = "ssl"
-      nmap.set_port_version(host, port, "softmatched")
+      kmap.set_port_version(host, port, "softmatched")
       return nil
     end
     responses[1] = result
@@ -69,7 +69,7 @@ action = function (host, port)
             parsed.host == "" or parsed.host == nil
             ) then
           port.version.service_tunnel = "ssl"
-          nmap.set_port_version(host, port, "softmatched")
+          kmap.set_port_version(host, port, "softmatched")
           return nil
         end
       end

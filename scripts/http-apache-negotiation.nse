@@ -22,7 +22,7 @@ For more information, see:
 
 ---
 -- @usage
--- nmap --script=http-apache-negotiation --script-args http-apache-negotiation.root=/root/ <target>
+-- kmap --script=http-apache-negotiation --script-args http-apache-negotiation.root=/root/ <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -34,7 +34,7 @@ For more information, see:
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 

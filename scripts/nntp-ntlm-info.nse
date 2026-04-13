@@ -20,7 +20,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 119,433,563 --script nntp-ntlm-info <target>
+-- kmap -p 119,433,563 --script nntp-ntlm-info <target>
 --
 -- @output
 -- 119/tcp   open     nntp
@@ -44,7 +44,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

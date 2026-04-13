@@ -1,7 +1,7 @@
 local bits = require "bits"
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -15,13 +15,13 @@ the script against).
 
 ---
 -- @usage
--- nmap -sU --script backorifice-brute <host> --script-args backorifice-brute.ports=<ports>
+-- kmap -sU --script backorifice-brute <host> --script-args backorifice-brute.ports=<ports>
 --
 -- @arg backorifice-brute.ports (mandatory) List of UDP ports to run the script against separated with "," ex. "U:31337,25252,151-222", "U:1024-1512"
 --
 -- This script uses the brute library to perform password guessing. A
--- successful password guess is stored in the nmap registry, under the
--- <code>nmap.registry.credentials.backorifice</code> table for other BackOrifice
+-- successful password guess is stored in the kmap registry, under the
+-- <code>kmap.registry.credentials.backorifice</code> table for other BackOrifice
 -- scripts to use.
 --
 -- @output
@@ -42,7 +42,7 @@ the script against).
 --
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -78,7 +78,7 @@ local backorifice =
   --
   initialize = function(self)
     --create socket
-    self.socket = nmap.new_socket("udp")
+    self.socket = kmap.new_socket("udp")
     self.socket:set_timeout(self.host.times.timeout * 1000)
     return true
   end,
@@ -222,8 +222,8 @@ local backorifice =
     end
     self.port.version.hostname = BOhostname
     if not self.port.version.ostype then self.port.version.ostype = "Windows" end
-    nmap.set_port_version(self.host, self.port)
-    nmap.set_port_state(self.host,self.port,"open")
+    kmap.set_port_version(self.host, self.port)
+    kmap.set_port_state(self.host,self.port,"open")
   end
 }
 
@@ -258,13 +258,13 @@ local Driver =
   login = function( self, username, password )
     local status, msg = self.bo:try_password(password,nil)
     if status then
-      if not(nmap.registry['credentials']) then
-        nmap.registry['credentials']={}
+      if not(kmap.registry['credentials']) then
+        kmap.registry['credentials']={}
       end
-      if ( not( nmap.registry.credentials['backorifice'] ) ) then
-        nmap.registry.credentials['backorifice'] = {}
+      if ( not( kmap.registry.credentials['backorifice'] ) ) then
+        kmap.registry.credentials['backorifice'] = {}
       end
-      table.insert( nmap.registry.credentials.backorifice, { password = password } )
+      table.insert( kmap.registry.credentials.backorifice, { password = password } )
       return true, creds.Account:new("", password, creds.State.VALID)
     else
       -- The only indication that the password is incorrect is a timeout

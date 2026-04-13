@@ -54,9 +54,9 @@ to specify the target ports; and then the two target hostnames\&.
 .RS 4
 .\}
 .nf
-# \fBnping \-c 1 \-\-tcp \-p 80,433 scanme\&.nmap\&.org google\&.com\fR
+# \fBnping \-c 1 \-\-tcp \-p 80,433 scanme\&.kmap\&.org google\&.com\fR
 
-Starting Nping ( https://nmap\&.org/nping )
+Starting Nping ( https://kmap\&.org/nping )
 SENT (0\&.0120s) TCP 96\&.16\&.226\&.135:50091 > 64\&.13\&.134\&.52:80 S ttl=64 id=52072 iplen=40  seq=1077657388 win=1480 
 RCVD (0\&.1810s) TCP 64\&.13\&.134\&.52:80 > 96\&.16\&.226\&.135:50091 SA ttl=53 id=0 iplen=44  seq=4158134847 win=5840 <mss 1460>
 SENT (1\&.0140s) TCP 96\&.16\&.226\&.135:50091 > 74\&.125\&.45\&.100:80 S ttl=64 id=13932 iplen=40  seq=1077657388 win=1480 
@@ -64,7 +64,7 @@ RCVD (1\&.1370s) TCP 74\&.125\&.45\&.100:80 > 96\&.16\&.226\&.135:50091 SA ttl=5
 SENT (2\&.0140s) TCP 96\&.16\&.226\&.135:50091 > 64\&.13\&.134\&.52:433 S ttl=64 id=8373 iplen=40  seq=1077657388 win=1480 
 SENT (3\&.0140s) TCP 96\&.16\&.226\&.135:50091 > 74\&.125\&.45\&.100:433 S ttl=64 id=23624 iplen=40  seq=1077657388 win=1480 
 
-Statistics for host scanme\&.nmap\&.org (64\&.13\&.134\&.52):
+Statistics for host scanme\&.kmap\&.org (64\&.13\&.134\&.52):
  |  Probes Sent: 2 | Rcvd: 1 | Lost: 1  (50\&.00%)
  |_ Max rtt: 169\&.720ms | Min rtt: 169\&.720ms | Avg rtt: 169\&.720ms
 Statistics for host google\&.com (74\&.125\&.45\&.100):
@@ -79,9 +79,9 @@ Nping done: 2 IP addresses pinged in 4\&.01 seconds
 .RE
 .\}
 .PP
-The newest version of Nping can be obtained with Nmap at
-\m[blue]\fB\%https://nmap.org\fR\m[]\&. The newest version of this man page is available at
-\m[blue]\fB\%https://nmap.org/book/nping-man.html\fR\m[]\&.
+The newest version of Nping can be obtained with Kmap at
+\m[blue]\fB\%https://kmap.org\fR\m[]\&. The newest version of this man page is available at
+\m[blue]\fB\%https://kmap.org/book/nping-man.html\fR\m[]\&.
 .SH "OPTIONS SUMMARY"
 .PP
 This options summary is printed when Nping is run with no arguments\&. It helps people remember the most common options, but is no substitute for the in\-depth documentation in the rest of this manual\&. Some obscure options aren\*(Aqt even included here\&.
@@ -90,12 +90,12 @@ This options summary is printed when Nping is run with no arguments\&. It helps 
 .RS 4
 .\}
 .nf
-Nping 0\&.7\&.92SVN ( https://nmap\&.org/nping )
+Nping 0\&.7\&.92SVN ( https://kmap\&.org/nping )
 Usage: nping [Probe mode] [Options] {target specification}
 
 TARGET SPECIFICATION:
   Targets may be specified as hostnames, IP addresses, networks, etc\&.
-  Ex: scanme\&.nmap\&.org, microsoft\&.com/24, 192\&.168\&.0\&.1; 10\&.0\&.*\&.1\-24
+  Ex: scanme\&.kmap\&.org, microsoft\&.com/24, 192\&.168\&.0\&.1; 10\&.0\&.*\&.1\-24
 PROBE MODES:
   \-\-tcp\-connect                    : Unprivileged TCP connect probe mode\&.
   \-\-tcp                            : TCP probe mode\&.
@@ -202,11 +202,11 @@ OUTPUT:
   \-\-quiet                          : Set verbosity and debug level to minimum\&.
   \-\-debug                          : Set verbosity and debug to the max level\&.
 EXAMPLES:
-  nping scanme\&.nmap\&.org
+  nping scanme\&.kmap\&.org
   nping \-\-tcp \-p 80 \-\-flags rst \-\-ttl 2 192\&.168\&.1\&.1
   nping \-\-icmp \-\-icmp\-type time \-\-delay 500ms 192\&.168\&.254\&.254
   nping \-\-echo\-server "public" \-e wlan0 \-vvv 
-  nping \-\-echo\-client "public" echo\&.nmap\&.org \-\-tcp \-p1\-1024 \-\-flags ack
+  nping \-\-echo\-client "public" echo\&.kmap\&.org \-\-tcp \-p1\-1024 \-\-flags ack
 
 SEE THE MAN PAGE FOR MANY MORE OPTIONS, DESCRIPTIONS, AND EXAMPLES
 
@@ -216,7 +216,7 @@ SEE THE MAN PAGE FOR MANY MORE OPTIONS, DESCRIPTIONS, AND EXAMPLES
 .\}
 .SH "TARGET SPECIFICATION"
 .PP
-Everything on the Nping command line that isn\*(Aqt an option or an option argument is treated as a target host specification\&. Nping uses the same syntax for target specifications that Nmap does\&. The simplest case is a single target given by IP address or hostname\&.
+Everything on the Nping command line that isn\*(Aqt an option or an option argument is treated as a target host specification\&. Nping uses the same syntax for target specifications that Kmap does\&. The simplest case is a single target given by IP address or hostname\&.
 .PP
 Nping supports CIDR\-style
 addressing\&. You can append
@@ -229,9 +229,9 @@ would send probes to the 256 hosts between 192\&.168\&.10\&.0 (binary:
 11000000 10101000 00001010 00000000) and 192\&.168\&.10\&.255 (binary:
 11000000 10101000 00001010 11111111), inclusive\&.
 192\&.168\&.10\&.40/24
-would ping exactly the same targets\&. Given that the host scanme\&.nmap\&.org
+would ping exactly the same targets\&. Given that the host scanme\&.kmap\&.org
 is at the IP address 64\&.13\&.134\&.52, the specification
-scanme\&.nmap\&.org/16
+scanme\&.kmap\&.org/16
 would send probes to the 65,536 IP addresses between 64\&.13\&.0\&.0 and 64\&.13\&.255\&.255\&. The smallest allowed value is
 /0, which targets the whole Internet\&. The largest value is
 /32, which targets just the named host or IP address because all address bits are fixed\&.
@@ -252,7 +252,7 @@ will send probes to all IP addresses on the Internet ending in \&.13\&.37\&. Thi
 IPv6 addresses can only be specified by their fully qualified IPv6 address or hostname\&. CIDR and octet ranges aren\*(Aqt supported for IPv6 because they are rarely useful\&.
 .PP
 Nping accepts multiple host specifications on the command line, and they don\*(Aqt need to be the same type\&. The command
-\fBnping scanme\&.nmap\&.org 192\&.168\&.0\&.0/8 10\&.0\&.0,1,3\-7\&.\-\fR
+\fBnping scanme\&.kmap\&.org 192\&.168\&.0\&.0/8 10\&.0\&.0,1,3\-7\&.\-\fR
 does what you would expect\&.
 .SH "OPTION SPECIFICATION"
 .PP
@@ -304,7 +304,7 @@ option\&. These examples show how it works\&.
 .nf
 # \fBnping \-\-tcp \-c 2 1\&.1\&.1\&.1 \-p 100\-102\fR
 
-Starting Nping ( https://nmap\&.org/nping )
+Starting Nping ( https://kmap\&.org/nping )
 SENT (0\&.0210s) TCP 192\&.168\&.1\&.77 > 1\&.1\&.1\&.1:100
 SENT (1\&.0230s) TCP 192\&.168\&.1\&.77 > 1\&.1\&.1\&.1:101
 SENT (2\&.0250s) TCP 192\&.168\&.1\&.77 > 1\&.1\&.1\&.1:102
@@ -326,7 +326,7 @@ SENT (5\&.0320s) TCP 192\&.168\&.1\&.77 > 1\&.1\&.1\&.1:102
 .nf
 # \fBnping \-\-tcp \-c 2 1\&.1\&.1\&.1 2\&.2\&.2\&.2 3\&.3\&.3\&.3 \-p 8080\fR
 
-Starting Nping ( https://nmap\&.org/nping )
+Starting Nping ( https://kmap\&.org/nping )
 SENT (0\&.0230s) TCP 192\&.168\&.0\&.21 > 1\&.1\&.1\&.1:8080
 SENT (1\&.0240s) TCP 192\&.168\&.0\&.21 > 2\&.2\&.2\&.2:8080
 SENT (2\&.0260s) TCP 192\&.168\&.0\&.21 > 3\&.3\&.3\&.3:8080
@@ -348,7 +348,7 @@ SENT (5\&.0310s) TCP 192\&.168\&.0\&.21 > 3\&.3\&.3\&.3:8080
 .nf
 # \fBnping \-\-tcp \-c 1 \-\-delay 500ms 1\&.1\&.1\&.1 2\&.2\&.2\&.2 3\&.3\&.3\&.3 \-p 137\-139\fR
 
-Starting Nping ( https://nmap\&.org/nping )
+Starting Nping ( https://kmap\&.org/nping )
 SENT (0\&.0230s) TCP 192\&.168\&.0\&.21 > 1\&.1\&.1\&.1:137
 SENT (0\&.5250s) TCP 192\&.168\&.0\&.21 > 2\&.2\&.2\&.2:137
 SENT (1\&.0250s) TCP 192\&.168\&.0\&.21 > 3\&.3\&.3\&.3:137
@@ -553,7 +553,7 @@ must be a number in the range [0\(en65535]\&.
 \fB\-\-badsum\fR (Invalid Checksum)
 .RS 4
 Asks Nping to use an invalid TCP checksum for the packets sent to target hosts\&. Since virtually all host IP stacks properly drop these packets, any responses received are likely coming from a firewall or an IDS that didn\*(Aqt bother to verify the checksum\&. For more details on this technique, see
-\m[blue]\fB\%https://nmap.org/p60-12.html\fR\m[]\&.
+\m[blue]\fB\%https://kmap.org/p60-12.html\fR\m[]\&.
 .RE
 .SH "UDP MODE"
 .PP
@@ -575,7 +575,7 @@ This option asks Nping to use the specified port as source port for the transmit
 \fB\-\-badsum\fR (Invalid Checksum)
 .RS 4
 Asks Nping to use an invalid UDP checksum for the packets sent to target hosts\&. Since virtually all host IP stacks properly drop these packets, any responses received are likely coming from a firewall or an IDS that didn\*(Aqt bother to verify the checksum\&. For more details on this technique, see
-\m[blue]\fB\%https://nmap.org/p60-12.html\fR\m[]\&.
+\m[blue]\fB\%https://kmap.org/p60-12.html\fR\m[]\&.
 .RE
 .SH "ICMP MODE"
 .PP
@@ -1136,7 +1136,7 @@ U
 to request record\-route, record\-timestamp, or both options together, respectively\&. Loose or strict source routing may be specified with an L or S followed by a space and then a space\-separated list of IP addresses\&.
 .sp
 For more information and examples of using IP options with Nping, see the mailing list post at
-\m[blue]\fB\%https://seclists.org/nmap-dev/2006/q3/0052.html\fR\m[]\&.
+\m[blue]\fB\%https://seclists.org/kmap-dev/2006/q3/0052.html\fR\m[]\&.
 .RE
 .PP
 \fB\-\-mtu \fR\fB\fIsize\fR\fR (Maximum Transmission Unit)
@@ -1406,7 +1406,7 @@ This scheme lets the client see the differences between the packets that it send
 The Echo mode is also useful for troubleshooting routing and firewall issues\&. Among other things, it can be used to determine if the traffic generated by the Nping client is being dropped in transit and never gets to its destination or if the responses are the ones that don\*(Aqt get back to it\&.
 .PP
 Internally, client and server communicate over an encrypted and authenticated channel, using the Nping Echo Protocol (NEP), whose technical specification can be found in
-\m[blue]\fB\%https://nmap.org/svn/nping/docs/EchoProtoRFC.txt\fR\m[]
+\m[blue]\fB\%https://kmap.org/svn/nping/docs/EchoProtoRFC.txt\fR\m[]
 .PP
 The following paragraphs describe the different options available in Nping\*(Aqs Echo mode\&.
 .PP
@@ -1477,9 +1477,9 @@ The following examples illustrate how Nping\*(Aqs Echo mode can be used to disco
 .RS 4
 .\}
 .nf
-    # \fBnping \-\-echo\-client "public" echo\&.nmap\&.org \-\-udp \fR
+    # \fBnping \-\-echo\-client "public" echo\&.kmap\&.org \-\-udp \fR
 
-    Starting Nping ( https://nmap\&.org/nping )
+    Starting Nping ( https://kmap\&.org/nping )
     SENT (1\&.0970s) UDP 10\&.1\&.20\&.128:53 > 178\&.79\&.165\&.17:40125 ttl=64 id=32523 iplen=28 
     CAPT (1\&.1270s) UDP 80\&.38\&.10\&.21:45657 > 178\&.79\&.165\&.17:40125 ttl=54 id=32523 iplen=28 
     RCVD (1\&.1570s) ICMP 178\&.79\&.165\&.17 > 10\&.1\&.20\&.128 Port unreachable (type=3/code=3) ttl=49 id=16619 iplen=56 
@@ -1507,9 +1507,9 @@ The output clearly shows the presence of a NAT device in the client\*(Aqs local 
 .RS 4
 .\}
 .nf
-    # \fBnping \-\-echo\-client "public" echo\&.nmap\&.org \-\-tcp \-p80\fR
+    # \fBnping \-\-echo\-client "public" echo\&.kmap\&.org \-\-tcp \-p80\fR
 
-    Starting Nping ( https://nmap\&.org/nping )
+    Starting Nping ( https://kmap\&.org/nping )
     SENT (1\&.2160s) TCP 10\&.0\&.1\&.77:41659 > 178\&.79\&.165\&.17:80 S ttl=64 id=3317 iplen=40  seq=567704200 win=1480 
     RCVD (1\&.2180s) TCP 178\&.79\&.165\&.17:80 > 10\&.0\&.1\&.77:41659 SA ttl=128 id=13177 iplen=44  seq=3647106954 win=16384 <mss 1460>
     SENT (2\&.2150s) TCP 10\&.0\&.1\&.77:41659 > 178\&.79\&.165\&.17:80 S ttl=64 id=3317 iplen=40  seq=567704200 win=1480 
@@ -1719,7 +1719,7 @@ NSOCK (1\&.0000s) Callback: TIMER SUCCESS for EID 12; tcpconnect_event_handler()
 .RE
 .\}
 .sp
-If you don\*(Aqt understand a line, your only recourses are to ignore it, look it up in the source code, or request help from the development list (nmap\-dev)\&. Some lines are self\-explanatory, but the messages become more obscure as the debug level is increased\&. These are the available levels:
+If you don\*(Aqt understand a line, your only recourses are to ignore it, look it up in the source code, or request help from the development list (kmap\-dev)\&. Some lines are self\-explanatory, but the messages become more obscure as the debug level is increased\&. These are the available levels:
 .PP
 Level 0
 .RS 4
@@ -1759,15 +1759,15 @@ Like level 5 but it enables full, very detailed, debug information related to ex
 .SH "BUGS"
 .PP
 Like its authors, Nping isn\*(Aqt perfect\&. But you can help make it better by sending bug reports or even writing patches\&. If Nping doesn\*(Aqt behave the way you expect, first upgrade to the latest version available from
-\m[blue]\fB\%https://nmap.org\fR\m[]\&. If the problem persists, do some research to determine whether it has already been discovered and addressed\&. Try searching for the problem or error message on Google since that aggregates so many forums\&. If nothing comes of this, create an Issue on our tracker (\m[blue]\fB\%http://issues.nmap.org\fR\m[]) and/or mail a bug report to
-<dev@nmap\&.org>\&. If you subscribe to the nmap\-dev list before posting, your message will bypass moderation and get through more quickly\&. Subscribe at
-\m[blue]\fB\%https://nmap.org/mailman/listinfo/dev\fR\m[]\&. Please include everything you have learned about the problem, as well as what version of Nping you are using and what operating system version it is running on\&. Other suggestions for improving Nping may be sent to the Nmap dev mailing list as well\&.
+\m[blue]\fB\%https://kmap.org\fR\m[]\&. If the problem persists, do some research to determine whether it has already been discovered and addressed\&. Try searching for the problem or error message on Google since that aggregates so many forums\&. If nothing comes of this, create an Issue on our tracker (\m[blue]\fB\%http://issues.kmap.org\fR\m[]) and/or mail a bug report to
+<dev@kmap\&.org>\&. If you subscribe to the kmap\-dev list before posting, your message will bypass moderation and get through more quickly\&. Subscribe at
+\m[blue]\fB\%https://kmap.org/mailman/listinfo/dev\fR\m[]\&. Please include everything you have learned about the problem, as well as what version of Nping you are using and what operating system version it is running on\&. Other suggestions for improving Nping may be sent to the Kmap dev mailing list as well\&.
 .PP
 If you are able to write a patch improving Nping or fixing a bug, that is even better! Instructions for submitting patches or git pull requests are available from
-\m[blue]\fB\%https://github.com/nmap/nmap/blob/master/CONTRIBUTING.md\fR\m[]
+\m[blue]\fB\%https://github.com/kmap/kmap/blob/master/CONTRIBUTING.md\fR\m[]
 .PP
 Particularly sensitive issues such as a security reports may be sent directly to Fyodor directly at
-<fyodor@nmap\&.org>\&. All other reports and comments should use the dev list or issue tracker instead because more people read, follow, and respond to those\&.
+<fyodor@kmap\&.org>\&. All other reports and comments should use the dev list or issue tracker instead because more people read, follow, and respond to those\&.
 .SH "AUTHORS"
 .PP
 Luis MartinGarcia
@@ -1775,7 +1775,7 @@ Luis MartinGarcia
 (\m[blue]\fB\%http://www.luismg.com\fR\m[])
 .PP
 Fyodor
-<fyodor@nmap\&.org>
+<fyodor@kmap\&.org>
 (\m[blue]\fB\%https://insecure.org\fR\m[])
 .SH "NOTES"
 .IP " 1." 4

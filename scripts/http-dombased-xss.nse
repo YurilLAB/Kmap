@@ -5,7 +5,7 @@ http://www.webappsec.org/projects/articles/071105.shtml
 ]]
 
 ---
--- @usage nmap -p80 --script http-dombased-xss.nse <target>
+-- @usage kmap -p80 --script http-dombased-xss.nse <target>
 --
 -- DOM-based XSS occur in client-side JavaScript and this script tries to detect
 -- them by using some patterns. Please note, that the script may generate some
@@ -39,7 +39,7 @@ http://www.webappsec.org/projects/articles/071105.shtml
 
 categories = {"intrusive", "exploit", "vuln"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local shortport = require "shortport"

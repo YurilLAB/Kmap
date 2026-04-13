@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -18,7 +18,7 @@ http://www.gamers.org/dEngine/quake/QDP/qnp.html
 
 ---
 -- @usage
--- nmap -n -sU -Pn --script quake1-info -pU:26000-26004 -- <target>
+-- kmap -n -sU -Pn --script quake1-info -pU:26000-26004 -- <target>
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -62,17 +62,17 @@ http://www.gamers.org/dEngine/quake/QDP/qnp.html
 categories = {"default", "discovery", "safe", "version"}
 author = "Ulrik Haugen"
 copyright = "Linköpings universitet 2014, Ulrik Haugen 2014"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 
 --- Proceed with action on open/open|filtered udp ports in interval
--- [26000, 26004] and whatever Quake is listed under in nmap-services.
+-- [26000, 26004] and whatever Quake is listed under in kmap-services.
 function portrule(host, port)
   return (port.state == 'open' or port.state == 'open|filtered')
   and port.protocol == 'udp'
   and ((26000 <= port.number and port.number <= 26004)
     or port.service == 'quake')
-  and nmap.version_intensity() >= 7
+  and kmap.version_intensity() >= 7
 end
 
 
@@ -203,7 +203,7 @@ local function get_server_info(host, port)
   assert_w_table(status, "No response to request for server info")
   assert_w_table(#rep_pl >= 4, "Response too small for packet header")
 
-  nmap.set_port_state(host, port, 'open')
+  kmap.set_port_state(host, port, 'open')
   server_info.server_ratio = string.format("%d/%d=%f",
     rep_pl:len(), req_pl:len(),
     rep_pl:len()/req_pl:len())
@@ -230,7 +230,7 @@ local function get_server_info(host, port)
   port.version.name = "quake"
   port.version.product = "Quake 1 server"
   port.version.version = net_protocol_versions[net_protocol_version]
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   local player_table = get_player_table(host, port, cur_players)
 
@@ -296,14 +296,14 @@ end
 -- /results_table/ considering /status/. Return structured and
 -- unstructured output.
 local function collate_results(formatter, status, results_table)
-  if not status and nmap.debugging() < 1 then
+  if not status and kmap.debugging() < 1 then
     return nil
   end
   return results_table, formatter(results_table)
 end
 
 
---- Nmap entry point.
+--- Kmap entry point.
 function action(host, port)
   local xlate_table = {
     player_ratio = "player info exchange payload amplification",

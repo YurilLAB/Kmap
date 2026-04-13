@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local base64 = require "base64"
@@ -18,10 +18,10 @@ authentication.
 
 ---
 -- @usage
---  nmap -p 22 --script ssh-publickey-acceptance --script-args "ssh.usernames={'root', 'user'}, ssh.privatekeys={'./id_rsa1', './id_rsa2'}"  <target>
+--  kmap -p 22 --script ssh-publickey-acceptance --script-args "ssh.usernames={'root', 'user'}, ssh.privatekeys={'./id_rsa1', './id_rsa2'}"  <target>
 --
 -- @usage
---  nmap -p 22 --script ssh-publickey-acceptance --script-args 'ssh.usernames={"root", "user"}, publickeys={"./id_rsa1.pub", "./id_rsa2.pub"}'  <target>
+--  kmap -p 22 --script ssh-publickey-acceptance --script-args 'ssh.usernames={"root", "user"}, publickeys={"./id_rsa1.pub", "./id_rsa2.pub"}'  <target>
 --
 -- @output
 -- 22/tcp open  ssh     syn-ack
@@ -37,7 +37,7 @@ authentication.
 -- @args publickeydb  Specifies alternative publickeydb
 
 author = "Devin Bjelland"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "intrusive"}
 
 local privatekeys = stdnse.get_script_args "ssh.privatekeys"
@@ -45,7 +45,7 @@ local passphrases = stdnse.get_script_args "ssh.passphrases" or {}
 local usernames = stdnse.get_script_args "ssh.usernames"
 local knownbad = stdnse.get_script_args "knownbad"
 local publickeys = stdnse.get_script_args "ssh.publickeys"
-local publickeydb = stdnse.get_script_args "publickeydb" or nmap.fetchfile("nselib/data/publickeydb")
+local publickeydb = stdnse.get_script_args "publickeydb" or kmap.fetchfile("nselib/data/publickeydb")
 portrule = shortport.ssh
 
 function action (host, port)

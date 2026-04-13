@@ -12,7 +12,7 @@ Performs brute force password auditing against Session Initiation Protocol
 
 ---
 -- @usage
--- nmap -sU -p 5060 <target> --script=sip-brute
+-- kmap -sU -p 5060 <target> --script=sip-brute
 --
 -- PORT     STATE         SERVICE
 -- 5060/udp open|filtered sip
@@ -26,7 +26,7 @@ Performs brute force password auditing against Session Initiation Protocol
 -- Created 04/03/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

@@ -2,7 +2,7 @@ local comm = require "comm"
 local json = require "json"
 local lpeg = require "lpeg"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -21,7 +21,7 @@ _ENV = stdnse.module("coap", stdnse.seeall)
 -- not be difficult.
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 COAP = {}
 
@@ -2168,7 +2168,7 @@ Helper = {
     end
     assert(type(timeout) == "number")
 
-    local end_time = nmap.clock_ms() + timeout * 1000
+    local end_time = kmap.clock_ms() + timeout * 1000
     while true do
       -- Get the raw packet from the socket.
       local status, pkt = self.comm:receive()
@@ -2191,7 +2191,7 @@ Helper = {
 
       -- Check timeout, but only if we care about it.
       if timeout > 0 then
-        if nmap.clock_ms() >= end_time then
+        if kmap.clock_ms() >= end_time then
           break
         end
       end
@@ -2495,14 +2495,14 @@ local tests = {
       ["code"] = "get",
       ["id"] = 0x1234,
       ["type"] = "confirmable",
-      ["token"] = "nmapcoap",
+      ["token"] = "kmapcoap",
       ["token_length"] = 8,
       ["options"] = {
         {["name"] = "uri_path", ["value"] = ".well-known"},
         {["name"] = "uri_path", ["value"] = "core"},
       },
     },
-    "\x48\x01\x12\x34nmapcoap\xBB.well-known\x04core"
+    "\x48\x01\x12\x34kmapcoap\xBB.well-known\x04core"
   },
 }
 
@@ -2643,8 +2643,8 @@ local tests = {
   },
   {
     "text/plain",
-    "nmap",
-    "nmap"
+    "kmap",
+    "kmap"
   },
   {
     "application/octet-stream",

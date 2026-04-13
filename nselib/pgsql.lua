@@ -9,10 +9,10 @@
 -- * http://developer.postgresql.org/pgdocs/postgres/protocol-flow.html
 -- * http://developer.postgresql.org/pgdocs/postgres/protocol-message-formats.html
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local openssl = stdnse.silent_require "openssl"
 local string = require "string"
@@ -151,7 +151,7 @@ v2 =
     local ptype, len
 
     local catch = function() socket:close() stdnse.debug1("processResponse(): failed") end
-    local try = nmap.new_try(catch)
+    local try = kmap.new_try(catch)
 
     if ( data == nil or data:len() == 0 ) then
       data = try(socket:receive())
@@ -215,7 +215,7 @@ v2 =
   loginRequest = function ( socket, params, username, password, salt )
 
     local catch = function() socket:close() stdnse.debug1("loginRequest(): failed") end
-    local try = nmap.new_try(catch)
+    local try = kmap.new_try(catch)
     local response = {}
     local status, data, len, pos, tmp
 
@@ -604,7 +604,7 @@ end
 -- @return class v2 or v3
 function detectVersion(host, port)
   local status, response
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   socket:connect(host, port)
   status, response = v3.sendStartup(socket, "versionprobe", "versionprobe")

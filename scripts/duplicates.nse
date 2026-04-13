@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local ssh1 = require "ssh1"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -20,7 +20,7 @@ script to analyze the data.
 
 ---
 -- @usage
--- sudo nmap -PN -p445,443 --script duplicates,nbstat,ssl-cert <ips>
+-- sudo kmap -PN -p445,443 --script duplicates,nbstat,ssl-cert <ips>
 --
 -- @output
 -- | duplicates:
@@ -53,7 +53,7 @@ script to analyze the data.
 --   was for a particular information source.
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe"}
 dependencies = {"ssl-cert", "ssh-hostkey", "nbstat"}
 
@@ -185,20 +185,20 @@ postaction = function()
   }
 
   -- temporary re-allocation code for SSH keys
-  for k, v in pairs(nmap.registry.sshhostkey or {}) do
-    nmap.registry['duplicates'] = nmap.registry['duplicates'] or {}
-    nmap.registry['duplicates']['sshhostkey'] = nmap.registry['duplicates']['sshhostkey'] or {}
-    nmap.registry['duplicates']['sshhostkey'][k] = v
+  for k, v in pairs(kmap.registry.sshhostkey or {}) do
+    kmap.registry['duplicates'] = kmap.registry['duplicates'] or {}
+    kmap.registry['duplicates']['sshhostkey'] = kmap.registry['duplicates']['sshhostkey'] or {}
+    kmap.registry['duplicates']['sshhostkey'][k] = v
   end
 
-  if ( not(nmap.registry['duplicates']) ) then
+  if ( not(kmap.registry['duplicates']) ) then
     return
   end
 
   local results = {}
   for key, handler in pairs(handlers) do
-    if ( nmap.registry['duplicates'][key] ) then
-      local result_part = handler.func( nmap.registry['duplicates'][key] )
+    if ( kmap.registry['duplicates'][key] ) then
+      local result_part = handler.func( kmap.registry['duplicates'][key] )
       if ( result_part and #result_part > 0 ) then
         table.insert(results, { name = handler.name, result_part } )
       end
@@ -213,22 +213,22 @@ end
 -- it when we need it.
 hostaction = function(host)
 
-  nmap.registry['duplicates'] = nmap.registry['duplicates'] or {}
+  kmap.registry['duplicates'] = kmap.registry['duplicates'] or {}
 
   for port, cert in pairs(host.registry["ssl-cert"] or {}) do
-    nmap.registry['duplicates']['ssl-cert'] = nmap.registry['duplicates']['ssl-cert'] or {}
-    nmap.registry['duplicates']['ssl-cert'][host] = nmap.registry['duplicates']['ssl-cert'][host] or {}
-    nmap.registry['duplicates']['ssl-cert'][host][port] = stdnse.tohex(cert:digest("sha1"), { separator = " ", group = 4 })
+    kmap.registry['duplicates']['ssl-cert'] = kmap.registry['duplicates']['ssl-cert'] or {}
+    kmap.registry['duplicates']['ssl-cert'][host] = kmap.registry['duplicates']['ssl-cert'][host] or {}
+    kmap.registry['duplicates']['ssl-cert'][host][port] = stdnse.tohex(cert:digest("sha1"), { separator = " ", group = 4 })
   end
 
   if ( host.registry['nbstat'] ) then
-    nmap.registry['duplicates']['nbstat'] = nmap.registry['duplicates']['nbstat'] or {}
-    nmap.registry['duplicates']['nbstat'][host] = host.registry['nbstat']
+    kmap.registry['duplicates']['nbstat'] = kmap.registry['duplicates']['nbstat'] or {}
+    kmap.registry['duplicates']['nbstat'][host] = host.registry['nbstat']
   end
 
   if ( host.mac_addr_src ) then
-    nmap.registry['duplicates']['mac'] = nmap.registry['duplicates']['mac'] or {}
-    nmap.registry['duplicates']['mac'][host] = true
+    kmap.registry['duplicates']['mac'] = kmap.registry['duplicates']['mac'] or {}
+    kmap.registry['duplicates']['mac'][host] = true
   end
 
   return

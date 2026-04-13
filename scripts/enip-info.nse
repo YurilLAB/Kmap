@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,7 +22,7 @@ http://digitalbond.com
 ]]
 ---
 -- @usage
--- nmap --script enip-info -sU -p 44818 <host>
+-- kmap --script enip-info -sU -p 44818 <host>
 --
 --
 -- @output
@@ -51,10 +51,10 @@ http://digitalbond.com
 
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version"}
 
--- Function to define the portrule as per nmap standards
+-- Function to define the portrule as per kmap standards
 -- IANA replaced the historical EtherNet/IP-2 name with EtherNet-IP-2
 portrule = shortport.version_port_or_service(44818, {"EtherNet-IP-2", "EtherNet/IP-2"}, {"tcp","udp"})
 
@@ -1629,33 +1629,33 @@ function device_type_lookup (devtype)
 	return device_type[devtype] or "Unknown Device Type"
 end
 
---  Function to set the nmap output for the host, if a valid EtherNet/IP packet
+--  Function to set the kmap output for the host, if a valid EtherNet/IP packet
 --  is received then the output will show that the port as EtherNet/IP instead of
 --  <code>unknown</code>
 
--- @param host Host that was passed in via nmap
+-- @param host Host that was passed in via kmap
 -- @param port port that EtherNet/IP is running on (Default TCP/44818)
-function set_nmap(host, port)
+function set_kmap(host, port)
 	--set port Open
 	port.state = "open"
 	-- set version name to EtherNet/IP
 	port.version.name = "EtherNet-IP-2"
-	nmap.set_port_version(host, port)
-	nmap.set_port_state(host, port, "open")
+	kmap.set_port_version(host, port)
+	kmap.set_port_state(host, port, "open")
 end
 
 --  Action Function that is used to run the NSE. This function will send the initial query to the
---  host and port that were passed in via nmap. The initial response is parsed to determine if host
+--  host and port that were passed in via kmap. The initial response is parsed to determine if host
 --  is a EtherNet/IP device. If it is then more actions are taken to gather extra information.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host,port)
 	-- create local vars for socket handling
 	local socket, try, catch
 
 	-- create new socket
-	socket = nmap.new_socket()
+	socket = kmap.new_socket()
 
 	-- set timeout
 	socket:set_timeout(stdnse.get_timeout(host))	
@@ -1666,7 +1666,7 @@ action = function(host,port)
 	end
 
 	-- create new try
-	try = nmap.new_try(catch)
+	try = kmap.new_try(catch)
 
 	-- connect to port on host
 	try(socket:connect(host, port))
@@ -1757,9 +1757,9 @@ action = function(host,port)
 	output["state"] = state
 	output["deviceIp"] = deviceIp
 
-	-- set Nmap output
-	set_nmap(host, port)
+	-- set Kmap output
+	set_kmap(host, port)
 
-	-- return output table to Nmap
+	-- return output table to Kmap
 	return output
 end

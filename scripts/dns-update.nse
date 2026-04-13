@@ -1,5 +1,5 @@
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -14,27 +14,27 @@ zone configured on your target.
 ]]
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive"}
 
 ---
 -- @usage
--- nmap -sU -p 53 --script=dns-update --script-args=dns-update.hostname=foo.example.com,dns-update.ip=192.0.2.1 <target>
+-- kmap -sU -p 53 --script=dns-update --script-args=dns-update.hostname=foo.example.com,dns-update.ip=192.0.2.1 <target>
 --
 -- @output
 -- PORT   STATE SERVICE
 -- 53/udp open  domain
 -- | dns-update:
--- |   Successfully added the record "nmap-test.cqure.net"
--- |_  Successfully deleted the record "nmap-test.cqure.net"
+-- |   Successfully added the record "kmap-test.cqure.net"
+-- |_  Successfully deleted the record "kmap-test.cqure.net"
 --
 -- @args dns-update.hostname The name of the host to add to the zone
 -- @args dns-update.ip The ip address of the host to add to the zone
 -- @args dns-update.test Add and remove 4 records to determine if the target is vulnerable.
 --
 -- @xmloutput
--- <elem>Successfully added the record "nmap-test.cqure.net"</elem>
--- <elem>Failed to delete the record "nmap-test.cqure.net"</elem>
+-- <elem>Successfully added the record "kmap-test.cqure.net"</elem>
+-- <elem>Failed to delete the record "kmap-test.cqure.net"</elem>
 
 --
 -- Examples
@@ -109,7 +109,7 @@ action = function(host, port)
     else
       table.insert(result, ("Failed to delete the record \"%s\""):format(name))
     end
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     return result
   elseif ( err ) then
     return stdnse.format_output(false, err)

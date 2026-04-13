@@ -7,7 +7,7 @@ are a root document.
 
 ---
 -- @usage
--- nmap --script http-sitemap-generator -p 80 <host>
+-- kmap --script http-sitemap-generator -p 80 <host>
 --
 --
 -- @output
@@ -44,7 +44,7 @@ are a root document.
 --
 
 author = "Piotr Olma"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 local shortport = require 'shortport'

@@ -1,5 +1,5 @@
 local mssql = require "mssql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -32,7 +32,7 @@ authentication required to connect to the SQL Server instances itself. See the
 documentation and arguments for the <code>smb</code> library for more information.
 
 NOTE: By default, the ms-sql-* scripts may attempt to connect to and communicate
-with ports that were not included in the port list for the Nmap scan. This can
+with ports that were not included in the port list for the Kmap scan. This can
 be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 ]]
 
@@ -40,8 +40,8 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 -- @see ms-sql-brute.nse
 --
 -- @usage
--- nmap -p 445 --script ms-sql-empty-password --script-args mssql.instance-all <host>
--- nmap -p 1433 --script ms-sql-empty-password <host>
+-- kmap -p 445 --script ms-sql-empty-password --script-args mssql.instance-all <host>
+-- kmap -p 1433 --script ms-sql-empty-password <host>
 --
 -- @output
 -- | ms-sql-empty-password:
@@ -56,7 +56,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 --    - Added compatibility with changes in mssql.lua
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth","intrusive"}
 
 dependencies = {"broadcast-ms-sql-discover"}
@@ -103,8 +103,8 @@ local function test_credentials( instance, helper, username, password )
     if ( canLogin ) then
       instance.credentials[ username ] = password
       -- Legacy storage method (does not distinguish between instances)
-      nmap.registry.mssqlusers = nmap.registry.mssqlusers or {}
-      nmap.registry.mssqlusers[username]=password
+      kmap.registry.mssqlusers = kmap.registry.mssqlusers or {}
+      kmap.registry.mssqlusers[username]=password
     end
   end
 end
@@ -119,7 +119,7 @@ local function process_instance( instance )
   -- that multiple script instances (e.g. a host-script and a port-script)
   -- working on the same SQL Server instance can only enter this block one at
   -- a time.
-  local mutex = nmap.mutex( instance )
+  local mutex = kmap.mutex( instance )
   mutex( "lock" )
 
   local status, result
@@ -151,7 +151,7 @@ local function process_instance( instance )
     for _, message in ipairs( instance.ms_sql_empty ) do
       table.insert( instanceOutput, message )
     end
-    if ( nmap.verbosity() > 1 and #instance.ms_sql_empty == 0 ) then
+    if ( kmap.verbosity() > 1 and #instance.ms_sql_empty == 0 ) then
       table.insert( instanceOutput, "'sa' account password is not blank." )
     end
   end

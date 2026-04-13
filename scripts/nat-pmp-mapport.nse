@@ -1,5 +1,5 @@
 local natpmp = require "natpmp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -7,15 +7,15 @@ local table = require "table"
 description = [[
 Maps a WAN port on the router to a local port on the client using the NAT Port Mapping Protocol (NAT-PMP).  It supports the following operations:
 * map - maps a new external port on the router to an internal port of the requesting IP
-* unmap - unmaps a previously mapped port for the requesting IP
-* unmapall - unmaps all previously mapped ports for the requesting IP
+* ukmap - ukmaps a previously mapped port for the requesting IP
+* ukmapall - ukmaps all previously mapped ports for the requesting IP
 ]]
 
 ---
 -- @usage
--- nmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=map,pubport=8080,privport=8080,protocol=tcp'
--- nmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=unmap,pubport=8080,privport=8080,protocol=tcp'
--- nmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=unmapall,protocol=tcp'
+-- kmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=map,pubport=8080,privport=8080,protocol=tcp'
+-- kmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=ukmap,pubport=8080,privport=8080,protocol=tcp'
+-- kmap -sU -p 5351 <ip> --script nat-pmp-mapport --script-args='op=ukmapall,protocol=tcp'
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -23,10 +23,10 @@ Maps a WAN port on the router to a local port on the client using the NAT Port M
 -- | nat-pmp-mapport:
 -- |_  Successfully mapped tcp 1.2.3.4:8080 -> 192.168.0.100:80
 --
--- @args nat-pmp-mapport.op operation, can be either map, unmap or unmap all
+-- @args nat-pmp-mapport.op operation, can be either map, ukmap or ukmap all
 --       o map allows you to map an external port to an internal port of the calling IP
---       o unmap removes the external port mapping for the specified ports and protocol
---       o unmapall removes all mappings for the specified protocol and calling IP
+--       o ukmap removes the external port mapping for the specified ports and protocol
+--       o ukmapall removes all mappings for the specified protocol and calling IP
 --
 -- @args nat-pmp-mapport.pubport the external port to map on the router. The
 --       specified port is treated as the requested port. If the port is available
@@ -44,7 +44,7 @@ Maps a WAN port on the router to a local port on the client using the NAT Port M
 -- @see nat-pmp-info.nse
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -62,23 +62,23 @@ action = function(host, port)
 
   local op = arg_op:lower()
 
-  if ( "map" ~= op and "unmap" ~= op and "unmapall" ~= op ) then
-    return fail("Operation must be either \"map\", \"unmap\" or \"unmapall\"")
+  if ( "map" ~= op and "ukmap" ~= op and "ukmapall" ~= op ) then
+    return fail("Operation must be either \"map\", \"ukmap\" or \"ukmapall\"")
   end
 
-  if ( ("map" == op or "unmap" == op ) and
+  if ( ("map" == op or "ukmap" == op ) and
     ( not(arg_pubport) or not(arg_privport) or not(arg_protocol) ) ) then
     return fail("The arguments pubport, privport and protocol are required")
-  elseif ( "unmapall" == op and not(arg_protocol) ) then
+  elseif ( "ukmapall" == op and not(arg_protocol) ) then
     return fail("The argument protocol is required")
   end
 
   local helper = natpmp.Helper:new(host, port)
 
-  if ( "unmap" == op or "unmapall" == op ) then
+  if ( "ukmap" == op or "ukmapall" == op ) then
     arg_lifetime = 0
   end
-  if ( "unmapall" == op ) then
+  if ( "ukmapall" == op ) then
     arg_pubport, arg_privport = 0, 0
   end
 
@@ -88,7 +88,7 @@ action = function(host, port)
   end
 
   local wan_ip = response.ip
-  local lan_ip = (nmap.get_interface_info(host.interface)).address
+  local lan_ip = (kmap.get_interface_info(host.interface)).address
 
   local status, response = helper:mapPort(arg_pubport, arg_privport, arg_protocol, arg_lifetime)
 
@@ -97,11 +97,11 @@ action = function(host, port)
   end
 
   local output
-  if ( "unmap" == op ) then
-    output = ("Successfully unmapped %s %s:%d -> %s:%d"):format(
+  if ( "ukmap" == op ) then
+    output = ("Successfully ukmapped %s %s:%d -> %s:%d"):format(
       arg_protocol, wan_ip, response.pubport, lan_ip, response.privport )
-  elseif ( "unmapall" == op ) then
-    output = ("Sucessfully unmapped all %s NAT mappings for %s"):format(arg_protocol, lan_ip)
+  elseif ( "ukmapall" == op ) then
+    output = ("Sucessfully ukmapped all %s NAT mappings for %s"):format(arg_protocol, lan_ip)
   else
     output = ("Successfully mapped %s %s:%d -> %s:%d"):format(
       arg_protocol, wan_ip, response.pubport, lan_ip, response.privport )

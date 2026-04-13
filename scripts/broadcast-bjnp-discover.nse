@@ -9,7 +9,7 @@ information for all discovered devices.
 
 ---
 -- @usage
--- nmap --script broadcast-bjnp-discover
+-- kmap --script broadcast-bjnp-discover
 --
 -- @output
 -- | broadcast-bjnp-discover:
@@ -30,13 +30,13 @@ information for all discovered devices.
 --       the network interface. (default 30s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "broadcast"}
 
 local bjnp = require("bjnp")
 local stdnse = require("stdnse")
 local coroutine = require("coroutine")
-local nmap = require("nmap")
+local kmap = require("kmap")
 local table = require("table")
 
 local printer_port = { number = 8611, protocol = "udp"}
@@ -44,7 +44,7 @@ local scanner_port = { number = 8612, protocol = "udp"}
 local arg_timeout  = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
 
 local bcast_host = {
-  ip = (nmap.address_family() == 'inet' and "255.255.255.255" or "ff02::1"),
+  ip = (kmap.address_family() == 'inet' and "255.255.255.255" or "ff02::1"),
 }
 
 prerule = function()
@@ -99,7 +99,7 @@ local function getKeys(devices)
 end
 
 local function getPrinters(devices)
-  local condvar = nmap.condvar(devices)
+  local condvar = kmap.condvar(devices)
   local helper = bjnp.Helper:new( bcast_host, printer_port, { bcast = true, timeout = arg_timeout } )
   if ( not(helper:connect()) ) then
     condvar "signal"
@@ -114,7 +114,7 @@ local function getPrinters(devices)
 end
 
 local function getScanners(devices)
-  local condvar = nmap.condvar(devices)
+  local condvar = kmap.condvar(devices)
   local helper = bjnp.Helper:new( bcast_host, scanner_port, { bcast = true, timeout = arg_timeout } )
   if ( not(helper:connect()) ) then
     condvar "signal"
@@ -132,7 +132,7 @@ end
 action = function()
   arg_timeout = ( arg_timeout and arg_timeout * 1000 or 5000)
   local devices, result, threads = {}, {}, {}
-  local condvar = nmap.condvar(devices)
+  local condvar = kmap.condvar(devices)
 
   local co = stdnse.new_thread(getPrinters, devices)
   threads[co] = true

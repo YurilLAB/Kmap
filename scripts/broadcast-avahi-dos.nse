@@ -1,5 +1,5 @@
 local dnssd = require "dnssd"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 
@@ -22,7 +22,7 @@ Reference:
 
 ---
 -- @usage
--- nmap --script=broadcast-avahi-dos
+-- kmap --script=broadcast-avahi-dos
 --
 -- @output
 -- | broadcast-avahi-dos:
@@ -38,14 +38,14 @@ Reference:
 
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "dos", "intrusive", "vuln"}
 
 
 prerule = function() return true end
 
 avahi_send_null_udp = function(ip)
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   local status = socket:sendto(ip, 5353, "")
   socket:close()
   return status

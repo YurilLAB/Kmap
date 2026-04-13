@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local comm = require "comm"
@@ -37,7 +37,7 @@ Idea from Qualys blogpost:
 
 ---
 -- @usage
--- nmap --script http-slowloris-check  <target>
+-- kmap --script http-slowloris-check  <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -60,7 +60,7 @@ Idea from Qualys blogpost:
 -- @see http-slowloris.nse
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 
@@ -107,16 +107,16 @@ the http server's resources causing Denial Of Service.
 
   -- does a half http request and waits until timeout
   local function slowThread1()
-    local socket = nmap.new_socket()
-    local try = nmap.new_try(function()
-        TimeWithout = nmap.clock()
+    local socket = kmap.new_socket()
+    local try = kmap.new_try(function()
+        TimeWithout = kmap.clock()
         socket:close()
       end)
     try(socket:connect(host, port, Bestopt))
     try(socket:send(HalfHTTP))
     socket:set_timeout(500 * 1000)
     try(socket:receive())
-    TimeWithout = nmap.clock()
+    TimeWithout = kmap.clock()
   end
 
   local TimeWith     -- time with additional headers
@@ -124,9 +124,9 @@ the http server's resources causing Denial Of Service.
   -- does a half http request but sends another
   -- header value after 10 seconds
   local function slowThread2()
-    local socket = nmap.new_socket()
-    local try = nmap.new_try(function()
-        TimeWith = nmap.clock()
+    local socket = kmap.new_socket()
+    local try = kmap.new_try(function()
+        TimeWith = kmap.clock()
         socket:close()
       end)
     try(socket:connect(host, port, Bestopt))
@@ -135,7 +135,7 @@ the http server's resources causing Denial Of Service.
     try(socket:send("X-a: b\r\n"))
     socket:set_timeout(500 * 1000)
     try(socket:receive())
-    TimeWith = nmap.clock()
+    TimeWith = kmap.clock()
   end
 
   -- both threads run at the same time

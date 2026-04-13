@@ -20,12 +20,12 @@ Check if ePO agent is running on port 8081 or port identified as ePO Agent port.
 
 author = {"Didier Stevens", "Daniel Miller"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"version", "safe"}
 
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 
@@ -33,10 +33,10 @@ portrule = function(host, port)
   if port.version ~= nil and port.version.product ~= nil then
     return ((port.version.product:find("[eE][pP]olicy Orch")
           or port.version.product:find("[eE]PO [aA]gent"))
-          and nmap.version_intensity() >= 7)
+          and kmap.version_intensity() >= 7)
   else
     return ((port.number == 8081 and port.protocol == "tcp")
-            and nmap.version_intensity() >= 7)
+            and kmap.version_intensity() >= 7)
   end
 end
 
@@ -64,12 +64,12 @@ action = function(host, port)
       port.version.name = 'http'
       port.version.product = 'McAfee ePolicy Orchestrator Agent'
       port.version.extrainfo = string.format('ePOServerName: %s, AgentGuid: %s', epoServerName, agentGUID)
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
       return nil
     end
   end
 
-  if nmap.verbosity() > 1 then
+  if kmap.verbosity() > 1 then
     return "ePO Agent not found"
   else
     return nil

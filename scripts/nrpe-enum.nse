@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -18,7 +18,7 @@ enabled. User-supplied arguments are not supported.
 
 ---
 -- @usage
--- nmap --script nrpe-enum -p 5666 <host>
+-- kmap --script nrpe-enum -p 5666 <host>
 --
 -- @args nrpe-enum.cmds A colon-separated list of commands to be executed.
 --
@@ -34,7 +34,7 @@ enabled. User-supplied arguments are not supported.
 -- |_check_zombie_procs  OK        PROCS OK: 0 processes with STATE = Z
 
 author = "Mak Kolybabi"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 
@@ -117,7 +117,7 @@ end
 
 local nrpe_open = function(host, port)
   for _, proto in pairs(NRPE_PROTOCOLS) do
-    local sock = nmap.new_socket()
+    local sock = kmap.new_socket()
     sock:set_timeout(2000)
     local status, err = sock:connect(host, port, proto)
     if status then
@@ -231,7 +231,7 @@ action = function(host, port)
   -- Record service description.
   port.version.name = "nrpe"
   port.version.product = "Nagios Remote Plugin Executor"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   -- Format table, without trailing newline.
   results = tab.dump(results)

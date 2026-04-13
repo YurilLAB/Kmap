@@ -9,7 +9,7 @@ description = [[
 Enumerates the users logged into a system either locally or through an SMB share. The local users
 can be logged on either physically on the machine, or through a terminal services session.
 Connections to a SMB share are, for example, people connected to fileshares or making RPC calls.
-Nmap's connection will also show up, and is generally identified by the one that connected "0
+Kmap's connection will also show up, and is generally identified by the one that connected "0
 seconds ago".
 
 From the perspective of a penetration tester, the SMB Sessions is probably the most useful
@@ -48,8 +48,8 @@ the system, besides showing a message box to the user.
 
 ---
 --@usage
--- nmap --script smb-enum-sessions.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-enum-sessions.nse -p U:137,T:139 <host>
+-- kmap --script smb-enum-sessions.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-enum-sessions.nse -p U:137,T:139 <host>
 --
 --@output
 -- Host script results:
@@ -64,7 +64,7 @@ the system, besides showing a message box to the user.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 

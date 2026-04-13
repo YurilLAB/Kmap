@@ -14,7 +14,7 @@ For more information, see:
 
 ---
 -- @usage
--- nmap --script=http-vuln-cve2010-0738 --script-args 'http-vuln-cve2010-0738.paths={/path1/,/path2/}' <target>
+-- kmap --script=http-vuln-cve2010-0738 --script-args 'http-vuln-cve2010-0738.paths={/path1/,/path2/}' <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -26,7 +26,7 @@ For more information, see:
 -- to <code>{"/jmx-console/"}</code>.
 
 author = "Hani Benhabiles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "auth", "vuln"}
 
 local http = require "http"

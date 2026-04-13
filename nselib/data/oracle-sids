@@ -1,6 +1,6 @@
 #!comment: This database is made by Red Database Security and was released
-#!comment: under the Nmap license by Alexander Kornbrust.
-#!comment: Ref: http://seclists.org/nmap-dev/2009/q4/645
+#!comment: under the Kmap license by Alexander Kornbrust.
+#!comment: Ref: http://seclists.org/kmap-dev/2009/q4/645
 ORCL
 XE
 ASDB

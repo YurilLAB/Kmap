@@ -3,17 +3,17 @@ local string = require "string"
 local target = require "target"
 
 description = [[
-Inserts traceroute hops into the Nmap scanning queue. It only functions if
-Nmap's <code>--traceroute</code> option is used and the <code>newtargets</code>
+Inserts traceroute hops into the Kmap scanning queue. It only functions if
+Kmap's <code>--traceroute</code> option is used and the <code>newtargets</code>
 script argument is given.
 ]]
 
 ---
--- @args newtargets  If specified, adds traceroute hops onto Nmap
+-- @args newtargets  If specified, adds traceroute hops onto Kmap
 --                   scanning queue.
 --
 -- @usage
--- nmap --script targets-traceroute --script-args newtargets --traceroute target
+-- kmap --script targets-traceroute --script-args newtargets --traceroute target
 --
 -- @output
 -- Host script results:
@@ -23,7 +23,7 @@ script argument is given.
 -- 09/02/2010
 author = "Henri Doreau"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 

@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local slaxml = require "slaxml"
 local stdnse = require "stdnse"
@@ -36,7 +36,7 @@ of system.methodHelp for each method returned by listMethods.
 
 author = "Gyanendra Mishra"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe", "discovery"}
 
@@ -87,7 +87,7 @@ action = function(host, port)
       }
     parser:parseSAX(response.body, {stripWhitespace=true})
 
-    if  nmap.verbosity() > 1 and tableaux.contains(output["Supported Methods"], "system.methodHelp") then
+    if  kmap.verbosity() > 1 and tableaux.contains(output["Supported Methods"], "system.methodHelp") then
       for i, method in ipairs(output["Supported Methods"]) do
         data = '<methodCall> <methodName>system.methodHelp</methodName> <params> <param><value> <string>' .. method .. '</string> </value></param> </params> </methodCall>'
         response = http.post(host, port, url, {header = {["Content-Type"] = "application/x-www-form-urlencoded"}}, nil, data)

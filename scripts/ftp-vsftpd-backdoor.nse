@@ -1,5 +1,5 @@
 local ftp = require "ftp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,7 +22,7 @@ References:
 
 ---
 -- @usage
--- nmap --script ftp-vsftpd-backdoor -p 21 <host>
+-- kmap --script ftp-vsftpd-backdoor -p 21 <host>
 --
 -- @args ftp-vsftpd-backdoor.cmd Command to execute in shell
 --       (default is <code>id</code>).
@@ -50,7 +50,7 @@ References:
 --
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "malware", "vuln"}
 
 
@@ -80,7 +80,7 @@ end
 
 -- Returns true, results  if vsFTPd was backdoored
 local function check_backdoor(host, shell_cmd, vuln)
-  local socket = nmap.new_socket("tcp")
+  local socket = kmap.new_socket("tcp")
   socket:set_timeout(10000)
 
   local status, ret = socket:connect(host, 6200, "tcp")

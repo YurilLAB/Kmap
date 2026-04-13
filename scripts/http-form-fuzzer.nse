@@ -6,7 +6,7 @@ determine if the fuzzing was successful.
 
 ---
 -- @usage
--- nmap --script http-form-fuzzer --script-args 'http-form-fuzzer.targets={1={path=/},2={path=/register.html}}' -p 80 <host>
+-- kmap --script http-form-fuzzer --script-args 'http-form-fuzzer.targets={1={path=/},2={path=/register.html}}' -p 80 <host>
 --
 -- This script attempts to fuzz fields in forms it detects (it fuzzes one field at a time).
 -- In each iteration it first tries to fuzz a field with a string, then with a number.
@@ -48,7 +48,7 @@ determine if the fuzzing was successful.
 --
 
 author = {"Piotr Olma", "Gioacchino Mazzurco"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"fuzzer", "intrusive"}
 
 local shortport = require 'shortport'

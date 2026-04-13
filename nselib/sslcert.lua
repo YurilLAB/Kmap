@@ -29,7 +29,7 @@ local ldap = require "ldap"
 local match = require "match"
 local mssql = require "mssql"
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smtp = require "smtp"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -52,8 +52,8 @@ if have_openssl then
   --@param der DER-encoded certificate
   --@return table containing decoded certificate or nil on failure
   --@return error string if parsing failed
-  --@see nmap.get_ssl_certificate
-  _ENV.parse_ssl_certificate = nmap.socket.parse_ssl_certificate
+  --@see kmap.get_ssl_certificate
+  _ENV.parse_ssl_certificate = kmap.socket.parse_ssl_certificate
 else
   local base64 = require "base64"
   _ENV.parse_ssl_certificate = function(der)
@@ -71,7 +71,7 @@ end
 local function starttls_supported(host, port, state)
   host.registry.starttls = host.registry.starttls or {}
   local reg = host.registry.starttls
-  local mutex = nmap.mutex(reg)
+  local mutex = kmap.mutex(reg)
   local key = ("%d/%s"):format(port.number, port.protocol)
   if reg[key] ~= nil then
     return reg[key]
@@ -87,7 +87,7 @@ local function check_starttls_failed (host, port)
   host.registry.starttls = host.registry.starttls or {}
   local reg = host.registry.starttls
   local key = ("%d/%s"):format(port.number, port.protocol)
-  local mutex = nmap.mutex(reg)
+  local mutex = kmap.mutex(reg)
   mutex "lock"
   if reg[key] ~= nil then
     -- somebody already did the hard work.
@@ -285,7 +285,7 @@ StartTLS = {
   imap_prepare_tls = tls_reconnect("imap_prepare_tls_without_reconnect"),
 
   ldap_prepare_tls_without_reconnect = function(host, port)
-    local s = nmap.new_socket()
+    local s = kmap.new_socket()
     -- Attempt to negotiate TLS over LDAP for services that support it
     -- Works for LDAP (389)
 
@@ -728,7 +728,7 @@ StartTLS = {
     local sock,status,err,result
     local xmppStreamStart = string.format("<?xml version='1.0' ?>\r\n<stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' to='%s' version='1.0'>\r\n",host.name)
     local xmppStartTLS = "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>\r\n"
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(5000)
     status, err = sock:connect(host, port)
     if not status then
@@ -782,7 +782,7 @@ StartTLS = {
 
   xmpp_prepare_tls = function(host, port)
     local ls = xmpp.XMPP:new(host, port, { starttls = true } )
-    ls.socket = nmap.new_socket()
+    ls.socket = kmap.new_socket()
     ls.socket:set_timeout(ls.options.timeout * 1000)
 
     local status, err = ls.socket:connect(host, port)
@@ -867,7 +867,7 @@ local function wrap_special_with_reg_check(special)
       return false, "Previous STARTTLS attempt failed"
     else
       local result = table.pack(special(host, port))
-      local mutex = nmap.mutex(host.registry.starttls)
+      local mutex = kmap.mutex(host.registry.starttls)
       pcall(mutex, "done")
       return table.unpack(result)
     end
@@ -1001,7 +1001,7 @@ end
 -- @return cert userdata containing the SSL certificate, or error message on
 --         failure.
 function getCertificate(host, port)
-  local mutex = nmap.mutex("sslcert-cache-mutex")
+  local mutex = kmap.mutex("sslcert-cache-mutex")
   mutex "lock"
 
   local cache = host.registry["ssl-cert"]
@@ -1073,7 +1073,7 @@ function getCertificate(host, port)
   -- insecurity than OpenSSL)
   -- TODO: DTLS handshaking
   if not status and port.protocol == "tcp" then
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     local errmsg
     status, errmsg = socket:connect(host, port)
     if not status then

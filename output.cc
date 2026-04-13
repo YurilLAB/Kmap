@@ -1,83 +1,85 @@
 
 /***************************************************************************
- * output.cc -- Handles the Nmap output system.  This currently involves   *
+ * output.cc -- Handles the Kmap output system.  This currently involves   *
  * console-style human readable output, XML output, Script |<iddi3         *
  * output, and the legacy grepable output (used to be called "machine      *
  * readable").  I expect that future output forms (such as HTML) may be    *
  * created by a different program, library, or script using the XML        *
  * output.                                                                 *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
 /* $Id$ */
 
-#include "nmap.h"
+#include "kmap.h"
 #include "output.h"
+#include "color.h"
+#include "output_json.h"
 #include "osscan.h"
 #include "osscan2.h"
-#include "NmapOps.h"
-#include "NmapOutputTable.h"
+#include "KmapOps.h"
+#include "KmapOutputTable.h"
 #include "MACLookup.h"
 #include "portreasons.h"
 #include "protocols.h"
 #include "FingerPrintResults.h"
 #include "tcpip.h"
 #include "Target.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "utils.h"
 #include "xml.h"
 #include "nbase.h"
@@ -91,7 +93,7 @@
 #include <list>
 #include <sstream>
 
-extern NmapOps o;
+extern KmapOps o;
 static const char *logtypes[LOG_NUM_FILES] = LOG_NAMES;
 
 /* Used in creating skript kiddie style output.  |<-R4d! */
@@ -222,7 +224,7 @@ static void print_xml_service(const struct serviceDeductions *sd) {
    interface names (like "\Device\NPF_{...}"). This is the same mapping used by
    eth_open and so can help diagnose connection problems.  Additionally display
    Npcap interface names that are not mapped to by any libdnet name, in other
-   words the names of interfaces Nmap has no way of using.*/
+   words the names of interfaces Kmap has no way of using.*/
 static void print_iflist_pcap_mapping(const struct interface_info *iflist,
                                       int numifs) {
   pcap_if_t *pcap_ifs = NULL;
@@ -242,7 +244,7 @@ static void print_iflist_pcap_mapping(const struct interface_info *iflist,
   }
 
   if (numifs > 0 || !leftover_pcap_ifs.empty()) {
-    NmapOutputTable Tbl(1 + numifs + leftover_pcap_ifs.size(), 2);
+    KmapOutputTable Tbl(1 + numifs + leftover_pcap_ifs.size(), 2);
 
     Tbl.addItem(0, 0, false, "DEV");
     Tbl.addItem(0, 1, false, "WINDEVICE");
@@ -289,13 +291,13 @@ static void print_iflist_pcap_mapping(const struct interface_info *iflist,
 }
 #endif
 
-/* Print a detailed list of Nmap interfaces and routes to
+/* Print a detailed list of Kmap interfaces and routes to
    normal/skiddy/stdout output */
 int print_iflist(void) {
   int numifs = 0, numroutes = 0;
   struct interface_info *iflist;
   struct sys_route *routes;
-  NmapOutputTable *Tbl = NULL;
+  KmapOutputTable *Tbl = NULL;
   char errstr[256];
   const char *address = NULL;
   errstr[0]='\0';
@@ -310,7 +312,7 @@ int print_iflist(void) {
       log_write(LOG_STDOUT, "Reason: %s\n", errstr);
   } else {
     int devcol = 0, shortdevcol = 1, ipcol = 2, typecol = 3, upcol = 4, mtucol = 5, maccol = 6;
-    Tbl = new NmapOutputTable(numifs + 1, 7);
+    Tbl = new KmapOutputTable(numifs + 1, 7);
     Tbl->addItem(0, devcol, false, "DEV", 3);
     Tbl->addItem(0, shortdevcol, false, "(SHORT)", 7);
     Tbl->addItem(0, ipcol, false, "IP/MASK", 7);
@@ -364,7 +366,7 @@ int print_iflist(void) {
       log_write(LOG_STDOUT, "Reason: %s\n", errstr);
   } else {
     int dstcol = 0, devcol = 1, metcol = 2, gwcol = 3;
-    Tbl = new NmapOutputTable(numroutes + 1, 4);
+    Tbl = new KmapOutputTable(numroutes + 1, 4);
     Tbl->addItem(0, dstcol, false, "DST/MASK", 8);
     Tbl->addItem(0, devcol, false, "DEV", 3);
     Tbl->addItem(0, metcol, false, "METRIC", 6);
@@ -474,7 +476,7 @@ static char *formatScriptOutput(const ScriptResult *sr) {
 /* Output a list of ports, compressing ranges like 80-85 */
 static void output_rangelist_given_ports(int logt, const unsigned short *ports, int numports);
 
-/* Prints the familiar Nmap tabular output showing the "interesting"
+/* Prints the familiar Kmap tabular output showing the "interesting"
    ports found on the machine.  It also handles the Machine/Grepable
    output and the XML output.  It is pretty ugly -- in particular I
    should write helper functions to handle the table creation */
@@ -492,7 +494,7 @@ void printportoutput(const Target *currenths, const PortList *plist) {
   Port port;
   char hostname[1200];
   struct serviceDeductions sd;
-  NmapOutputTable *Tbl = NULL;
+  KmapOutputTable *Tbl = NULL;
   int portcol = -1;             // port or IP protocol #
   int statecol = -1;            // port/protocol state
   int servicecol = -1;          // service or protocol name
@@ -638,7 +640,7 @@ void printportoutput(const Target *currenths, const PortList *plist) {
   assert(numrows > 0);
   numrows++; // The header counts as a row
 
-  Tbl = new NmapOutputTable(numrows, colno);
+  Tbl = new KmapOutputTable(numrows, colno);
 
   // Lets start with the headers
   if (o.ipprotscan)
@@ -671,7 +673,7 @@ void printportoutput(const Target *currenths, const PortList *plist) {
             Tbl->addItem(rowno, reasoncol, true, port_reason_str(current->reason));
         }
         state = statenum2str(current->state);
-        proto = nmap_getprotbynum(current->portno);
+        proto = kmap_getprotbynum(current->portno);
         Snprintf(portinfo, sizeof(portinfo), "%s", proto ? proto->p_name : "unknown");
         Tbl->addItemFormatted(rowno, portcol, false, "%d", current->portno);
         Tbl->addItem(rowno, statecol, true, state);
@@ -716,14 +718,14 @@ void printportoutput(const Target *currenths, const PortList *plist) {
           log_write(LOG_MACHINE, ", ");
         else
           first = 0;
-        strcpy(protocol, IPPROTO2STR(current->proto));
+        Strncpy(protocol, IPPROTO2STR(current->proto), sizeof(protocol));
         Snprintf(portinfo, sizeof(portinfo), "%d/%s", current->portno, protocol);
         state = statenum2str(current->state);
         plist->getServiceDeductions(current->portno, current->proto, &sd);
         if (sd.service_fp && saved_servicefps.size() <= 8)
           saved_servicefps.push_back(sd.service_fp);
 
-        current->getNmapServiceName(serviceinfo, sizeof(serviceinfo));
+        current->getKmapServiceName(serviceinfo, sizeof(serviceinfo));
 
         Tbl->addItem(rowno, portcol, true, portinfo);
         Tbl->addItem(rowno, statecol, false, state);
@@ -824,7 +826,11 @@ void printportoutput(const Target *currenths, const PortList *plist) {
   }
 
   // Now we write the table for the user
-  log_write(LOG_PLAIN, "%s", Tbl->printableTable(NULL));
+  {
+    const char *raw_table = Tbl->printableTable(nullptr);
+    std::string colored = Color::colorize_port_table(raw_table ? raw_table : "");
+    log_write(LOG_PLAIN, "%s", colored.c_str());
+  }
   delete Tbl;
 
   // There may be service fingerprints I would like the user to submit
@@ -833,7 +839,7 @@ void printportoutput(const Target *currenths, const PortList *plist) {
     log_write(LOG_PLAIN, "%d service%s unrecognized despite returning data."
               " If you know the service/version, please submit the following"
               " fingerprint%s at"
-              " https://nmap.org/cgi-bin/submit.cgi?new-service :\n",
+              " https://kmap.org/cgi-bin/submit.cgi?new-service :\n",
               numfps, (numfps > 1) ? "s" : "", (numfps > 1) ? "s" : "");
     for (i = 0; i < numfps; i++) {
       if (numfps > 1)
@@ -921,7 +927,7 @@ void log_vwrite(int logt, const char *fmt, va_list ap) {
 
     switch (logtype) {
       case LOG_STDOUT:
-        vfprintf(o.nmap_stdout, fmt, ap);
+        vfprintf(o.kmap_stdout, fmt, ap);
         break;
 
       case LOG_STDERR:
@@ -1011,7 +1017,7 @@ void log_flush(int logt) {
   int i;
 
   if (logt & LOG_STDOUT) {
-    fflush(o.nmap_stdout);
+    fflush(o.kmap_stdout);
     logt -= LOG_STDOUT;
   }
 
@@ -1062,8 +1068,8 @@ int log_open(int logt, bool append, const char *filename) {
     fatal("Only one %s output filename allowed", logtypes[i]);
   if (*filename == '-' && *(filename + 1) == '\0') {
     o.logfd[i] = stdout;
-    o.nmap_stdout = fopen(DEVNULL, "w");
-    if (!o.nmap_stdout)
+    o.kmap_stdout = fopen(DEVNULL, "w");
+    if (!o.kmap_stdout)
       pfatal("Could not assign %s to stdout for writing", DEVNULL);
   } else {
     if (append)
@@ -1381,14 +1387,16 @@ static char *num_to_string_sigdigits(double d, int digits) {
   return buf;
 }
 
-/* Writes a heading for a full scan report ("Nmap scan report for..."),
+/* Writes a heading for a full scan report ("Kmap scan report for..."),
    including host status and DNS records. */
 void write_host_header(const Target *currenths) {
   if ((currenths->flags & HOST_UP) || o.verbose || o.always_resolve) {
     if (currenths->flags & HOST_UP) {
-      log_write(LOG_PLAIN, "Nmap scan report for %s\n", currenths->NameIP());
+      std::string header = Color::bold_cyan(std::string("Kmap scan report for ") + currenths->NameIP());
+      log_write(LOG_PLAIN, "%s\n", header.c_str());
     } else if (currenths->flags & HOST_DOWN) {
-      log_write(LOG_PLAIN, "Nmap scan report for %s [host down", currenths->NameIP());
+      std::string header = Color::bold_cyan(std::string("Kmap scan report for ") + currenths->NameIP());
+      log_write(LOG_PLAIN, "%s [host down", header.c_str());
       if (o.reason)
         log_write(LOG_PLAIN, ", %s", target_reason_str(currenths));
       log_write(LOG_PLAIN, "]\n");
@@ -1900,7 +1908,7 @@ void printosscanoutput(const Target *currenths) {
       bool suggest_submission = currenths->af() == AF_INET6 && reason == NULL && rand() % 5 >= numprints;
       if (suggest_submission)
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-            "Nmap needs more fingerprint submissions of this type. Please submit via https://nmap.org/submit/\n");
+            "Kmap needs more fingerprint submissions of this type. Please submit via https://kmap.org/submit/\n");
       if (suggest_submission || o.debugging || o.verbose > 1)
         write_merged_fpr(FPR, currenths, reason == NULL, true);
     } else {
@@ -1924,7 +1932,7 @@ void printosscanoutput(const Target *currenths) {
 
       if (!reason) {
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-                  "No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).\n");
+                  "No exact OS matches for host (If you know what OS is running on it, see https://kmap.org/submit/ ).\n");
         write_merged_fpr(FPR, currenths, true, true);
       } else {
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
@@ -1937,7 +1945,7 @@ void printosscanoutput(const Target *currenths) {
     /* No matches at all. */
     if (!reason) {
       log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-                "No OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).\n");
+                "No OS matches for host (If you know what OS is running on it, see https://kmap.org/submit/ ).\n");
       write_merged_fpr(FPR, currenths, true, true);
     } else {
       log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
@@ -1999,7 +2007,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3877 -- please report to fyodor@nmap.org\n");
+        fatal("STRANGE ERROR #3877 -- please report to fyodor@kmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.seqs[i]);
@@ -2023,7 +2031,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3876 -- please report to fyodor@nmap.org\n");
+        fatal("STRANGE ERROR #3876 -- please report to fyodor@kmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%hX", currenths->seq.ipids[i]);
@@ -2044,7 +2052,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3878 -- please report to fyodor@nmap.org\n");
+        fatal("STRANGE ERROR #3878 -- please report to fyodor@kmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.timestamps[i]);
@@ -2252,7 +2260,7 @@ void printhostscriptresults(const Target *currenths) {
 /* Print a table with traceroute hops. */
 static void printtraceroute_normal(const Target *currenths) {
   static const int HOP_COL = 0, RTT_COL = 1, HOST_COL = 2;
-  NmapOutputTable Tbl(currenths->traceroute_hops.size() + 1, 3);
+  KmapOutputTable Tbl(currenths->traceroute_hops.size() + 1, 3);
   struct probespec probe;
   std::list<TracerouteHop>::const_iterator it;
   int row;
@@ -2274,7 +2282,7 @@ static void printtraceroute_normal(const Target *currenths) {
     log_write(LOG_PLAIN, "TRACEROUTE (using port %d/%s)\n",
               probe.pd.sctp.dport, proto2ascii_lowercase(probe.proto));
   } else if (probe.type == PS_ICMP || probe.type == PS_ICMPV6 || probe.type == PS_PROTO) {
-    const struct nprotoent *proto = nmap_getprotbynum(probe.proto);
+    const struct nprotoent *proto = kmap_getprotbynum(probe.proto);
     log_write(LOG_PLAIN, "TRACEROUTE (using proto %d/%s)\n",
               probe.proto, proto ? proto->p_name : "unknown");
   } else if (probe.type == PS_NONE) {
@@ -2377,7 +2385,7 @@ static void printtraceroute_xml(const Target *currenths) {
     xml_attribute("port", "%d", probe.pd.sctp.dport);
     xml_attribute("proto", "%s", proto2ascii_lowercase(probe.proto));
   } else if (probe.type == PS_ICMP || probe.type == PS_PROTO) {
-    const struct nprotoent *proto = nmap_getprotbynum(probe.proto);
+    const struct nprotoent *proto = kmap_getprotbynum(probe.proto);
     if (proto == NULL)
       xml_attribute("proto", "%d", probe.proto);
     else
@@ -2457,7 +2465,7 @@ void print_xml_finished_open(time_t timep, const struct timeval *tv) {
   if (!err) {
     xml_attribute("timestr", "%s", mytime);
     xml_attribute("summary",
-        "Nmap done at %s; %u %s (%u %s up) scanned in %.2f seconds",
+        "Kmap done at %s; %u %s (%u %s up) scanned in %.2f seconds",
         mytime, o.numhosts_scanned,
         (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
         o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
@@ -2465,7 +2473,7 @@ void print_xml_finished_open(time_t timep, const struct timeval *tv) {
   }
   else {
     xml_attribute("summary",
-        "Nmap done; %u %s (%u %s up) scanned in %.2f seconds",
+        "Kmap done; %u %s (%u %s up) scanned in %.2f seconds",
         o.numhosts_scanned,
         (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
         o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
@@ -2483,7 +2491,7 @@ void print_xml_hosts() {
 }
 
 /* Prints the statistics and other information that goes at the very end
-   of an Nmap run */
+   of an Kmap run */
 void printfinaloutput() {
   time_t timep;
   char mytime[128];
@@ -2505,18 +2513,18 @@ void printfinaloutput() {
     log_write(LOG_STDOUT, "Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn\n");
   else if (o.numhosts_up > 0) {
     if (o.osscan && o.servicescan)
-      log_write(LOG_PLAIN, "OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "OS and Service detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
     else if (o.osscan)
-      log_write(LOG_PLAIN, "OS detection performed. Please report any incorrect results at https://nmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "OS detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
     else if (o.servicescan)
-      log_write(LOG_PLAIN, "Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "Service detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
     else if (o.udpscan && o.defeat_icmp_ratelimit)
       log_write(LOG_PLAIN, "WARNING: Some ports marked closed|filtered may actually be open. For more accurate results, do not use --defeat-icmp-ratelimit .\n");
 
   }
 
   log_write(LOG_STDOUT | LOG_SKID,
-            "Nmap done: %u %s (%u %s up) scanned in %.2f seconds\n",
+            "Kmap done: %u %s (%u %s up) scanned in %.2f seconds\n",
             o.numhosts_scanned,
             (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
             o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
@@ -2538,7 +2546,7 @@ void printfinaloutput() {
   if (!err) {
     chomp(mytime);
     log_write(LOG_NORMAL | LOG_MACHINE,
-        "# Nmap done at %s -- %u %s (%u %s up) scanned in %.2f seconds\n",
+        "# Kmap done at %s -- %u %s (%u %s up) scanned in %.2f seconds\n",
         mytime, o.numhosts_scanned,
         (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
         o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
@@ -2546,19 +2554,28 @@ void printfinaloutput() {
   }
   else {
     log_write(LOG_NORMAL | LOG_MACHINE,
-        "# Nmap done -- %u %s (%u %s up) scanned in %.2f seconds\n",
+        "# Kmap done -- %u %s (%u %s up) scanned in %.2f seconds\n",
         o.numhosts_scanned,
         (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
         o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
         o.TimeSinceStart(&tv));
   }
 
-  xml_end_tag(); /* nmaprun */
+  xml_end_tag(); /* kmaprun */
   xml_newline();
+
+  if (o.json_output_file) {
+    json_write_stats(static_cast<int>(o.numhosts_up),
+                     static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                     static_cast<int>(o.numhosts_scanned),
+                     o.TimeSinceStart(&tv));
+    json_finalize();
+  }
+
   log_flush_all();
 }
 
-/* A record consisting of a data file name ("nmap-services", "nmap-os-db",
+/* A record consisting of a data file name ("kmap-services", "kmap-os-db",
    etc.), and the directory and file in which is was found. This is a
    broken-down version of what is stored in o.loaded_data_files. It is used in
    printdatafilepaths. */
@@ -2675,7 +2692,7 @@ static inline const char *nslog2str(nsock_loglevel_t loglevel) {
   };
 }
 
-void nmap_adjust_loglevel(bool trace) {
+void kmap_adjust_loglevel(bool trace) {
   nsock_loglevel_t nsock_loglevel;
 
   if (o.debugging >= 7)
@@ -2690,7 +2707,7 @@ void nmap_adjust_loglevel(bool trace) {
   nsock_set_loglevel(nsock_loglevel);
 }
 
-static void nmap_nsock_stderr_logger(const struct nsock_log_rec *rec) {
+static void kmap_nsock_stderr_logger(const struct nsock_log_rec *rec) {
   int elapsed_time;
 
   elapsed_time = TIMEVAL_MSEC_SUBTRACT(rec->time, *(o.getStartTime()));
@@ -2699,6 +2716,6 @@ static void nmap_nsock_stderr_logger(const struct nsock_log_rec *rec) {
             elapsed_time/1000.0, rec->func, rec->msg);
 }
 
-void nmap_set_nsock_logger() {
-  nsock_set_log_function(nmap_nsock_stderr_logger);
+void kmap_set_nsock_logger() {
+  nsock_set_log_function(kmap_nsock_stderr_logger);
 }

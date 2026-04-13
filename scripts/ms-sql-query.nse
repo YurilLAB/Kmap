@@ -27,13 +27,13 @@ authentication required to connect to the SQL Server instances itself. See the
 documentation and arguments for the <code>smb</code> library for more information.
 
 NOTE: By default, the ms-sql-* scripts may attempt to connect to and communicate
-with ports that were not included in the port list for the Nmap scan. This can
+with ports that were not included in the port list for the Kmap scan. This can
 be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 ]]
 
 ---
 -- @usage
--- nmap -p 1433 --script ms-sql-query --script-args mssql.username=sa,mssql.password=sa,ms-sql-query.query="SELECT * FROM master..syslogins" <host>
+-- kmap -p 1433 --script ms-sql-query --script-args mssql.username=sa,mssql.password=sa,ms-sql-query.query="SELECT * FROM master..syslogins" <host>
 --
 -- @args ms-sql-query.query The query to run against the server.
 --       (default: SELECT @@version version)
@@ -56,7 +56,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 --                             added compatibility with changes in mssql.lua (Chris Woodbury)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"
@@ -36,7 +36,7 @@ This is similar to the mtrace utility provided in Cisco IOS.
 -- Defaults to <code>7s</code>.
 --
 --@usage
--- nmap --script mtrace --script-args 'mtrace.fromip=172.16.45.4'
+-- kmap --script mtrace --script-args 'mtrace.fromip=172.16.45.4'
 --
 --@output
 -- Pre-scan script results:
@@ -62,7 +62,7 @@ This is similar to the mtrace utility provided in Cisco IOS.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "broadcast"}
 
@@ -100,11 +100,11 @@ FWD_CODE = {
 }
 
 prerule = function()
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
   end
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -154,7 +154,7 @@ local traceSend = function(interface, destination, trace_raw)
   end
   trace_packet:ip_count_checksum()
 
-  local sock = nmap.new_dnet()
+  local sock = kmap.new_dnet()
   if destination == "224.0.0.2" then
     sock:ethernet_open(interface.device)
     -- Ethernet IPv4 multicast, our ethernet address and packet type IP
@@ -250,9 +250,9 @@ end
 --@param timeout Amount of time to listen for in seconds.
 --@param responses table to insert responses into.
 local traceListener = function(interface, timeout, responses)
-  local condvar = nmap.condvar(responses)
-  local start = nmap.clock_ms()
-  local listener = nmap.new_socket()
+  local condvar = kmap.condvar(responses)
+  local start = kmap.clock_ms()
+  local listener = kmap.new_socket()
   local p, trace_raw, status, l3data, response, _
 
   -- IGMP packets that are sent to our host
@@ -260,7 +260,7 @@ local traceListener = function(interface, timeout, responses)
   listener:set_timeout(100)
   listener:pcap_open(interface.device, 1024, true, filter)
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, _, _, l3data = listener:pcap_receive()
     if status then
       p = packet.Packet:new(l3data, #l3data)
@@ -285,7 +285,7 @@ end
 --@return interface Network interface used for target host.
 local getInterface = function(interfaces, target)
   -- First, create dummy UDP connection to get interface
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(target, "12345", "udp")
   if not status then
     stdnse.verbose1("%s", err)
@@ -352,7 +352,7 @@ action = function()
   local trace_raw = traceRaw(fromip, toip, group, interface.address)
   traceSend(interface, firsthop, trace_raw)
 
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   condvar("wait")
   if #responses > 0 then
     local outresp

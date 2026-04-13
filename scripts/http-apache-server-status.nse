@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local http = require "http"
 local stdnse = require "stdnse"
@@ -15,12 +15,12 @@ References:
 * http://httpd.apache.org/docs/2.4/mod/mod_status.html
 * https://blog.sucuri.net/2012/10/popular-sites-with-apache-server-status-enabled.html
 * https://www.exploit-db.com/ghdb/1355/
-* https://github.com/michenriksen/nmap-scripts
+* https://github.com/michenriksen/kmap-scripts
 ]]
 
 ---
---@usage nmap -p80 --script http-apache-server-status <target>
---@usage nmap -sV --script http-apache-server-status <target>
+--@usage kmap -p80 --script http-apache-server-status <target>
+--@usage kmap -sV --script http-apache-server-status <target>
 --
 --@output
 -- PORT   STATE SERVICE
@@ -45,7 +45,7 @@ References:
 -- </table>
 
 author = "Eric Gershman"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = function(host, port)
@@ -103,7 +103,7 @@ action = function(host, port)
     end
     port.version.cpe = port.version.cpe or {}
     table.insert(port.version.cpe, cpe)
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   end
 
   result.VHosts = {}

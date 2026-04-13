@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Anonymize an Nmap XML file, replacing host name and IP addresses with random
+# Anonymize an Kmap XML file, replacing host name and IP addresses with random
 # anonymous ones. Anonymized names will be consistent between runs of the
 # program. Any servicefp attributes are removed. Give a file name as an
 # argument. The anonymized file is written to stdout.

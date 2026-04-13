@@ -2,13 +2,13 @@
 
 # Ndiff
 #
-# This programs reads two Nmap XML files and displays a list of their
+# This programs reads two Kmap XML files and displays a list of their
 # differences.
 #
-# Copyright 2021 Nmap Software LLC
-# Ndiff is distributed under the same license as Nmap. See the file
-# LICENSE in the Nmap source distribution or
-# https://nmap.org/book/man-legal.html for more details.
+# Copyright 2021 Kmap Software LLC
+# Ndiff is distributed under the same license as Kmap. See the file
+# LICENSE in the Kmap source distribution or
+# https://kmap.org/book/man-legal.html for more details.
 #
 # Original author was David Fifield based on a design by Michael Pattrick
 
@@ -42,9 +42,9 @@ class OverrideEntityResolver(xml.sax.handler.EntityResolver):
 
 
 class Scan(object):
-    """A single Nmap scan, corresponding to a single invocation of Nmap. It is
+    """A single Kmap scan, corresponding to a single invocation of Kmap. It is
     a container for a list of hosts. It also has utility methods to load itself
-    from an Nmap XML file."""
+    from an Kmap XML file."""
     def __init__(self):
         self.scanner = None
         self.version = None
@@ -59,19 +59,19 @@ class Scan(object):
         self.hosts.sort(key=lambda h: h.get_id())
 
     def load(self, f):
-        """Load a scan from the Nmap XML in the file-like object f."""
+        """Load a scan from the Kmap XML in the file-like object f."""
         parser = xml.sax.make_parser()
-        handler = NmapContentHandler(self)
+        handler = KmapContentHandler(self)
         parser.setEntityResolver(OverrideEntityResolver())
         parser.setContentHandler(handler)
         parser.parse(f)
 
     def load_from_file(self, filename):
-        """Load a scan from the Nmap XML file with the given filename."""
+        """Load a scan from the Kmap XML file with the given filename."""
         with open(filename, "r") as f:
             self.load(f)
 
-    def write_nmaprun_open(self, writer):
+    def write_kmaprun_open(self, writer):
         attrs = {}
         if self.scanner is not None:
             attrs["scanner"] = self.scanner
@@ -83,14 +83,14 @@ class Scan(object):
                     "%a %b %d %H:%M:%S %Y")
         if self.version is not None:
             attrs["version"] = self.version
-        writer.startElement("nmaprun", attrs)
+        writer.startElement("kmaprun", attrs)
 
-    def write_nmaprun_close(self, writer):
-        writer.endElement("nmaprun")
+    def write_kmaprun_close(self, writer):
+        writer.endElement("kmaprun")
 
-    def nmaprun_to_dom_fragment(self, document):
+    def kmaprun_to_dom_fragment(self, document):
         frag = document.createDocumentFragment()
-        elem = document.createElement("nmaprun")
+        elem = document.createElement("kmaprun")
         if self.scanner is not None:
             elem.setAttribute("scanner", self.scanner)
         if self.args is not None:
@@ -384,7 +384,7 @@ class Service(object):
             return "/".join(parts)
 
     def version_string(self):
-        """Get a string like in the VERSION column of Nmap output."""
+        """Get a string like in the VERSION column of Kmap output."""
         parts = []
         if self.product is not None:
             parts.append(self.product)
@@ -445,9 +445,9 @@ class ScriptResult(object):
 
 
 def format_banner(scan):
-    """Format a startup banner more or less like Nmap does."""
-    scanner = "Nmap"
-    if scan.scanner is not None and scan.scanner != "nmap":
+    """Format a startup banner more or less like Kmap does."""
+    scanner = "Kmap"
+    if scan.scanner is not None and scan.scanner != "kmap":
         scanner = scan.scanner
     parts = [scanner]
     if scan.version is not None:
@@ -605,7 +605,7 @@ class ScanDiffXML(ScanDiff):
 
         self.writer = XMLWriter(f)
 
-    def nmaprun_differs(self):
+    def kmaprun_differs(self):
         for attr in ("scanner", "version", "args", "start_date", "end_date"):
             if getattr(self.scan_a, attr, None) !=\
                     getattr(self.scan_b, attr, None):
@@ -614,17 +614,17 @@ class ScanDiffXML(ScanDiff):
 
     def output_beginning(self):
         self.writer.startDocument()
-        self.writer.startElement("nmapdiff", {"version": NDIFF_XML_VERSION})
+        self.writer.startElement("kmapdiff", {"version": NDIFF_XML_VERSION})
         self.writer.startElement("scandiff", {})
 
-        if self.nmaprun_differs():
+        if self.kmaprun_differs():
             self.writer.frag_a(
-                    self.scan_a.nmaprun_to_dom_fragment(self.document))
+                    self.scan_a.kmaprun_to_dom_fragment(self.document))
             self.writer.frag_b(
-                    self.scan_b.nmaprun_to_dom_fragment(self.document))
+                    self.scan_b.kmaprun_to_dom_fragment(self.document))
         elif verbose:
             self.writer.frag(
-                    self.scan_a.nmaprun_to_dom_fragment(self.document))
+                    self.scan_a.kmaprun_to_dom_fragment(self.document))
 
     def output_pre_scripts(self, pre_script_result_diffs):
         if len(pre_script_result_diffs) > 0 or verbose:
@@ -653,7 +653,7 @@ class ScanDiffXML(ScanDiff):
 
     def output_ending(self):
         self.writer.endElement("scandiff")
-        self.writer.endElement("nmapdiff")
+        self.writer.endElement("kmapdiff")
         self.writer.endDocument()
 
 
@@ -1105,7 +1105,7 @@ class ScriptResultDiff(object):
 
 
 class Table(object):
-    """A table of character data, like NmapOutputTable."""
+    """A table of character data, like KmapOutputTable."""
     def __init__(self, template):
         """template is a string consisting of "*" and other characters. Each
         "*" is a left-justified space-padded field. All other characters are
@@ -1177,7 +1177,7 @@ def warn(str):
     print(str, file=sys.stderr)
 
 
-class NmapContentHandler(xml.sax.handler.ContentHandler):
+class KmapContentHandler(xml.sax.handler.ContentHandler):
     """The xml.sax ContentHandler for the XML parser. It contains a Scan object
     that is filled in and can be read back again once the parse method is
     finished."""
@@ -1194,7 +1194,7 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
         self.skip_over = False
 
         self._start_elem_handlers = {
-            "nmaprun": self._start_nmaprun,
+            "kmaprun": self._start_kmaprun,
             "host": self._start_host,
             "hosthint": self._start_hosthint,
             "status": self._start_status,
@@ -1238,7 +1238,7 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
         if handler is not None:
             handler(name)
 
-    def _start_nmaprun(self, name, attrs):
+    def _start_kmaprun(self, name, attrs):
         assert self.parent_element() is None
         if "start" in attrs:
             start_timestamp = int(attrs.get("start"))
@@ -1249,12 +1249,12 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
         self.scan.version = attrs.get("version")
 
     def _start_host(self, name, attrs):
-        assert self.parent_element() == "nmaprun"
+        assert self.parent_element() == "kmaprun"
         self.current_host = Host()
         self.scan.hosts.append(self.current_host)
 
     def _start_hosthint(self, name, attrs):
-        assert self.parent_element() == "nmaprun"
+        assert self.parent_element() == "kmaprun"
         self.skip_over = True
 
     def _start_status(self, name, attrs):
@@ -1446,7 +1446,7 @@ class XMLWriter (xml.sax.saxutils.XMLGenerator):
 def usage():
     print("""\
 Usage: %s [option] FILE1 FILE2
-Compare two Nmap XML files and display a list of their differences.
+Compare two Kmap XML files and display a list of their differences.
 Differences include host state changes, port state changes, and changes to
 service and OS detection.
 

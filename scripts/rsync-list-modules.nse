@@ -8,7 +8,7 @@ Lists modules available for rsync (remote file sync) synchronization.
 
 ---
 -- @usage
--- nmap -p 873 --script rsync-list-modules <ip>
+-- kmap -p 873 --script rsync-list-modules <ip>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -21,7 +21,7 @@ Lists modules available for rsync (remote file sync) synchronization.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(873, "rsync", "tcp")

@@ -1,5 +1,5 @@
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local wsdd = require "wsdd"
@@ -13,7 +13,7 @@ any published Windows Communication Framework (WCF) web services (.NET
 
 ---
 -- @usage
--- sudo ./nmap --script broadcast-wsdd-discover
+-- sudo ./kmap --script broadcast-wsdd-discover
 --
 -- @output
 -- | broadcast-wsdd-discover:
@@ -42,7 +42,7 @@ any published Windows Communication Framework (WCF) web services (.NET
 -- Created 10/31/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -55,8 +55,8 @@ prerule = function() return true end
 -- @param result table into which the results are stored
 discoverThread = function( funcname, results )
   -- calculates a timeout based on the timing template (default: 5s)
-  local timeout = ( 20000 / ( nmap.timing_level() + 1 ) )
-  local condvar = nmap.condvar( results )
+  local timeout = ( 20000 / ( kmap.timing_level() + 1 ) )
+  local condvar = kmap.condvar( results )
   local helper = wsdd.Helper:new()
   helper:setMulticast(true)
   helper:setTimeout(timeout)
@@ -76,7 +76,7 @@ end
 action = function()
 
   local threads, results = {}, {}
-  local condvar = nmap.condvar( results )
+  local condvar = kmap.condvar( results )
 
   -- Attempt to discover both devices and WCF web services
   for _, f in ipairs( {"discoverDevices", "discoverWCFServices"} ) do

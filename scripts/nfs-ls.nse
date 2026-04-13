@@ -4,7 +4,7 @@ local stdnse = require "stdnse"
 local string = require "string"
 local ls = require "ls"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Attempts to get useful information about files from NFS exports.
@@ -35,8 +35,8 @@ Recursive listing is not implemented.
 
 ---
 -- @usage
--- nmap -p 111 --script=nfs-ls <target>
--- nmap -sV --script=nfs-ls <target>
+-- kmap -p 111 --script=nfs-ls <target>
+-- kmap -sV --script=nfs-ls <target>
 --
 -- @args nfs-ls.time Specifies which one of the last mac times to use in
 --       the files attributes output. Possible values are:
@@ -137,7 +137,7 @@ Recursive listing is not implemented.
 --
 
 author = {"Patrik Karlsson", "Djalal Harouni"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"rpc-grind"}
 
@@ -153,7 +153,7 @@ hostrule = function(host)
     host.registry.nfs = {}
   end
   for _,proto in ipairs({"tcp","udp"}) do
-    local port = nmap.get_ports(host, nil, proto, "open")
+    local port = kmap.get_ports(host, nil, proto, "open")
     while port do
       if port.version then
         if port.service == "mountd" then
@@ -163,7 +163,7 @@ hostrule = function(host)
         end
       end
       if mountport and nfsport then break end
-      port = nmap.get_ports(host, port, proto, "open")
+      port = kmap.get_ports(host, port, proto, "open")
     end
     if mountport and nfsport then break end
   end
@@ -351,7 +351,7 @@ local mainaction = function(host)
   local nfs_info =
   {
     host      = host,
-    --recurs    = tonumber(nmap.registry.args['nfs-ls.recurs']) or 1,
+    --recurs    = tonumber(kmap.registry.args['nfs-ls.recurs']) or 1,
   }
   local output = ls.new_listing()
 

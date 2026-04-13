@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local re = require "re"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -25,7 +25,7 @@ Supported IDs:
 -- <code>/</code>.
 --
 -- @usage
--- nmap --script=http-affiliate-id.nse --script-args http-affiliate-id.url-path=/website <target>
+-- kmap --script=http-affiliate-id.nse --script-args http-affiliate-id.url-path=/website <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -45,7 +45,7 @@ Supported IDs:
 
 author = {"Hani Benhabiles", "Daniel Miller", "Patrick Donnelly"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -68,19 +68,19 @@ local URL_SHORTENERS = {
 
 portrule = shortport.http
 
-postrule = function() return (nmap.registry["http-affiliate-id"] ~= nil) end
+postrule = function() return (kmap.registry["http-affiliate-id"] ~= nil) end
 
---- put id in the nmap registry for usage by other scripts
---@param host nmap host table
---@param port nmap port table
+--- put id in the kmap registry for usage by other scripts
+--@param host kmap host table
+--@param port kmap port table
 --@param affid affiliate id table
 local add_key_to_registry = function(host, port, path, affid)
   local site = host.targetname or host.ip
   site = site .. ":" .. port.number .. path
-  nmap.registry["http-affiliate-id"] = nmap.registry["http-affiliate-id"] or {}
+  kmap.registry["http-affiliate-id"] = kmap.registry["http-affiliate-id"] or {}
 
-  nmap.registry["http-affiliate-id"][site] = nmap.registry["http-affiliate-id"][site] or {}
-  table.insert(nmap.registry["http-affiliate-id"][site], affid)
+  kmap.registry["http-affiliate-id"][site] = kmap.registry["http-affiliate-id"][site] or {}
+  table.insert(kmap.registry["http-affiliate-id"][site], affid)
 end
 
 portaction = function(host, port)
@@ -128,7 +128,7 @@ local function postaction()
   local output = {}
 
   -- create a reverse mapping affiliate ids -> site(s)
-  for site, ids in pairs(nmap.registry["http-affiliate-id"]) do
+  for site, ids in pairs(kmap.registry["http-affiliate-id"]) do
     for _, id in ipairs(ids) do
       if not siteids[id] then
         siteids[id] = {}

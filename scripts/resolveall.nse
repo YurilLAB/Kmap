@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -7,10 +7,10 @@ local ipOps = require "ipOps"
 
 description = [[
 NOTE: This script has been replaced by the <code>--resolve-all</code>
-command-line option in Nmap 7.70
+command-line option in Kmap 7.70
 
 Resolves hostnames and adds every address (IPv4 or IPv6, depending on
-Nmap mode) to Nmap's target list.  This differs from Nmap's normal
+Kmap mode) to Kmap's target list.  This differs from Kmap's normal
 host resolution process, which only scans the first address (A or AAAA
 record) returned for each host name.
 
@@ -18,13 +18,13 @@ The script will run on any target provided by hostname. It can also be fed
 hostnames via the <code>resolveall.hosts</code> argument. Because it adds new
 targets by IP address it will not run recursively, since those new targets were
 not provided by hostname. It will also not add the same IP that was initially
-chosen for scanning by Nmap.
+chosen for scanning by Kmap.
 ]]
 
 ---
 -- @usage
--- nmap --script=resolveall --script-args=newtargets,resolveall.hosts={<host1>, ...} ...
--- nmap --script=resolveall manyaddresses.example.com
+-- kmap --script=resolveall --script-args=newtargets,resolveall.hosts={<host1>, ...} ...
+-- kmap --script=resolveall manyaddresses.example.com
 -- @args resolveall.hosts Table of hostnames to resolve
 -- @output
 -- Pre-scan script results:
@@ -64,7 +64,7 @@ chosen for scanning by Nmap.
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -103,7 +103,7 @@ preaction = function()
   local output = {}
   local xmloutput = {}
   for _, host in ipairs(hosts) do
-    local status, list = nmap.resolve(host, nmap.address_family())
+    local status, list = kmap.resolve(host, kmap.address_family())
     if status and #list > 0 then
       if target.ALLOW_NEW_TARGETS then
         sum = sum + addtargets(list)
@@ -130,7 +130,7 @@ end
 hostaction = function(host)
   local sum = 0
   local output = {}
-  local status, list = nmap.resolve(host.targetname, nmap.address_family())
+  local status, list = kmap.resolve(host.targetname, kmap.address_family())
   if not status or #list <= 0 then
     return nil
   end

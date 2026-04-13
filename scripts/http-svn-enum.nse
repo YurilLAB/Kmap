@@ -8,7 +8,7 @@ description = [[Enumerates users of a Subversion repository by examining logs of
 ]]
 
 ---
--- @usage nmap --script http-svn-enum <target>
+-- @usage kmap --script http-svn-enum <target>
 --
 -- @args http-svn-enum.count The number of logs to fetch. Defaults to the last 1000 commits.
 -- @args http-svn-enum.url This is a URL relative to the scanned host eg. /default.html (default: /).
@@ -51,7 +51,7 @@ description = [[Enumerates users of a Subversion repository by examining logs of
 
 author = "Gyanendra Mishra"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 

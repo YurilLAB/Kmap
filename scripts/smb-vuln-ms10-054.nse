@@ -15,7 +15,7 @@ Either with guest credentials or with specified username/password.
 ]]
 
 ---
--- @usage nmap  -p 445 <target> --script=smb-vuln-ms10-054 --script-args unsafe
+-- @usage kmap  -p 445 <target> --script=smb-vuln-ms10-054 --script-args unsafe
 --
 -- @args unsafe Required to run the script, "safety swich" to prevent running it by accident
 -- @args smb-vuln-ms10-054.share Share to connect to (defaults to SharedDocs)
@@ -39,7 +39,7 @@ Either with guest credentials or with specified username/password.
 -- |_      http://seclists.org/fulldisclosure/2010/Aug/122
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln","intrusive","dos"}
 
 hostrule = function(host)

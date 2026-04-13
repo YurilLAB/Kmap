@@ -1,6 +1,6 @@
 local asn1 = require "asn1"
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -22,7 +22,7 @@ It needs a valid Kerberos REALM in order to operate.
 
 ---
 -- @usage
--- nmap -p 88 --script krb5-enum-users --script-args krb5-enum-users.realm='test'
+-- kmap -p 88 --script krb5-enum-users --script-args krb5-enum-users.realm='test'
 --
 -- @output
 -- PORT   STATE SERVICE      REASON
@@ -44,7 +44,7 @@ It needs a valid Kerberos REALM in order to operate.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "intrusive"}
 
 
@@ -297,7 +297,7 @@ local function checkUser( host, port, realm, user )
 
   local krb5 = KRB5:new()
   local data = krb5:encodeASREQ(realm, user, port.protocol)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status = socket:connect(host, port)
 
   if ( not(status) ) then
@@ -339,7 +339,7 @@ end
 -- @param realm string containing the Kerberos REALM
 -- @return status boolean, true on success, false on failure
 local function isValidRealm( host, port, realm )
-  return checkUser( host, port, realm, "nmap")
+  return checkUser( host, port, realm, "kmap")
 end
 
 -- Wraps the checkUser function so that it is suitable to be called from
@@ -350,7 +350,7 @@ end
 -- @param user string containing the Kerberos principal
 -- @param result table to which all discovered users are added
 local function checkUserThread( host, port, realm, user, result )
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local status, state = checkUser(host, port, realm, user)
   if ( status and state == "VALID" ) then
     table.insert(result, ("%s@%s"):format(user,realm))
@@ -364,7 +364,7 @@ action = function( host, port )
 
   local realm = stdnse.get_script_args("krb5-enum-users.realm")
   local result = {}
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
 
   -- did the user supply a realm
   if ( not(realm) ) then

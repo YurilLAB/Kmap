@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -13,14 +13,14 @@ connections between servers as well as client-server communication.
 
 ---
 -- @usage
--- nmap -sU -sV -p 4569 <target>
+-- kmap -sU -sV -p 4569 <target>
 -- @output
 -- PORT     STATE  SERVICE VERSION
 -- 4569/udp closed iax2
 
 author = "Ferdy Riphagen"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"version"}
 
@@ -46,9 +46,9 @@ action = function(host, port)
     if ((byte11 == 6) and
       (byte12 == 3 or byte12 == 4))
     then
-      nmap.set_port_state(host, port, "open")
+      kmap.set_port_state(host, port, "open")
       port.version.name = "iax2"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
     end
 
   end

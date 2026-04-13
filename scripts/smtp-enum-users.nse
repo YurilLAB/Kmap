@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local smtp = require "smtp"
 local stdnse = require "stdnse"
@@ -25,7 +25,7 @@ An example of how to specify the methods to use and the order is the following:
 
 ---
 -- @usage
--- nmap --script smtp-enum-users.nse [--script-args smtp-enum-users.methods={EXPN,...},...] -p 25,465,587 <host>
+-- kmap --script smtp-enum-users.nse [--script-args smtp-enum-users.methods={EXPN,...},...] -p 25,465,587 <host>
 --
 -- @output
 -- Host script results:
@@ -49,7 +49,7 @@ An example of how to specify the methods to use and the order is the following:
 -----------------------------------------------------------------------
 
 author = "Duarte Silva <duarte.silva@serializing.me>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth","external","intrusive"}
 
 
@@ -167,7 +167,7 @@ function do_gnrc(socket, command, username, domain)
       return STATUS_CODES.NOTPERMITTED
     elseif smtp.check_reply(command, response) then
       -- User accepted.
-      if nmap.verbosity() > 1 then
+      if kmap.verbosity() > 1 then
         return STATUS_CODES.VALID,
         string.format("%s, %s", command, username)
       else
@@ -258,7 +258,7 @@ function do_rcpt(socket, username, domain)
   elseif smtp.check_reply("RCPT", response) then
     issued_from = true
     -- User is valid.
-    if nmap.verbosity() > 1 then
+    if kmap.verbosity() > 1 then
       return STATUS_CODES.VALID, string.format("RCPT, %s", username)
     else
       return STATUS_CODES.VALID, username

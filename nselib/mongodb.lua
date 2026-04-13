@@ -2,14 +2,14 @@
 -- Library methods for handling MongoDB, creating and parsing packets.
 --
 -- @author Martin Holst Swende
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @args mongodb.db - the database to use for authentication
 
 -- Created 01/13/2010 - v0.1 - created by Martin Holst Swende <martin@swende.se>
 -- Revised 01/03/2012 - v0.2 - added authentication support <patrik@cqure.net>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -42,7 +42,7 @@ end
 -- and licensed under the Apache License, Version 2.0 http://www.apache.org/licenses/LICENSE-2.0)
 --
 -- @author Martin Holst Swende
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- Version 0.1
 
@@ -677,7 +677,7 @@ function query(socket, data)
     socket:close()
     stdnse.debug1("Query failed")
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try( socket:send( data ) )
 
@@ -746,7 +746,7 @@ function login(socket, db, username, password)
 end
 
 
---- Converts a query result as received from MongoDB query into nmap "result" table
+--- Converts a query result as received from MongoDB query into kmap "result" table
 -- @param resultTable table as returned from a query
 -- @return table suitable for <code>stdnse.format_output</code>
 function queryResultToTable( resultTable )

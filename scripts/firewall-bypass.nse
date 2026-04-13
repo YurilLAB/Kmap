@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local packet = require "packet"
@@ -32,8 +32,8 @@ For more information, see:
 -- the port scan results.
 --
 -- @usage
--- nmap --script firewall-bypass <target>
--- nmap --script firewall-bypass --script-args firewall-bypass.helper="ftp", firewall-bypass.targetport=22 <target>
+-- kmap --script firewall-bypass <target>
+-- kmap --script firewall-bypass --script-args firewall-bypass.helper="ftp", firewall-bypass.targetport=22 <target>
 --
 -- @output
 -- Host script results:
@@ -42,7 +42,7 @@ For more information, see:
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"vuln", "intrusive"}
 
@@ -50,12 +50,12 @@ ftp_helper = {
   should_run = function(host, helperport)
     local helperport = helperport or 21
     -- IPv4 and IPv6 are supported
-    if nmap.address_family() ~= 'inet' and nmap.address_family() ~= 'inet6' then
+    if kmap.address_family() ~= 'inet' and kmap.address_family() ~= 'inet6' then
       return false
     end
 
     -- Test if helper port is open
-    local testsock = nmap.new_socket()
+    local testsock = kmap.new_socket()
     testsock:set_timeout(1000)
     local status, _ = testsock:connect(host.ip, helperport)
     testsock:close()
@@ -68,7 +68,7 @@ ftp_helper = {
 
   attack = function(host, helperport, targetport)
     local ethertype, payload
-    local isIp4 = nmap.address_family() == 'inet' -- True if we are using IPv4. Otherwise, it is IPv6
+    local isIp4 = kmap.address_family() == 'inet' -- True if we are using IPv4. Otherwise, it is IPv6
 
     if isIp4 then
       -- IPv4 payload
@@ -91,15 +91,15 @@ ftp_helper = {
       local filter = "src host " .. host.ip .. " and tcp src port " .. helperport
       local status, l2data, l3data
       local timeout = 1000
-      local start = nmap.clock_ms()
+      local start = kmap.clock_ms()
 
       -- Start sniffing
-      local sniffer = nmap.new_socket()
+      local sniffer = kmap.new_socket()
       sniffer:set_timeout(100)
       sniffer:pcap_open(host.interface, 256, true, filter)
 
       -- Until we get adequate packet
-      while (nmap.clock_ms() - start) < timeout do
+      while (kmap.clock_ms() - start) < timeout do
         local _
         status, _, l2data, l3data = sniffer:pcap_receive()
         if status and string.find(l3data, "220 ") then
@@ -157,7 +157,7 @@ ftp_helper = {
       p:tcp_count_checksum()
 
       -- and finally, we send it.
-      local dnet = nmap.new_dnet()
+      local dnet = kmap.new_dnet()
       dnet:ethernet_open(host.interface)
       dnet:ethernet_send(f.frame_buf .. p.buf)
       status = sniffer:pcap_receive()
@@ -170,7 +170,7 @@ ftp_helper = {
     -- Wait for packet spoofing thread
     stdnse.sleep(1)
     -- Make connection to the target while packet the spoofing thread is sniffing for packets
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     socket:set_timeout(3000)
     local status, _ = socket:connect(host.ip, helperport)
     if not status then
@@ -196,11 +196,11 @@ local helper
 hostrule = function(host)
   helper = stdnse.get_script_args(SCRIPT_NAME .. ".helper")
 
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("lacks privileges." )
-      nmap.registry[SCRIPT_NAME].rootfail = true
+      kmap.registry[SCRIPT_NAME].rootfail = true
     end
     return false
   end
@@ -224,7 +224,7 @@ action = function(host, port)
 
   if targetport then
     -- We should check if target port is not already open
-    local testsock = nmap.new_socket()
+    local testsock = kmap.new_socket()
     testsock:set_timeout(1000)
     local status, _ = testsock:connect(host.ip, targetport)
     if status then
@@ -235,7 +235,7 @@ action = function(host, port)
   else
     -- If not target port specified, we try to get a filtered port,
     -- which would be more likely blocked by a firewall before looking for a closed one.
-    local port = nmap.get_ports(host, nil, "tcp", "filtered") or nmap.get_ports(host, nil, "tcp", "closed")
+    local port = kmap.get_ports(host, nil, "tcp", "filtered") or kmap.get_ports(host, nil, "tcp", "closed")
     if port then
       targetport = port.number
       stdnse.debug1("%s chosen as target port.", targetport)
@@ -269,14 +269,14 @@ action = function(host, port)
   end
 
   -- Then we check if target port is now open.
-  local testsock = nmap.new_socket()
+  local testsock = kmap.new_socket()
   testsock:set_timeout(1000)
   local status, _ = testsock:connect(host.ip, targetport)
   testsock:close()
   if status then
     -- If we could connect, then port is open and firewall is vulnerable.
     local vulnstring = "Firewall vulnerable to bypass through " .. (helper or helpername) .. " helper. "
-    .. (nmap.address_family() == 'inet' and "(IPv4)" or "(IPv6)")
+    .. (kmap.address_family() == 'inet' and "(IPv4)" or "(IPv6)")
 
     return stdnse.format_output(true, vulnstring)
   end

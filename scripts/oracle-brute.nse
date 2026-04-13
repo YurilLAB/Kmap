@@ -2,7 +2,7 @@ local brute = require "brute"
 local coroutine = require "coroutine"
 local creds = require "creds"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local tns = require "tns"
@@ -15,7 +15,7 @@ Performs brute force password auditing against Oracle servers.
 Running it in default mode it performs an audit against a list of common
 Oracle usernames and passwords. The mode can be changed by supplying the
 argument oracle-brute.nodefault at which point the script will use the
-username- and password- lists supplied with Nmap. Custom username- and
+username- and password- lists supplied with Kmap. Custom username- and
 password- lists may be supplied using the userdb and passdb arguments.
 The default credential list can be changed too by using the brute.credfile
 argument. In case the userdb or passdb arguments are supplied, the script
@@ -33,7 +33,7 @@ result in a large number of accounts being locked out on the database server.
 -- @see oracle-brute-stealth.nse
 --
 -- @usage
--- nmap --script oracle-brute -p 1521 --script-args oracle-brute.sid=ORCL <host>
+-- kmap --script oracle-brute -p 1521 --script-args oracle-brute.sid=ORCL <host>
 --
 -- @output
 -- PORT     STATE  SERVICE REASON
@@ -69,7 +69,7 @@ result in a large number of accounts being locked out on the database server.
 --     library
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -208,7 +208,7 @@ action = function(host, port)
   end
 
   if ( mode == "default" ) then
-    f = nmap.fetchfile(DEFAULT_ACCOUNTS)
+    f = kmap.fetchfile(DEFAULT_ACCOUNTS)
     if ( not(f) ) then
       return fail(("Failed to find %s"):format(DEFAULT_ACCOUNTS))
     end

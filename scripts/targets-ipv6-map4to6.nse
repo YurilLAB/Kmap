@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -19,7 +19,7 @@ generates IPv4-compatible IPv6 addresses.
 
 ---
 -- @usage
--- nmap -6 --script targets-ipv6-map4to6 --script-args newtargets,targets-ipv6-map4to6.IPv4Hosts={192.168.1.0/24},targets-ipv6-subnet={2001:db8:c0ca::/64}
+-- kmap -6 --script targets-ipv6-map4to6 --script-args newtargets,targets-ipv6-map4to6.IPv4Hosts={192.168.1.0/24},targets-ipv6-subnet={2001:db8:c0ca::/64}
 --
 -- @output
 -- Pre-scan script results:
@@ -47,16 +47,16 @@ generates IPv4-compatible IPv6 addresses.
 
 --
 -- Version 1.4
--- Update  01/12/2014 - V 1.4 Update for inclusion in Nmap by Daniel Miller
+-- Update  01/12/2014 - V 1.4 Update for inclusion in Kmap by Daniel Miller
 -- Update  05/05/2014 - V 1.3 Eliminate the Host phase.
 -- Update  05/05/2014 - V 1.2 Minor corrections and standardization.
 -- Update  18/10/2013 - V 1.1 Added     SaveMemory option
 -- Update  29/03/2013 - V 1.0 Functional script
--- Created 28/03/2013 - v0.1  Created by Raúl Fuentes <ra.fuentess.sam+nmap@gmail.com>
+-- Created 28/03/2013 - v0.1  Created by Raúl Fuentes <ra.fuentess.sam+kmap@gmail.com>
 --
 
 author = "Raúl Armando Fuentes Samaniego"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {
   "discovery",
 }
@@ -165,7 +165,7 @@ local Prescanning = function ()
   -- TODO: Gather IPv6 subnets from other sources.
   -- This was implemented in the original version of the script, but stripped
   -- for now until the other scripts are integrated.
-  -- http://seclists.org/nmap-dev/2013/q4/285
+  -- http://seclists.org/kmap-dev/2013/q4/285
   for _, IPv6_Subnet in ipairs(IPv6User) do
     stdnse.debug1("Processing %s", IPv6_Subnet)
     local IPv6Host, sError = From_4_to_6(IPv6_Subnet, IPv4Sub, tSalida.addrs)
@@ -192,12 +192,12 @@ end
 --(To bad can't do it with both at same time )
 function prerule ()
 
-  if not (nmap.address_family() == "inet6") then
+  if not (kmap.address_family() == "inet6") then
     stdnse.verbose1("This script is IPv6 only.")
     return false
   end
 
-  -- Because Nmap current limitation of working ONE single IP family we must
+  -- Because Kmap current limitation of working ONE single IP family we must
   -- be sure to have everything for work the Mapped IPv4 to IPv6
   if IPv4Sub == nil then
     stdnse.verbose1( "There are no IPv4 addresses to map!\z

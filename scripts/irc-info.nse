@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local math = require "math"
 local irc = require "irc"
 local stdnse = require "stdnse"
@@ -41,7 +41,7 @@ It uses STATS, LUSERS, and other queries to obtain this information.
 
 author = {"Doug Hoyte", "Patrick Donnelly"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -55,7 +55,7 @@ function action (host, port)
   local output = stdnse.output_table()
 
   local sd, line = comm.tryssl(host, port,
-    ("USER nmap +iw nmap :Nmap Wuz Here\nNICK %s\n"):format(nick),
+    ("USER kmap +iw kmap :Kmap Wuz Here\nNICK %s\n"):format(nick),
     {request_timeout=6000})
   if not sd then return "Unable to open connection" end
 

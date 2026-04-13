@@ -17,8 +17,8 @@ A clear and concise description of what you expected to happen.
 **Version info (please complete the following information):**
  - OS: [e.g. Linux 4.15, Windows 10 1909]
  - Output of `nping --version`:
- - Output of `nmap --version`:
- - Output of `nmap --iflist`:
+ - Output of `kmap --version`:
+ - Output of `kmap --iflist`:
 
 **Additional context**
 Add any other context about the problem here, such as special network type.

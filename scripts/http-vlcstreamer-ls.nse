@@ -12,7 +12,7 @@ enable streaming of multimedia content from the remote server to the device.
 
 ---
 -- @usage
--- nmap -p 54340 --script http-vlcstreamer-ls <ip>
+-- kmap -p 54340 --script http-vlcstreamer-ls <ip>
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -46,7 +46,7 @@ enable streaming of multimedia content from the remote server to the device.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

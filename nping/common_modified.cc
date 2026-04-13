@@ -1,62 +1,62 @@
 
 /***************************************************************************
  * common_modified.cc --  This file holds all those functions and classes  *
- * that have been reused from Nmap's code but that needed to be modified   *
+ * that have been reused from Kmap's code but that needed to be modified   *
  * in order to reuse them.                                                 *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 #include "nping.h"
@@ -193,7 +193,7 @@ int TargetGroup::get_next_host(struct sockaddr_storage *ss, size_t *sslen) {
   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) ss;
 
   /* CHANGE: Commented out. See note at the end of the method */
-  //startover: /* to handle nmap --resume where I have already
+  //startover: /* to handle kmap --resume where I have already
   //            * scanned many of the IPs */
   assert(ss);
   assert(sslen);
@@ -225,7 +225,7 @@ int TargetGroup::get_next_host(struct sockaddr_storage *ss, size_t *sslen) {
 #if HAVE_SOCKADDR_SA_LEN
     sin->sin_len = *sslen;
 #endif
-    //if (o.debugging > 2) { /* CHANGE: Do not use NmapOps and do not use log_Write*/
+    //if (o.debugging > 2) { /* CHANGE: Do not use KmapOps and do not use log_Write*/
     //  log_write(LOG_STDOUT, "doing %d.%d.%d.%d = %d.%d.%d.%d\n", current[0], current[1], current[2], current[3], addresses[0][current[0]],addresses[1][current[1]],addresses[2][current[2]],addresses[3][current[3]]);
     //}
     //nping_print(DBG_2, "doing %d.%d.%d.%d = %d.%d.%d.%d", current[0], current[1], current[2], current[3], addresses[0][current[0]],addresses[1][current[1]],addresses[2][current[2]],addresses[3][current[3]]);
@@ -278,7 +278,7 @@ int TargetGroup::get_next_host(struct sockaddr_storage *ss, size_t *sslen) {
 
 
   /* CHANGE: These lines have been commented out to make this code
-   * independent from NmapOps  */
+   * independent from KmapOps  */
   /* If we are resuming from a previous scan, we have already finished
      scans up to o.resume_ip.  */
  // if (sin->sin_family == AF_INET && o.resume_ip.s_addr) {
@@ -389,7 +389,7 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
       if (!inet_pton(AF_INET, target_net, &(startaddr))) {
 
         /* There is a bug report on the use of gethostbynameCached()
-         * <http://seclists.org/nmap-dev/2010/q1/803>
+         * <http://seclists.org/kmap-dev/2010/q1/803>
          * I haven't been able to find any problem with that code but
          * still, the fact that DNS queries are cached does not improve
          * performance a lot. It may save one DNS query per execution
@@ -675,19 +675,19 @@ void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int *portwarning)
       } else {
         //if (nested) {
           //if ((range_type & SCAN_TCP_PORT) &&
-              //nmap_getservbyport(rangestart, "tcp")) {
+              //kmap_getservbyport(rangestart, "tcp")) {
             //porttbl[rangestart] |= SCAN_TCP_PORT;
           //}
           //if ((range_type & SCAN_UDP_PORT) &&
-              //nmap_getservbyport(rangestart, "udp")) {
+              //kmap_getservbyport(rangestart, "udp")) {
             //porttbl[rangestart] |= SCAN_UDP_PORT;
           //}
           //if ((range_type & SCAN_SCTP_PORT) &&
-              //nmap_getservbyport(rangestart, "sctp")) {
+              //kmap_getservbyport(rangestart, "sctp")) {
             //porttbl[rangestart] |= SCAN_SCTP_PORT;
           //}
           //if ((range_type & SCAN_PROTOCOLS) &&
-              //nmap_getprotbynum(rangestart)) {
+              //kmap_getprotbynum(rangestart)) {
             //porttbl[rangestart] |= SCAN_PROTOCOLS;
           //}
         //} else {

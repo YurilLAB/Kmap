@@ -17,7 +17,7 @@
 
 /*   (exported) functions   */
 /* The code that has no preconditions to being called, so it can be
-   executed before even Nmap options parsing (so o.debugging and the
+   executed before even Kmap options parsing (so o.debugging and the
    like don't need to be used.  Its main function is to do
    WSAStartup() as some of the option parsing code does DNS
    resolution */

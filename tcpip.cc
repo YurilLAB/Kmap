@@ -4,74 +4,74 @@
  * including sending raw packets, routing, printing packets, reading from  *
  * libpcap, etc.                                                           *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
 /* $Id$ */
 
-#include "nmap.h"
+#include "kmap.h"
 
 #include <locale.h>
 #include "nbase.h"
 #include <dnet.h>
 #include "tcpip.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "Target.h"
 #include "utils.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "libnetutil/netutil.h"
 
 #include "struct_ip.h"
@@ -83,7 +83,7 @@
 #endif /* NETINET_IF_ETHER_H */
 #endif /* HAVE_NETINET_IF_ETHER_H */
 
-extern NmapOps o;
+extern KmapOps o;
 
 static PacketCounter PktCt;
 
@@ -242,7 +242,7 @@ void PacketTrace::traceND(pdirection pdir, const u8 *frame, u32 len,
    seq=625950769" or "ICMP PING (0/1) ttl=61 id=39516 iplen=40".
    IMPORTANT: This is a wrapper for function ippackethdrinfo(). Check
    nbase/nbase_net.c for details on the returned buffer. */
-static const char *nmap_format_ippacket(const u8 *packet, u32 len) {
+static const char *kmap_format_ippacket(const u8 *packet, u32 len) {
   int detail = LOW_DETAIL;
   if (o.debugging == 2) {
     detail = MEDIUM_DETAIL;
@@ -287,7 +287,7 @@ void PacketTrace::trace(pdirection pdir, const u8 *packet, u32 len,
 
   log_write(LOG_STDOUT | LOG_NORMAL, "%s (%.4fs) %s\n",
             (pdir == SENT) ? "SENT" : "RCVD",
-            o.TimeSinceStart(&tv), nmap_format_ippacket(packet, len));
+            o.TimeSinceStart(&tv), kmap_format_ippacket(packet, len));
 
   return;
 }
@@ -909,7 +909,7 @@ static u8 *build_sctp(u16 sport, u16 dport, u32 vtag,
 
   /* RFC 2960 originally defined Adler32 checksums, which was later
    * revised to CRC32C in RFC 3309 and RFC 4960 respectively.
-   * Nmap uses CRC32C by default, unless --adler32 is given. */
+   * Kmap uses CRC32C by default, unless --adler32 is given. */
   if (o.adler32)
     sctp->sh_sum = htonl(nbase_adler32(packet, *packetlen));
   else
@@ -1576,7 +1576,7 @@ void pcap_print_stats(int logt, pcap_t *pd) {
    2) If overwrite is 0 and a MAC is already set for this target, give up.
    3) If the packet source address is not the target, give up.
    4) Use the routing table to try to determine rather target is
-      directly connected to the src host running Nmap.  If it is, set the MAC.
+      directly connected to the src host running Kmap.  If it is, set the MAC.
 
    This function returns 0 if it ends up setting the MAC, nonzero otherwise. */
 int setTargetMACIfAvailable(Target *target, struct link_header *linkhdr,
@@ -1657,7 +1657,7 @@ bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_st
   arp_t *a;
   struct arp_entry ae;
 
-  /* First, let us check the Nmap arp cache ... */
+  /* First, let us check the Kmap arp cache ... */
   if (mac_cache_get(dstss, dstmac))
     return true;
 
@@ -1692,7 +1692,7 @@ bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_st
 }
 
 
-int nmap_route_dst(const struct sockaddr_storage *dst, struct route_nfo *rnfo) {
+int kmap_route_dst(const struct sockaddr_storage *dst, struct route_nfo *rnfo) {
   struct sockaddr_storage spoofss;
   size_t spoofsslen;
 

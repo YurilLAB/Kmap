@@ -1,6 +1,6 @@
 local comm = require "comm"
 local datetime = require "datetime"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -13,7 +13,7 @@ Parses and displays the banner information of an OpenLookup (network key-value s
 
 ---
 -- @usage
--- nmap -p 5850 --script openlookup-info <target>
+-- kmap -p 5850 --script openlookup-info <target>
 --
 -- @output
 -- 5850/tcp open  openlookup
@@ -34,7 +34,7 @@ Parses and displays the banner information of an OpenLookup (network key-value s
 -- <elem key="http port">5851</elem>
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe", "version"}
 
 
@@ -237,7 +237,7 @@ action = function(host, port)
   if version then
     port.version.version = version
   end
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   if #options < 1 then
     return
   end

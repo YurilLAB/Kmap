@@ -21,8 +21,8 @@ References:
 ]]
 
 ---
--- @usage nmap -p 8140 --script puppet-naivesigning <target>
--- @usage nmap -p 8140 --script puppet-naivesigning --script-args puppet-naivesigning.csr=other.csr,puppet-naivesigning.node=agency <target>
+-- @usage kmap -p 8140 --script puppet-naivesigning <target>
+-- @usage kmap -p 8140 --script puppet-naivesigning --script-args puppet-naivesigning.csr=other.csr,puppet-naivesigning.node=agency <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -42,7 +42,7 @@ References:
 ---
 
 author = "Wong Wai Tuck"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 portrule = shortport.port_or_service( {8140} , "puppet", "tcp", "open")

@@ -10,7 +10,7 @@ Extracts version and node information from a Bitcoin server
 
 ---
 -- @usage
--- nmap -p 8333 --script bitcoin-info <ip>
+-- kmap -p 8333 --script bitcoin-info <ip>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -25,7 +25,7 @@ Extracts version and node information from a Bitcoin server
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 --

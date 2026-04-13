@@ -10,7 +10,7 @@ service.
 
 ---
 -- @usage
--- nmap --script=citrix-enum-servers-xml -p 80,443,8080 <host>
+-- kmap --script=citrix-enum-servers-xml -p 80,443,8080 <host>
 --
 -- @output
 -- PORT     STATE SERVICE    REASON
@@ -25,7 +25,7 @@ service.
 -- Revised 12/02/2009 - v0.2 - Use stdnse.format_ouput for output
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

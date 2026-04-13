@@ -3,12 +3,12 @@
 -- formatting key fingerprints.
 --
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 
 local io = require "io"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -59,14 +59,14 @@ local function unpack_with_padding(len_bytes, data, offset)
 end
 
 --- Fetch an SSH-1 host key.
--- @param host Nmap host table.
--- @param port Nmap port table.
+-- @param host Kmap host table.
+-- @param port Kmap port table.
 -- @return A table with the following fields: <code>exp</code>,
 -- <code>mod</code>, <code>bits</code>, <code>key_type</code>,
 -- <code>fp_input</code>, <code>full_key</code>, <code>algorithm</code>, and
 -- <code>fingerprint</code>.
 fetch_host_key = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, _
 
   status = socket:connect(host, port)
@@ -75,7 +75,7 @@ fetch_host_key = function(host, port)
   status = socket:receive_lines(1)
   if not status then socket:close(); return end
   -- send our banner
-  status = socket:send("SSH-1.5-Nmap-SSH1-Hostkey\r\n")
+  status = socket:send("SSH-1.5-Kmap-SSH1-Hostkey\r\n")
   if not status then socket:close(); return end
 
   local data, packet_length, padding, offset

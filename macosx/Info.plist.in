@@ -15,7 +15,7 @@
     <key>CFBundleGetInfoString</key>
     <string>${VERSION}, ${APP_COPYRIGHT} ${APP_WEB_SITE}</string>
     <key>CFBundleIconFile</key>
-    <string>zenmap.icns</string>
+    <string>zekmap.icns</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundlePackageType</key>

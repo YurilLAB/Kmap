@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -33,7 +33,7 @@ Original check by by Worawit Wang (sleepya).
 
 ---
 -- @usage
--- nmap -sV --script=rdp-vuln-ms12-020 -p 3389 <target>
+-- kmap -sV --script=rdp-vuln-ms12-020 -p 3389 <target>
 --
 -- @output
 -- PORT     STATE SERVICE        VERSION
@@ -65,7 +65,7 @@ Original check by by Worawit Wang (sleepya).
 -- |_      http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-0002
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 
@@ -124,12 +124,12 @@ local userRequest = "\x03\x00" -- header
 
 local function do_check(host, port)
   local is_vuln = false
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   -- If any socket call fails, bail.
   local catch = function ()
     socket:close()
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(socket:connect(host, port))
   try(socket:send(connectionRequest))

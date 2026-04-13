@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -11,7 +11,7 @@ will parse out the data.
 ]]
 ---
 -- @usage
--- nmap --script omron-info -sU -p 9600 <host>
+-- kmap --script omron-info -sU -p 9600 <host>
 --
 -- @output
 -- 9600/tcp open  OMRON FINS
@@ -43,30 +43,30 @@ will parse out the data.
 
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version"}
 
 --
--- Function to define the portrule as per nmap standards
+-- Function to define the portrule as per kmap standards
 --
 --
 portrule = shortport.version_port_or_service(9600, "fins", {"tcp", "udp"})
 
 ---
---  Function to set the nmap output for the host, if a valid OMRON FINS packet
+--  Function to set the kmap output for the host, if a valid OMRON FINS packet
 --  is received then the output will show that the port is open instead of
 --  <code>open|filtered</code>
 --
--- @param host Host that was passed in via nmap
+-- @param host Host that was passed in via kmap
 -- @param port port that FINS is running on (Default UDP/9600)
-function set_nmap(host, port)
+function set_kmap(host, port)
 
   --set port Open
   port.state = "open"
   -- set version name to OMRON FINS
   port.version.name = "fins"
-  nmap.set_port_version(host, port)
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
 
 end
 
@@ -123,22 +123,22 @@ end
 
 ---
 --  Action Function that is used to run the NSE. This function will send the initial query to the
---  host and port that were passed in via nmap. The initial response is parsed to determine if host
+--  host and port that were passed in via kmap. The initial response is parsed to determine if host
 --  is a FINS supported device.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host,port)
 
   -- create table for output
   local output = stdnse.output_table()
   -- create new socket
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local catch = function()
     socket:close()
   end
   -- create new try
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   -- connect to port on host
   try(socket:connect(host, port))
   -- init response var
@@ -157,7 +157,7 @@ action = function(host,port)
   -- unpack the first byte for checking that it was a valid response
   local header = string.unpack("B", response, 1)
   if(header == 0xc0 or header == 0xc1 or header == 0x46) then
-    set_nmap(host, port)
+    set_kmap(host, port)
     local response_code = string.unpack("<I2", response, 13 + offset)
     -- test for a few of the error codes I saw when testing the script
     if(response_code == 2081) then

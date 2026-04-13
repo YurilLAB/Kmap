@@ -8,7 +8,7 @@ local table = require "table"
 local url = require "url"
 
 description = [[
-This script queries the Nmap registry for the GPS coordinates of targets stored
+This script queries the Kmap registry for the GPS coordinates of targets stored
 by previous geolocation scripts and renders a Bing Map of markers representing
 the targets.
 
@@ -21,7 +21,7 @@ Additional information for the Bing Maps REST Services API can be found at:
 
 ---
 -- @usage
--- nmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-bing --script-args ip-geolocation-map-bing.api_key=[redacted],ip-geolocation-map-bing.map_path=map.png <target>
+-- kmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-bing --script-args ip-geolocation-map-bing.api_key=[redacted],ip-geolocation-map-bing.map_path=map.png <target>
 --
 -- @output
 -- | ip-geolocation-map-bing:
@@ -61,7 +61,7 @@ Additional information for the Bing Maps REST Services API can be found at:
 -- @see ip-geolocation-maxmind.nse
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"external", "safe"}
 
 local render = function(params, options)

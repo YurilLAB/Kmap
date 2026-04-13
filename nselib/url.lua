@@ -25,7 +25,7 @@ LuaSocket toolkit.
 Author: Diego Nehab
 RCS ID: $Id: url.lua,v 1.37 2005/11/22 08:33:29 diego Exp $
 
-parse_query and build_query added For nmap (Eddie Bell <ejlbell@gmail.com>)
+parse_query and build_query added For kmap (Eddie Bell <ejlbell@gmail.com>)
 --]]
 
 -----------------------------------------------------------------------------
@@ -373,7 +373,7 @@ local entities = {
 -----------------------------------------------------------------------------
 function parse_query(query)
 
-  -- TODO: https://github.com/nmap/nmap/issues/3324
+  -- TODO: https://github.com/kmap/kmap/issues/3324
   --       This opportunistic HTML decoding is problematic because
   --       it might accidentally decode what should not be decoded.
   query = string.gsub(query, "&([ampltg]+);", entities)

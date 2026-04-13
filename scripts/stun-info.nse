@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stun = require "stun"
 local stdnse = require "stdnse"
@@ -9,7 +9,7 @@ Retrieves the external IP address of a NAT:ed host using the STUN protocol.
 
 ---
 -- @usage
--- nmap -sV -PN -sU -p 3478 --script stun-info <ip>
+-- kmap -sV -PN -sU -p 3478 --script stun-info <ip>
 --
 -- @output
 -- PORT     STATE         SERVICE
@@ -19,7 +19,7 @@ Retrieves the external IP address of a NAT:ed host using the STUN protocol.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -40,8 +40,8 @@ action = function(host, port)
   end
 
   port.version.name = "stun"
-  nmap.set_port_state(host, port, "open")
-  nmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
 
   if ( result ) then
     return "\n  External IP: " .. result

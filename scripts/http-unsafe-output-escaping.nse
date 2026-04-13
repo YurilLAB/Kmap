@@ -17,7 +17,7 @@ indication of potential XSS vulnerability.
 
 ---
 -- @usage
--- nmap --script=http-unsafe-output-escaping <target>
+-- kmap --script=http-unsafe-output-escaping <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -44,7 +44,7 @@ indication of potential XSS vulnerability.
 -- @see http-xssed.nse
 
 author = "Martin Holst Swende"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 

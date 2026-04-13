@@ -6,7 +6,7 @@ The same script as VMware Fingerprinter from VASTO created by Claudio Criscione,
 
 ---
 -- @usage
--- nmap --script vmware-version -p443 <host>
+-- kmap --script vmware-version -p443 <host>
 --
 -- @output
 -- | vmware-version:
@@ -18,17 +18,17 @@ The same script as VMware Fingerprinter from VASTO created by Claudio Criscione,
 ----------------------------------------------------------
 
 author = "Alexey Tyurin"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "version"}
 
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
 
 portrule = function (host, port)
-  if nmap.version_intensity() < 7 or nmap.port_is_excluded(port.number, port.protocol) then
+  if kmap.version_intensity() < 7 or kmap.port_is_excluded(port.number, port.protocol) then
     return false
   end
   return shortport.http(host, port)
@@ -74,7 +74,7 @@ action = function(host, port)
     port.version.version = vwversion
   end
   table.insert(port.version.cpe, ("cpe:/o:vmware:%s:%s"):format(vwname:gsub("^[Vv][Mm][Ww]are ", ""), vwversion))
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   local response = stdnse.output_table()
 

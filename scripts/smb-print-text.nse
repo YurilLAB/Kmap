@@ -21,7 +21,7 @@ which you can specify trough smb library arguments <code>smbuser</code> and
 
 ]]
 ---
--- @usage nmap  -p 445 <target> --script=smb-print-text  --script-args="text=0wn3d"
+-- @usage kmap  -p 445 <target> --script=smb-print-text  --script-args="text=0wn3d"
 --
 -- @output
 -- |_smb-print-text: Printer job started using MyPrinter printer share.
@@ -32,7 +32,7 @@ which you can specify trough smb library arguments <code>smbuser</code> and
 --
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 
 hostrule = function(host)
@@ -112,7 +112,7 @@ action = function(host,port)
   local printer_handle = string.sub(result.data,25,#result.data-4)
   stdnse.debug1("Printer handle %s",stdnse.tohex(printer_handle))
   -- call RpcStartDocPrinter - opnum 17
-  status,result = msrpc.spoolss_start_doc_printer(smbstate,printer_handle,"nmap_print_test.txt") -- patched version will allow this
+  status,result = msrpc.spoolss_start_doc_printer(smbstate,printer_handle,"kmap_print_test.txt") -- patched version will allow this
   if not status then
     return false
   end

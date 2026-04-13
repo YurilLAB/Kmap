@@ -2,7 +2,7 @@
 -- Library methods for handling LDAP.
 --
 -- @author Patrik Karlsson
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- Credit goes out to Martin Swende who provided me with the initial code that got me started writing this.
 --
@@ -21,7 +21,7 @@
 local asn1 = require "asn1"
 local datetime = require "datetime"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -225,7 +225,7 @@ function searchRequest( socket, params )
 
   local searchResEntries = { errorMessage="", resultCode = 0}
   local catch = function() socket:close() stdnse.debug1("SearchRequest failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local attributes = params.attributes
   local request = encode(params.baseObject)
   local attrSeq = ''
@@ -354,7 +354,7 @@ function udpSearchRequest( host, port, params )
 
   local searchResEntries = { errorMessage="", resultCode = 0}
   local catch = function() stdnse.debug1("udpSearchRequest failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local attributes = params.attributes
   local request = encode(params.baseObject)
   local attrSeq = ''
@@ -460,7 +460,7 @@ end
 function bindRequest( socket, params )
 
   local catch = function() socket:close() stdnse.debug1("bindRequest failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local ldapAuth = encode( { _ldaptype = '\x80', params.password } )
   local bindReq = encode( params.version ) .. encode( params.username ) .. ldapAuth
   local ldapMsg = encode(ldapMessageId) .. encodeLDAPOp( APPNO.BindRequest, true, bindReq )
@@ -513,7 +513,7 @@ function unbindRequest( socket )
 
   local ldapMsg, packet
   local catch = function() socket:close() stdnse.debug1("bindRequest failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   local encoder = asn1.ASN1Encoder:new()
   encoder:registerTagEncoders(tagEncoder)

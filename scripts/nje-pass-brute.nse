@@ -22,8 +22,8 @@ Most systems only have one password, it is recommended to use the
 
 ---
 -- @usage
--- nmap -sV --script=nje-pass-brute --script-args=ohost='POTATO',rhost='CACTUS' <target>
--- nmap --script=nje-pass-brute --script-args=ohost='POTATO',rhost='CACTUS',sleep=5 -p 175 <target>
+-- kmap -sV --script=nje-pass-brute --script-args=ohost='POTATO',rhost='CACTUS' <target>
+-- kmap --script=nje-pass-brute --script-args=ohost='POTATO',rhost='CACTUS',sleep=5 -p 175 <target>
 --
 -- @args nje-pass-brute.ohost The target NJE server OHOST value.
 --
@@ -44,7 +44,7 @@ Most systems only have one password, it is recommended to use the
 -- 2016-03-22 - v0.1 - created by Soldier of Fortran
 
 author = "Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({175,2252}, "nje")

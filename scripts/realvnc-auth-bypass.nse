@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local vulns = require "vulns"
 
@@ -7,7 +7,7 @@ Checks if a VNC server is vulnerable to the RealVNC authentication bypass
 (CVE-2006-2369).
 ]]
 author = "Brandon Enright"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 ---
 -- @see vnc-brute.nse
@@ -36,7 +36,7 @@ categories = {"auth", "safe", "vuln"}
 portrule = shortport.port_or_service({5900,5901,5902}, "vnc")
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local result
   local status = true
 

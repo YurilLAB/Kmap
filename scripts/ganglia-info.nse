@@ -21,7 +21,7 @@ For more information about Ganglia, see:
 
 ---
 -- @usage
--- nmap --script ganglia-info --script-args ganglia-info.timeout=60,ganglia-info.bytes=1000000 -p <port> <target>
+-- kmap --script ganglia-info --script-args ganglia-info.timeout=60,ganglia-info.bytes=1000000 -p <port> <target>
 --
 -- @args ganglia-info.timeout
 --       Set the timeout in seconds. The default value is 30.
@@ -121,7 +121,7 @@ For more information about Ganglia, see:
 -- Created 2015-07-30 - v0.2 - Added Support for SLAXML by Gyanendra Mishra
 
 author = {"Brendan Coles", "Gyanendra Mishra"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service ({8649,8651}, "ganglia", {"tcp"})

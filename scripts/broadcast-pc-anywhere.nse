@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -9,7 +9,7 @@ Sends a special broadcast probe to discover PC-Anywhere hosts running on a LAN.
 
 ---
 -- @usage
--- nmap --script broadcast-pc-anywhere
+-- kmap --script broadcast-pc-anywhere
 --
 -- @output
 -- Pre-scan script results:
@@ -20,12 +20,12 @@ Sends a special broadcast probe to discover PC-Anywhere hosts running on a LAN.
 --       the network interface. (default varies according to timing. -T3 = 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "broadcast", "safe" }
 
 local TIMEOUT = stdnse.parse_timespec(stdnse.get_script_args("broadcast-pc-anywhere.timeout"))
 
-prerule = function() return ( nmap.address_family() == "inet") end
+prerule = function() return ( kmap.address_family() == "inet") end
 
 action = function()
 
@@ -33,7 +33,7 @@ action = function()
   local host = { ip = "255.255.255.255" }
   local port = { number = 5632, protocol = "udp" }
 
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(500)
 
   for i=1,2 do
@@ -43,7 +43,7 @@ action = function()
     end
   end
 
-  local timeout = TIMEOUT or ( 20 / ( nmap.timing_level() + 1 ) )
+  local timeout = TIMEOUT or ( 20 / ( kmap.timing_level() + 1 ) )
   local responses = {}
   local stime = os.time()
 

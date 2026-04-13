@@ -1,7 +1,7 @@
 /* Note -- this file was obtained from tcpdump-2000-9-17 CVS snapshot *
  * ( www.tcpdump.org).  It has been modified slightly for             *
  * compatibility with libnbase.  Modification details may be in the    *
- * nbase CHANGELOG - fyodor@nmap.org                              */
+ * nbase CHANGELOG - fyodor@kmap.org                              */
 
 
 /*

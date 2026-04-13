@@ -1,6 +1,6 @@
 local datetime = require "datetime"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"

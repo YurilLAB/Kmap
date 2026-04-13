@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -46,8 +46,8 @@ only the potentially risky methods are shown.
 -- |_  Supported Methods: GET HEAD POST OPTIONS
 --
 -- @usage
--- nmap --script http-methods <target>
--- nmap --script http-methods --script-args http-methods.url-path='/website' <target>
+-- kmap --script http-methods <target>
+-- kmap --script http-methods --script-args http-methods.url-path='/website' <target>
 --
 -- @xmloutput
 -- <table key="Supported Methods">
@@ -64,7 +64,7 @@ only the potentially risky methods are shown.
 
 author = {"Bernd Stroessenreuther <berny1@users.sourceforge.net>", "Gyanendra Mishra"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
@@ -191,7 +191,7 @@ action = function(host, port)
     end
   end
 
-  if nmap.verbosity() > 0 and #methods > 0 then
+  if kmap.verbosity() > 0 and #methods > 0 then
     output["Supported Methods"] = methods
     setmetatable(output["Supported Methods"], spacesep)
   end

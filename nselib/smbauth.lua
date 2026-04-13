@@ -29,7 +29,7 @@
 -- There are four types of authentication. Confusingly, these have the same names as
 -- stored hashes, but only slight relationships. The four types are Lanmanv1, NTLMv1,
 -- Lanmanv2, and NTLMv2. By default, Lanmanv1 and NTLMv1 are used together in most
--- applications. These Nmap scripts default to NTLMv1 alone, except in special cases,
+-- applications. These Kmap scripts default to NTLMv1 alone, except in special cases,
 -- but it can be overridden by the user.
 --
 -- Lanmanv1 and NTLMv1 both use DES for their response. The DES mixes a server challenge
@@ -80,7 +80,7 @@
 --                   For information, see <code>smbauth.lua</code>.
 --@args smbnoguest   Use to disable usage of the 'guest' account.
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -158,16 +158,16 @@ end
 --@param is_admin      [optional] Set to 'true' the account is known to be an administrator.
 function add_account(host, username, domain, password, password_hash, hash_type, is_admin)
   -- Save the username in a global list -- TODO: restore this
-  --  if(nmap.registry.usernames == nil) then
-  --    nmap.registry.usernames = {}
+  --  if(kmap.registry.usernames == nil) then
+  --    kmap.registry.usernames = {}
   --  end
-  --  nmap.registry.usernames[username] = true
+  --  kmap.registry.usernames[username] = true
   --
   --  -- Save the username/password pair in a global list
-  --  if(nmap.registry.smbaccounts == nil) then
-  --    nmap.registry.smbaccounts = {}
+  --  if(kmap.registry.smbaccounts == nil) then
+  --    kmap.registry.smbaccounts = {}
   --  end
-  --  nmap.registry.smbaccounts[username] = password
+  --  kmap.registry.smbaccounts[username] = password
 
   -- Check if we've already recorded this account
   if(account_exists(host, username, domain)) then
@@ -275,7 +275,7 @@ function init_account(host)
   end
 
   -- Add the account given on the commandline (TODO: allow more than one?)
-  local args = nmap.registry.args
+  local args = kmap.registry.args
   local username      = nil
   local domain        = ''
   local password      = nil
@@ -775,7 +775,7 @@ function get_security_blob(security_blob, ip, username, domain, password, passwo
     local lanman, ntlm, mac_key = get_password_response(ip, username, domain, password, password_hash, hash_type, challenge, true)
 
     -- Convert the username and domain to unicode (TODO: Disable the unicode flag, evaluate if that'll work)
-    local hostname = unicode.utf8to16("nmap")
+    local hostname = unicode.utf8to16("kmap")
     username = unicode.utf8to16(username)
     domain   = (#username > 0 ) and unicode.utf8to16(domain) or ""
     ntlm     = (#username > 0 ) and ntlm or ""

@@ -11,7 +11,7 @@ of different tests.
 
 ---
 -- @usage
--- nmap -sn -Pn ns1.example.com --script dns-check-zone --script-args='dns-check-zone.domain=example.com'
+-- kmap -sn -Pn ns1.example.com --script dns-check-zone --script-args='dns-check-zone.domain=example.com'
 --
 -- @output
 -- | dns-check-zone:
@@ -48,7 +48,7 @@ of different tests.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
 local arg_domain = stdnse.get_script_args(SCRIPT_NAME .. '.domain')
@@ -56,7 +56,7 @@ local arg_domain = stdnse.get_script_args(SCRIPT_NAME .. '.domain')
 
 hostrule = function(host) return ( arg_domain ~= nil ) end
 
-local PROBE_HOST = "scanme.nmap.org"
+local PROBE_HOST = "scanme.kmap.org"
 
 local Status = {
   PASS = "PASS",

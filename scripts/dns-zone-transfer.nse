@@ -2,7 +2,7 @@ local dns = require "dns"
 local ipOps = require "ipOps"
 local listop = require "listop"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local strbuf = require "strbuf"
@@ -22,15 +22,15 @@ server's hostname, or it can be specified with the
 successful all domains and domain types are returned along with common
 type specific data (SOA/MX/NS/PTR/A).
 
-This script can run at different phases of an Nmap scan:
+This script can run at different phases of an Kmap scan:
 * Script Pre-scanning: in this phase the script will run before any
-Nmap scan and use the defined DNS server in the arguments. The script
+Kmap scan and use the defined DNS server in the arguments. The script
 arguments in this phase are: <code>dns-zone-transfer.server</code> the
 DNS server to use, can be a hostname or an IP address and must be
 specified. The <code>dns-zone-transfer.port</code> argument is optional
 and can be used to specify the DNS server port.
 * Script scanning: in this phase the script will run after the other
-Nmap phases and against an Nmap discovered DNS server. If we don't
+Kmap phases and against an Kmap discovered DNS server. If we don't
 have the "true" hostname for the DNS server we cannot determine a
 likely zone to perform the transfer on.
 
@@ -46,10 +46,10 @@ Useful resources
 -- @args dns-zone-transfer.port DNS server port, this argument concerns
 --       the "Script Pre-scanning phase" and it's optional, the default
 --       value is <code>53</code>.
--- @args newtargets  If specified, adds returned DNS records onto Nmap
+-- @args newtargets  If specified, adds returned DNS records onto Kmap
 --       scanning queue.
 -- @args dns-zone-transfer.addall  If specified, adds all IP addresses
---       including private ones onto Nmap scanning queue when the
+--       including private ones onto Kmap scanning queue when the
 --       script argument <code>newtargets</code> is given. The default
 --       behavior is to skip private IPs (non-routable).
 --
@@ -85,12 +85,12 @@ Useful resources
 -- |  www.foo.com.        CNAME
 -- |_ foo.com.            SOA     ns2.foo.com. piou.foo.com.
 -- @usage
--- nmap --script dns-zone-transfer.nse \
+-- kmap --script dns-zone-transfer.nse \
 --      --script-args dns-zone-transfer.domain=<domain>
 
 
 author = "Eddie Bell"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {'intrusive', 'discovery'}
 
 -- DNS options
@@ -511,7 +511,7 @@ function responses_iter(data)
   end
 end
 
--- add axfr results to Nmap scan queue
+-- add axfr results to Kmap scan queue
 function add_zone_info(response)
   local RR = {}
   for data in responses_iter(response) do
@@ -608,7 +608,7 @@ function add_zone_info(response)
   end
 
   return true, tab.dump(outtab) .. "\n" ..
-    string.format("Total new targets added to Nmap scan queue: %d.",
+    string.format("Total new targets added to Kmap scan queue: %d.",
     nhosts)
 end
 
@@ -665,9 +665,9 @@ action = function(host, port)
     proto = port.protocol
   end
 
-  local soc = nmap.new_socket()
+  local soc = kmap.new_socket()
   local catch = function() soc:close() end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   soc:set_timeout(4000)
   try(soc:connect(host, port))
 
@@ -717,7 +717,7 @@ action = function(host, port)
     return nil
   end
 
-  -- add axfr results to Nmap scanning queue
+  -- add axfr results to Kmap scanning queue
   if target.ALLOW_NEW_TARGETS then
     local status, ret = add_zone_info(response_str)
     if not status then

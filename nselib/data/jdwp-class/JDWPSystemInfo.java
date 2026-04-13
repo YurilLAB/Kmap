@@ -7,7 +7,7 @@ import java.util.Date;
  * javac JDWPSystemInfo.java (should be in the nselib/data/jdwp-class directory).
  *
  * author = "Aleksandar Nikolic"
- * license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+ * license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 */
 
 public class JDWPSystemInfo {

@@ -1,6 +1,6 @@
 local _G = require "_G"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,11 +17,11 @@ You can also parse a Nikto-formatted database using http-fingerprints.nikto-db-p
 most of the fingerprints defined in nikto's database in real time. More documentation about this in the
 nselib/data/http-fingerprints.lua file.
 
-Currently, the database can be found under Nmap's directory in the nselib/data folder. The file is called
+Currently, the database can be found under Kmap's directory in the nselib/data folder. The file is called
 http-fingerprints and has a long description of its functionality in the file header.
 
 Many of the finger prints were discovered by me (Ron Bowes), and a number of them are from the Yokoso
-project, used with permission from Kevin Johnson (http://seclists.org/nmap-dev/2009/q3/0685.html).
+project, used with permission from Kevin Johnson (http://seclists.org/kmap-dev/2009/q3/0685.html).
 
 Initially, this script attempts to access two different random files in order to detect servers
 that don't return a proper 404 Not Found status. In the event that they return 200 OK, the body
@@ -58,7 +58,7 @@ database can specify their own criteria for accepting a page as valid.
 --          * It doesn't support sending additional headers for a probe.
 --       That means, if a nikto fingerprint needs one of the above features, it
 --       won't be loaded. At the time of writing this, 6546 out of the 6573 Nikto
---       fingerprints are being loaded successfully.  This runtime Nikto fingerprint integration was suggested by Nikto co-author Chris Sullo as described at http://seclists.org/nmap-dev/2013/q4/292
+--       fingerprints are being loaded successfully.  This runtime Nikto fingerprint integration was suggested by Nikto co-author Chris Sullo as described at http://seclists.org/kmap-dev/2013/q4/292
 --
 -- @output
 -- Interesting ports on test.skullsecurity.org (208.81.2.52):
@@ -77,7 +77,7 @@ database can specify their own criteria for accepting a page as valid.
 
 author = {"Ron Bowes", "Andrew Orr", "Rob Nicholls"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive", "vuln"}
 
@@ -173,7 +173,7 @@ end
 
 -- simplify unlocking the mutex, ensuring we don't try to parse again, and returning an error.
 local function bad_prints(mutex, err)
-  nmap.registry.http_fingerprints = err
+  kmap.registry.http_fingerprints = err
   mutex "done"
   return false, err
 end
@@ -188,20 +188,20 @@ local function get_fingerprints(fingerprint_file, category)
   local total_count = 0 -- Used for 'limit'
 
   -- Check if we've already read the file
-  local mutex = nmap.mutex("http_fingerprints")
+  local mutex = kmap.mutex("http_fingerprints")
   mutex "lock"
-  if nmap.registry.http_fingerprints then
-    if type(nmap.registry.http_fingerprints) == "table" then
+  if kmap.registry.http_fingerprints then
+    if type(kmap.registry.http_fingerprints) == "table" then
       stdnse.debug1("Using cached HTTP fingerprints")
       mutex "done"
-      return true, nmap.registry.http_fingerprints
+      return true, kmap.registry.http_fingerprints
     else
-      return bad_prints(mutex, nmap.registry.http_fingerprints)
+      return bad_prints(mutex, kmap.registry.http_fingerprints)
     end
   end
 
-  -- Try and find the file; if it isn't in Nmap's directories, take it as a direct path
-  local filename_full = nmap.fetchfile('nselib/data/' .. fingerprint_file)
+  -- Try and find the file; if it isn't in Kmap's directories, take it as a direct path
+  local filename_full = kmap.fetchfile('nselib/data/' .. fingerprint_file)
   if(not(filename_full)) then
     filename_full = fingerprint_file
   end
@@ -357,7 +357,7 @@ local function get_fingerprints(fingerprint_file, category)
   --  end
 
   -- Cache the fingerprints for other scripts, so we aren't reading the files every time
-  nmap.registry.http_fingerprints = fingerprints
+  kmap.registry.http_fingerprints = fingerprints
   mutex "done"
 
   return true, fingerprints

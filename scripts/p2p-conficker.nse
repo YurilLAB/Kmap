@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local smb = require "smb"
 local stdnse = require "stdnse"
@@ -22,9 +22,9 @@ then a valid Conficker infection has been found.
 
 This check won't work properly on a multihomed or NATed system because the
 open ports will be based on a nonpublic IP.  The argument
-<code>checkall</code> tells Nmap to attempt communication with every open
+<code>checkall</code> tells Kmap to attempt communication with every open
 port (much like a version check) and the argument <code>realip</code> tells
-Nmap to base its port generation on the given IP address instead of the
+Kmap to base its port generation on the given IP address instead of the
 actual IP.
 
 By default, this will run against a system that has a standard Windows port
@@ -45,21 +45,21 @@ who contributed!
 -- to communicate with every open port.
 -- @args checkconficker If set to <code>1</code> or <code>true</code>, the script will always run on active hosts,
 --       it doesn't matter if any open ports were detected.
--- @args realip An IP address to use in place of the one known by Nmap.
+-- @args realip An IP address to use in place of the one known by Kmap.
 --
 -- @usage
 -- # Run the scripts against host(s) that appear to be Windows
--- nmap --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=safe=1 -T4 -vv -p445 <host>
--- sudo nmap -sU -sS --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=safe=1 -vv -T4 -p U:137,T:139 <host>
+-- kmap --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=safe=1 -T4 -vv -p445 <host>
+-- sudo kmap -sU -sS --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=safe=1 -vv -T4 -p U:137,T:139 <host>
 --
 -- # Run the scripts against all active hosts (recommended)
--- nmap -p139,445 -vv --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=checkconficker=1,safe=1 -T4 <host>
+-- kmap -p139,445 -vv --script p2p-conficker,smb-os-discovery,smb-check-vulns --script-args=checkconficker=1,safe=1 -T4 <host>
 --
 -- # Run scripts against all 65535 ports (slow)
--- nmap --script p2p-conficker,smb-os-discovery,smb-check-vulns -p- --script-args=checkall=1,safe=1 -vv -T4 <host>
+-- kmap --script p2p-conficker,smb-os-discovery,smb-check-vulns -p- --script-args=checkall=1,safe=1 -vv -T4 <host>
 --
 -- # Base checks on a different ip address (NATed)
--- nmap --script p2p-conficker,smb-os-discovery -p445 --script-args=realip=\"192.168.1.65\" -vv -T4 <host>
+-- kmap --script p2p-conficker,smb-os-discovery -p445 --script-args=realip=\"192.168.1.65\" -vv -T4 <host>
 --
 -- @output
 -- Clean machine (results printed only if extra verbosity ("-vv")is specified):
@@ -84,7 +84,7 @@ who contributed!
 
 author = "Ron Bowes (with research from Symantec Security Response)"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default","safe"}
 
 
@@ -107,14 +107,14 @@ local mode_flags =
 
 ---For a hostrule, simply use the 'smb' ports as an indicator, unless the user overrides it
 hostrule = function(host)
-  if ( nmap.address_family() ~= 'inet' ) then
+  if ( kmap.address_family() ~= 'inet' ) then
     return false
   end
   if(smb.get_port(host) ~= nil) then
     return true
-  elseif(nmap.registry.args.checkall == "true" or nmap.registry.args.checkall == "1") then
+  elseif(kmap.registry.args.checkall == "true" or kmap.registry.args.checkall == "1") then
     return true
-  elseif(nmap.registry.args.checkconficker == "true" or nmap.registry.args.checkconficker == "1") then
+  elseif(kmap.registry.args.checkconficker == "true" or kmap.registry.args.checkconficker == "1") then
     return true
   end
 
@@ -174,7 +174,7 @@ end
 
 ---Check if a port is Blacklisted. Thanks to David Fifield for determining the purpose of the "magic"
 -- array:
--- <http://www.bamsoftware.com/wiki/Nmap/PortSetGraphics#conficker>
+-- <http://www.bamsoftware.com/wiki/Kmap/PortSetGraphics#conficker>
 --
 -- Basically, each bit in the blacklist array represents a group of 32 ports. If that bit is on, those ports
 -- are blacklisted and will never come up.
@@ -488,7 +488,7 @@ local function conficker_check(ip, port, protocol)
   end
 
   -- Try to connect to the first socket
-  socket = nmap.new_socket()
+  socket = kmap.new_socket()
   socket:set_timeout(5000)
   status, response = socket:connect(ip, port, protocol)
   if(status == false) then
@@ -565,15 +565,15 @@ action = function(host)
   local checks = 0
 
   -- Generate a complete list of valid ports
-  if(nmap.registry.args.checkall == "true" or nmap.registry.args.checkall == "1") then
+  if(kmap.registry.args.checkall == "true" or kmap.registry.args.checkall == "1") then
     for i = 1, 65535, 1 do
       if(not(is_blacklisted_port(i))) then
-        local tcp = nmap.get_port_state(host, {number=i, protocol="tcp"})
+        local tcp = kmap.get_port_state(host, {number=i, protocol="tcp"})
         if(tcp ~= nil and tcp.state == "open") then
           tcp_ports[i] = true
         end
 
-        local udp = nmap.get_port_state(host, {number=i, protocol="udp"})
+        local udp = kmap.get_port_state(host, {number=i, protocol="udp"})
         if(udp ~= nil and (udp.state == "open" or udp.state == "open|filtered")) then
           udp_ports[i] = true
         end
@@ -587,8 +587,8 @@ action = function(host)
   local ip = host.ip
 
   -- Use the provided IP, if it exists
-  if(nmap.registry.args.realip ~= nil) then
-    ip = nmap.registry.args.realip
+  if(kmap.registry.args.realip ~= nil) then
+    ip = kmap.registry.args.realip
   end
 
   -- Reverse the IP's endianness
@@ -637,7 +637,7 @@ action = function(host)
 
   -- Check how many INFECTED hits we got
   if(count == 0) then
-    if (nmap.verbosity() > 1) then
+    if (kmap.verbosity() > 1) then
       table.insert(response, string.format("%d/%d checks are positive: Host is CLEAN or ports are blocked", count, checks))
     else
       response = ''

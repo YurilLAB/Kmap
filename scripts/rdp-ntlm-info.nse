@@ -17,7 +17,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 3389 --script rdp-ntlm-info <target>
+-- kmap -p 3389 --script rdp-ntlm-info <target>
 --
 -- @output
 -- 3389/tcp open     ms-wbt-server syn-ack ttl 128 Microsoft Terminal Services
@@ -44,7 +44,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 
 author = "Tom Sellers"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service(3389, "ms-wbt-server")

@@ -4,7 +4,7 @@ local shortport = require "shortport"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local vulns = require "vulns"
--- compat stuff for Nmap 7.70 and earlier
+-- compat stuff for Kmap 7.70 and earlier
 local have_rand, rand = pcall(require, "rand")
 local random_string = have_rand and rand.random_string or stdnse.generate_random_string
 local have_stringaux, stringaux = pcall(require, "stringaux")
@@ -23,7 +23,7 @@ References:
 
 ---
 -- @usage
--- nmap --script smb-vuln-webexec --script-args smbusername=<username>,smbpass=<password> -p445 <host>
+-- kmap --script smb-vuln-webexec --script-args smbusername=<username>,smbpass=<password> -p445 <host>
 --
 -- @output
 -- PORT    STATE SERVICE      REASON
@@ -44,7 +44,7 @@ References:
 -- @see smb-webexec-exploit.nse
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","vuln"}
 
 portrule = shortport.port_or_service({445, 139}, "microsoft-ds", "tcp", "open")

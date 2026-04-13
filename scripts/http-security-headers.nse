@@ -20,7 +20,7 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
 
 ---
 -- @usage
--- nmap -p <port> --script http-security-headers <target>
+-- kmap -p <port> --script http-security-headers <target>
 --
 -- @output
 -- 80/tcp open  http    syn-ack
@@ -93,7 +93,7 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
 ---
 
 author = {"Icaro Torres", "Vinamra Bhatia"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service({80,443}, "http", "tcp")

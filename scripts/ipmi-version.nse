@@ -1,5 +1,5 @@
 local ipmi = require "ipmi"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -11,7 +11,7 @@ description = [[
 
 ---
 -- @usage
--- nmap -sU --script ipmi-version -p 623 <host>
+-- kmap -sU --script ipmi-version -p 623 <host>
 --
 -- @output
 -- PORT     STATE SERVICE  REASON
@@ -47,7 +47,7 @@ description = [[
 --
 
 author = "Claudiu Perta <claudiu.perta@gmail.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.version_port_or_service(623, "asf-rmcp", "udp", {"open", "open|filtered"})
@@ -59,7 +59,7 @@ local comma_separated = {
 action = function(host, port)
 
   local request = ipmi.channel_auth_request()
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   socket:set_timeout(
     ((host.times and host.times.timeout) or 8) * 1000)
@@ -80,7 +80,7 @@ action = function(host, port)
     return nil
   end
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   -- Invalid reply
   local info = ipmi.parse_channel_auth_reply(reply)

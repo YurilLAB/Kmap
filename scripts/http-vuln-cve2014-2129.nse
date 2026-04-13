@@ -15,7 +15,7 @@ Denial of Service Vulnerability (CVE-2014-2129).
 -- @see http-vuln-cve2014-2128.nse
 --
 -- @usage
--- nmap -p 443 --script http-vuln-cve2014-2129 <target>
+-- kmap -p 443 --script http-vuln-cve2014-2129 <target>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -33,7 +33,7 @@ Denial of Service Vulnerability (CVE-2014-2129).
 -- |_      http://cvedetails.com/cve/2014-2129/
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 portrule = function(host, port)

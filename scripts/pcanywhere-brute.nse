@@ -16,7 +16,7 @@ some time until server becomes available again.
 
 ---
 -- @usage
--- nmap --script=pcanywhere-brute <target>
+-- kmap --script=pcanywhere-brute <target>
 --
 -- @output
 -- 5631/tcp open  pcanywheredata syn-ack
@@ -30,7 +30,7 @@ some time until server becomes available again.
 
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

@@ -1,7 +1,7 @@
 local base64 = require "base64"
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -11,7 +11,7 @@ Performs brute force password auditing against an iPhoto Library.
 
 ---
 -- @usage
--- nmap --script dpap-brute -p 8770 <host>
+-- kmap --script dpap-brute -p 8770 <host>
 --
 -- @output
 -- 8770/tcp open  apple-iphoto syn-ack
@@ -27,7 +27,7 @@ Performs brute force password auditing against an iPhoto Library.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -58,7 +58,7 @@ Driver = {
       "Client-DPAP-Version: 1.1\r\n" ..
       "\r\n\r\n"
 
-    local c = base64.enc("nmap:" .. password)
+    local c = base64.enc("kmap:" .. password)
     data = data:format( self.host.ip, self.port.number, self.host.ip, c )
 
     local status = self.socket:send( data )

@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -11,7 +11,7 @@ nameservers.
 
 ---
 -- @usage
--- nmap -sU -p 53 --script=dns-recursion <target>
+-- kmap -sU -p 53 --script=dns-recursion <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 53/udp open  domain  udp-response
@@ -19,7 +19,7 @@ nameservers.
 
 author = "Felix Groebert"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
@@ -45,7 +45,7 @@ action = function(host, port)
         return
     end
 
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
 
     -- parse response for dns flags
     if (string.byte(result,3) & 0x80) == 0x80

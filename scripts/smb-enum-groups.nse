@@ -37,8 +37,8 @@ the same thing.
 
 ---
 -- @usage
--- nmap --script smb-enum-users.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-enum-users.nse -p U:137,T:139 <host>
+-- kmap --script smb-enum-users.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-enum-users.nse -p U:137,T:139 <host>
 --
 -- @output
 -- Host script results:
@@ -129,7 +129,7 @@ the same thing.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 

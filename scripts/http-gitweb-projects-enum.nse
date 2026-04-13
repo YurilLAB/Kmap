@@ -11,7 +11,7 @@ Retrieves a list of Git projects, owners and descriptions from a gitweb (web int
 
 ---
 -- @usage
--- nmap -p80 www.example.com --script http-gitweb-projects-enum
+-- kmap -p80 www.example.com --script http-gitweb-projects-enum
 --
 -- @output
 -- 80/tcp open  http
@@ -29,7 +29,7 @@ Retrieves a list of Git projects, owners and descriptions from a gitweb (web int
 --       (default: /)
 
 author = "riemann"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

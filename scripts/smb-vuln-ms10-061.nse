@@ -25,7 +25,7 @@ References:
   - http://blogs.technet.com/b/srd/archive/2010/09/14/ms10-061-printer-spooler-vulnerability.aspx
 ]]
 ---
--- @usage nmap  -p 445 <target> --script=smb-vuln-ms10-061
+-- @usage kmap  -p 445 <target> --script=smb-vuln-ms10-061
 --
 -- @args printer Printer share name. Optional, by default script tries to enumerate available printer shares.
 --
@@ -55,7 +55,7 @@ References:
 -- @see stuxnet-detect.nse
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln","intrusive"}
 
 hostrule = function(host)

@@ -1,7 +1,7 @@
 local shortport =  require "shortport"
 local json = require "json"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[Detects the Docker service version.]]
 
@@ -20,7 +20,7 @@ description = [[Detects the Docker service version.]]
 
 
 author = "Claudio Criscione"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 portrule = shortport.version_port_or_service({2375, 2376}, {"docker", "docker-s"}, "tcp")
@@ -39,7 +39,7 @@ action = function(host, port)
     port.version.name = 'docker'
     port.version.version = response["Version"]
     port.version.product = "Docker"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
     return response
   end
   return

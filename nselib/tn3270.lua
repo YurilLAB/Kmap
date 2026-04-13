@@ -26,7 +26,7 @@ local stdnse    = require "stdnse"
 local drda      = require "drda" -- We only need this to decode EBCDIC
 local comm      = require "comm"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local table = require "table"
 
@@ -243,7 +243,7 @@ Telnet = {
 
   new = function(self, socket)
     local o = {
-      socket = socket or nmap.new_socket(),
+      socket = socket or kmap.new_socket(),
       -- TN3270 Buffers
       buffer         = {},
       fa_buffer      = {},

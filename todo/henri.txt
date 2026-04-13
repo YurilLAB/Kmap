@@ -38,4 +38,4 @@ o Replace event lists by more efficient data structures. Consider using
   2013 there's no big bottleneck there.}
 o Rework the filespace code to avoid unneeded data copy. Scatter/gather
   I/O might be useful there. Same task can also be expressed as: "profile and
-  optimize the usual nmap nsock I/O patterns."
+  optimize the usual kmap nsock I/O patterns."

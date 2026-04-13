@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -10,7 +10,7 @@ Attempts to extract system information from the UPnP service.
 
 ---
 -- @usage
--- nmap -sU -p 1900 --script=upnp-info <target>
+-- kmap -sU -p 1900 --script=upnp-info <target>
 -- @output
 -- |  upnp-info:  System/1.0 UPnP/1.0 IGD/1.0
 -- |_ Location: http://192.168.1.1:80/UPnP/IGD.xml
@@ -26,7 +26,7 @@ Attempts to extract system information from the UPnP service.
 
 author = "Thomas Buchanan"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -49,7 +49,7 @@ action = function(host, port)
   local status, result = helper:queryServices()
 
   if ( status ) then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     return result
   end
 end

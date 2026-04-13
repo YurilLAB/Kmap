@@ -952,9 +952,9 @@ usb_cleanup_linux_mmap(pcap_t* handle)
 {
 	struct pcap_usb_linux *handlep = handle->priv;
 
-	/* if we have a memory-mapped buffer, unmap it */
+	/* if we have a memory-mapped buffer, ukmap it */
 	if (handlep->mmapbuf != NULL) {
-		munmap(handlep->mmapbuf, handlep->mmapbuflen);
+		mukmap(handlep->mmapbuf, handlep->mmapbuflen);
 		handlep->mmapbuf = NULL;
 	}
 	pcapint_cleanup_live_common(handle);

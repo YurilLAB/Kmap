@@ -1,5 +1,5 @@
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local lpeg = require "lpeg"
 local U = require "lpeg-utility"
 local table = require "table"
@@ -8,21 +8,21 @@ local tableaux = require "tableaux"
 description = [[
 Prints the readable strings from service fingerprints of unknown services.
 
-Nmap's service and application version detection engine sends named probes to
+Kmap's service and application version detection engine sends named probes to
 target services and tries to identify them based on the response. When there is
-no match, Nmap produces a service fingerprint for submission. Sometimes,
+no match, Kmap produces a service fingerprint for submission. Sometimes,
 inspecting this fingerprint can give clues as to the identity of the service.
 However, the fingerprint is encoded and wrapped to ensure it doesn't lose data,
 which can make it hard to read.
 
 This script simply unwraps the fingerprint and prints the readable ASCII strings
 it finds below the name of the probe it responded to. The probe names are taken
-from the nmap-service-probes file, not from the response.
+from the kmap-service-probes file, not from the response.
 ]]
 
 ---
 --@usage
--- nmap -sV --script fingerprint-strings <target>
+-- kmap -sV --script fingerprint-strings <target>
 --
 --@output
 --| fingerprint-strings:
@@ -55,7 +55,7 @@ categories = {"version"}
 
 portrule = function (host, port)
   -- Run for any port that has a service fingerprint indicating an unknown service
-  -- OK to run at any version intensity (e.g. not checking nmap.version_intensity)
+  -- OK to run at any version intensity (e.g. not checking kmap.version_intensity)
   -- because no traffic is sent and lower intensity is more likely to not match.
   return port.version and port.version.service_fp
 end

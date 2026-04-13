@@ -1,5 +1,5 @@
 local json = require "json"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local tab = require "tab"
 local target = require "target"
@@ -11,14 +11,14 @@ broadcasts every 20 seconds, then prints all the discovered client IP
 addresses, port numbers, version numbers, display names, and more.
 
 If the <code>newtargets</code> script argument is given, all discovered Dropbox
-clients will be added to the Nmap target list rather than just listed in the
+clients will be added to the Kmap target list rather than just listed in the
 output.
 ]]
 
 ---
 -- @usage
--- nmap --script=broadcast-dropbox-listener
--- nmap --script=broadcast-dropbox-listener --script-args=newtargets -Pn
+-- kmap --script=broadcast-dropbox-listener
+-- kmap --script=broadcast-dropbox-listener --script-args=newtargets -Pn
 -- @output
 -- Pre-scan script results:
 -- | broadcast-dropbox-listener:
@@ -29,7 +29,7 @@ output.
 -- | broadcast-dropbox-listener:
 -- | displayname  ip             port   version  host_int  namespaces
 -- |_noob         192.168.0.110  17500  1.8      34176083  26135075
--- Nmap scan report for 192.168.0.110
+-- Kmap scan report for 192.168.0.110
 -- Host is up (0.00073s latency).
 -- Not shown: 997 filtered ports
 -- PORT     STATE SERVICE
@@ -38,7 +38,7 @@ output.
 -- 1047/tcp open  neod1
 
 author = {"Ron Bowes", "Mak Kolybabi", "Andrew Orr", "Russ Tait Milne"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -51,7 +51,7 @@ end
 
 action = function()
   -- Start listening for broadcasts.
-  local sock = nmap.new_socket("udp")
+  local sock = kmap.new_socket("udp")
   sock:set_timeout(2 * DROPBOX_BROADCAST_PERIOD * 1000)
   local status, result = sock:bind(nil, DROPBOX_PORT)
   if not status then

@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local shortport = require "shortport"
 local table = require "table"
@@ -23,7 +23,7 @@ increase in the level of verbosity requested on the command line.
 
 
 author = "jah"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -194,5 +194,5 @@ end
 -- Ignores level increases resulting from debugging level.
 -- @return Number
 function extra_output()
-  return (nmap.verbosity()-nmap.debugging()>0 and nmap.verbosity()-nmap.debugging()) or 0
+  return (kmap.verbosity()-kmap.debugging()>0 and kmap.verbosity()-kmap.debugging()) or 0
 end

@@ -966,7 +966,7 @@ static void	pcap_cleanup_linux( pcap_t *handle )
 	if (handle->fd != -1) {
 		/*
 		 * Destroy the ring buffer (assuming we've set it up),
-		 * and unmap it if it's mapped.
+		 * and ukmap it if it's mapped.
 		 */
 		destroy_ring(handle);
 	}
@@ -3474,10 +3474,10 @@ destroy_ring(pcap_t *handle)
 	(void)setsockopt(handle->fd, SOL_PACKET, PACKET_RX_RING,
 				(void *) &req, sizeof(req));
 
-	/* if ring is mapped, unmap it*/
+	/* if ring is mapped, ukmap it*/
 	if (handlep->mmapbuf) {
 		/* do not test for mmap failure, as we can't recover from any error */
-		(void)munmap(handlep->mmapbuf, handlep->mmapbuflen);
+		(void)mukmap(handlep->mmapbuf, handlep->mmapbuflen);
 		handlep->mmapbuf = NULL;
 	}
 }

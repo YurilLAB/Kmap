@@ -14,7 +14,7 @@ Performs brute force password auditing against a Metasploit RPC server using the
 
 ---
 -- @usage
--- nmap --script metasploit-xmlrpc-brute -p 55553 <host>
+-- kmap --script metasploit-xmlrpc-brute -p 55553 <host>
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -27,7 +27,7 @@ Performs brute force password auditing against a Metasploit RPC server using the
 --
 
 author = "Vlatko Kosturjak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

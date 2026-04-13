@@ -1,5 +1,5 @@
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,7 +17,7 @@ header.
 
 ---
 -- @usage
--- nmap --script broadcast-ataoe-discover -e <interface>
+-- kmap --script broadcast-ataoe-discover -e <interface>
 --
 -- @output
 -- Pre-scan script results:
@@ -26,12 +26,12 @@ header.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 prerule = function()
-  if ( not(nmap.is_privileged()) ) then
+  if ( not(kmap.is_privileged()) ) then
     stdnse.verbose1("not running for lack of privileges")
     return false
   end
@@ -103,7 +103,7 @@ ATAoE = {
 }
 
 -- Send a Config Info Request to the ethernet broadcast address
--- @param iface table as returned by nmap.get_interface_info()
+-- @param iface table as returned by kmap.get_interface_info()
 local function sendConfigInfoRequest(iface)
   local ETHER_BROADCAST = "ff:ff:ff:ff:ff:ff"
   local req = ATAoE.ConfigInfoRequest:new()
@@ -116,7 +116,7 @@ local function sendConfigInfoRequest(iface)
   p.buf = tostring(req)
   p:build_ether_frame()
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
   dnet:ethernet_open(iface.device)
   dnet:ethernet_send(p.frame_buf)
   dnet:ethernet_close()
@@ -137,7 +137,7 @@ action = function()
     return stdnse.format_output(false, "Failed to retrieve interface information")
   end
 
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
   pcap:set_timeout(5000)
   pcap:pcap_open(iface.device, 1500, true, "ether proto 0x88a2 && !ether src " .. stdnse.format_mac(iface.mac))
 

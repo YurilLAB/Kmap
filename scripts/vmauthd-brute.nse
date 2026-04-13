@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -11,7 +11,7 @@ Performs brute force password auditing against the VMWare Authentication Daemon 
 
 ---
 -- @usage
--- nmap -p 902 <ip> --script vmauthd-brute
+-- kmap -p 902 <ip> --script vmauthd-brute
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -24,7 +24,7 @@ Performs brute force password auditing against the VMWare Authentication Daemon 
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
@@ -87,7 +87,7 @@ Driver = {
 }
 
 local function checkAuthd(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status = socket:connect(host, port)
 
   if( not(status) ) then

@@ -1,6 +1,6 @@
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,8 +17,8 @@ Original advisory:
 
 ---
 -- @usage
--- nmap -p80 --script http-wordpress-users <target>
--- nmap -sV --script http-wordpress-users --script-args limit=50 <target>
+-- kmap -p80 --script http-wordpress-users <target>
+-- kmap -sV --script http-wordpress-users --script-args limit=50 <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -38,7 +38,7 @@ Original advisory:
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "intrusive", "vuln"}
 
 
@@ -63,7 +63,7 @@ local function get_wp_user(host, port, path, id)
       return user
     elseif req.status == 200 then
       -- Users with no posts get a 200 response, but the name is in an RSS link.
-      -- http://seclists.org/nmap-dev/2011/q3/812
+      -- http://seclists.org/kmap-dev/2011/q3/812
       local _, _, user = string.find(req.body, 'https?://.-/author/([^/]+)/feed/')
       return user
     end
@@ -116,7 +116,7 @@ action = function(host, port)
   local users = {}
   --First, we check this is WP
   if not(check_wp(host, port, basepath)) then
-    if nmap.verbosity() >= 2 then
+    if kmap.verbosity() >= 2 then
       return "[Error] Wordpress installation was not found. We couldn't find wp-login.php"
     else
       return

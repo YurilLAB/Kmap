@@ -34,7 +34,7 @@ ncat \- Concatenate and redirect sockets
 \fBncat\fR [\fIOPTIONS\fR...] [\fIhostname\fR] [\fIport\fR]
 .SH "DESCRIPTION"
 .PP
-Ncat is a feature\-packed networking utility which reads and writes data across networks from the command line\&. Ncat was written for the Nmap Project and is the culmination of the currently splintered family of Netcat incarnations\&. It is designed to be a reliable back\-end tool to instantly provide network connectivity to other applications and users\&. Ncat will not only work with IPv4 and IPv6 but provides the user with a virtually limitless number of potential uses\&.
+Ncat is a feature\-packed networking utility which reads and writes data across networks from the command line\&. Ncat was written for the Kmap Project and is the culmination of the currently splintered family of Netcat incarnations\&. It is designed to be a reliable back\-end tool to instantly provide network connectivity to other applications and users\&. Ncat will not only work with IPv4 and IPv6 but provides the user with a virtually limitless number of potential uses\&.
 .PP
 Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats together; redirection of TCP, UDP, and SCTP ports to other sites; SSL support; and proxy connections via SOCKS4, SOCKS5 or HTTP proxies (with optional proxy authentication as well)\&. Some general principles apply to most applications and thus give you the capability of instantly adding networking support to software that would normally never support it\&.
 .SH "OPTIONS SUMMARY"
@@ -43,7 +43,7 @@ Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats tog
 .RS 4
 .\}
 .nf
-Ncat 7\&.99SVN ( https://nmap\&.org/ncat )
+Ncat 7\&.99SVN ( https://kmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
@@ -418,7 +418,7 @@ The list of hosts specified will be the only hosts allowed to connect to the Nca
 and
 \fB\-\-deny\fR,
 \fB\-\-allow\fR
-takes precedence\&. Host specifications follow the same syntax used by Nmap\&.
+takes precedence\&. Host specifications follow the same syntax used by Kmap\&.
 .RE
 .PP
 \fB\-\-allowfile \fR\fB\fIfile\fR\fR (Allow connections from file)
@@ -434,7 +434,7 @@ Issue Ncat with a list of hosts that will not be allowed to connect to the liste
 and
 \fB\-\-deny\fR,
 \fB\-\-allow\fR
-takes precedence\&. Host specifications follow the same syntax used by Nmap\&.
+takes precedence\&. Host specifications follow the same syntax used by Kmap\&.
 .RE
 .PP
 \fB\-\-denyfile \fR\fB\fIfile\fR\fR (Deny connections from file)
@@ -658,17 +658,17 @@ or
 .SH "BUGS"
 .PP
 Like its authors, Ncat isn\*(Aqt perfect\&. But you can help make it better by sending bug reports or even writing patches\&. If Ncat doesn\*(Aqt behave the way you expect, first upgrade to the latest version available from
-\m[blue]\fB\%https://nmap.org\fR\m[]\&. If the problem persists, do some research to determine whether it has already been discovered and addressed\&. Try Googling the error message or browsing the
-nmap\-dev
+\m[blue]\fB\%https://kmap.org\fR\m[]\&. If the problem persists, do some research to determine whether it has already been discovered and addressed\&. Try Googling the error message or browsing the
+kmap\-dev
 archives at
 \m[blue]\fB\%https://seclists.org/\fR\m[]\&.
 
 Read this full manual page as well\&. If nothing comes of this, mail a bug report to
-<dev@nmap\&.org>\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to dev@nmap\&.org are far more likely to be answered than those sent to Fyodor directly\&.
+<dev@kmap\&.org>\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to dev@kmap\&.org are far more likely to be answered than those sent to Fyodor directly\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
-\m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
-nmap\-dev
+\m[blue]\fB\%https://svn.kmap.org/kmap/HACKING\fR\m[]\&. Patches may be sent to
+kmap\-dev
 (recommended) or to Fyodor directly\&.
 .SH "AUTHORS"
 .sp
@@ -692,7 +692,7 @@ Chris Gibson
 .sp -1
 .IP \(bu 2.3
 .\}
-Gordon Lyon (Fyodor)<fyodor@nmap\&.org>
+Gordon Lyon (Fyodor)<fyodor@kmap\&.org>
 (\m[blue]\fB\%http://insecure.org\fR\m[])
 .RE
 .sp
@@ -727,28 +727,28 @@ Netcat (or any other implementation), Ncat is most definitely based on Netcat in
 .SH "LEGAL NOTICES"
 .SS "Ncat Copyright and Licensing"
 .PP
-Ncat is (C) 2005\(en2022 Nmap Software LLC\&. It is distributed as free and open source software under the same license terms as our Nmap software\&. Precise terms and further details are available
-from \m[blue]\fB\%https://nmap.org/man/man-legal.html\fR\m[]\&.
+Ncat is (C) 2005\(en2022 Kmap Software LLC\&. It is distributed as free and open source software under the same license terms as our Kmap software\&. Precise terms and further details are available
+from \m[blue]\fB\%https://kmap.org/man/man-legal.html\fR\m[]\&.
 .SS "Creative Commons License for this Ncat Guide"
 .PP
 This
 Ncat Reference Guide
-is (C) 2005\(en2022 Nmap Software LLC\&. It is hereby placed under version 3\&.0 of the
+is (C) 2005\(en2022 Kmap Software LLC\&. It is hereby placed under version 3\&.0 of the
 \m[blue]\fBCreative Commons Attribution License\fR\m[]\&\s-2\u[1]\d\s+2\&. This allows you redistribute and modify the work as you desire, as long as you credit the original source\&. Alternatively, you may choose to treat this document as falling under the same license as Ncat itself (discussed previously)\&.
 .SS "Source Code Availability and Community Contributions"
 .PP
 Source is provided to this software because we believe users have a right to know exactly what a program is going to do before they run it\&. This also allows you to audit the software for security holes (none have been found so far)\&.
 .PP
-Source code also allows you to port Nmap (which includes Ncat) to new platforms, fix bugs, and add new features\&. You are highly encouraged to send your changes to
-<dev@nmap\&.org>
-for possible incorporation into the main distribution\&. By sending these changes to Fyodor or one of the Insecure\&.Org development mailing lists, it is assumed that you are offering the Nmap Project (Nmap Software LLC) the unlimited, non\-exclusive right to reuse, modify, and relicense the code\&. Nmap will always be available open source,
-but this is important because the inability to relicense code has caused devastating problems for other Free Software projects (such as KDE and NASM)\&. We also occasionally relicense the code to third parties as discussed in the Nmap man page\&. If you wish to specify special license conditions of your contributions, just say so when you send them\&.
+Source code also allows you to port Kmap (which includes Ncat) to new platforms, fix bugs, and add new features\&. You are highly encouraged to send your changes to
+<dev@kmap\&.org>
+for possible incorporation into the main distribution\&. By sending these changes to Fyodor or one of the Insecure\&.Org development mailing lists, it is assumed that you are offering the Kmap Project (Kmap Software LLC) the unlimited, non\-exclusive right to reuse, modify, and relicense the code\&. Kmap will always be available open source,
+but this is important because the inability to relicense code has caused devastating problems for other Free Software projects (such as KDE and NASM)\&. We also occasionally relicense the code to third parties as discussed in the Kmap man page\&. If you wish to specify special license conditions of your contributions, just say so when you send them\&.
 .SS "No Warranty"
 .PP
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE\&. See the Nmap Public Source License for more details at
-\m[blue]\fB\%https://nmap.org/npsl/\fR\m[], or in the
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE\&. See the Kmap Public Source License for more details at
+\m[blue]\fB\%https://kmap.org/npsl/\fR\m[], or in the
 LICENSE
-file included with Nmap\&.
+file included with Kmap\&.
 .SS "Inappropriate Usage"
 .PP
 Ncat should never be installed with special privileges (e\&.g\&. suid root)\&.

@@ -1,7 +1,7 @@
 local dhcp = require "dhcp"
 local dns = require "dns"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -11,7 +11,7 @@ description = [[
 Retrieves a list of proxy servers on a LAN using the Web Proxy
 Autodiscovery Protocol (WPAD).  It implements both the DHCP and DNS
 methods of doing so and starts by querying DHCP to get the address.
-DHCP discovery requires nmap to be running in privileged mode and will
+DHCP discovery requires kmap to be running in privileged mode and will
 be skipped when this is not the case.  DNS discovery relies on the
 script being able to resolve the local domain either through a script
 argument or by attempting to reverse resolve the local IP.
@@ -19,7 +19,7 @@ argument or by attempting to reverse resolve the local IP.
 
 ---
 -- @usage
--- nmap --script broadcast-wpad-discover
+-- kmap --script broadcast-wpad-discover
 --
 -- @output
 -- | broadcast-wpad-discover:
@@ -32,7 +32,7 @@ argument or by attempting to reverse resolve the local IP.
 -- @args broadcast-wpad-discover.getwpad instructs the script to retrieve the WPAD file instead of parsing it
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -191,7 +191,7 @@ action = function()
     return fail("Both nodns and nodhcp arguments were supplied")
   end
 
-  if ( nmap.is_privileged() and not(arg_nodhcp) ) then
+  if ( kmap.is_privileged() and not(arg_nodhcp) ) then
     status, response = dhcpDiscover(interfaces)
     if ( status ) then
       status, wpad = parseDHCPResponse(response)
@@ -202,7 +202,7 @@ action = function()
   if (not(status) and not(arg_nodns) ) then
     status, response = dnsDiscover(interfaces)
     if ( not(status) ) then
-      local services = "DNS" .. ( nmap.is_privileged() and "/DHCP" or "" )
+      local services = "DNS" .. ( kmap.is_privileged() and "/DHCP" or "" )
       return fail(("Could not find WPAD using %s"):format(services))
     end
     wpad = ("http://%s/wpad.dat"):format( response.name )

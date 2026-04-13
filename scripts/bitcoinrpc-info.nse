@@ -1,7 +1,7 @@
 local creds = require "creds"
 local http = require "http"
 local json = require "json"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -14,7 +14,7 @@ Obtains information from a Bitcoin server by calling <code>getinfo</code> on its
 
 ---
 -- @usage
--- nmap -p 8332 --script bitcoinrpc-info --script-args creds.global=<user>:<pass> <target>
+-- kmap -p 8332 --script bitcoinrpc-info --script-args creds.global=<user>:<pass> <target>
 -- @args creds.global http credentials used for the query (user:pass)
 -- @output
 -- 8332/tcp open  unknown
@@ -48,7 +48,7 @@ Obtains information from a Bitcoin server by calling <code>getinfo</code> on its
 -- </table>
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"http-brute"}
 
@@ -156,7 +156,7 @@ action = function(host, port)
       if info.version then
         port.version.version = decode_bitcoin_version(info.version)
       end
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
     end
   end
 

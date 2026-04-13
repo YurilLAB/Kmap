@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -15,8 +15,8 @@ For more information about HID discoveryd, see:
 ]]
 
 ---
--- @usage nmap --script broadcast-hid-discoveryd
--- @usage nmap --script broadcast-hid-discoveryd --script-args timeout=15s
+-- @usage kmap --script broadcast-hid-discoveryd
+-- @usage kmap --script broadcast-hid-discoveryd --script-args timeout=15s
 --
 -- @output
 -- Pre-scan script results:
@@ -32,10 +32,10 @@ For more information about HID discoveryd, see:
 ---
 
 author = "Brendan Coles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "broadcast", "safe"}
 
-prerule = function() return ( nmap.address_family() == "inet") end
+prerule = function() return ( kmap.address_family() == "inet") end
 
 local arg_address = stdnse.get_script_args(SCRIPT_NAME .. ".address")
 local arg_timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
@@ -44,7 +44,7 @@ action = function()
 
   local host = { ip = arg_address or "255.255.255.255" }
   local port = { number = 4070, protocol = "udp" }
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
 
   socket:set_timeout(500)
 
@@ -56,7 +56,7 @@ action = function()
     end
   end
 
-  local timeout = tonumber(arg_timeout) or ( 20 / ( nmap.timing_level() + 1 ) )
+  local timeout = tonumber(arg_timeout) or ( 20 / ( kmap.timing_level() + 1 ) )
   local results = {}
   local stime = os.time()
 

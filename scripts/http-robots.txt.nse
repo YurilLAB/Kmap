@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local strbuf = require "strbuf"
 local table = require "table"
@@ -25,7 +25,7 @@ The higher the verbosity or debug level, the more disallowed entries are shown.
 
 
 author = "Eddie Bell"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.http
@@ -78,7 +78,7 @@ action = function(host, port)
     return nil
   end
 
-  local v_level = nmap.verbosity() + (nmap.debugging()*2)
+  local v_level = kmap.verbosity() + (kmap.debugging()*2)
   local output = strbuf.new()
   local detail = 15
 

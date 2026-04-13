@@ -1,5 +1,5 @@
-#ifndef NMAP_LUA_H
-#define NMAP_LUA_H
+#ifndef KMAP_LUA_H
+#define KMAP_LUA_H
 
 #include <vector>
 #include <set>

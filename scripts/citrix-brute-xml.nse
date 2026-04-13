@@ -1,5 +1,5 @@
 local citrixxml = require "citrixxml"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -17,7 +17,7 @@ accounts will be locked.
 
 ---
 -- @usage
--- nmap --script=citrix-brute-xml --script-args=userdb=<userdb>,passdb=<passdb>,ntdomain=<domain> -p 80,443,8080 <host>
+-- kmap --script=citrix-brute-xml --script-args=userdb=<userdb>,passdb=<passdb>,ntdomain=<domain> -p 80,443,8080 <host>
 --
 -- @output
 -- PORT     STATE SERVICE    REASON
@@ -34,7 +34,7 @@ accounts will be locked.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -109,7 +109,7 @@ action = function(host, port)
 
   local status, nextUser, nextPass
   local username, password
-  local args = nmap.registry.args
+  local args = kmap.registry.args
   local ntdomain = args.ntdomain
   local valid_accounts = {}
 

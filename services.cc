@@ -1,61 +1,61 @@
 
 /***************************************************************************
- * services.cc -- Various functions relating to reading the nmap-services  *
+ * services.cc -- Various functions relating to reading the kmap-services  *
  * file and port <-> service mapping                                       *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -64,9 +64,9 @@
 #include "scan_lists.h"
 #include "services.h"
 #include "protocols.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "string_pool.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "utils.h"
 
 #include <list>
@@ -96,7 +96,7 @@ bool service_node_ratio_compare(const service_node& a, const service_node& b) {
   return a.ratio > b.ratio;
 }
 
-extern NmapOps o;
+extern KmapOps o;
 static int numtcpports;
 static int numudpports;
 static int numsctpports;
@@ -104,9 +104,9 @@ typedef std::map<u32, service_node> ServiceMap;
 static ServiceMap service_table;
 static std::list<service_node> services_by_ratio;
 static int services_initialized;
-static int ratio_format; // 0 = /etc/services no-ratio format. 1 = new nmap format
+static int ratio_format; // 0 = /etc/services no-ratio format. 1 = new kmap format
 
-static int nmap_services_init() {
+static int kmap_services_init() {
   if (services_initialized) return 0;
 
   char filename[512];
@@ -128,8 +128,8 @@ static int nmap_services_init() {
   services_by_ratio.clear();
   ratio_format = 0;
 
-  if (nmap_fetchfile(filename, sizeof(filename), "nmap-services") != 1) {
-    error("Unable to find nmap-services!  Resorting to /etc/services");
+  if (kmap_fetchfile(filename, sizeof(filename), "kmap-services") != 1) {
+    error("Unable to find kmap-services!  Resorting to /etc/services");
 #ifndef WIN32
     strcpy(filename, "/etc/services");
 #else
@@ -146,7 +146,7 @@ static int nmap_services_init() {
     pfatal("Unable to open %s for reading service information", filename);
   }
   /* Record where this data file was found. */
-  o.loaded_data_files["nmap-services"] = filename;
+  o.loaded_data_files["kmap-services"] = filename;
 
   while(fgets(line, sizeof(line), fp)) {
     lineno++;
@@ -191,7 +191,7 @@ static int nmap_services_init() {
     // lowercase in-place
     *(u32 *)proto = (*(u32 *)proto) | 0x20202020;
     if (proto[3] == 0x20) proto[3] = '\0';
-    const struct nprotoent *npe = nmap_getprotbyname(proto);
+    const struct nprotoent *npe = kmap_getprotbyname(proto);
     int *port_count = NULL;
     switch (npe ? npe->p_proto : -1) {
       case IPPROTO_TCP:
@@ -282,7 +282,7 @@ int addportsfromservmask(const char *mask, u8 *porttbl, int range_type) {
   const char *name = NULL;
   int t = 0;
 
-  if (!services_initialized && nmap_services_init() == -1)
+  if (!services_initialized && kmap_services_init() == -1)
     fatal("%s: Couldn't get port numbers", __func__);
 
   for (i = service_table.begin(); i != service_table.end(); i++) {
@@ -312,11 +312,11 @@ int addportsfromservmask(const char *mask, u8 *porttbl, int range_type) {
 
 
 
-const struct nservent *nmap_getservbyport(u16 port, u16 proto) {
+const struct nservent *kmap_getservbyport(u16 port, u16 proto) {
   ServiceMap::const_iterator i;
   port_spec ps;
 
-  if (nmap_services_init() == -1)
+  if (kmap_services_init() == -1)
     return NULL;
 
   ps.p.portno = port;
@@ -367,8 +367,8 @@ static bool is_port_member(unsigned short *pts, int count, const struct service_
 }
 
 // gettoppts() sets its third parameter, a scan_list, with the most
-// common ports scanned by Nmap according to the ratios specified in
-// the nmap-services file.
+// common ports scanned by Kmap according to the ratios specified in
+// the kmap-services file.
 //
 // If level is below 1.0 then we treat it as a minimum ratio and we
 // add all ports with ratios above level.
@@ -388,7 +388,7 @@ void gettoppts(double level, const char *portlist, struct scan_lists * ports, co
   const struct service_node *current;
   std::list<service_node>::const_iterator i;
 
-  if (!services_initialized && nmap_services_init() == -1)
+  if (!services_initialized && kmap_services_init() == -1)
     fatal("%s: Couldn't get port numbers", __func__);
 
   if (ratio_format == 0) {

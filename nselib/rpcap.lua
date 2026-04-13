@@ -27,7 +27,7 @@
 
 local ipOps = require "ipOps"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -284,7 +284,7 @@ Comm = {
   -- @param port table
   -- @return o instance of Comm
   new = function(self, host, port, socket)
-    local o = { host = host, port = port, socket = socket or nmap.new_socket() }
+    local o = { host = host, port = port, socket = socket or kmap.new_socket() }
     setmetatable(o, self)
     self.__index = self
     return o

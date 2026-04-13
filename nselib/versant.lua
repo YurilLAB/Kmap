@@ -10,7 +10,7 @@
 
 local stdnse = require "stdnse"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local table = require "table"
 _ENV = stdnse.module("versant", stdnse.seeall)
@@ -18,7 +18,7 @@ _ENV = stdnse.module("versant", stdnse.seeall)
 Versant = {
 
   -- fallback to these constants when version and user are not given
-  USER = "nmap",
+  USER = "kmap",
   VERSION = "8.0.2",
 
   -- Creates an instance of the Versant class
@@ -26,7 +26,7 @@ Versant = {
   -- @param port table
   -- @return o new instance of Versant
   new = function(self, host, port)
-    local o = { host = host, port = port, socket = nmap.new_socket() }
+    local o = { host = host, port = port, socket = kmap.new_socket() }
     setmetatable(o, self)
     self.__index = self
     return o
@@ -225,7 +225,7 @@ Versant.OBE = {
   -- @param port table
   -- @return o new instance of Versant OBE
   new = function(self, host, port)
-    local o = { host = host, port = port, socket = nmap.new_socket() }
+    local o = { host = host, port = port, socket = kmap.new_socket() }
     setmetatable(o, self)
     self.__index = self
     return o

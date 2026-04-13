@@ -2,7 +2,7 @@
 AC_PREREQ(2.13)
 
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(nmap.cc)
+AC_INIT(kmap.cc)
 
 dnl Give us the --enable-nls option, to choose which translated man pages get
 dnl installed. This gets replaced with AM_GNU_GETTEXT for full gettext support.
@@ -36,10 +36,10 @@ else
   trace_no_use="$trace_no_use localdirs"
 fi
 
-dnl Let subdirs configure scripts find the Nmap source dir
-if test "${top_nmap_srcdir+set}" != set; then
-  top_nmap_srcdir=`cd "$srcdir" && pwd`
-  export top_nmap_srcdir
+dnl Let subdirs configure scripts find the Kmap source dir
+if test "${top_kmap_srcdir+set}" != set; then
+  top_kmap_srcdir=`cd "$srcdir" && pwd`
+  export top_kmap_srcdir
 fi
 
 libpcapdir=libpcap
@@ -54,8 +54,8 @@ AC_SUBST(ZLIBDIR)
 pcredir=libpcre
 AC_SUBST(pcredir)
 
-dnl use nmap_config.h instead of -D macros
-AC_CONFIG_HEADER(nmap_config.h)
+dnl use kmap_config.h instead of -D macros
+AC_CONFIG_HEADER(kmap_config.h)
 
 dnl Host specific hacks
 AC_CANONICAL_HOST
@@ -64,6 +64,7 @@ AC_C_INLINE
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
+CXXFLAGS="$CXXFLAGS -std=c++17"
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_AWK
@@ -282,44 +283,44 @@ AC_SUBST(NDIFF_CHECK)
 AC_SUBST(NDIFF_CLEAN)
 AC_SUBST(NDIFF_DIST_CLEAN)
 
-ZENMAPDIR=zenmap
+ZEKMAPDIR=zekmap
 
-# Do they want Zenmap?
-AC_ARG_WITH(zenmap, AC_HELP_STRING([--without-zenmap], [Skip installation of the Zenmap graphical frontend]), [], [with_zenmap=check])
+# Do they want Zekmap?
+AC_ARG_WITH(zekmap, AC_HELP_STRING([--without-zekmap], [Skip installation of the Zekmap graphical frontend]), [], [with_zekmap=check])
 
 if $PY_BUILD_OK ; then : ;
 else
-  if test "$with_zenmap" = "check"; then
-    AC_MSG_WARN([Not building Zenmap because Python was not found])
-  elif test "$with_zenmap" = "yes"; then
-    AC_MSG_FAILURE([--with-zenmap requires Python])
+  if test "$with_zekmap" = "check"; then
+    AC_MSG_WARN([Not building Zekmap because Python was not found])
+  elif test "$with_zekmap" = "yes"; then
+    AC_MSG_FAILURE([--with-zekmap requires Python])
   fi
-  with_zenmap=no
+  with_zekmap=no
 fi
-if test "$with_zenmap" = "no"; then
-  trace_no_use="$trace_no_use zenmap"
-  BUILDZENMAP=""
-  INSTALLZENMAP=""
-  UNINSTALLZENMAP=""
-  ZENMAP_CHECK=""
-  ZENMAP_CLEAN=""
-  ZENMAP_DIST_CLEAN=""
+if test "$with_zekmap" = "no"; then
+  trace_no_use="$trace_no_use zekmap"
+  BUILDZEKMAP=""
+  INSTALLZEKMAP=""
+  UNINSTALLZEKMAP=""
+  ZEKMAP_CHECK=""
+  ZEKMAP_CLEAN=""
+  ZEKMAP_DIST_CLEAN=""
 else
-  trace_use="$trace_use zenmap"
-  BUILDZENMAP=build-zenmap
-  INSTALLZENMAP=install-zenmap
-  UNINSTALLZENMAP=uninstall-zenmap
-  ZENMAP_CHECK=check-zenmap
-  ZENMAP_CLEAN=clean-zenmap
-  ZENMAP_DIST_CLEAN=distclean-zenmap
+  trace_use="$trace_use zekmap"
+  BUILDZEKMAP=build-zekmap
+  INSTALLZEKMAP=install-zekmap
+  UNINSTALLZEKMAP=uninstall-zekmap
+  ZEKMAP_CHECK=check-zekmap
+  ZEKMAP_CLEAN=clean-zekmap
+  ZEKMAP_DIST_CLEAN=distclean-zekmap
 fi
-AC_SUBST(ZENMAPDIR)
-AC_SUBST(BUILDZENMAP)
-AC_SUBST(INSTALLZENMAP)
-AC_SUBST(UNINSTALLZENMAP)
-AC_SUBST(ZENMAP_CHECK)
-AC_SUBST(ZENMAP_CLEAN)
-AC_SUBST(ZENMAP_DIST_CLEAN)
+AC_SUBST(ZEKMAPDIR)
+AC_SUBST(BUILDZEKMAP)
+AC_SUBST(INSTALLZEKMAP)
+AC_SUBST(UNINSTALLZEKMAP)
+AC_SUBST(ZEKMAP_CHECK)
+AC_SUBST(ZEKMAP_CLEAN)
+AC_SUBST(ZEKMAP_DIST_CLEAN)
 
 NPINGDIR=nping
 
@@ -435,7 +436,7 @@ test "${with_libpcap+set}" != "set" && with_libpcap=yes
 
 AC_ARG_WITH(libpcap,
 AC_HELP_STRING([--with-libpcap=DIR], [Look for pcap in DIR/include and DIR/libs.])
-AC_HELP_STRING([--with-libpcap=included], [Always use version included with Nmap]),
+AC_HELP_STRING([--with-libpcap=included], [Always use version included with Kmap]),
 [  case "$with_libpcap" in
   yes)
     AC_CHECK_HEADER(pcap.h,[
@@ -526,7 +527,7 @@ LIBPCREDIR=libpcre
 # First we test whether they specified libpcre explicitly
 AC_ARG_WITH(libpcre,
 AC_HELP_STRING([--with-libpcre=DIR], [Use an existing (compiled) pcre2 lib from DIR/include and DIR/lib.])
-AC_HELP_STRING([--with-libpcre=included], [Always use the version included with Nmap]),
+AC_HELP_STRING([--with-libpcre=included], [Always use the version included with Kmap]),
 [  case "$with_libpcre" in
   yes)
     ;;
@@ -589,7 +590,7 @@ test "${with_libz+set}" != "set" && with_libz="yes"
 
 AC_ARG_WITH(libz,
 AC_HELP_STRING([--with-libz=DIR], [Use specific copy of libz])
-AC_HELP_STRING([--with-libz=included], [Always use version included with Nmap]),
+AC_HELP_STRING([--with-libz=included], [Always use version included with Kmap]),
 [
   case "$with_libz" in
   yes)
@@ -674,7 +675,7 @@ test "${with_libssh2+set}" != "set" && with_libssh2="yes"
 
 AC_ARG_WITH(libssh2,
 AC_HELP_STRING([--with-libssh2=DIR], [Use specific copy of libssh2])
-AC_HELP_STRING([--with-libssh2=included], [Always use version included with Nmap])
+AC_HELP_STRING([--with-libssh2=included], [Always use version included with Kmap])
 AC_HELP_STRING([--without-libssh2], [Compile without libssh2]),
 [ case "$with_libssh2" in
   yes)
@@ -760,8 +761,8 @@ LIBDNETDIR=libdnet-stripped
 # specifically asked to use a system version.  This is because we have
 # made many improvements and fixes to our version of dnet.
 AC_ARG_WITH(libdnet,
-AC_HELP_STRING([--with-libdnet=DIR], [Use an existing (compiled) dnet lib from DIR/include and DIR/lib. This is NOT RECOMMENDED because we have made many important fixes to our included libdnet, as described at ./libdnet-stripped/NMAP_MODIFICATIONS])
-AC_HELP_STRING([--with-libdnet=included], [Use the libdnet version included with Nmap (default)]),
+AC_HELP_STRING([--with-libdnet=DIR], [Use an existing (compiled) dnet lib from DIR/include and DIR/lib. This is NOT RECOMMENDED because we have made many important fixes to our included libdnet, as described at ./libdnet-stripped/KMAP_MODIFICATIONS])
+AC_HELP_STRING([--with-libdnet=included], [Use the libdnet version included with Kmap (default)]),
 [  case "$with_libdnet" in
   yes)
     ;;
@@ -806,7 +807,7 @@ no_lua=no
 # First we test whether they specified liblua explicitly
 AC_ARG_WITH(liblua,
 AC_HELP_STRING([--with-liblua=DIR], [Use an existing (compiled) lua lib from DIR/include and DIR/lib.])
-AC_HELP_STRING([--with-liblua=included], [Use the liblua version included with Nmap])
+AC_HELP_STRING([--with-liblua=included], [Use the liblua version included with Kmap])
 AC_HELP_STRING([--without-liblua], [Compile without lua (this will exclude all of NSE from compilation)]),
 [  case "$with_liblua" in
   yes)
@@ -912,7 +913,7 @@ have_liblinear=no
 # First we test whether they specified liblinear explicitly
 AC_ARG_WITH(liblinear,
 AC_HELP_STRING([--with-liblinear=DIR], [Use an existing (compiled) liblinear from DIR/include and DIR/lib.])
-AC_HELP_STRING([--with-liblinear=included], [Use the liblinear version included with Nmap]),
+AC_HELP_STRING([--with-liblinear=included], [Use the liblinear version included with Kmap]),
 [  case "$with_liblinear" in
   yes)
   ;;
@@ -1123,7 +1124,7 @@ AC_OUTPUT(Makefile libnetutil/Makefile)
 
 # Krad ASCII ART#!#@$!@#$
 # Randomly store the name of one of the ASCII Art files in FILENAME
-FILENAME=`ls $srcdir/docs/leet-nmap-ascii-art*.txt 2>/dev/null | $AWK '
+FILENAME=`ls $srcdir/docs/leet-kmap-ascii-art*.txt 2>/dev/null | $AWK '
     BEGIN {
         srand();
     }
@@ -1141,7 +1142,7 @@ FILENAME=`ls $srcdir/docs/leet-nmap-ascii-art*.txt 2>/dev/null | $AWK '
 if test "$FILENAME"; then
   cat "$FILENAME"
 fi
-echo "  NMAP IS A POWERFUL TOOL -- USE CAREFULLY AND RESPONSIBLY"
+echo "  KMAP IS A POWERFUL TOOL -- USE CAREFULLY AND RESPONSIBLY"
 
 echo "Configured with:$trace_use"
 echo "Configured without:$trace_no_use"

@@ -1,15 +1,15 @@
 ---
--- Standard Nmap Scripting Engine functions. This module contains various handy
+-- Standard Kmap Scripting Engine functions. This module contains various handy
 -- functions that are too small to justify modules of their own.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @class module
 -- @name stdnse
 
 local _G = require "_G"
 local coroutine = require "coroutine"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local table = require "table"
 local assert = assert;
@@ -60,7 +60,7 @@ _ENV = require "strict" {};
 -- @class function
 -- @param t Time to sleep, in seconds.
 -- @usage stdnse.sleep(1.5)
-_ENV.sleep = nmap.socket.sleep;
+_ENV.sleep = kmap.socket.sleep;
 
 -- These stub functions get overwritten by the script run loop in nse_main.lua
 -- These empty stubs will be used if a library calls stdnse.debug while loading
@@ -72,15 +72,15 @@ local function debug (level, ...)
   if type(level) ~= "number" then
     return debug(1, level, ...)
   end
-  local current = nmap.debugging()
+  local current = kmap.debugging()
   if level <= current then
     local host, port = gethostport()
     local prefix = ( (current >= 2 and getinfo or getid)() or "")
     .. (host and " "..host.ip .. (port and ":"..port.number or "") or "")
     if prefix ~= "" then
-      nmap.log_write("stdout", "[" .. prefix .. "] " .. format(...))
+      kmap.log_write("stdout", "[" .. prefix .. "] " .. format(...))
     else
-      nmap.log_write("stdout", format(...))
+      kmap.log_write("stdout", format(...))
     end
   end
 end
@@ -89,7 +89,7 @@ end
 -- Prints a formatted debug message if the current debugging level is greater
 -- than or equal to a given level.
 --
--- This is a convenience wrapper around <code>nmap.log_write</code>. The first
+-- This is a convenience wrapper around <code>kmap.log_write</code>. The first
 -- optional numeric argument, <code>level</code>, is used as the debugging level
 -- necessary to print the message (it defaults to 1 if omitted). All remaining
 -- arguments are processed with Lua's <code>string.format</code> function.
@@ -117,11 +117,11 @@ function debug5 (...) return debug(5, ...) end
 -- Deprecated version of debug(), kept for now to prevent the script id from being
 -- printed twice. Scripts should use debug() and not pass SCRIPT_NAME
 print_debug = function(level, fmt, ...)
-  local l, d = tonumber(level), nmap.debugging();
+  local l, d = tonumber(level), kmap.debugging();
   if l and l <= d then
-    nmap.log_write("stdout", format(fmt, ...));
+    kmap.log_write("stdout", format(fmt, ...));
   elseif not l and 1 <= d then
-    nmap.log_write("stdout", format(level, fmt, ...));
+    kmap.log_write("stdout", format(level, fmt, ...));
   end
 end
 
@@ -129,7 +129,7 @@ local function verbose (level, ...)
   if type(level) ~= "number" then
     return verbose(1, level, ...)
   end
-  local current = nmap.verbosity()
+  local current = kmap.verbosity()
   if level <= current then
     local prefix
     if current >= 2 then
@@ -140,9 +140,9 @@ local function verbose (level, ...)
       prefix = getid() or ""
     end
     if prefix ~= "" then
-      nmap.log_write("stdout", "[" .. prefix .. "] " .. format(...))
+      kmap.log_write("stdout", "[" .. prefix .. "] " .. format(...))
     else
-      nmap.log_write("stdout", format(...))
+      kmap.log_write("stdout", format(...))
     end
   end
 end
@@ -151,7 +151,7 @@ end
 -- Prints a formatted verbosity message if the current verbosity level is greater
 -- than or equal to a given level.
 --
--- This is a convenience wrapper around <code>nmap.log_write</code>. The first
+-- This is a convenience wrapper around <code>kmap.log_write</code>. The first
 -- optional numeric argument, <code>level</code>, is used as the verbosity level
 -- necessary to print the message (it defaults to 1 if omitted). All remaining
 -- arguments are processed with Lua's <code>string.format</code> function.
@@ -178,11 +178,11 @@ function verbose5 (...) return verbose(5, ...) end
 -- Deprecated version of verbose(), kept for now to prevent the script id from being
 -- printed twice. Scripts should use verbose() and not pass SCRIPT_NAME
 print_verbose = function(level, fmt, ...)
-  local l, d = tonumber(level), nmap.verbosity();
+  local l, d = tonumber(level), kmap.verbosity();
   if l and l <= d then
-    nmap.log_write("stdout", format(fmt, ...));
+    kmap.log_write("stdout", format(fmt, ...));
   elseif not l and 1 <= d then
-    nmap.log_write("stdout", format(level, fmt, ...));
+    kmap.log_write("stdout", format(level, fmt, ...));
   end
 end
 
@@ -196,7 +196,7 @@ end
 -- does not include the separator. It will return the final data even if it is
 -- not followed by the separator. Once an error or EOF is reached, it returns
 -- <code>nil, msg</code>. <code>msg</code> is what is returned by
--- <code>nmap.receive_lines</code>.
+-- <code>kmap.receive_lines</code>.
 -- In some situations, initial data gets read from a socket before being able to
 -- create a buffer with <code>make_buffer()</code>, such as when the connection
 -- is initiated with <code>comm.tryssl()</code>, instead of just simple
@@ -435,13 +435,13 @@ end
 --- Returns the current time in milliseconds since the epoch
 -- @return The current time in milliseconds since the epoch
 function clock_ms()
-  return nmap.clock() * 1000
+  return kmap.clock() * 1000
 end
 
 --- Returns the current time in microseconds since the epoch
 -- @return The current time in microseconds since the epoch
 function clock_us()
-  return nmap.clock() * 1000000
+  return kmap.clock() * 1000000
 end
 
 ---Get the indentation symbols at a given level.
@@ -464,7 +464,7 @@ local function format_output_sub(status, data, indent)
   end
 
   if(not(status)) then
-    if(nmap.debugging() < 1) then
+    if(kmap.debugging() < 1) then
       return nil
     end
     prefix = "ERROR: "
@@ -479,7 +479,7 @@ local function format_output_sub(status, data, indent)
   indent = indent or {}
 
   if(data['name']) then
-    if(data['warning'] and nmap.debugging() > 0) then
+    if(data['warning'] and kmap.debugging() > 0) then
       insert(output, format("%s%s%s (WARNING: %s)\n",
                         format_get_indent(indent), prefix,
                         data['name'], data['warning']))
@@ -488,7 +488,7 @@ local function format_output_sub(status, data, indent)
                         format_get_indent(indent), prefix,
                         data['name']))
     end
-  elseif(data['warning'] and nmap.debugging() > 0) then
+  elseif(data['warning'] and kmap.debugging() > 0) then
     insert(output, format("%s%s(WARNING: %s)\n",
                       format_get_indent(indent), prefix,
                       data['warning']))
@@ -526,7 +526,7 @@ end
 
 ---This function is deprecated.
 --
--- Please use structured NSE output instead: https://nmap.org/book/nse-api.html#nse-structured-output
+-- Please use structured NSE output instead: https://kmap.org/book/nse-api.html#nse-structured-output
 --
 -- Takes a table of output on the commandline and formats it for display to the
 -- user.
@@ -603,11 +603,11 @@ end
 local function arg_value(argname)
   -- First look for the literal script-arg name
   -- as a key/value pair
-  if nmap.registry.args[argname] then
-    return nmap.registry.args[argname]
+  if kmap.registry.args[argname] then
+    return kmap.registry.args[argname]
   end
   -- and alone, as a boolean flag
-  for _, v in ipairs(nmap.registry.args) do
+  for _, v in ipairs(kmap.registry.args) do
     if v == argname then
       return 1
     end
@@ -617,11 +617,11 @@ local function arg_value(argname)
   local shortname = match(argname, "%.([^.]*)$")
   if shortname then
     -- as a key/value pair
-    if nmap.registry.args[shortname] then
-      return nmap.registry.args[shortname]
+    if kmap.registry.args[shortname] then
+      return kmap.registry.args[shortname]
     end
     -- and alone, as a boolean flag
-    for _, v in ipairs(nmap.registry.args) do
+    for _, v in ipairs(kmap.registry.args) do
       if v == shortname then
         return 1
       end
@@ -678,7 +678,7 @@ end
 ---Get the interfaces that are appropriate for a script to use.
 --
 -- This function returns interface information in the same format as
--- <code>nmap.list_interfaces()</code>, but if any of the following are given,
+-- <code>kmap.list_interfaces()</code>, but if any of the following are given,
 -- the list will have at most one interface corresponding to the first
 -- available from this list:
 -- * The <code>SCRIPT_NAME.interface</code> script-arg
@@ -687,8 +687,8 @@ end
 --
 -- @param filter_func A function to filter the result
 -- @return A list of interfaces
--- @see nmap.list_interfaces
--- @see nmap.get_interface
+-- @see kmap.list_interfaces
+-- @see kmap.get_interface
 -- @see stdnse.get_script_args
 -- @usage
 -- local up_filter = function (if_table)
@@ -700,12 +700,12 @@ end
 -- local up_interfaces = stdnse.get_script_interfaces(up_filter)
 function get_script_interfaces(filter_func)
   filter_func = filter_func or identity
-  local interface = arg_value(getid() .. ".interface") or nmap.get_interface()
+  local interface = arg_value(getid() .. ".interface") or kmap.get_interface()
   if interface then
-    return {filter_func(nmap.get_interface_info(interface))}
+    return {filter_func(kmap.get_interface_info(interface))}
   end
   local ret = {}
-  for _, if_table in ipairs(nmap.list_interfaces()) do
+  for _, if_table in ipairs(kmap.list_interfaces()) do
     local ift = filter_func(if_table)
     if ift then
       insert(ret, ift)
@@ -729,7 +729,7 @@ end
 ---Retrieve an item from the registry, checking if each sub-key exists. If any key doesn't
 -- exist, return nil.
 function registry_get(subkeys)
-  local registry = nmap.registry
+  local registry = kmap.registry
   local i = 1
 
   while(subkeys[i]) do
@@ -766,11 +766,11 @@ end
 --
 -- For example, calling:
 -- <code>registry_add_array({'192.168.1.100', 'www', '80', 'pages'}, 'index.html')</code>
--- Will create nmap.registry['192.168.1.100'] as a table, if necessary, then add a table
+-- Will create kmap.registry['192.168.1.100'] as a table, if necessary, then add a table
 -- under the 'www' key, and so on. 'pages', finally, is treated as an array and the value
 -- given is added to the end.
 function registry_add_array(subkeys, value, allow_duplicates)
-  local registry = nmap.registry
+  local registry = kmap.registry
   local i = 1
 
   -- Unless the user wants duplicates, make sure there aren't any
@@ -800,7 +800,7 @@ end
 ---Similar to <code>registry_add_array</code>, except instead of adding a value to the
 -- end of an array, it adds a key:value pair to the table.
 function registry_add_table(subkeys, key, value, allow_duplicates)
-  local registry = nmap.registry
+  local registry = kmap.registry
   local i = 1
 
   -- Unless the user wants duplicates, make sure there aren't any
@@ -852,9 +852,9 @@ end
 -- must use function parameters, upvalues or environments to communicate
 -- results.
 --
--- You should use the condition variable (<code>nmap.condvar</code>)
--- and mutex (<code>nmap.mutex</code>) facilities to coordinate with your
--- worker threads. Keep in mind that Nmap is single threaded so there are
+-- You should use the condition variable (<code>kmap.condvar</code>)
+-- and mutex (<code>kmap.mutex</code>) facilities to coordinate with your
+-- worker threads. Keep in mind that Kmap is single threaded so there are
 -- no (memory) issues in synchronization to worry about; however, there
 -- is resource contention. Your resources are usually network
 -- bandwidth, network sockets, etc. Condition variables are also useful if the
@@ -873,7 +873,7 @@ end
 --local requests = {"/", "/index.html", --[[ long list of objects ]]}
 --
 --function thread_main (host, port, responses, ...)
---  local condvar = nmap.condvar(responses);
+--  local condvar = kmap.condvar(responses);
 --  local what = {n = select("#", ...), ...};
 --  local allReqs = nil;
 --  for i = 1, what.n do
@@ -887,7 +887,7 @@ end
 --function many_requests (host, port)
 --  local threads = {};
 --  local responses = {};
---  local condvar = nmap.condvar(responses);
+--  local condvar = kmap.condvar(responses);
 --  local i = 1;
 --  repeat
 --    local j = math.min(i+10, #requests);

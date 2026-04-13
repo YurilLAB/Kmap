@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -12,7 +12,7 @@ Performs brute force password auditing against the MongoDB database.
 
 ---
 -- @usage
--- nmap -p 27017 <ip> --script mongodb-brute
+-- kmap -p 27017 <ip> --script mongodb-brute
 --
 -- @args mongodb-brute.db Database against which to check. Default: admin
 --
@@ -28,7 +28,7 @@ Performs brute force password auditing against the MongoDB database.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 local arg_db = stdnse.get_script_args(SCRIPT_NAME .. ".db") or "admin"
@@ -67,7 +67,7 @@ Driver = {
 }
 
 local function needsAuth(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, result = socket:connect(host, port)
   if ( not(status) ) then
     return false, "Failed to connect to server"

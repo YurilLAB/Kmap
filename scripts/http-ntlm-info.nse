@@ -22,7 +22,7 @@ available.
 
 ---
 -- @usage
--- nmap -p 80 --script http-ntlm-info --script-args http-ntlm-info.root=/root/ <target>
+-- kmap -p 80 --script http-ntlm-info --script-args http-ntlm-info.root=/root/ <target>
 --
 -- @args http-ntlm-info.root The URI path to request
 --
@@ -47,7 +47,7 @@ available.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

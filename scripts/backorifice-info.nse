@@ -1,5 +1,5 @@
 local bits = require "bits"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -19,7 +19,7 @@ installed with the service.
 
 ---
 -- @usage
--- nmap --script backorifice-info <target> --script-args backorifice-info.password=<password>
+-- kmap --script backorifice-info <target> --script-args backorifice-info.password=<password>
 --
 -- @arg backorifice-info.password Encryption password (defaults to no password).
 -- @arg backorifice-info.seed Encryption seed (default derived from password, or 31337 for no password).
@@ -70,7 +70,7 @@ installed with the service.
 --
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"backorifice-brute"}
 
@@ -254,16 +254,16 @@ local function insert_version_info(host,port,BOversion,BOhostname,initial_seed,p
   end
   port.version.hostname = BOhostname
   if(port.version.ostype == nil) then port.version.ostype = "Windows" end
-  nmap.set_port_version(host, port)
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
 end
 
 action = function( host, port )
   --initial seed is set by backorifice-brute
   local initial_seed = stdnse.get_script_args( SCRIPT_NAME .. ".seed" )
   local password = stdnse.get_script_args(SCRIPT_NAME .. ".password")
-  local socket = nmap.new_socket("udp")
-  local try = nmap.new_try(function() socket:close() end)
+  local socket = kmap.new_socket("udp")
+  local try = kmap.new_try(function() socket:close() end)
   socket:set_timeout(5000)
 
   local output_all={}

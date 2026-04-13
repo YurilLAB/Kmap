@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -39,7 +39,7 @@ Link:
 --     if the http code is 200 (ok), proceed. (thanks to Tom Sellers who has reported this lack of check)
 
 author = {"Ange Gutek", "Rob Nicholls"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -50,7 +50,7 @@ local LOGO_QUERY = "/?=PHPE9568F36-D428-11d2-A769-00AA001ACF42"
 local CREDITS_QUERY = "/?=PHPB8B5F2A0-3C92-11d3-A3A9-4C7B08C10000"
 
 -- For PHP 5.x hashes up to 5.2.14 and 5.3.3 see:
--- http://seclists.org/nmap-dev/2010/q4/518
+-- http://seclists.org/kmap-dev/2010/q4/518
 
 local LOGO_HASHES = {
   -- Bunny (Carmella)
@@ -148,12 +148,12 @@ action = function(host, port)
   lines = {}
   if logo_versions then
     lines[#lines + 1] = "Versions from logo query (less accurate): " .. table.concat(logo_versions, ", ")
-  elseif logo_hash and nmap.verbosity() >= 2 then
+  elseif logo_hash and kmap.verbosity() >= 2 then
     lines[#lines + 1] = "Logo query returned unknown hash " .. logo_hash
   end
   if credits_versions then
     lines[#lines + 1] = "Versions from credits query (more accurate): " .. table.concat(credits_versions, ", ")
-  elseif credits_hash and nmap.verbosity() >= 2 then
+  elseif credits_hash and kmap.verbosity() >= 2 then
     lines[#lines + 1] = "Credits query returned unknown hash " .. credits_hash
   end
   if header_name and header_value then

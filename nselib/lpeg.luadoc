@@ -6,5 +6,5 @@
 -- http://www.inf.puc-rio.br/~roberto/lpeg/lpeg.html
 --
 -- @author Roberto Ierusalimschy
--- @license Copyright 2007, Lua.org & PUC-Rio (https://svn.nmap.org/nmap/docs/licenses/MIT)
+-- @license Copyright 2007, Lua.org & PUC-Rio (https://svn.kmap.org/kmap/docs/licenses/MIT)
 module "lpeg"

@@ -1,5 +1,5 @@
 local ndmp = require "ndmp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -21,7 +21,7 @@ the backup server. The following products are known to support the protocol:
 ]]
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 
@@ -67,5 +67,5 @@ action = function(host, port)
     port.version.ostype = hi.hostinfo.ostype
   end
 
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 end

@@ -12,7 +12,7 @@ by it will be checked in addition to the root.
 
 ---
 -- @usage
--- nmap -p 443 --script http-cookie-flags <target>
+-- kmap -p 443 --script http-cookie-flags <target>
 --
 -- @output
 -- 443/tcp open  https
@@ -59,7 +59,7 @@ by it will be checked in addition to the root.
 
 categories = { "default", "safe", "vuln" }
 author = "Steve Benson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 dependencies = {"http-enum"}
 
 portrule = shortport.http

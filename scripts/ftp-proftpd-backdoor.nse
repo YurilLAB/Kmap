@@ -1,5 +1,5 @@
 local ftp = require "ftp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -15,7 +15,7 @@ Tests for the presence of the ProFTPD 1.3.3c backdoor reported as BID
 
 ---
 -- @usage
--- nmap --script ftp-proftpd-backdoor -p 21 <host>
+-- kmap --script ftp-proftpd-backdoor -p 21 <host>
 --
 -- @args ftp-proftpd-backdoor.cmd Command to execute in shell (default is
 --       <code>id</code>).
@@ -30,7 +30,7 @@ Tests for the presence of the ProFTPD 1.3.3c backdoor reported as BID
 -- |_
 
 author = "Mak Kolybabi"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "malware", "vuln"}
 
 
@@ -61,7 +61,7 @@ action = function(host, port)
   end
 
   -- Create socket.
-  sock = nmap.new_socket("tcp")
+  sock = kmap.new_socket("tcp")
   sock:set_timeout(5000)
   status, err = sock:connect(host, port, "tcp")
   if not status then

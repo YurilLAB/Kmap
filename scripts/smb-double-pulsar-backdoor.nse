@@ -11,7 +11,7 @@ https://github.com/countercept/doublepulsar-detection-script
 ]]
 
 ---
--- @usage nmap -p 445 <target> --script=smb-double-pulsar-backdoor
+-- @usage kmap -p 445 <target> --script=smb-double-pulsar-backdoor
 --
 -- @see smb-vuln-ms17-010.nse
 --
@@ -30,7 +30,7 @@ https://github.com/countercept/doublepulsar-detection-script
 -- |_      https://steemit.com/shadowbrokers/@theshadowbrokers/lost-in-translation
 
 author = "Andrew Orr"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe", "malware"}
 
 hostrule = function(host)

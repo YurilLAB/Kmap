@@ -20,7 +20,7 @@
 --
 --@author Patrik Karlsson <patrik@cqure.net>
 --@author Andrew Orr <andrew@andreworr.ca>
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 --
 -- Version 0.2
@@ -32,7 +32,7 @@
 
 local ipOps = require "ipOps"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -527,7 +527,7 @@ Helper = {
   -- @return status true on success false on failure
   -- @return err string containing the error message in case status is false
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or 10000)
     local status, err = self.socket:connect(self.host, self.port)
 

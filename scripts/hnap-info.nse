@@ -3,7 +3,7 @@ local table = require "table"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local slaxml = require "slaxml"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Retrieve hardwares details and configuration information utilizing HNAP, the "Home Network Administration Protocol".
@@ -12,7 +12,7 @@ configuration, and management of devices (routers, cameras, PCs, NAS, etc.)]]
 
 ---
 -- @usage
--- nmap --script hnap-info -p80,8080 <target>
+-- kmap --script hnap-info -p80,8080 <target>
 --
 -- @output
 -- PORT     STATE SERVICE    REASON
@@ -51,7 +51,7 @@ configuration, and management of devices (routers, cameras, PCs, NAS, etc.)]]
 -----------------------------------------------------------------------
 
 author = "Gyanendra Mishra"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {
   "safe",
   "discovery",
@@ -61,7 +61,7 @@ categories = {
 
 
 portrule = function(host, port)
-  return (shortport.http(host,port) and nmap.version_intensity() >= 7)
+  return (shortport.http(host,port) and kmap.version_intensity() >= 7)
 end
 
 local ELEMENTS = {["Type"] = "Type",
@@ -122,7 +122,7 @@ function action (host, port)
     if output["Vendor"] and output["Model"] then
       table.insert(port.version.cpe, "cpe:/h:".. output["Vendor"]:lower() .. ":" .. output["Model"]:lower())
     end
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
 
     return output
   end

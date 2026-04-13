@@ -1,5 +1,5 @@
 local natpmp = require "natpmp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -18,7 +18,7 @@ The NAT-PMP protocol is supported by a broad range of routers including:
 
 ---
 --@usage
--- nmap -sU -p 5351 --script=nat-pmp-info <target>
+-- kmap -sU -p 5351 --script=nat-pmp-info <target>
 -- @output
 -- | nat-pmp-info:
 -- |_  WAN IP: 192.0.2.13
@@ -27,7 +27,7 @@ The NAT-PMP protocol is supported by a broad range of routers including:
 -- @see nat-pmp-mapport.nse
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -38,9 +38,9 @@ action = function(host, port)
   local status, response = helper:getWANIP()
 
   if ( status ) then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     port.version.name = "nat-pmp"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
 
     return {["WAN IP"] = response.ip}
   end

@@ -24,7 +24,7 @@ so-called "Custom data".
 ]]
 
 ---
--- @usage nmap --script rmi-dumpregistry -p 1098 <host>
+-- @usage kmap --script rmi-dumpregistry -p 1098 <host>
 -- @output
 -- PORT     STATE SERVICE     REASON
 -- 1099/tcp open  rmiregistry syn-ack
@@ -145,7 +145,7 @@ so-called "Custom data".
 -- |_        file:/C:/CFusionMX7/runtime/../wwwroot/WEB-INF/cfform/jars/
 
 author = "Martin Holst Swende"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service({1098, 1099, 1090, 8901, 8902, 8903}, {"java-rmi", "rmiregistry"})

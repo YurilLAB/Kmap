@@ -15,7 +15,7 @@ Vulnerability discovered by c1ph04.
 
 ---
 -- @usage
--- nmap -sV --script http-vuln-wnr1000-creds <target> -p80
+-- kmap -sV --script http-vuln-wnr1000-creds <target> -p80
 -- @args http-vuln-wnr1000-creds.uri URI path where the passwordrecovered.cgi script can be found. Default: /
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -36,7 +36,7 @@ Vulnerability discovered by c1ph04.
 ---
 
 author = {"Paul AMAR <aos.paul@gmail.com>", "Rob Nicholls"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.http

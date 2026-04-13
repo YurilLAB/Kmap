@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -14,7 +14,7 @@ description = [[
 Performs brute force password auditing against http form-based authentication.
 
 This script uses the unpwdb and brute libraries to perform password
-guessing. Any successful guesses are stored in the nmap registry, using
+guessing. Any successful guesses are stored in the kmap registry, using
 the creds library, for other scripts to use.
 
 The script automatically attempts to discover the form method, action, and
@@ -50,7 +50,7 @@ the following rules:
 
 ---
 -- @usage
--- nmap --script http-form-brute -p 80 <host>
+-- kmap --script http-form-brute -p 80 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -105,7 +105,7 @@ the following rules:
 --
 
 author = {"Patrik Karlsson", "nnposter"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

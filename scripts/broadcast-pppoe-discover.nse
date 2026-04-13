@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local pppoe = require "pppoe"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,13 +10,13 @@ protocol so the script has to know what ethernet interface to use for
 discovery. If no interface is specified, requests are sent out on all
 available interfaces.
 
-As the script send raw ethernet frames it requires Nmap to be run in privileged
+As the script send raw ethernet frames it requires Kmap to be run in privileged
 mode to operate.
 ]]
 
 ---
 -- @usage
--- nmap --script broadcast-pppoe-discover
+-- kmap --script broadcast-pppoe-discover
 --
 -- @output
 -- | broadcast-pppoe-discover:
@@ -30,12 +30,12 @@ mode to operate.
 -- |_    Host-Uniq: 7f8552a0
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end

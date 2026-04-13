@@ -12,7 +12,7 @@
 local ipOps = require "ipOps"
 local match = require "match"
 local rand = require "rand"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -218,7 +218,7 @@ Comm = {
       host = host,
       port = port,
       options = options or { timeout = 10000 },
-      socket = nmap.new_socket(),
+      socket = kmap.new_socket(),
     }
     setmetatable(o, self)
     self.__index = self

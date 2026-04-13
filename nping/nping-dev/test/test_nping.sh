@@ -31,7 +31,7 @@
 
 # Target host specification. Can be just one host or varios hosts
 # separated by whitespace
-TARGETS="scanme.nmap.org"
+TARGETS="scanme.kmap.org"
 
 # Global options to be passed to EVERY nping invokation. This is useful
 # to specify things like verbosity level, etc.
@@ -134,7 +134,7 @@ t TARGETSPEC_2 "Test single target spec (IP address)." \
 sudo nping $GLOBALOPTS 192.168.1.1
 
 t TARGETSPEC_3 "Test multiple target spec (two hostnames)." \
-sudo nping $GLOBALOPTS -c1 --rate 10 google.com nmap.org
+sudo nping $GLOBALOPTS -c1 --rate 10 google.com kmap.org
 
 t TARGETSPEC_4 "Test multiple target spec (two IP addresses)." \
 sudo nping $GLOBALOPTS -c1 --rate 10 192.168.1.1 192.168.1.99
@@ -155,7 +155,7 @@ t TARGETSPEC_9 "Test multiple target spec (IP with CIDR notation)." \
 sudo nping $GLOBALOPTS -c1 --rate 100 192.168.1.1/24
 
 t TARGETSPEC_10 "Test multiple target spec (mixed specs)." \
-sudo nping $GLOBALOPTS -c1 --rate 10 192.168.1.1 192.168.1.99-100 google.com/29 scanme.nmap.org
+sudo nping $GLOBALOPTS -c1 --rate 10 192.168.1.1 192.168.1.99-100 google.com/29 scanme.kmap.org
 
 t TARGETSPEC_11 "Test unresolvable target spec. Expected: error message." \
 sudo nping $GLOBALOPTS -c1 bogushostname
@@ -179,7 +179,7 @@ echo "192.168.1.1" > myhostlist.tmp
 t TARGETSPEC_15 "Test single target spec with -iL (IP address)." \
 sudo nping $GLOBALOPTS -c1 -iL myhostlist.tmp
 
-echo "google.com nmap.org" > myhostlist.tmp
+echo "google.com kmap.org" > myhostlist.tmp
 t TARGETSPEC_16 "Test multiple target spec with -iL (two hostnames)." \
 sudo nping $GLOBALOPTS -c1 -iL myhostlist.tmp
 
@@ -191,7 +191,7 @@ echo "192.168.1.1-10 " > myhostlist.tmp
 t TARGETSPEC_18 "Test multiple target spec with -iL (IP range #1)." \
 sudo nping $GLOBALOPTS -c1 --rate 10 -iL myhostlist.tmp
 
-echo "192.168.1.1 192.168.1.99-100 google.com/29 scanme.nmap.org" > myhostlist.tmp
+echo "192.168.1.1 192.168.1.99-100 google.com/29 scanme.kmap.org" > myhostlist.tmp
 t TARGETSPEC_19 "Test multiple target spec with -iL (mixed specs)." \
 sudo nping $GLOBALOPTS -c1 --rate 10 -iL myhostlist.tmp
 
@@ -1298,8 +1298,8 @@ nping --tcp-connect $TARGETS $GLOBALOPTS --data-string "Test Payload"
 #### ECHO MODE ####
 
 # Client
-t ECHO_1 "Test client connection to echo.nmap.org." \
-sudo nping --echo-client "public" echo.nmap.org -c2
+t ECHO_1 "Test client connection to echo.kmap.org." \
+sudo nping --echo-client "public" echo.kmap.org -c2
 
 t ECHO_2 "Test client connection to a bogus server" \
 sudo nping --echo-client "public" bogus.bogus
@@ -1307,55 +1307,55 @@ sudo nping --echo-client "public" bogus.bogus
 t ECHO_3 "Test client connection to a server that has no NEP service running" \
 sudo nping --echo-client "public" google.com
 
-t ECHO_4 "Test client connection to echo.nmap.org using the explicit port number 9929" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port 9929 -c2
+t ECHO_4 "Test client connection to echo.kmap.org using the explicit port number 9929" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port 9929 -c2
 
-t ECHO_5 "Test client connection to echo.nmap.org but using a different port" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port 34554
+t ECHO_5 "Test client connection to echo.kmap.org but using a different port" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port 34554
 
-t ECHO_6 "Test client connection to echo.nmap.org but using an invalid port number #1" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port -1
+t ECHO_6 "Test client connection to echo.kmap.org but using an invalid port number #1" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port -1
 
-t ECHO_7 "Test client connection to echo.nmap.org but using an invalid port number #2" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port BOGUSPORT
+t ECHO_7 "Test client connection to echo.kmap.org but using an invalid port number #2" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port BOGUSPORT
 
-t ECHO_8 "Test client connection to echo.nmap.org but using an invalid port number #3" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port 65536
+t ECHO_8 "Test client connection to echo.kmap.org but using an invalid port number #3" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port 65536
 
-t ECHO_9 "Test client connection to echo.nmap.org but using an invalid port number #4" \
-sudo nping --echo-client "public" echo.nmap.org --echo-port 0
+t ECHO_9 "Test client connection to echo.kmap.org but using an invalid port number #4" \
+sudo nping --echo-client "public" echo.kmap.org --echo-port 0
 
-t ECHO_10 "Test client connection to echo.nmap.org. TCP mode" \
-sudo nping --echo-client "public" echo.nmap.org --tcp -c2
+t ECHO_10 "Test client connection to echo.kmap.org. TCP mode" \
+sudo nping --echo-client "public" echo.kmap.org --tcp -c2
 
-t ECHO_11 "Test client connection to echo.nmap.org. UDP mode" \
-sudo nping --echo-client "public" echo.nmap.org --udp -c2
+t ECHO_11 "Test client connection to echo.kmap.org. UDP mode" \
+sudo nping --echo-client "public" echo.kmap.org --udp -c2
 
-t ECHO_12 "Test client connection to echo.nmap.org. ICMP mode" \
-sudo nping --echo-client "public" echo.nmap.org --icmp -c2
+t ECHO_12 "Test client connection to echo.kmap.org. ICMP mode" \
+sudo nping --echo-client "public" echo.kmap.org --icmp -c2
 
-t ECHO_13 "Test client connection to echo.nmap.org. TCP connect mode. Expected: Failure" \
-sudo nping --echo-client "public" echo.nmap.org --tcp-connect
+t ECHO_13 "Test client connection to echo.kmap.org. TCP connect mode. Expected: Failure" \
+sudo nping --echo-client "public" echo.kmap.org --tcp-connect
 
-t ECHO_14 "Test client connection to echo.nmap.org. ARP mode. Expected: Failure" \
-sudo nping --echo-client "public" echo.nmap.org --arp
+t ECHO_14 "Test client connection to echo.kmap.org. ARP mode. Expected: Failure" \
+sudo nping --echo-client "public" echo.kmap.org --arp
 
-t ECHO_15 "Test client connection to echo.nmap.org. RARP mode. Expected: Failure" \
-sudo nping --echo-client "public" echo.nmap.org --rarp
+t ECHO_15 "Test client connection to echo.kmap.org. RARP mode. Expected: Failure" \
+sudo nping --echo-client "public" echo.kmap.org --rarp
 
-t ECHO_16 "Test client connection to echo.nmap.org, using the wrong password." \
-sudo nping --echo-client "BOGUS" echo.nmap.org
+t ECHO_16 "Test client connection to echo.kmap.org, using the wrong password." \
+sudo nping --echo-client "BOGUS" echo.kmap.org
 
-t ECHO_17 "Test client connection to echo.nmap.org, using --no-crypto. Expected: Failure" \
-sudo nping --echo-client "a" echo.nmap.org --no-crypto
+t ECHO_17 "Test client connection to echo.kmap.org, using --no-crypto. Expected: Failure" \
+sudo nping --echo-client "a" echo.kmap.org --no-crypto
 
-t ECHO_18 "Test client connection to echo.nmap.org, NOT running as root. Expected: Failure" \
-nping --echo-client "a" echo.nmap.org
+t ECHO_18 "Test client connection to echo.kmap.org, NOT running as root. Expected: Failure" \
+nping --echo-client "a" echo.kmap.org
 
-t ECHO_19 "Test client connection to echo.nmap.org. No passphrase supplied." \
-nping echo.nmap.org --echo-client
+t ECHO_19 "Test client connection to echo.kmap.org. No passphrase supplied." \
+nping echo.kmap.org --echo-client
 
-t ECHO_20 "Test client connection to echo.nmap.org. No target host supplied." \
+t ECHO_20 "Test client connection to echo.kmap.org. No target host supplied." \
 nping --echo-client "public"
 
 # Server

@@ -5,7 +5,7 @@ local brute     = require "brute"
 local creds     = require "creds"
 local unpwdb    = require "unpwdb"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -29,10 +29,10 @@ script to find LUs that take you to TSO, CICS, etc.
 --  Defaults to <code>None</code> and doesn't store anything. This stores 
 --  all valid logical units.
 --@usage
--- nmap --script lu-enum -p 23 <targets>
+-- kmap --script lu-enum -p 23 <targets>
 --
 --@usage
--- nmap --script lu-enum --script-args lulist=lus.txt,
+-- kmap --script lu-enum --script-args lulist=lus.txt,
 -- lu-enum.path="/home/dade/screenshots/" -p 23 -sV <targets>
 --
 --@output
@@ -47,7 +47,7 @@ script to find LUs that take you to TSO, CICS, etc.
 -- 2019-02-04 - v0.1 - created by Soldier of Fortran
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992}, "tn3270")
@@ -177,7 +177,7 @@ action = function(host, port)
   local lu_id_file = stdnse.get_script_args("lulist")
   local path = stdnse.get_script_args(SCRIPT_NAME .. '.path') -- Folder for screen grabs
   local logical_units = {}
-  lu_id_file = ((lu_id_file and nmap.fetchfile(lu_id_file)) or lu_id_file) 
+  lu_id_file = ((lu_id_file and kmap.fetchfile(lu_id_file)) or lu_id_file) 
 
   local status, lu, orig_screen = lu_test( host, port )
   if status then

@@ -2,7 +2,7 @@ local stdnse = require "stdnse"
 local shortport = require "shortport"
 local dns = require "dns"
 local base32 = require "base32"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -52,7 +52,7 @@ References:
 ]]
 ---
 -- @usage
--- nmap  -sU -p 53 <target> --script=dns-nsec3-enum --script-args dns-nsec3-enum.domains=example.com
+-- kmap  -sU -p 53 <target> --script=dns-nsec3-enum --script-args dns-nsec3-enum.domains=example.com
 ---
 -- @args dns-nsec3-enum.domains The domain or list of domains to
 -- enumerate. If not provided, the script will make a guess based on the
@@ -78,7 +78,7 @@ References:
 -- |_  Total hashes found: 8
 
 author = {"Aleksandar Nikolic", "John R. Bond"}
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"discovery", "intrusive"}
 
 portrule = shortport.port_or_service(53, "domain", {"tcp", "udp"})
@@ -87,9 +87,9 @@ all_results = {}
 
 -- get time (in milliseconds) when the script should finish
 local function get_end_time()
-  local t = nmap.timing_level()
+  local t = kmap.timing_level()
   local limit = stdnse.parse_timespec(stdnse.get_script_args('dns-nsec3-enum.timelimit') or "30m")
-  local end_time  = 1000 * limit + nmap.clock_ms()
+  local end_time  = 1000 * limit + kmap.clock_ms()
   return end_time
 end
 
@@ -305,7 +305,7 @@ local function enum(host, port, domain)
   end
 
   -- find hash that falls into one of the ranges and query for it
-  while table_size(todo) > 0 and nmap.clock_ms() < end_time do
+  while table_size(todo) > 0 and kmap.clock_ms() < end_time do
     local hash
     hash, subdomain  = generate_hash(domain,iter,salt)
     local queried = false

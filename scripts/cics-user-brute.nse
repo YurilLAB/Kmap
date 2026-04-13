@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 local stdnse    = require "stdnse"
@@ -17,9 +17,9 @@ CICS User ID brute forcing script for the CESL login screen.
 --  to access CICS. Defaults to <code>CICS</code>.
 --
 -- @usage
--- nmap --script=cics-user-brute -p 23 <targets>
+-- kmap --script=cics-user-brute -p 23 <targets>
 --
--- nmap --script=cics-user-brute --script-args userdb=users.txt,
+-- kmap --script=cics-user-brute --script-args userdb=users.txt,
 -- cics-user-brute.commands="exit;logon applid(cics42)" -p 23 <targets>
 --
 -- @output
@@ -37,7 +37,7 @@ CICS User ID brute forcing script for the CESL login screen.
 -- 2019-02-01 - v0.4 - Disabled new TN3270E support
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 portrule = shortport.port_or_service({23,992}, "tn3270")
 
@@ -45,11 +45,11 @@ portrule = shortport.port_or_service({23,992}, "tn3270")
 --
 -- @param username to stop checking
 local function register_invalid( username )
-  if nmap.registry.cicsinvalid == nil then
-    nmap.registry.cicsinvalid = {}
+  if kmap.registry.cicsinvalid == nil then
+    kmap.registry.cicsinvalid = {}
   end
   stdnse.debug(2,"Registering %s", username)
-  nmap.registry.cicsinvalid[username] = true
+  kmap.registry.cicsinvalid[username] = true
 end
 
 Driver = {
@@ -269,7 +269,7 @@ end
 --  ^%D     = The first char must NOT be a digit
 -- [%w@#%$] = All letters including the special chars @, #, and $.
 local valid_name = function(x)
-  if  nmap.registry.tsoinvalid and nmap.registry.tsoinvalid[x] then
+  if  kmap.registry.tsoinvalid and kmap.registry.tsoinvalid[x] then
     return false
   end
   return (string.len(x) <= 8 and string.match(x,"^%D+[%w@#%$]"))

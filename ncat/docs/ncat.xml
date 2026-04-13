@@ -30,7 +30,7 @@
     <title>Description</title>
 
     <para>Ncat is a feature-packed networking utility which reads and writes
-    data across networks from the command line.  Ncat was written for the Nmap
+    data across networks from the command line.  Ncat was written for the Kmap
     Project and is the culmination of the currently splintered family of Netcat
     incarnations.  It is designed to
     be a reliable back-end tool to instantly provide network connectivity to other
@@ -648,7 +648,7 @@
           <option>--allow</option> and <option>--deny</option>,
           <option>--allow</option> takes precedence. Host
           specifications follow the same syntax used
-          by Nmap.</para>
+          by Kmap.</para>
         </listitem>
       </varlistentry>
 
@@ -676,7 +676,7 @@
           In case of a conflict between
           <option>--allow</option> and <option>--deny</option>,
           <option>--allow</option> takes precedence. Host
-          specifications follow the same syntax used by Nmap.</para>
+          specifications follow the same syntax used by Kmap.</para>
         </listitem>
       </varlistentry>
 
@@ -1096,26 +1096,26 @@
     it better by sending bug reports or even writing patches.  If Ncat
     doesn't behave the way you expect, first upgrade to the latest
     version available from <ulink
-    url="https://nmap.org"/>.  If the problem persists,
+    url="https://kmap.org"/>.  If the problem persists,
     do some research to determine whether it has already been
     discovered and addressed.  Try Googling the error message or
-    browsing the <citetitle>nmap-dev</citetitle> archives at <ulink
+    browsing the <citetitle>kmap-dev</citetitle> archives at <ulink
     url="https://seclists.org/" />.
-    <indexterm><primary><citetitle>nmap-dev</citetitle> mailing list</primary></indexterm>
+    <indexterm><primary><citetitle>kmap-dev</citetitle> mailing list</primary></indexterm>
     Read this full manual page as
     well.  If nothing comes of this, mail a bug report to
-    <email>dev@nmap.org</email>.  Please include everything
+    <email>dev@kmap.org</email>.  Please include everything
     you have learned about the problem, as well as what version of
     Ncat you are running and what operating system version it is
     running on.  Problem reports and Ncat usage questions sent to
-    dev@nmap.org are far more likely to be answered than
+    dev@kmap.org are far more likely to be answered than
     those sent to Fyodor directly.</para>
 
     <para>Code patches to fix bugs are even better than bug reports.
     Basic instructions for creating patch files with your changes are
     available at <ulink
-    url="https://svn.nmap.org/nmap/HACKING" />.  Patches may
-    be sent to <citetitle>nmap-dev</citetitle> (recommended) or to Fyodor directly.</para>
+    url="https://svn.kmap.org/kmap/HACKING" />.  Patches may
+    be sent to <citetitle>kmap-dev</citetitle> (recommended) or to Fyodor directly.</para>
   </refsect1>
 
   <refsect1 id="ncat-man-author">
@@ -1126,7 +1126,7 @@
         <para>Chris Gibson <email>chris@linuxops.net</email></para>
       </listitem>
       <listitem>
-        <para>Gordon Lyon (Fyodor)<email>fyodor@nmap.org</email>
+        <para>Gordon Lyon (Fyodor)<email>fyodor@kmap.org</email>
         (<ulink url="http://insecure.org" />)</para>
       </listitem>
       <listitem>
@@ -1150,17 +1150,17 @@
   <title>Ncat Copyright and Licensing</title>
   <indexterm><primary>copyright</primary></indexterm>
 
-  <para>Ncat is (C) 2005&ndash;2022 Nmap Software LLC. It is distributed
+  <para>Ncat is (C) 2005&ndash;2022 Kmap Software LLC. It is distributed
   as free and open source software under the same license terms as our
-  Nmap software.  Precise terms and further details are available
-  <man>from <ulink url="https://nmap.org/man/man-legal.html"/>.</man>
-  <notman>in <xref linkend="nmap-copyright"/>.</notman></para>
+  Kmap software.  Precise terms and further details are available
+  <man>from <ulink url="https://kmap.org/man/man-legal.html"/>.</man>
+  <notman>in <xref linkend="kmap-copyright"/>.</notman></para>
 </refsect2>
 
 <refsect2 id="ncat-man-copyright">
   <title>Creative Commons License for this Ncat Guide</title>
   <para>This <citetitle>Ncat Reference Guide</citetitle> is (C)
-  2005&ndash;2022 Nmap Software LLC. It is
+  2005&ndash;2022 Kmap Software LLC. It is
    hereby placed under version 3.0 of the <ulink
    url="http://creativecommons.org/licenses/by/3.0/">Creative Commons
    Attribution License</ulink>.  This allows you redistribute and modify
@@ -1177,19 +1177,19 @@ have a right to know exactly what a program is going to do before they
 run it. This also allows you to audit the software for security holes
 (none have been found so far).</para>
 
-<para>Source code also allows you to port Nmap (which includes Ncat)
+<para>Source code also allows you to port Kmap (which includes Ncat)
 to new platforms, fix bugs, and add new features.  You are highly
 encouraged to send your changes to
-<email>dev@nmap.org</email> for possible incorporation into
+<email>dev@kmap.org</email> for possible incorporation into
 the main distribution.  By sending these changes to Fyodor or one of
 the Insecure.Org development mailing lists, it is assumed that you are
-offering the Nmap Project (Nmap Software LLC) the unlimited,
-non-exclusive right to reuse, modify, and relicense the code.  Nmap
+offering the Kmap Project (Kmap Software LLC) the unlimited,
+non-exclusive right to reuse, modify, and relicense the code.  Kmap
 will always be available open source,<indexterm><primary>open
 source</primary></indexterm> but this is important because the
 inability to relicense code has caused devastating problems for other
 Free Software projects (such as KDE and NASM).  We also occasionally
-relicense the code to third parties as discussed in the Nmap man page.
+relicense the code to third parties as discussed in the Kmap man page.
 If you wish to specify special license conditions of your
 contributions, just say so when you send them.</para>
 
@@ -1199,10 +1199,10 @@ contributions, just say so when you send them.</para>
 
 <para>This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the Nmap Public Source
-License for more details at <ulink url="https://nmap.org/npsl/" />,
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the Kmap Public Source
+License for more details at <ulink url="https://kmap.org/npsl/" />,
 or in the <filename>LICENSE</filename> file
-included with Nmap.</para>
+included with Kmap.</para>
 </refsect2>
 
 <refsect2 id="ncat-inappropriate-usage"><title>Inappropriate Usage</title>

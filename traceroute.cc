@@ -1,64 +1,64 @@
 /***************************************************************************
  * traceroute.cc -- Parallel multi-protocol traceroute feature             *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
 /*
-Traceroute for Nmap. This traceroute is faster than a traditional traceroute
+Traceroute for Kmap. This traceroute is faster than a traditional traceroute
 because it sends several probes in parallel and detects shared traces.
 
 The algorithm works by sending probes with varying TTL values and waiting for
@@ -99,13 +99,13 @@ router X. The only way to be sure is to do a complete trace for each target
 individually.
 */
 
-#include "nmap_dns.h"
-#include "nmap_error.h"
-#include "nmap_tty.h"
+#include "kmap_dns.h"
+#include "kmap_error.h"
+#include "kmap_tty.h"
 #include "osscan2.h"
 #include "payload.h"
 #include "timing.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "Target.h"
 #include "tcpip.h"
 #include "utils.h"
@@ -124,7 +124,7 @@ individually.
 #include <set>
 #include <vector>
 
-extern NmapOps o;
+extern KmapOps o;
 
 /* The highest TTL we go up to if the target itself doesn't respond. */
 #define MAX_TTL 30
@@ -1333,13 +1333,13 @@ void TracerouteState::resolve_hops() {
   }
   n = addrs.size();
   /* Second, make an array of pointer to DNS::Request to suit the interface of
-     nmap_mass_dns. */
+     kmap_mass_dns. */
   DNS::Request *requests = new DNS::Request[n];
   for (i = 0, addr_iter = addrs.begin(); i < n; i++, addr_iter++) {
     requests[i].ssv.push_back(*addr_iter);
     requests[i].type = DNS::PTR;
   }
-  nmap_mass_dns(requests, n);
+  kmap_mass_dns(requests, n);
   /* Third, make a map from addresses to names for easy lookup. */
   for (i = 0; i < n; i++) {
     std::string &hostname = requests[i].name;

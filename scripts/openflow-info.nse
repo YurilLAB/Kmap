@@ -15,7 +15,7 @@ For additional information:
 ]]
 
 ---
--- @usage nmap -p 6633,6653 --script openflow-info <target>
+-- @usage kmap -p 6633,6653 --script openflow-info <target>
 -- @output
 -- PORT     STATE SERVICE REASON
 -- 6653/tcp open  openflow
@@ -30,7 +30,7 @@ For additional information:
 -- |_    1.5.X
 
 author = {"Jay Smith", "Mak Kolybabi <mak@kolybabi.com>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe"}
 
 -- OpenFlow versions released:

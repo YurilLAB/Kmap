@@ -2,7 +2,7 @@ local _G = require "_G"
 local io = require "io"
 local math = require "math"
 local msrpc = require "msrpc"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -28,7 +28,7 @@ To use this, a configuration file should be created and edited. Several
 configuration files are included that you can customize, or you can write
 your own. This config file is placed in <code>nselib/data/psexec</code> (if
 you aren't sure where that is, search your system for
-<code>default.lua</code>), then is passed to Nmap as a script argument (for
+<code>default.lua</code>), then is passed to Kmap as a script argument (for
 example, myconfig.lua would be passed as
 <code>--script-args=config=myconfig</code>.
 
@@ -191,7 +191,7 @@ And the output (note that we had to up the timeout so this would complete;
 we'll talk about override values later):
 
 <code>
-$ ./nmap -n -d -p445 --script=smb-psexec --script-args=smbuser=test,smbpass=test,config=examples,host=1.2.3.4 192.168.1.21
+$ ./kmap -n -d -p445 --script=smb-psexec --script-args=smbuser=test,smbpass=test,config=examples,host=1.2.3.4 192.168.1.21
 [...]
 |  Example 5: Can the host ping 1.2.3.4?
 |  | Pinging 1.2.3.4 with 32 bytes of data:
@@ -342,7 +342,7 @@ Here are some of the available built-in variables:
                          before it gives up and stops the process
 * <code>$share</code>: The share that everything was uploaded to
 * (script args): Any value passed as a script argument will be replaced (for
-                 example, if Nmap is run with
+                 example, if Kmap is run with
                  <code>--script-args=var3=10</code>, then <code>$var3</code>
                  in any field will be replaced with <code>10</code>. See the
                  <code>req_args</code> field above. Script argument values
@@ -396,7 +396,7 @@ Running a script happens in several stages:
 And that's how it works!
 
 Please post any questions, or suggestions for better modules, to
-dev@nmap.org.
+dev@kmap.org.
 
 And, as usual, since this tool can be dangerous and can easily be viewed as
 a malicious tool -- use this responsibly, and don't break any laws with it.
@@ -422,8 +422,8 @@ Some ideas for later versions (TODO):
 
 ---
 -- @usage
--- nmap --script smb-psexec.nse --script-args=smbuser=<username>,smbpass=<password>[,config=<config>] -p445 <host>
--- sudo nmap -sU -sS --script smb-psexec.nse --script-args=smbuser=<username>,smbpass=<password>[,config=<config>] -p U:137,T:139 <host>
+-- kmap --script smb-psexec.nse --script-args=smbuser=<username>,smbpass=<password>[,config=<config>] -p445 <host>
+-- sudo kmap -sU -sS --script smb-psexec.nse --script-args=smbuser=<username>,smbpass=<password>[,config=<config>] -p U:137,T:139 <host>
 --
 -- @output
 -- Host script results:
@@ -438,7 +438,7 @@ Some ideas for later versions (TODO):
 -- |  |  |_        MAC Address: 00:50:56:A1:00:65
 -- |  |  User list from 'net user'
 -- |  |  |  Administrator            TestUser3                Guest
--- |  |  |  IUSR_RON-WIN2K-TEST      IWAM_RON-WIN2K-TEST      nmap
+-- |  |  |  IUSR_RON-WIN2K-TEST      IWAM_RON-WIN2K-TEST      kmap
 -- |  |  |  rontest123               sshd                     SvcCOPSSH
 -- |  |  |_ test1234                 Testing                  TsInternetUser
 -- |  |  Membership of 'administrators' from 'net localgroup administrators'
@@ -527,14 +527,14 @@ Some ideas for later versions (TODO):
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 dependencies = {"smb-brute"}
 
 
 
--- Where we tell the user to get nmap_service.exe if it's not installed.
-local NMAP_SERVICE_EXE_DOWNLOAD = "https://nmap.org/psexec/nmap_service.exe"
+-- Where we tell the user to get kmap_service.exe if it's not installed.
+local KMAP_SERVICE_EXE_DOWNLOAD = "https://kmap.org/psexec/kmap_service.exe"
 
 
 hostrule = function(host)
@@ -623,7 +623,7 @@ function cleanup(host, config)
   return true
 end
 
----Find the file on the system (checks both Nmap's directories and the current
+---Find the file on the system (checks both Kmap's directories and the current
 -- directory).
 --
 --@param filename  The name of the file.
@@ -634,11 +634,11 @@ local function locate_file(filename, extension)
 
   extension = extension or ""
 
-  local filename_full = nmap.fetchfile(filename) or nmap.fetchfile(filename .. "." .. extension)
+  local filename_full = kmap.fetchfile(filename) or kmap.fetchfile(filename .. "." .. extension)
 
   if(filename_full == nil) then
     local psexecfile = "nselib/data/psexec/" .. filename
-    filename_full = nmap.fetchfile(psexecfile) or nmap.fetchfile(psexecfile .. "." .. extension)
+    filename_full = kmap.fetchfile(psexecfile) or kmap.fetchfile(psexecfile .. "." .. extension)
   end
 
   -- check for absolute path or relative to current directory
@@ -710,10 +710,10 @@ local function find_share(host)
   local status, share, path, shares
 
   -- Determine which share to use
-  if(nmap.registry.args.share ~= nil) then
-    share = nmap.registry.args.share
+  if(kmap.registry.args.share ~= nil) then
+    share = kmap.registry.args.share
     shares = {share}
-    path = nmap.registry.args.sharepath
+    path = kmap.registry.args.sharepath
     if(path == nil) then
       return false, "Setting the 'share' script-arg requires the 'sharepath' to be set as well."
     end
@@ -743,7 +743,7 @@ end
 local function replace_variables(config, setting)
   if(type(setting) == "string") then
     -- Replace module fields with variables in the script-args argument
-    for k, v in pairs(nmap.registry.args) do
+    for k, v in pairs(kmap.registry.args) do
       setting = string.gsub(setting, "$"..k, v)
     end
 
@@ -790,7 +790,7 @@ end
 --@return config The configuration table or an error message.
 local function get_config(host, config)
   local status
-  local filename = nmap.registry.args.config
+  local filename = kmap.registry.args.config
   config.enabled_modules  = {}
   config.disabled_modules = {}
 
@@ -816,8 +816,8 @@ local function get_config(host, config)
   -- Generate a cipher key
   if(stdnse.get_script_args( "nocipher" )) then
     config.key = ""
-  elseif(nmap.registry.args.key) then
-    config.key = nmap.registry.args.key
+  elseif(kmap.registry.args.key) then
+    config.key = kmap.registry.args.key
   else
     local tmp = {}
     for i = 1, 127, 1 do
@@ -934,7 +934,7 @@ local function get_config(host, config)
       -- Keep a table of missing args so we can tell the user all the args they're missing at once
       local missing_args = {}
       for _, arg in ipairs(mod.req_args) do
-        if(nmap.registry.args[arg] == nil) then
+        if(kmap.registry.args[arg] == nil) then
           table.insert(missing_args, arg)
         end
       end
@@ -964,7 +964,7 @@ local function get_config(host, config)
         if(mod.url) then
           stdnse.debug1("You can try getting it from: %s", mod.url)
           table.insert(mod.disabled_message, string.format("You can try getting it from: %s", mod.url))
-          table.insert(mod.disabled_message, "And placing it in Nmap's nselib/data/psexec/ directory")
+          table.insert(mod.disabled_message, "And placing it in Kmap's nselib/data/psexec/ directory")
         end
       else
         -- We found it
@@ -1014,7 +1014,7 @@ local function get_config(host, config)
   config.all_files = get_all_files(config)
 
   -- Finalize the timeout
-  local max_timeout = nmap.registry.args.timeout or 15
+  local max_timeout = kmap.registry.args.timeout or 15
   config.timeout = math.max(config.timeout, max_timeout)
   stdnse.debug1("Timeout waiting for a response is %d seconds", config.timeout)
 
@@ -1077,7 +1077,7 @@ local function get_overrides()
   return {file_create_attributes=attr}
 end
 
---- Check if an nmap_service.exe file is the XOR-encoded version from the 5.21
+--- Check if an kmap_service.exe file is the XOR-encoded version from the 5.21
 -- release. It works by checking the first few bytes against a known pattern.
 -- Returns <code>true</code> or <code>false</code>, or else <code>nil</code> and
 -- an error message.
@@ -1110,7 +1110,7 @@ local function upload_everything(host, config)
   local is_xor_encoded, msg
   local overrides = get_overrides()
 
-  -- In Nmap 5.20, it was discovered that nmap_service.exe file was
+  -- In Kmap 5.20, it was discovered that kmap_service.exe file was
   -- causing false positives in antivirus software. In an effort to avoid
   -- this, in version 5.21 the file was obfuscated by XORing all its bytes
   -- with 0xFF. That didn't work, so now the file is not included in the
@@ -1388,9 +1388,9 @@ local function parse_output(config, data)
         -- Go to the next module, and make sure it exists
         mod = config.enabled_modules[module_num + 1]
         if(mod == nil) then
-          stdnse.debug1("Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to dev@nmap.org", module_num)
+          stdnse.debug1("Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to dev@kmap.org", module_num)
           stdnse.debug1("--\n" .. string.gsub("%%", "%%", data) .. "\n--")
-          return false, "Server's response wasn't formatted properly; if you can reproduce, place report to dev@nmap.org"
+          return false, "Server's response wasn't formatted properly; if you can reproduce, place report to dev@kmap.org"
         end
 
         -- Save this result
@@ -1454,18 +1454,18 @@ action = function(host)
   local config = {}
   local files
 
-  -- First check for nmap_service.exe; we can't do anything without it.
-  stdnse.debug1("Looking for the service file: nmap_service or nmap_service.exe")
-  config.local_service_file = locate_file("nmap_service", "exe")
+  -- First check for kmap_service.exe; we can't do anything without it.
+  stdnse.debug1("Looking for the service file: kmap_service or kmap_service.exe")
+  config.local_service_file = locate_file("kmap_service", "exe")
   if (config.local_service_file == nil) then
-    if nmap.verbosity() > 0 then
+    if kmap.verbosity() > 0 then
       return string.format([[
-Can't find the service file: nmap_service.exe (or nmap_service).
+Can't find the service file: kmap_service.exe (or kmap_service).
 Due to false positives in antivirus software, this module is no
 longer included by default. Please download it from
 %s
-and place it in nselib/data/psexec/ under the Nmap DATADIR.
-]], NMAP_SERVICE_EXE_DOWNLOAD)
+and place it in nselib/data/psexec/ under the Kmap DATADIR.
+]], KMAP_SERVICE_EXE_DOWNLOAD)
     else
       return
     end

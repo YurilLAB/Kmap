@@ -2,7 +2,7 @@ local http = require "http"
 local io = require "io"
 local ipOps = require "ipOps"
 local json = require "json"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"
@@ -14,12 +14,12 @@ local openssl = stdnse.silent_require "openssl"
 local apiKey = ""
 
 author = "Glenn Wilkinson <glenn@sensepost.com> (idea: Charl van der Walt <charl@sensepost.com>)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
 description = [[
 Queries Shodan API for given targets and produces similar output to
-a -sV nmap scan. The ShodanAPI key can be set with the 'apikey' script
+a -sV kmap scan. The ShodanAPI key can be set with the 'apikey' script
 argument, or hardcoded in the .nse file itself. You can get a free key from
 https://developer.shodan.io
 
@@ -29,11 +29,11 @@ include the -sn -Pn -n flags.
 
 ---
 -- @usage
---  nmap --script shodan-api x.y.z.0/24 -sn -Pn -n --script-args 'shodan-api.outfile=potato.csv,shodan-api.apikey=SHODANAPIKEY'
---  nmap --script shodan-api --script-args 'shodan-api.target=x.y.z.a,shodan-api.apikey=SHODANAPIKEY'
+--  kmap --script shodan-api x.y.z.0/24 -sn -Pn -n --script-args 'shodan-api.outfile=potato.csv,shodan-api.apikey=SHODANAPIKEY'
+--  kmap --script shodan-api --script-args 'shodan-api.target=x.y.z.a,shodan-api.apikey=SHODANAPIKEY'
 --
 -- @output
--- | shodan-api: Report for 2600:3c01::f03c:91ff:fe18:bb2f (scanme.nmap.org)
+-- | shodan-api: Report for 2600:3c01::f03c:91ff:fe18:bb2f (scanme.kmap.org)
 -- | PORT	PROTO	PRODUCT      VERSION
 -- | 80   tcp   Apache httpd
 -- | 3306 tcp   MySQL        5.5.40-0+wheezy1
@@ -46,7 +46,7 @@ include the -sn -Pn -n flags.
 --
 --@xmloutput
 -- <table key="hostnames">
---   <elem>scanme.nmap.org</elem>
+--   <elem>scanme.kmap.org</elem>
 -- </table>
 -- <table key="ports">
 --   <table>
@@ -70,13 +70,13 @@ include the -sn -Pn -n flags.
 
 
 -- Begin
-if not nmap.registry[SCRIPT_NAME] then
-  nmap.registry[SCRIPT_NAME] = {
+if not kmap.registry[SCRIPT_NAME] then
+  kmap.registry[SCRIPT_NAME] = {
     apiKey = stdnse.get_script_args(SCRIPT_NAME .. ".apikey") or apiKey,
     count = 0
   }
 end
-local registry = nmap.registry[SCRIPT_NAME]
+local registry = kmap.registry[SCRIPT_NAME]
 local outFile = stdnse.get_script_args(SCRIPT_NAME .. ".outfile")
 local arg_target = stdnse.get_script_args(SCRIPT_NAME .. ".target")
 

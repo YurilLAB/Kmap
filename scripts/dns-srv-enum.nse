@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local tab = require "tab"
 local table = require "table"
@@ -22,7 +22,7 @@ The following services are enumerated by the script:
 
 ---
 -- @usage
--- nmap --script dns-srv-enum --script-args "dns-srv-enum.domain='example.com'"
+-- kmap --script dns-srv-enum --script-args "dns-srv-enum.domain='example.com'"
 --
 -- @output
 -- | dns-srv-enum:
@@ -59,7 +59,7 @@ The following services are enumerated by the script:
 --       (default: all)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -117,7 +117,7 @@ local function checkFilter(services)
 end
 
 local function doQuery(name, queries, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local svc_result = tab.new(4)
   tab.addrow(svc_result, "service", "prio", "weight", "host")
   for _, query in ipairs(queries) do
@@ -163,7 +163,7 @@ action = function(host)
     end
   end
 
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   repeat
     for t in pairs(threads) do
       if ( coroutine.status(t) == "dead" ) then threads[t] = nil end

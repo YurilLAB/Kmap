@@ -1,5 +1,5 @@
 local datetime = require "datetime"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local string = require "string"
@@ -10,7 +10,7 @@ Attempts to extract system information from an SNMP service.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script snmp-sysdescr <target>
+-- kmap -sU -p 161 --script snmp-sysdescr <target>
 --
 -- @output
 -- |  snmp-sysdescr: HP ETHERNET MULTI-ENVIRONMENT,ROM A.25.80,JETDIRECT,JD117,EEPROM V.28.22,CIDATE 08/09/2006
@@ -18,7 +18,7 @@ Attempts to extract system information from an SNMP service.
 
 author = "Thomas Buchanan"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -44,7 +44,7 @@ action = function(host, port)
   end
 
   -- since we got something back, the port is definitely open
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local result = response and response[1] and response[1][1]
 

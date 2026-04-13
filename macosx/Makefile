@@ -1,11 +1,11 @@
-# This makefile builds a disk image (.dmg) containing the installer for Nmap,
-# Zenmap, Ncat, and Ndiff.
+# This makefile builds a disk image (.dmg) containing the installer for Kmap,
+# Zekmap, Ncat, and Ndiff.
 
-export NMAP_VERSION := $(shell echo NMAP_VERSION | $(CPP) -imacros ../nmap.h - | sed -n '$$s/[" ]//g;$$p')
+export KMAP_VERSION := $(shell echo KMAP_VERSION | $(CPP) -imacros ../kmap.h - | sed -n '$$s/[" ]//g;$$p')
 OSX_VERSION=$(shell sw_vers -productVersion | cut -d'.' -f1,2 | tr -d ' ')
 export OSX_MIN_VERSION = 10.15
 
-NAME_VERSION = nmap-$(NMAP_VERSION)$(if $(APPENDAGE),-$(APPENDAGE))
+NAME_VERSION = kmap-$(KMAP_VERSION)$(if $(APPENDAGE),-$(APPENDAGE))
 
 IMAGE_NAME = $(NAME_VERSION).dmg
 PKG_NAME = $(NAME_VERSION).mpkg
@@ -55,31 +55,31 @@ have-%:
 	which $*
 
 # Create packages (.pkg) for all the components to install in the installer (.mpkg)
-PKGBUILD=pkgbuild --version $(NMAP_VERSION) --scripts Scripts --install-location /Applications --min-os-version $(OSX_MIN_VERSION)
+PKGBUILD=pkgbuild --version $(KMAP_VERSION) --scripts Scripts --install-location /Applications --min-os-version $(OSX_MIN_VERSION)
 %.pkg: check-%
-	$(PKGBUILD) --root $*-root --identifier org.insecure.nmap.$* $@
-nmap.pkg: check-nmap
-	$(PKGBUILD) --root nmap-root --identifier org.insecure.nmap $@
-zenmap.pkg: check-zenmap
-	$(PKGBUILD) --root zenmap-root --identifier org.insecure.nmap.zenmap $@
+	$(PKGBUILD) --root $*-root --identifier org.insecure.kmap.$* $@
+kmap.pkg: check-kmap
+	$(PKGBUILD) --root kmap-root --identifier org.insecure.kmap $@
+zekmap.pkg: check-zekmap
+	$(PKGBUILD) --root zekmap-root --identifier org.insecure.kmap.zekmap $@
 
-#$(IMAGE_STAGING_DIR)/$(PKG_NAME): nmap.pkg ncat.pkg ndiff.pkg zenmap.pkg nping.pkg LICENSE.formatted
-$(IMAGE_STAGING_DIR)/$(PKG_NAME): nmap.pkg ncat.pkg zenmap.pkg nping.pkg LICENSE.formatted
+#$(IMAGE_STAGING_DIR)/$(PKG_NAME): kmap.pkg ncat.pkg ndiff.pkg zekmap.pkg nping.pkg LICENSE.formatted
+$(IMAGE_STAGING_DIR)/$(PKG_NAME): kmap.pkg ncat.pkg zekmap.pkg nping.pkg LICENSE.formatted
 	rm -rf $(IMAGE_STAGING_DIR)
 	mkdir -p $(IMAGE_STAGING_DIR)
 	cp -rf $(EXTRA_DIST) $(IMAGE_STAGING_DIR)/
 
 	# Produce a .xml with packages information
 	productbuild --synthesize \
-		--package 'nmap.pkg' \
+		--package 'kmap.pkg' \
 		--package 'ncat.pkg' \
 		--package 'nping.pkg' \
-		--package 'zenmap.pkg' \
+		--package 'zekmap.pkg' \
 		distribution.xml
 
 	# Make a new file and add background and title attributes
 	head -n 2 distribution.xml > finalDist.xml
-	echo "    <title>Nmap $(NMAP_VERSION)</title>" >> finalDist.xml
+	echo "    <title>Kmap $(KMAP_VERSION)</title>" >> finalDist.xml
 	# This line is for adding a background image to the .mpkg
 	echo "    <background file=\"pkg_bg.jpg\" mime-type=\"image/jpeg\" scaling=\"proportional\" alignment=\"bottomleft\"/>" >> finalDist.xml
 	tail -n +3 distribution.xml >> finalDist.xml
@@ -93,37 +93,37 @@ check-%: stage-%
 	(find $*-root -perm -a+x -type f | xargs otool -L | awk '/:$$/{e=$$0}index($$0,"$(JHBUILD_PREFIX)"){x=1;print e; print}END{exit x}') && echo "Libs are clean"
 	(find $*-root -perm -a+x -type f -exec otool -l {} \; | awk '/:$$/{e=$$0}$$1=="minos"&&$$2!="$(OSX_MIN_VERSION)"{x=1;print e; print}END{exit x}' ) && echo "Bins are clean"
 
-check-zenmap: stage-zenmap
-	(find zenmap-build -perm -a+x -type f | xargs otool -L | awk '/:$$/{e=$$0}index($$0,"$(JHBUILD_PREFIX)"){x=1;print e; print}END{exit x}') && echo "Libs are clean"
-	(find zenmap-build -perm -a+x -type f -exec otool -l {} \; | awk '/:$$/{e=$$0}$$1=="minos"&&$$2!="$(OSX_MIN_VERSION)"{x=1;print e; print}END{exit x}' ) && echo "Bins are clean"
+check-zekmap: stage-zekmap
+	(find zekmap-build -perm -a+x -type f | xargs otool -L | awk '/:$$/{e=$$0}index($$0,"$(JHBUILD_PREFIX)"){x=1;print e; print}END{exit x}') && echo "Libs are clean"
+	(find zekmap-build -perm -a+x -type f -exec otool -l {} \; | awk '/:$$/{e=$$0}$$1=="minos"&&$$2!="$(OSX_MIN_VERSION)"{x=1;print e; print}END{exit x}' ) && echo "Bins are clean"
 
 export-%:
 	rm -rf $*
 # Using @BASE discards local changes.
 	svn export .. $*
 
-NMAP_SOURCEDIR=$(JHBUILD_SOURCE)/nmap-$(NMAP_VERSION)
-NMAP_TARBALL=$(JHBUILD_SOURCE)/pkgs/nmap-$(NMAP_VERSION).tar.gz
-$(NMAP_TARBALL):
-	rm -rf nmap-$(NMAP_VERSION)
-	svn export .. nmap-$(NMAP_VERSION)
-	tar czf nmap-$(NMAP_VERSION).tar.gz nmap-$(NMAP_VERSION)
-	cp nmap-$(NMAP_VERSION).tar.gz $(JHBUILD_SOURCE)/pkgs/
+KMAP_SOURCEDIR=$(JHBUILD_SOURCE)/kmap-$(KMAP_VERSION)
+KMAP_TARBALL=$(JHBUILD_SOURCE)/pkgs/kmap-$(KMAP_VERSION).tar.gz
+$(KMAP_TARBALL):
+	rm -rf kmap-$(KMAP_VERSION)
+	svn export .. kmap-$(KMAP_VERSION)
+	tar czf kmap-$(KMAP_VERSION).tar.gz kmap-$(KMAP_VERSION)
+	cp kmap-$(KMAP_VERSION).tar.gz $(JHBUILD_SOURCE)/pkgs/
 
-openssl.modules: ../nmap.h
-	sed -i.bak '/ENTITY nmap_version/s/\".*\"/\"$(NMAP_VERSION)\"/' $@
+openssl.modules: ../kmap.h
+	sed -i.bak '/ENTITY kmap_version/s/\".*\"/\"$(KMAP_VERSION)\"/' $@
 
 clean-%: openssl.modules
 	jhbuild -m "file://`pwd`/openssl.modules" uninstall $*
 
-build-%: $(NMAP_TARBALL) openssl.modules
+build-%: $(KMAP_TARBALL) openssl.modules
 	jhbuild -m "file://`pwd`/openssl.modules" build $*
 
 stage-%: build-%
 	sh make-app.sh $* "$(JHBUILD_PREFIX)"
 
-stage-zenmap: export-zenmap-build
-	jhbuild run zenmap-build/zenmap/install_scripts/macosx/make-bundle.sh
+stage-zekmap: export-zekmap-build
+	jhbuild run zekmap-build/zekmap/install_scripts/macosx/make-bundle.sh
 
 build-ndiff:
 	echo Nothing to do
@@ -132,15 +132,15 @@ LICENSE.formatted:
 # Use the license formatter from the Windows installer.
 	../mswin32/license-format/licformat.sh ../LICENSE > $@
 
-clean: clean-nmap clean-ncat clean-nping
-	rm -f $(NMAP_TARBALL)
-	rm -rf $(NMAP_SOURCEDIR)
+clean: clean-kmap clean-ncat clean-nping
+	rm -f $(KMAP_TARBALL)
+	rm -rf $(KMAP_SOURCEDIR)
 	rm -rf $(IMAGE_STAGING_DIR)
 	rm -rf *-build/
 	rm -rf *-root/
 	rm -f LICENSE.formatted
 	rm -f $(IMAGE_NAME)
-	rm -rf distribution.xml finalDist.xml nmap.pkg ncat.pkg ndiff.pkg nping.pkg zenmap.pkg
-	rm -f $(NMAP_TARBALL)
+	rm -rf distribution.xml finalDist.xml kmap.pkg ncat.pkg ndiff.pkg nping.pkg zekmap.pkg
+	rm -f $(KMAP_TARBALL)
 
 .PHONY: clean export-% stage-%

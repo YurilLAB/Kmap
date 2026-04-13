@@ -12,7 +12,7 @@ local rand = require "rand"
 
 ---
 -- @usage
--- nmap -p <port> --script http-vuln-cve2017-5638 <target>
+-- kmap -p <port> --script http-vuln-cve2017-5638 <target>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -33,7 +33,7 @@ local rand = require "rand"
 -- @args http-vuln-cve2017-5638.path The URL path to request. The default path is "/".
 
 author = "Seth Jackson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln" }
 
 portrule = shortport.http

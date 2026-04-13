@@ -3,11 +3,11 @@
 -- NetBIOS name requests.
 --
 -- @author Ron Bowes <ron@skullsecurity.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local dns = require "dns"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -241,7 +241,7 @@ end
 --- This is the function that actually handles the UDP query to retrieve
 -- the NBSTAT information.
 --
--- We make use of the Nmap registry here, so if another script has already
+-- We make use of the Kmap registry here, so if another script has already
 -- performed a nbstat query, the result can be re-used.
 --
 -- The NetBIOS request's header looks like this:
@@ -288,21 +288,21 @@ end
 function do_nbstat(host)
 
   local status, err
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local encoded_name = name_encode("*")
   local statistics
   local reg
   if type(host) == "string" then --ip
     stdnse.debug3("Performing nbstat on host '%s'", host)
-    nmap.registry.netbios = nmap.registry.netbios or {}
-    nmap.registry.netbios[host] = nmap.registry.netbios[host] or {}
-    reg = nmap.registry.netbios[host]
+    kmap.registry.netbios = kmap.registry.netbios or {}
+    kmap.registry.netbios[host] = kmap.registry.netbios[host] or {}
+    reg = kmap.registry.netbios[host]
   else
     stdnse.debug3("Performing nbstat on host '%s'", host.ip)
     if host.registry.netbios == nil and
-      nmap.registry.netbios ~= nil and
-      nmap.registry.netbios[host.ip] ~= nil then
-      host.registry.netbios = nmap.registry.netbios[host.ip]
+      kmap.registry.netbios ~= nil and
+      kmap.registry.netbios[host.ip] ~= nil then
+      host.registry.netbios = kmap.registry.netbios[host.ip]
     end
     host.registry.netbios = host.registry.netbios or {}
     reg = host.registry.netbios

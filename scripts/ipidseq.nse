@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,14 +10,14 @@ Classifies a host's IP ID sequence (test for susceptibility to idle
 scan).
 
 Sends six probes to obtain IP IDs from the target and classifies them
-similarly to Nmap's method.  This is useful for finding suitable zombies
-for Nmap's idle scan (<code>-sI</code>) as Nmap itself doesn't provide a way to scan
+similarly to Kmap's method.  This is useful for finding suitable zombies
+for Kmap's idle scan (<code>-sI</code>) as Kmap itself doesn't provide a way to scan
 for these hosts.
 ]]
 
 ---
 -- @usage
--- nmap --script ipidseq [--script-args probeport=port] target
+-- kmap --script ipidseq [--script-args probeport=port] target
 -- @args probeport Set destination port to probe
 -- @output
 -- Host script results:
@@ -25,13 +25,13 @@ for these hosts.
 
 -- I also implemented this in Metasploit as auxiliary/scanner/ip/ipidseq, but
 -- this NSE script was actually written first (unfortunately it only worked
--- with vanilla Nmap using dnet ethernet sending.. ugh)
+-- with vanilla Kmap using dnet ethernet sending.. ugh)
 --
 -- Originally written 05/24/2008; revived 01/24/2010
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -147,8 +147,8 @@ end
 -- @param host Host object
 local getport = function(host)
   for _, k in ipairs({"ipidseq.probeport", "probeport"}) do
-    if nmap.registry.args[k] then
-      return tonumber(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      return tonumber(kmap.registry.args[k])
     end
   end
 
@@ -157,7 +157,7 @@ local getport = function(host)
   local port = nil
 
   for _, s in ipairs(states) do
-    port = nmap.get_ports(host, nil, "tcp", s)
+    port = kmap.get_ports(host, nil, "tcp", s)
     if port then
       break
     end
@@ -171,16 +171,16 @@ local getport = function(host)
 end
 
 hostrule = function(host)
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return nil
   end
 
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -193,15 +193,15 @@ end
 
 action = function(host)
   local ipids = {}
-  local sock = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local sock = kmap.new_dnet()
+  local pcap = kmap.new_socket()
   local saddr = ipOps.str_to_ip(host.bin_ip_src)
   local daddr = ipOps.str_to_ip(host.bin_ip)
-  local try = nmap.new_try()
+  local try = kmap.new_try()
 
   try(sock:ip_open())
 
-  try = nmap.new_try(function() sock:ip_close() end)
+  try = kmap.new_try(function() sock:ip_close() end)
 
   pcap:pcap_open(host.interface, 104, false, "tcp and dst host " .. saddr .. " and src host " .. daddr .. " and src port " .. ipidseqport)
 
@@ -229,7 +229,7 @@ action = function(host)
 
   local output = ipidseqclass(ipids)
 
-  if nmap.debugging() > 0 then
+  if kmap.debugging() > 0 then
     output = output .. " [used port " .. ipidseqport .. "]"
   end
 

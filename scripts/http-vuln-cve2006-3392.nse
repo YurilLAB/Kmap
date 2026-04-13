@@ -12,8 +12,8 @@ to bypass the removal of "../" directory traversal sequences.
 ]]
 ---
 -- @usage
--- nmap -sV --script http-vuln-cve2006-3392 <target>
--- nmap -p80 --script http-vuln-cve2006-3392 --script-args http-vuln-cve2006-3392.file=/etc/shadow <target>
+-- kmap -sV --script http-vuln-cve2006-3392 <target>
+-- kmap -p80 --script http-vuln-cve2006-3392 --script-args http-vuln-cve2006-3392.file=/etc/shadow <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 10000/tcp open  webmin    syn-ack
@@ -37,7 +37,7 @@ to bypass the removal of "../" directory traversal sequences.
 ---
 
 author = "Paul AMAR <aos.paul@gmail.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.portnumber({10000})

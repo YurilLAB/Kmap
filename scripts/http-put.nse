@@ -9,7 +9,7 @@ Uploads a local file to a remote web server using the HTTP PUT method. You must 
 
 ---
 -- @usage
--- nmap -p 80 <ip> --script http-put --script-args http-put.url='/uploads/rootme.php',http-put.file='/tmp/rootme.php'
+-- kmap -p 80 <ip> --script http-put --script-args http-put.url='/uploads/rootme.php',http-put.file='/tmp/rootme.php'
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -29,7 +29,7 @@ Uploads a local file to a remote web server using the HTTP PUT method. You must 
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 

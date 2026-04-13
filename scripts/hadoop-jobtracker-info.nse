@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,7 +22,7 @@ Information gathered:
 
 ---
 -- @usage
--- nmap --script hadoop-jobtracker-info [--script-args=hadoop-jobtracker-info.userinfo] -p 50030 host
+-- kmap --script hadoop-jobtracker-info [--script-args=hadoop-jobtracker-info.userinfo] -p 50030 host
 --
 -- @args hadoop-jobtracker-info.userinfo Retrieve user history info. Default: false
 --
@@ -60,7 +60,7 @@ Information gathered:
 
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 
@@ -175,7 +175,7 @@ action = function( host, port )
   if #result > 0 then
     port.version.name = "hadoop-jobtracker"
     port.version.product = "Apache Hadoop"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
     return result
   end
 end

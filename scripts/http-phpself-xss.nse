@@ -20,8 +20,8 @@ The attack vector/probe used is: <code>/'"/><script>alert(1)</script></code>
 
 ---
 -- @usage
--- nmap --script=http-phpself-xss -p80 <target>
--- nmap -sV --script http-self-xss <target>
+-- kmap --script=http-phpself-xss -p80 <target>
+-- kmap -sV --script http-self-xss <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -52,7 +52,7 @@ The attack vector/probe used is: <code>/'"/><script>alert(1)</script></code>
 -- @see http-dombased-xss.nse
 -- @see http-xssed.nse
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"fuzzer", "intrusive", "vuln"}
 
 local http = require 'http'

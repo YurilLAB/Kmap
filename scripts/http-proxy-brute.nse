@@ -11,7 +11,7 @@ Performs brute force password guessing against HTTP proxy servers.
 
 ---
 -- @usage
--- nmap --script http-proxy-brute -p 8080 <host>
+-- kmap --script http-proxy-brute -p 8080 <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -28,7 +28,7 @@ Performs brute force password guessing against HTTP proxy servers.
 --       brute force guessing (default: HEAD)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 -- maybe the script does not need to be in the external category
 -- as most request should not "leave" the proxy.
@@ -37,7 +37,7 @@ categories = {"brute", "intrusive", "external"}
 
 portrule = shortport.port_or_service({8123,3128,8000,8080},{'polipo','squid-http','http-proxy'})
 
-local arg_url = stdnse.get_script_args(SCRIPT_NAME .. '.url') or 'http://scanme.nmap.org/'
+local arg_url = stdnse.get_script_args(SCRIPT_NAME .. '.url') or 'http://scanme.kmap.org/'
 local arg_method = stdnse.get_script_args(SCRIPT_NAME .. '.method') or "HEAD"
 
 Driver = {

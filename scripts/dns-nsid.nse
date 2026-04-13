@@ -1,5 +1,5 @@
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -19,7 +19,7 @@ References:
 
 ---
 -- @usage
--- nmap -sSU -p 53 --script dns-nsid <target>
+-- kmap -sSU -p 53 --script dns-nsid <target>
 --
 -- @output
 -- 53/udp open  domain  udp-response
@@ -37,7 +37,7 @@ References:
 -- <elem key="bind.version">NSD 3.2.15</elem>
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 
 categories = {"discovery", "default", "safe"}
 
@@ -48,7 +48,7 @@ portrule = function (host, port)
   end
   -- only check tcp if udp is not open or open|filtered
   if port.protocol == 'tcp' then
-    local tmp_port = nmap.get_port_state(host, {number=port.number, protocol="udp"})
+    local tmp_port = kmap.get_port_state(host, {number=port.number, protocol="udp"})
     if tmp_port then
       return not string.match(tmp_port.state, '^open')
     end

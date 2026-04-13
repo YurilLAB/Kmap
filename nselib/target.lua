@@ -1,20 +1,20 @@
 ---
--- Utility functions to add new discovered targets to Nmap scan queue.
+-- Utility functions to add new discovered targets to Kmap scan queue.
 --
--- The library lets scripts to add new discovered targets to Nmap scan
+-- The library lets scripts to add new discovered targets to Kmap scan
 -- queue. Only scripts that run in the script pre-scanning phase
 -- (prerule) and the script scanning phase (hostrule and portrule) are
 -- able to add new targets. Post-scanning scripts (postrule) are not
 -- allowed to add new targets.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @args newtargets  If specified, lets NSE scripts add new targets.
 -- @args max-newtargets  Sets the number of the maximum allowed
 --                       new targets. If set to 0 or less then there
 --                       is no limit. The default value is 0.
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local type      = type
@@ -46,7 +46,7 @@ end
 --- Local function to calculate max allowed new targets
 local calc_max_targets = function(targets)
   if max_newtargets > 0 then
-    local pushed_targets = nmap.new_targets_num()
+    local pushed_targets = kmap.new_targets_num()
     if pushed_targets >= max_newtargets then
       return 0
     elseif (targets + pushed_targets) > max_newtargets then
@@ -56,7 +56,7 @@ local calc_max_targets = function(targets)
   return targets
 end
 
---- Adds the passed arguments to the Nmap scan queue.
+--- Adds the passed arguments to the Kmap scan queue.
 --
 -- Only prerule, portrule and hostrule scripts can add new targets.
 --
@@ -67,7 +67,7 @@ end
 -- @usage
 -- local status, err = target.add("192.168.1.1")
 -- local status, err = target.add("192.168.1.1","192.168.1.2",...)
--- local status, err = target.add("scanme.nmap.org","192.168.1.1",...)
+-- local status, err = target.add("scanme.kmap.org","192.168.1.1",...)
 -- local status, err = target.add(table.unpack(array_of_targets))
 -- local status, pending_targets = target.add()
 -- @return True if it has been able to add a minimum one target, or
@@ -91,7 +91,7 @@ add = function (...)
 
   -- function called without arguments
   if new_targets.count == 0 then
-    return true, nmap.add_targets()
+    return true, kmap.add_targets()
   end
 
   new_targets.count = calc_max_targets(new_targets.count)
@@ -102,7 +102,7 @@ add = function (...)
     return false, "Maximum new targets reached, no more new targets."
   end
 
-  local hosts, err = nmap.add_targets(table.unpack(new_targets,1,new_targets.count))
+  local hosts, err = kmap.add_targets(table.unpack(new_targets,1,new_targets.count))
 
   if hosts == 0 then
     stdnse.debug3("%s", err)

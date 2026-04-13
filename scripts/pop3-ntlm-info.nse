@@ -20,7 +20,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 110,995 --script pop3-ntlm-info <target>
+-- kmap -p 110,995 --script pop3-ntlm-info <target>
 --
 -- @output
 -- 110/tcp   open     pop3
@@ -44,7 +44,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

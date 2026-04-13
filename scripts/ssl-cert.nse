@@ -1,5 +1,5 @@
 local datetime = require "datetime"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local shortport = require "shortport"
 local sslcert = require "sslcert"
@@ -176,7 +176,7 @@ DNS:es.paypal-qrc.com, DNS:www.fastlane.paypal.com
 
 author = "David Fifield"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = { "default", "safe", "discovery" }
 dependencies = {"https-redirect"}
@@ -241,7 +241,7 @@ function stringify_name(name)
       fields[#fields + 1] = string.format("%s=%s", k, maybe_decode(v) or '')
     end
   end
-  if nmap.verbosity() > 1 then
+  if kmap.verbosity() > 1 then
     for k, v in pairs(name) do
       -- Don't include a field twice.
       if not table_find(NON_VERBOSE_FIELDS, k) then
@@ -334,11 +334,11 @@ local function output_str(cert)
     end
   end
 
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     lines[#lines + 1] = "Issuer: " .. stringify_name(cert.issuer)
   end
 
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     lines[#lines + 1] = "Public Key type: " .. cert.pubkey.type
     lines[#lines + 1] = "Public Key bits: " .. cert.pubkey.bits
     lines[#lines + 1] = "Signature Algorithm: " .. cert.sig_algorithm
@@ -349,13 +349,13 @@ local function output_str(cert)
   lines[#lines + 1] = "Not valid after:  " ..
   date_to_string(cert.validity.notAfter)
 
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     lines[#lines + 1] = "MD5:     " .. stdnse.tohex(cert:digest("md5"), { separator = " ", group = 4 })
     lines[#lines + 1] = "SHA-1:   " .. stdnse.tohex(cert:digest("sha1"), { separator = " ", group = 4 })
     lines[#lines + 1] = "SHA-256: " .. stdnse.tohex(cert:digest("sha256"), { separator = " ", group = 4 })
   end
 
-  if nmap.verbosity() > 1 then
+  if kmap.verbosity() > 1 then
     lines[#lines + 1] = cert.pem
   end
   return table.concat(lines, "\n")

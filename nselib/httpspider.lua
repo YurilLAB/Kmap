@@ -102,7 +102,7 @@
 local coroutine = require "coroutine"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -696,7 +696,7 @@ Crawler = {
       -- For more information on individual file formats, see
       -- http://en.wikipedia.org/wiki/List_of_file_formats.
       o.web_files_extensions = {}
-      local f = nmap.fetchfile("nselib/data/http-web-files-extensions.lst")
+      local f = kmap.fetchfile("nselib/data/http-web-files-extensions.lst")
       if f then
         for l in io.lines(f) do
           table.insert(o.web_files_extensions, l)
@@ -786,7 +786,7 @@ Crawler = {
   -- This way the script can alert the user of the details by calling
   -- getError()
   crawl_thread = function(self, response_queue)
-    local condvar = nmap.condvar(response_queue)
+    local condvar = kmap.condvar(response_queue)
 
     if ( false ~= self.options.withinhost and false ~= self.options.withindomain ) then
       table.insert(response_queue, { false, { err = true, reason = "Invalid options: withinhost and withindomain can't both be true" } })
@@ -844,7 +844,7 @@ Crawler = {
       if ( self.options.useheadfornonwebfiles ) then
         local is_web_file = false
         local file = url:getPath():lower()
-        -- check if we are at a URL with 'no extension', for example: nmap.org/6
+        -- check if we are at a URL with 'no extension', for example: kmap.org/6
         if string.match(file,".*(/[^/%.]*)$") or string.match(file, "/$") then is_web_file = true end
         if not is_web_file then
           for _,v in pairs(self.web_files_extensions) do
@@ -1044,7 +1044,7 @@ Crawler = {
   -- does the crawling
   crawl = function(self)
     self.response_queue = self.response_queue or {}
-    local condvar = nmap.condvar(self.response_queue)
+    local condvar = kmap.condvar(self.response_queue)
     if ( not(self.thread) ) then
       self.thread = stdnse.new_thread(self.crawl_thread, self, self.response_queue)
     end
@@ -1062,7 +1062,7 @@ Crawler = {
 
   -- signals the crawler to stop
   stop = function(self)
-    local condvar = nmap.condvar(self.response_queue)
+    local condvar = kmap.condvar(self.response_queue)
     self.quit = true
     condvar "signal"
     if ( coroutine.status(self.thread) == "dead" ) then

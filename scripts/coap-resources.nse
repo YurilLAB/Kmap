@@ -19,7 +19,7 @@ For additional information:
 ]]
 
 ---
--- @usage nmap -p U:5683 -sU --script coap-resources <target>
+-- @usage kmap -p U:5683 -sU --script coap-resources <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -70,7 +70,7 @@ For additional information:
 -- </table>
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 -- TODO: Add 5684 "coaps" if DTLS support is added

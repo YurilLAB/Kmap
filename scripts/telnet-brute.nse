@@ -2,7 +2,7 @@ local comm = require "comm"
 local coroutine = require "coroutine"
 local creds = require "creds"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local strbuf = require "strbuf"
@@ -15,7 +15,7 @@ Performs brute-force password auditing against telnet servers.
 
 ---
 -- @usage
---   nmap -p 23 --script telnet-brute --script-args userdb=myusers.lst,passdb=mypwds.lst,telnet-brute.timeout=8s <target>
+--   kmap -p 23 --script telnet-brute --script-args userdb=myusers.lst,passdb=mypwds.lst,telnet-brute.timeout=8s <target>
 --
 -- @output
 -- 23/tcp open  telnet
@@ -31,7 +31,7 @@ Performs brute-force password auditing against telnet servers.
 --                              (default: "true")
 
 author = "nnposter"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {'brute', 'intrusive'}
 
 portrule = shortport.port_or_service(23, 'telnet')
@@ -421,7 +421,7 @@ Driver.new = function (self, host, port, target)
                         connect = telnet_autosize
                                   and Driver.methods.connect_autosize
                                   or Driver.methods.connect_simple,
-                        thread_exit = nmap.condvar(target)
+                        thread_exit = kmap.condvar(target)
                       },
                       { __index = Driver.methods })
 end

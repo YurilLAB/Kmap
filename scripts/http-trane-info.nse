@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local http = require "http"
 local stdnse = require "stdnse"
 local shortport = require "shortport"
@@ -15,11 +15,11 @@ The information is obtained from the web server that exposes sensitive content t
 Tested on Trane Tracer SC version 4.40.1211 and below.
 
 References:
-* http://websec.mx/publicacion/blog/Scripts-de-Nmap-para-Trane-Tracer-SC-HVAC
+* http://websec.mx/publicacion/blog/Scripts-de-Kmap-para-Trane-Tracer-SC-HVAC
 ]]
 
 ---
--- @usage nmap -p80 --script trane-info.nse <target>
+-- @usage kmap -p80 --script trane-info.nse <target>
 --
 -- @output
 -- | http-trane-info: 
@@ -63,11 +63,11 @@ References:
 ---
 
 author = "Pedro Joaquin <pjoaquin()websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version", "safe"}
 
 portrule = function(host, port)
-  return (shortport.http(host,port) and nmap.version_intensity() >= 7)
+  return (shortport.http(host,port) and kmap.version_intensity() >= 7)
 end
 
 local function GetInformation(host, port)
@@ -149,7 +149,7 @@ local function GetInformation(host, port)
   port.version.devicetype = output["hardwareType"] 
   table.insert(port.version.cpe, "cpe:/h:".. output["vendorName"] .. ":" .. output["productName"])
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
   return output
   end
 end

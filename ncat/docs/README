@@ -94,7 +94,7 @@ then redirect the TCP connection out to the final destination, only over UDP.
 
 The --allow and --deny options are provided to prevent unauthorized access to
 any Ncat process that is listening on a port.  These options are also paired
-with the --allowfile and --denyfile options, similar in behaviour to Nmap.
+with the --allowfile and --denyfile options, similar in behaviour to Kmap.
 
 The allow and deny options accept a number of different IP address formats
 for maximum flexibility:

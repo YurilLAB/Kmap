@@ -11,7 +11,7 @@ Performs brute force password auditing against the rsync remote file syncing pro
 
 ---
 -- @usage
--- nmap -p 873 --script rsync-brute --script-args 'rsync-brute.module=www' <ip>
+-- kmap -p 873 --script rsync-brute --script-args 'rsync-brute.module=www' <ip>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -28,7 +28,7 @@ Performs brute force password auditing against the rsync remote file syncing pro
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service(873, "rsync", "tcp")

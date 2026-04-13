@@ -3,7 +3,7 @@
 --
 -- The <code>usernames</code> and <code>passwords</code> functions return
 -- multiple values for use with exception handling via
--- <code>nmap.new_try</code>. The first value is the Boolean success
+-- <code>kmap.new_try</code>. The first value is the Boolean success
 -- indicator, the second value is the closure.
 --
 -- The closures can take an argument of <code>"reset"</code> to rewind the list
@@ -33,7 +33,7 @@
 -- require("unpwdb")
 --
 -- local usernames, passwords
--- local try = nmap.new_try()
+-- local try = kmap.new_try()
 --
 -- usernames = try(unpwdb.usernames())
 -- passwords = try(unpwdb.passwords())
@@ -46,8 +46,8 @@
 -- end
 --
 -- @usage
--- nmap --script-args userdb=/tmp/user.lst
--- nmap --script-args unpwdb.timelimit=10m
+-- kmap --script-args userdb=/tmp/user.lst
+-- kmap --script-args unpwdb.timelimit=10m
 --
 -- @args userdb The filename of an alternate username database. Default: nselib/data/usernames.lst
 -- @args passdb The filename of an alternate password database. Default: nselib/data/passwords.lst
@@ -63,10 +63,10 @@
 -- 30 minutes. The default depends on the timing template level (see the module
 -- description). Use the value <code>0</code> to disable the time limit.
 -- @author Kris Katterjohn 06/2008
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local datetime = require "datetime"
@@ -78,7 +78,7 @@ local passtable = {}
 local customdata = false
 
 -- So I don't have to type as much :)
-local args = nmap.registry.args
+local args = kmap.registry.args
 
 local userfile = function()
   if args.userdb then
@@ -86,7 +86,7 @@ local userfile = function()
     return args.userdb
   end
 
-  return nmap.fetchfile("nselib/data/usernames.lst")
+  return kmap.fetchfile("nselib/data/usernames.lst")
 end
 
 local passfile = function()
@@ -95,7 +95,7 @@ local passfile = function()
     return args.passdb
   end
 
-  return nmap.fetchfile("nselib/data/passwords.lst")
+  return kmap.fetchfile("nselib/data/passwords.lst")
 end
 
 local filltable = function(filename, table)
@@ -137,7 +137,7 @@ end
 
 --- Returns the suggested number of seconds to attempt a brute force attack
 --
--- Based on the <code>unpwdb.timelimit</code> script argument, Nmap's timing
+-- Based on the <code>unpwdb.timelimit</code> script argument, Kmap's timing
 -- values (<code>-T4</code> etc.) and whether or not a user-defined list is
 -- used.
 --
@@ -163,7 +163,7 @@ timelimit = function()
     return limit
   end
 
-  local t = nmap.timing_level()
+  local t = kmap.timing_level()
   if t <= 3 then
     return (customdata and 900) or 600
   elseif t == 4 then

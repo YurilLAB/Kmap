@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -15,13 +15,13 @@ and, if that fails, attempt version 2.
 
 author = {"Tom Sellers"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "version", "safe"}
 
 ---
 -- @usage
--- nmap -sU -p 10001 --script ubiquiti-discovery.nse <target>
+-- kmap -sU -p 10001 --script ubiquiti-discovery.nse <target>
 --
 ---
 -- @output
@@ -320,10 +320,10 @@ end
 --   a probe. If status is false, result is an error message.
 local function send_probe(host, port, probe)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
 
-  local try = nmap.new_try(function() socket:close() end)
+  local try = kmap.new_try(function() socket:close() end)
 
   try( socket:connect(host, port) )
   try( socket:send(probe) )
@@ -346,7 +346,7 @@ function action(host, port)
     end
   end
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local result = parse_discovery_response(response)
 
@@ -369,7 +369,7 @@ function action(host, port)
   end
 
   port.version.ostype = "Linux"
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   return result
 end

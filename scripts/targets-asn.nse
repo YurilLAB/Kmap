@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -9,7 +9,7 @@ Produces a list of IP prefixes for a given routing AS number (ASN).
 
 This script uses a whois server database operated by the Shadowserver
 Foundation.  We thank them for granting us permission to use this in
-Nmap.
+Kmap.
 
 Output is in CIDR notation.
 
@@ -22,7 +22,7 @@ http://www.shadowserver.org/wiki/pmwiki.php/Services/IP-BGP
 -- @args targets-asn.whois_port The whois port to use. Default: 43.
 --
 -- @usage
--- nmap --script targets-asn --script-args targets-asn.asn=32
+-- kmap --script targets-asn --script-args targets-asn.asn=32
 --
 -- @output
 -- Pre-scan script results:
@@ -32,7 +32,7 @@ http://www.shadowserver.org/wiki/pmwiki.php/Services/IP-BGP
 -- |_    171.64.0.0/14
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 
 categories = {"discovery", "external", "safe"}
 
@@ -63,7 +63,7 @@ action = function(host, port)
   end
 
   for _, asn in ipairs(asns) do
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
 
     local prefixes = {}
     prefixes['name'] = asn

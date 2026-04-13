@@ -1,6 +1,6 @@
 local http = require "http"
 local httpspider = require "httpspider"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local tab = require "tab"
@@ -13,7 +13,7 @@ detected method.
 
 ---
 -- @usage
--- nmap -p 80 --script http-auth-finder <ip>
+-- kmap -p 80 --script http-auth-finder <ip>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -40,7 +40,7 @@ detected method.
 -- @see http-brute.nse
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -70,7 +70,7 @@ action = function(host, port)
   end
 
   -- create a table entry in the registry
-  nmap.registry.auth_urls = nmap.registry.auth_urls or {}
+  kmap.registry.auth_urls = kmap.registry.auth_urls or {}
   crawler:set_timeout(10000)
 
   local auth_urls = tab.new(2)
@@ -101,13 +101,13 @@ action = function(host, port)
       else
         tab.addrow(auth_urls, r.url, ("HTTP: %s"):format(auth))
       end
-      nmap.registry.auth_urls[r.url] = "HTTP"
+      kmap.registry.auth_urls[r.url] = "HTTP"
     -- FORM-based authentication
     elseif r.response.body then
       -- attempt to detect a password input form field
       if ( r.response.body:match("<[Ii][Nn][Pp][Uu][Tt].-[Tt][Yy][Pp][Ee]%s*=\"*[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]") ) then
         tab.addrow(auth_urls, r.url, "FORM")
-        nmap.registry.auth_urls[r.url] = "FORM"
+        kmap.registry.auth_urls[r.url] = "FORM"
       end
     end
   end

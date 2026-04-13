@@ -1,5 +1,5 @@
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -18,7 +18,7 @@ http://www.lexmark.com/vgn/images/portal/Security%20Features%20of%20Lexmark%20MF
 
 ---
 --@usage
--- nmap -sU -p 9100 --script=lexmark-config <target>
+-- kmap -sU -p 9100 --script=lexmark-config <target>
 --@output
 -- Interesting ports on 192.168.1.111:
 -- PORT     STATE   SERVICE REASON
@@ -49,7 +49,7 @@ http://www.lexmark.com/vgn/images/portal/Security%20Features%20of%20Lexmark%20MF
 -- Revised 01/23/2010 - v0.3 - revised script to use the proper ports
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -80,8 +80,8 @@ action = function( host, port )
   end
 
   -- set port to open
-  nmap.set_port_state(host, port, "open")
-  nmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
 
   return stdnse.format_output(true, result)
 end

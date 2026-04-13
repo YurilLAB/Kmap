@@ -1,5 +1,5 @@
 local citrixxml = require "citrixxml"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -13,7 +13,7 @@ The script returns more output with higher verbosity.
 
 ---
 -- @usage
--- nmap --script=citrix-enum-apps-xml -p 80,443,8080 <host>
+-- kmap --script=citrix-enum-apps-xml -p 80,443,8080 <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -67,7 +67,7 @@ The script returns more output with higher verbosity.
 -- Revised 12/16/2014 - v0.3 - Detect if encryption settings are minimum requirements
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -147,7 +147,7 @@ action = function(host,port)
   local response = citrixxml.request_appdata(host, port, {ServerAddress="",attr={addresstype="dot"},DesiredDetails={"all","access-list"} })
   local appdata = citrixxml.parse_appdata_response(response)
 
-  local response = format_output(appdata, (nmap.verbosity() > 1 and "long" or "short"))
+  local response = format_output(appdata, (kmap.verbosity() > 1 and "long" or "short"))
 
   return stdnse.format_output(true, response)
 

@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -31,7 +31,7 @@ See also:
 
 ---
 -- @usage
--- nmap -6 --script targets-ipv6-multicast-slaac --script-args 'newtargets,interface=eth0' -sP
+-- kmap -6 --script targets-ipv6-multicast-slaac --script-args 'newtargets,interface=eth0' -sP
 -- @output
 -- Pre-scan script results:
 -- | targets-ipv6-multicast-slaac:
@@ -41,13 +41,13 @@ See also:
 
 author = {"David Fifield", "Xu Weilin"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery","broadcast"}
 
 
 prerule = function()
-  return nmap.is_privileged()
+  return kmap.is_privileged()
 end
 
 local function get_identifier(ip6_addr)
@@ -105,7 +105,7 @@ end
 local function single_interface_broadcast(if_nfo, results)
   stdnse.debug1("Starting " .. SCRIPT_NAME .. " on " .. if_nfo.device)
 
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   local src_mac = if_nfo.mac
   local src_ip6 = ipOps.ip_to_str(if_nfo.address)
   local dst_mac = packet.mactobin("33:33:00:00:00:01")
@@ -114,14 +114,14 @@ local function single_interface_broadcast(if_nfo, results)
   ----------------------------------------------------------------------------
   --SLAAC-based host discovery probe
 
-  local dnet = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local dnet = kmap.new_dnet()
+  local pcap = kmap.new_socket()
 
   local function catch ()
     dnet:ethernet_close()
     pcap:pcap_close()
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(dnet:ethernet_open(if_nfo.device))
   pcap:pcap_open(if_nfo.device, 128, true, "src ::0/128 and dst net ff02::1:0:0/96 and icmp6 and ip6[6:1] = 58 and ip6[40:1] = 135")
@@ -130,7 +130,7 @@ local function single_interface_broadcast(if_nfo, results)
   local ula_prefix, prefix_len = get_random_ula_prefix()
 
   -- preferred_lifetime <= valid_lifetime.
-  -- Nmap will get the whole IPv6 addresses of each host if the two parameters are both longer than 5 seconds.
+  -- Kmap will get the whole IPv6 addresses of each host if the two parameters are both longer than 5 seconds.
   -- Sometimes it makes sense to regard the several addresses of a host as
   -- different hosts, as the host's administrator may apply different firewall
   -- configurations on them.
@@ -158,12 +158,12 @@ local function single_interface_broadcast(if_nfo, results)
   pcap:set_timeout(1000)
   local pcap_timeout_count = 0
   local nse_timeout = 5
-  local start_time = nmap:clock()
-  local cur_time = nmap:clock()
+  local start_time = kmap:clock()
+  local cur_time = kmap:clock()
 
   repeat
     local status, length, layer2, layer3 = pcap:pcap_receive()
-    cur_time = nmap:clock()
+    cur_time = kmap:clock()
     if not status then
       pcap_timeout_count = pcap_timeout_count + 1
     else
@@ -215,7 +215,7 @@ end
 action = function()
   local threads = {}
   local results = {}
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
 
   for _, if_nfo in ipairs(stdnse.get_script_interfaces(filter_interfaces)) do
     -- create a thread for each interface

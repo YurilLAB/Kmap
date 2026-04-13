@@ -13,8 +13,8 @@ The output is intended to resemble the output of the UNIX <code>ls</code> comman
 
 ---
 -- @usage
--- nmap -p 445 <ip> --script smb-ls --script-args 'share=c$,path=\temp'
--- nmap -p 445 <ip> --script smb-enum-shares,smb-ls
+-- kmap -p 445 <ip> --script smb-ls --script-args 'share=c$,path=\temp'
+-- kmap -p 445 <ip> --script smb-enum-shares,smb-ls
 --
 -- @args smb-ls.share (or smb-ls.shares) the share (or a colon-separated list
 --       of shares) to connect to (default: use shares found by smb-enum-shares)
@@ -107,7 +107,7 @@ The output is intended to resemble the output of the UNIX <code>ls</code> comman
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"smb-enum-shares"}
 

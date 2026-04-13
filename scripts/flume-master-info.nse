@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -19,12 +19,12 @@ Information gathered:
 If this script is run wth -v, it will output lots more info.
 
 Use the <code>newtargets</code> script argument to add discovered hosts to
-the Nmap scan queue.
+the Kmap scan queue.
 ]]
 
 ---
 -- @usage
--- nmap --script flume-master-info -p 35871 host
+-- kmap --script flume-master-info -p 35871 host
 --
 -- @output
 -- PORT      STATE SERVICE         REASON
@@ -135,7 +135,7 @@ the Nmap scan queue.
 -- </table>
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 
@@ -174,7 +174,7 @@ parse_page = function( host, port, uri, interesting_keys )
     for name,value in string.gmatch(body,
       "<tr><th>([^][<]+)</th>%s*<td><div%sclass=[^][>]+>([^][<]+)") do
       stdnse.debug1("%s=%s ", name, value:gsub("^%s*(.-)%s*$", "%1"))
-      if nmap.verbosity() > 1 then
+      if kmap.verbosity() > 1 then
         result[name] = value:gsub("^%s*(.-)%s*$", "%1")
       else
         for i,v in ipairs(interesting_keys) do
@@ -289,7 +289,7 @@ action = function( host, port )
     if #result > 0 then
       port.version.name = "flume-master"
       port.version.product = "Apache Flume"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
       return result
     end
   end

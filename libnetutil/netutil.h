@@ -3,61 +3,61 @@
  * libnetutil, a library that provides network-related functions or        *
  * classes that make it easier to handle things like network interfaces,   *
  * routing tables, raw packet manipulation, etc. The lib was originally    *
- * written for use in the Nmap Security Scanner ( https://nmap.org ).       *
+ * written for use in the Kmap Security Scanner ( https://kmap.org ).       *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -240,7 +240,7 @@ struct link_header {
   const u8 *header;
 };
 
-/* Relevant (to Nmap) information about an interface */
+/* Relevant (to Kmap) information about an interface */
 struct interface_info {
   char devname[16];
   char devfullname[16]; /* can include alias info, such as eth0:2. */
@@ -313,15 +313,15 @@ void eth_close_cached();
    AF_INET6, depending on the operating system. */
 int netutil_raw_socket(const char *device);
 
-/* How should we send raw IP packets?  Nmap can generally use either
+/* How should we send raw IP packets?  Kmap can generally use either
    ethernet or raw ip sockets.  Which is better depends on platform
-   and goals.  A _STRONG preference means that Nmap should use the
+   and goals.  A _STRONG preference means that Kmap should use the
    preferred method whenever it is possible (obviously it isn't
    always possible -- sending ethernet frames won't work over a PPP
    connection).  This is useful when the other type doesn't work at
-   all.  A _WEAK preference means that Nmap may use the other type
+   all.  A _WEAK preference means that Kmap may use the other type
    where it is substantially more efficient to do so. For example,
-   Nmap will still do an ARP ping scan of a local network even when
+   Kmap will still do an ARP ping scan of a local network even when
    the pref is SEND_IP_WEAK */
 #define PACKET_SEND_NOPREF      0x01
 #define PACKET_SEND_ETH_WEAK    0x02
@@ -500,7 +500,7 @@ void set_pcap_filter(const char *device, pcap_t *pd, const char *bpf, ...);
    times.  If none of these elicit a response, false will be returned.
    If the mac is determined, true is returned. The last parameter is
    a pointer to a callback function that can be used for packet traceing.
-   This is intended to be used by Nmap only. Any other calling this
+   This is intended to be used by Kmap only. Any other calling this
    should pass NULL instead. */
 bool doArp(const char *dev, const u8 *srcmac,
                   const struct sockaddr_storage *srcip,
@@ -516,7 +516,7 @@ bool doArp(const char *dev, const u8 *srcmac,
    times.  If none of these elicit a response, false will be returned.
    If the mac is determined, true is returned. The last parameter is
    a pointer to a callback function that can be used for packet tracing.
-   This is intended to be used by Nmap only. Any other calling this
+   This is intended to be used by Kmap only. Any other calling this
    should pass NULL instead. */
 bool doND(const char *dev, const u8 *srcmac,
                   const struct sockaddr_storage *srcip,
@@ -533,7 +533,7 @@ bool doND(const char *dev, const u8 *srcmac,
    blocking to the extent possible.  Returns -1 or exits if there is
    an error.  The last parameter is a pointer to a callback function
    that can be used for packet tracing. This is intended to be used
-   by Nmap only. Any other calling this should pass NULL instead. */
+   by Kmap only. Any other calling this should pass NULL instead. */
 int read_arp_reply_pcap(pcap_t *pd, u8 *sendermac,
                         struct in_addr *senderIP, long to_usec,
                         struct timeval *rcvdtime,

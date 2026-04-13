@@ -3,11 +3,11 @@
 --
 -- https://dev.mysql.com/doc/internals/en/client-server-protocol.html
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -107,7 +107,7 @@ end
 function receiveGreeting( socket )
 
   local catch = function() socket:close() stdnse.debug1("receiveGreeting(): failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local data = try( socket:receive_bytes(HEADER_SIZE) )
   local pos, response, tmp, _
 
@@ -210,7 +210,7 @@ end
 function loginRequest( socket, params, username, password, salt )
 
   local catch = function() socket:close() stdnse.debug1("loginRequest(): failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local packetno = 1
   local authversion = params.authversion or "post41"
   local username = username or ""
@@ -330,7 +330,7 @@ end
 function decodeQueryResponse( socket )
 
   local catch = function() socket:close() stdnse.debug1("decodeQueryResponse(): failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local data, header, pos
   local rs, blocks = {}, {}
   local block_start, block_end
@@ -490,7 +490,7 @@ end
 function sqlQuery( socket, query )
 
   local catch = function() socket:close() stdnse.debug1("sqlQuery(): failed") end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local packetno = 0
   local querylen = query:len() + 1
   local packet, packet_len, pos, header

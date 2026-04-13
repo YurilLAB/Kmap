@@ -64,13 +64,13 @@ class scan_test(unittest.TestCase):
         self.assertEqual(set(host.extraports.items()),
                 set([("filtered", 95), ("open|filtered", 99)]))
 
-    def test_nmaprun(self):
-        """Test that nmaprun information is recorded."""
+    def test_kmaprun(self):
+        """Test that kmaprun information is recorded."""
         scan = Scan()
         scan.load_from_file("test-scans/empty.xml")
-        self.assertEqual(scan.scanner, "nmap")
+        self.assertEqual(scan.scanner, "kmap")
         self.assertEqual(scan.version, "4.90RC2")
-        self.assertEqual(scan.args, "nmap -oX empty.xml -p 1-100")
+        self.assertEqual(scan.args, "kmap -oX empty.xml -p 1-100")
 
     def test_addresses(self):
         """Test that addresses are recorded."""
@@ -84,7 +84,7 @@ class scan_test(unittest.TestCase):
         scan = Scan()
         scan.load_from_file("test-scans/simple.xml")
         host = scan.hosts[0]
-        self.assertEqual(host.hostnames, ["scanme.nmap.org"])
+        self.assertEqual(host.hostnames, ["scanme.kmap.org"])
 
     def test_os(self):
         """Test that OS information is recorded."""
@@ -101,10 +101,10 @@ class scan_test(unittest.TestCase):
         self.assertTrue(len(host.script_results) > 0)
         self.assertTrue(len(host.ports[(22, "tcp")].script_results) > 0)
 
-# This test is commented out because Nmap XML doesn't store any information
+# This test is commented out because Kmap XML doesn't store any information
 # about down hosts, not even the fact that they are down. Recovering the list
 # of scanned hosts to infer which ones are down would involve parsing the
-# targets out of the /nmaprun/@args attribute (which is non-trivial) and
+# targets out of the /kmaprun/@args attribute (which is non-trivial) and
 # possibly looking up their addresses.
 #    def test_down_state(self):
 #        """Test that hosts that are not marked "up" are in the "down"
@@ -290,7 +290,7 @@ class service_test(unittest.TestCase):
         serv = Service()
         serv.product = "FooBar"
         serv.version = "1.2.3"
-        # Must match Nmap output.
+        # Must match Kmap output.
         self.assertEqual(serv.version_string(),
                 "%s %s" % (serv.product, serv.version))
         serv.extrainfo = "misconfigured"

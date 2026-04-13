@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE moduleset SYSTEM "moduleset.dtd" [
-<!ENTITY nmap_version "7.99">
+<!ENTITY kmap_version "7.99">
 <!ENTITY openssl_version "3.0.19">
 <!ENTITY libpcap_version "1.10.6">
 <!ENTITY libssh2_version "1.11.1">
@@ -11,7 +11,7 @@
     <!-- REPOSITORIES -->
 
     <repository type="tarball" name="openssl" href="https://github.com/openssl/openssl/releases/download/openssl-&openssl_version;/"/>
-    <repository type="tarball" name="nmap-local" href="http://localhost:8000/"/>
+    <repository type="tarball" name="kmap-local" href="http://localhost:8000/"/>
     <repository type="tarball" name="tcpdump-org" href="https://www.tcpdump.org/release/"/>
     <repository type="tarball" name="libssh2-org" href="https://www.libssh2.org/download/"/>
 
@@ -40,11 +40,11 @@
         <branch repo="openssl" version="&openssl_version;" module="openssl-&openssl_version;.tar.gz"/>
     </autotools>
 
-    <autotools id="nmap" supports-non-srcdir-builds="no"
+    <autotools id="kmap" supports-non-srcdir-builds="no"
        autogen-sh="configure" autogenargs="--with-libdnet=included --with-liblua=included
---without-zenmap --without-ncat --without-ndiff --without-nping"
+--without-zekmap --without-ncat --without-ndiff --without-nping"
     >
-        <branch repo="nmap-local" module="nmap-&nmap_version;.tar.gz" version="&nmap_version;"/>
+        <branch repo="kmap-local" module="kmap-&kmap_version;.tar.gz" version="&kmap_version;"/>
         <dependencies>
             <dep package="libpcap" />
             <dep package="libpcre2" />
@@ -56,11 +56,11 @@
  
     <autotools id="ncat" supports-non-srcdir-builds="no"
        autogen-sh="configure" autogenargs="--with-libdnet=included --with-liblua=included
---without-zenmap --without-ndiff --without-nping"
+--without-zekmap --without-ndiff --without-nping"
         makeargs='build-ncat'
         makeinstallargs='install-ncat'
     >
-        <branch repo="nmap-local" module="nmap-&nmap_version;.tar.gz" version="&nmap_version;"/>
+        <branch repo="kmap-local" module="kmap-&kmap_version;.tar.gz" version="&kmap_version;"/>
         <dependencies>
             <dep package="openssl" />
         </dependencies>
@@ -68,11 +68,11 @@
 
     <autotools id="nping" supports-non-srcdir-builds="no"
        autogen-sh="configure" autogenargs="--with-libdnet=included
---without-zenmap --without-ncat --without-ndiff"
+--without-zekmap --without-ncat --without-ndiff"
         makeargs='build-nping'
         makeinstallargs='install-nping'
     >
-        <branch repo="nmap-local" module="nmap-&nmap_version;.tar.gz" version="&nmap_version;"/>
+        <branch repo="kmap-local" module="kmap-&kmap_version;.tar.gz" version="&kmap_version;"/>
         <dependencies>
             <dep package="libpcap" />
             <dep package="openssl" />
@@ -81,7 +81,7 @@
 
     <!-- METAMODULE -->
 
-    <metamodule id="nmap-deps">
+    <metamodule id="kmap-deps">
         <dependencies>
             <dep package="libpcap" />
             <dep package="libpcre2" />
@@ -90,9 +90,9 @@
             <dep package="zlib" />
         </dependencies>
     </metamodule>
-    <metamodule id="nmap-packages">
+    <metamodule id="kmap-packages">
         <dependencies>
-            <dep package="nmap" />
+            <dep package="kmap" />
             <dep package="ncat" />
             <dep package="nping" />
         </dependencies>

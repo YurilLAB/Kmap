@@ -1,6 +1,6 @@
-# Extract the version string from nmap.h.
-export NMAP_VERSION := $(shell echo NMAP_VERSION | $(CPP) -imacros nmap.h - | sed -n '$$s/[" ]//g;$$p')
-NMAP_PLATFORM=@host@
+# Extract the version string from kmap.h.
+export KMAP_VERSION := $(shell echo KMAP_VERSION | $(CPP) -imacros kmap.h - | sed -n '$$s/[" ]//g;$$p')
+KMAP_PLATFORM=@host@
 datarootdir = @datarootdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -9,9 +9,9 @@ sbindir = @sbindir@
 mandir = @mandir@
 top_srcdir = @top_srcdir@
 srcdir = @srcdir@
-nmapdatadir = @datadir@/nmap
+kmapdatadir = @datadir@/kmap
 deskdir = $(prefix)/share/applications
-NMAPDEVDIR=~/nmap-private-dev
+KMAPDEVDIR=~/kmap-private-dev
 
 export NBASEDIR=@NBASEDIR@
 export NSOCKDIR=@NSOCKDIR@
@@ -30,11 +30,11 @@ LIBSSH2DIR = @LIBSSH2DIR@
 ZLIBDIR = @ZLIBDIR@
 LIBPCREDIR = @LIBPCREDIR@
 export LIBDNETDIR = @LIBDNETDIR@
-ZENMAPDIR = @ZENMAPDIR@
+ZEKMAPDIR = @ZEKMAPDIR@
 NDIFFDIR = @NDIFFDIR@
 NPINGDIR = @NPINGDIR@
 PYTHON = @PYTHON@
-DEFS = @DEFS@ -DNMAP_PLATFORM=\"$(NMAP_PLATFORM)\" -DNMAPDATADIR=\"$(nmapdatadir)\"
+DEFS = @DEFS@ -DKMAP_PLATFORM=\"$(KMAP_PLATFORM)\" -DKMAPDATADIR=\"$(kmapdatadir)\"
 # With GCC, add extra security checks to source code.
 # http://gcc.gnu.org/ml/gcc-patches/2004-09/msg02055.html
 # Level 1 only makes changes that don't affect "conforming" programs,
@@ -44,7 +44,7 @@ DEFS += -D_FORTIFY_SOURCE=2
 # Should only be enabled during debugging and not in any real release.
 # DEFS += -DMTRACE=1
 CXXFLAGS = @CXXFLAGS@ $(DBGFLAGS) $(CCOPT)
-CPPFLAGS = @CPPFLAGS@ $(DEFS)
+CPPFLAGS = @CPPFLAGS@ $(DEFS) -Ithird-party
 CFLAGS = @CFLAGS@ $(DBGFLAGS) $(CCOPT)
 STATIC =
 LDFLAGS = @LDFLAGS@ $(DBGFLAGS) $(STATIC)
@@ -69,28 +69,28 @@ ALL_LINGUAS = de es fr hr hu it ja pl pt_BR pt_PT ro ru sk zh
 LINGUAS ?= $(ALL_LINGUAS)
 
 
-# DESTDIR is used by some package maintainers to install Nmap under
+# DESTDIR is used by some package maintainers to install Kmap under
 # its usual directory structure into a different tree.  See the
 # CHANGELOG for more info.
 DESTDIR =
 
-TARGET = nmap
+TARGET = kmap
 INSTALLNSE=@INSTALLNSE@
-BUILDZENMAP=@BUILDZENMAP@
+BUILDZEKMAP=@BUILDZEKMAP@
 BUILDNDIFF=@BUILDNDIFF@
 BUILDNPING=@BUILDNPING@
 BUILDNCAT=@NCAT_BUILD@
-INSTALLZENMAP=@INSTALLZENMAP@
+INSTALLZEKMAP=@INSTALLZEKMAP@
 INSTALLNDIFF=@INSTALLNDIFF@
 INSTALLNPING=@INSTALLNPING@
-UNINSTALLZENMAP=@UNINSTALLZENMAP@
+UNINSTALLZEKMAP=@UNINSTALLZEKMAP@
 UNINSTALLNDIFF=@UNINSTALLNDIFF@
 UNINSTALLNPING=@UNINSTALLNPING@
 
 ifneq (@NOLUA@,yes)
-NSE_SRC=nse_main.cc nse_utility.cc nse_nsock.cc nse_db.cc nse_dnet.cc nse_fs.cc nse_nmaplib.cc nse_debug.cc nse_lpeg.cc
-NSE_HDRS=nse_main.h nse_utility.h nse_nsock.h nse_db.h nse_dnet.h nse_fs.h nse_nmaplib.h nse_debug.h nse_lpeg.h
-NSE_OBJS=nse_main.o nse_utility.o nse_nsock.o nse_db.o nse_dnet.o nse_fs.o nse_nmaplib.o nse_debug.o nse_lpeg.o
+NSE_SRC=nse_main.cc nse_utility.cc nse_nsock.cc nse_db.cc nse_dnet.cc nse_fs.cc nse_kmaplib.cc nse_debug.cc nse_lpeg.cc
+NSE_HDRS=nse_main.h nse_utility.h nse_nsock.h nse_db.h nse_dnet.h nse_fs.h nse_kmaplib.h nse_debug.h nse_lpeg.h
+NSE_OBJS=nse_main.o nse_utility.o nse_nsock.o nse_db.o nse_dnet.o nse_fs.o nse_kmaplib.o nse_debug.o nse_lpeg.o
 ifneq (@OPENSSL_LIBS@,)
 NSE_SRC+=nse_openssl.cc nse_ssl_cert.cc
 NSE_HDRS+=nse_openssl.h nse_ssl_cert.h
@@ -108,26 +108,30 @@ NSE_OBJS+=nse_zlib.o
 endif
 endif
 
-export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc nmap.cc nmap_dns.cc nmap_error.cc nmap_ftp.cc NmapOps.cc NmapOutputTable.cc nmap_tty.cc osscan2.cc osscan.cc output.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc scan_engine_connect.cc scan_engine_raw.cc scan_lists.cc service_scan.cc services.cc string_pool.cc Target.cc NewTargets.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc $(NSE_SRC)
+export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc kmap.cc kmap_dns.cc kmap_error.cc kmap_ftp.cc KmapOps.cc KmapOutputTable.cc kmap_tty.cc osscan2.cc osscan.cc output.cc output_json.cc default_creds.cc web_recon.cc cve_map.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc scan_engine_connect.cc scan_engine_raw.cc scan_lists.cc service_scan.cc services.cc string_pool.cc Target.cc NewTargets.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc $(NSE_SRC)
 
-export HDRS = charpool.h FingerPrintResults.h FPEngine.h idle_scan.h MACLookup.h nmap_amigaos.h nmap_dns.h nmap_error.h nmap.h nmap_ftp.h NmapOps.h NmapOutputTable.h nmap_tty.h nmap_winconfig.h osscan2.h osscan.h output.h payload.h portlist.h portreasons.h probespec.h protocols.h scan_engine.h scan_engine_connect.h scan_engine_raw.h service_scan.h scan_lists.h services.h string_pool.h NewTargets.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h $(NSE_HDRS)
+export HDRS = charpool.h FingerPrintResults.h FPEngine.h idle_scan.h MACLookup.h kmap_amigaos.h kmap_dns.h kmap_error.h kmap.h kmap_ftp.h KmapOps.h KmapOutputTable.h kmap_tty.h kmap_winconfig.h osscan2.h osscan.h output.h output_json.h default_creds.h web_recon.h cve_map.h payload.h portlist.h portreasons.h probespec.h protocols.h scan_engine.h scan_engine_connect.h scan_engine_raw.h service_scan.h scan_lists.h services.h string_pool.h NewTargets.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h $(NSE_HDRS)
 
-OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o nmap_dns.o nmap_error.o nmap.o nmap_ftp.o NmapOps.o NmapOutputTable.o nmap_tty.o osscan2.o osscan.o output.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o scan_lists.o service_scan.o services.o string_pool.o NewTargets.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
+OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o kmap_dns.o kmap_error.o kmap.o kmap_ftp.o KmapOps.o KmapOutputTable.o kmap_tty.o osscan2.o osscan.o output.o output_json.o default_creds.o web_recon.o cve_map.o sqlite/sqlite3.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o scan_lists.o service_scan.o services.o string_pool.o NewTargets.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
 
 # %.o : %.cc -- nope this is a GNU extension
 .cc.o:
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+
+# SQLite amalgamation (compiled as C, not C++)
+sqlite/sqlite3.o: sqlite/sqlite3.c sqlite/sqlite3.h
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -DSQLITE_THREADSAFE=0 sqlite/sqlite3.c -o sqlite/sqlite3.o
 
 # FPModel.cc contains large numeric tables that exceed the capacity of
 # debugging output with GCC 4.6.0 on AIX, causing "Error: value of 121716 too
 # large for field of 2 bytes". Disable debugging for this one file.
 FPModel.o: CXXFLAGS += -g0
 
-all: $(TARGET) $(BUILDZENMAP) $(BUILDNDIFF) $(BUILDNPING) $(BUILDNCAT)
+all: $(TARGET) $(BUILDZEKMAP) $(BUILDNDIFF) $(BUILDNPING) $(BUILDNCAT)
 
 $(TARGET): build-netutil @LIBLINEAR_BUILD@ @PCAP_BUILD@ @LIBSSH2_BUILD@ @ZLIB_BUILD@ @PCRE_BUILD@ @NSOCK_BUILD@ @NBASE_BUILD@ @DNET_BUILD@ @LUA_BUILD@ \
 	$(OBJS) main.o
-	@echo Compiling nmap
+	@echo Compiling kmap
 	rm -f $@
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS) main.o $(LIBS)
 
@@ -183,22 +187,22 @@ debug:
 # CALL THIS FROM ONE COMPUTER AND CHECK IN RESULTS BEFORE DOING ANYONE
 # DOES A MAKE RELEASE
 prerelease:
-	cd $(NMAPDEVDIR) && $(MAKE) prerelease
+	cd $(KMAPDEVDIR) && $(MAKE) prerelease
 
-# Make just the Nmap tarballs
+# Make just the Kmap tarballs
 release-tarballs:
-	cd $(NMAPDEVDIR) && $(MAKE) release-tarballs
+	cd $(KMAPDEVDIR) && $(MAKE) release-tarballs
 
 # Make the tarballs and RPMs (which are built from tarball)
 release-rpms:
-	cd $(NMAPDEVDIR) && $(MAKE) release-rpms
+	cd $(KMAPDEVDIR) && $(MAKE) release-rpms
 
 # Update the web site
 web:
-	cd $(NMAPDEVDIR) && $(MAKE) web
+	cd $(KMAPDEVDIR) && $(MAKE) web
 
 clean: @LUA_CLEAN@ @LIBLINEAR_CLEAN@ @PCAP_CLEAN@ @PCRE_CLEAN@ @DNET_CLEAN@ @LIBSSH2_CLEAN@ @ZLIB_CLEAN@\
-clean-nsock clean-nbase clean-netutil @NPING_CLEAN@ @ZENMAP_CLEAN@ \
+clean-nsock clean-nbase clean-netutil @NPING_CLEAN@ @ZEKMAP_CLEAN@ \
 @NCAT_CLEAN@ @NDIFF_CLEAN@ clean-tests
 	rm -f $(OBJS) main.o $(TARGET)
 # Who generates dependencies.mk? If it is generated by ./configure and
@@ -209,10 +213,10 @@ debugclean:
 	rm -f *.gcov *.gcda *.gcno gmon.out
 
 distclean: @LUA_DIST_CLEAN@ @LIBLINEAR_DIST_CLEAN@ @PCAP_DIST_CLEAN@ @LIBSSH2_DIST_CLEAN@\
-@ZLIB_DIST_CLEAN@ @PCRE_DIST_CLEAN@ @DNET_DIST_CLEAN@ @NPING_DIST_CLEAN@ @ZENMAP_DIST_CLEAN@ \
+@ZLIB_DIST_CLEAN@ @PCRE_DIST_CLEAN@ @DNET_DIST_CLEAN@ @NPING_DIST_CLEAN@ @ZEKMAP_DIST_CLEAN@ \
 @NCAT_DIST_CLEAN@ distclean-netutil \
 distclean-nsock distclean-nbase @NDIFF_DIST_CLEAN@ clean debugclean
-	rm -f Makefile Makefile.bak makefile.dep nmap_config.h stamp-h \
+	rm -f Makefile Makefile.bak makefile.dep kmap_config.h stamp-h \
 	stamp-h.in config.cache config.log config.status
 
 clean-pcap:
@@ -250,10 +254,10 @@ clean-lua:
 clean-liblinear:
 	-cd $(LIBLINEARDIR) && $(MAKE) clean
 
-clean-zenmap:
-	rm -f $(ZENMAPDIR)/zenmapCore/__init__.pyc
-	rm -f $(ZENMAPDIR)/zenmapCore/Version.pyc
-	rm -f $(ZENMAPDIR)/zenmapCore/Name.pyc
+clean-zekmap:
+	rm -f $(ZEKMAPDIR)/zekmapCore/__init__.pyc
+	rm -f $(ZEKMAPDIR)/zekmapCore/Version.pyc
+	rm -f $(ZEKMAPDIR)/zekmapCore/Name.pyc
 
 clean-ndiff:
 	rm -f $(NDIFFDIR)/Version.pyc
@@ -262,7 +266,7 @@ clean-nping:
 	-cd $(NPINGDIR) && $(MAKE) clean
 
 clean-tests:
-	@rm -f tests/nmap_dns_test tests/expr_match_test
+	@rm -f tests/kmap_dns_test tests/expr_match_test
 
 distclean-pcap:
 	-cd $(LIBPCAPDIR) && $(MAKE) distclean
@@ -297,8 +301,8 @@ distclean-netutil:
 distclean-ncat:
 	-cd $(NCATDIR) && $(MAKE) distclean
 
-distclean-zenmap: clean-zenmap
-	-cd $(ZENMAPDIR) && rm -rf MANIFEST build/ dist/ INSTALLED_FILES
+distclean-zekmap: clean-zekmap
+	-cd $(ZEKMAPDIR) && rm -rf MANIFEST build/ dist/ INSTALLED_FILES
 
 distclean-ndiff: clean-ndiff
 	-cd $(NDIFFDIR) && rm -rf ndiff.pyc build/ dist/ INSTALLED_FILES
@@ -312,12 +316,12 @@ clean-%:
 distclean-%: clean-%
 	-cd $* && $(MAKE) distclean
 
-install-nmap: $(TARGET)
-	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1 $(DESTDIR)$(nmapdatadir)
-	$(INSTALL) -c -m 755 nmap $(DESTDIR)$(bindir)/nmap
+install-kmap: $(TARGET)
+	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1 $(DESTDIR)$(kmapdatadir)
+	$(INSTALL) -c -m 755 kmap $(DESTDIR)$(bindir)/kmap
 # Use strip -x to avoid stripping dynamically loaded NSE functions. See
-# http://seclists.org/nmap-dev/2007/q4/0272.html.
-	$(STRIP) -x $(DESTDIR)$(bindir)/nmap
+# http://seclists.org/kmap-dev/2007/q4/0272.html.
+	$(STRIP) -x $(DESTDIR)$(bindir)/kmap
 	$(INSTALL) -c -m 644 docs/$(TARGET).1 $(DESTDIR)$(mandir)/man1/
 	if [ "$(USE_NLS)" = "yes" ]; then \
 	  for ll in $(filter $(ALL_LINGUAS),$(LINGUAS)); do \
@@ -325,49 +329,49 @@ install-nmap: $(TARGET)
 	    $(INSTALL) -c -m 644 docs/man-xlate/$(TARGET)-$$ll.1 $(DESTDIR)$(mandir)/$$ll/man1/$(TARGET).1; \
 	  done; \
 	fi
-	$(INSTALL) -c -m 644 docs/nmap.xsl $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 docs/nmap.dtd $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-services $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-rpc $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-os-db $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-service-probes $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-protocols $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 nmap-mac-prefixes $(DESTDIR)$(nmapdatadir)/
+	$(INSTALL) -c -m 644 docs/kmap.xsl $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 docs/kmap.dtd $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-services $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-rpc $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-os-db $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-service-probes $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-protocols $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 kmap-mac-prefixes $(DESTDIR)$(kmapdatadir)/
 
 # Update the Ncat version number.
-$(NCATDIR)/ncat.h: nmap.h
-	sed -e 's/^#[ \t]*define[ \t]\+NCAT_VERSION[ \t]\+\(".*"\)/#define NCAT_VERSION "$(NMAP_VERSION)"/' $@ > $@.tmp
+$(NCATDIR)/ncat.h: kmap.h
+	sed -e 's/^#[ \t]*define[ \t]\+NCAT_VERSION[ \t]\+\(".*"\)/#define NCAT_VERSION "$(KMAP_VERSION)"/' $@ > $@.tmp
 	mv -f $@.tmp $@
 
 # Update the Nping version number.
-$(NPINGDIR)/nping.h: nmap.h
-	sed -e 's/^#[ \t]*define[ \t]\+NPING_VERSION[ \t]\+\(".*"\)/#define NPING_VERSION "0.$(NMAP_VERSION)"/' $@ > $@.tmp
+$(NPINGDIR)/nping.h: kmap.h
+	sed -e 's/^#[ \t]*define[ \t]\+NPING_VERSION[ \t]\+\(".*"\)/#define NPING_VERSION "0.$(KMAP_VERSION)"/' $@ > $@.tmp
 	mv -f $@.tmp $@
 
-# Update the version number used by Zenmap.
-$(ZENMAPDIR)/zenmapCore/Version.py $(ZENMAPDIR)/share/zenmap/config/zenmap_version: nmap.h
-	cd $(ZENMAPDIR) && $(PYTHON) install_scripts/utils/version_update.py "$(NMAP_VERSION)"
+# Update the version number used by Zekmap.
+$(ZEKMAPDIR)/zekmapCore/Version.py $(ZEKMAPDIR)/share/zekmap/config/zekmap_version: kmap.h
+	cd $(ZEKMAPDIR) && $(PYTHON) install_scripts/utils/version_update.py "$(KMAP_VERSION)"
 
 tests/%: tests/%.cc $(OBJS)
 	$(CXX) -o $@ $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) $<
 
-build-zenmap: $(ZENMAPDIR)/pyproject.toml $(ZENMAPDIR)/zenmapCore/Version.py
-	$(PYTHON) -m build $(ZENMAPDIR)/
+build-zekmap: $(ZEKMAPDIR)/pyproject.toml $(ZEKMAPDIR)/zekmapCore/Version.py
+	$(PYTHON) -m build $(ZEKMAPDIR)/
 
-install-zenmap: $(ZENMAPDIR)/pyproject.toml
+install-zekmap: $(ZEKMAPDIR)/pyproject.toml
 	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1 $(DESTDIR)$(deskdir)
-	$(PYTHON) -m pip install $(ZENMAPDIR)/ $(if $(DESTDIR),--root "$(DESTDIR)")
-	$(INSTALL) -c -m 644 docs/zenmap.1 $(DESTDIR)$(mandir)/man1/
-	$(INSTALL) -c -m 644 $(ZENMAPDIR)/install_scripts/unix/*.desktop $(DESTDIR)$(deskdir)
-# Create a symlink from nmapfe to zenmap if nmapfe doesn't exist or is
+	$(PYTHON) -m pip install $(ZEKMAPDIR)/ $(if $(DESTDIR),--root "$(DESTDIR)")
+	$(INSTALL) -c -m 644 docs/zekmap.1 $(DESTDIR)$(mandir)/man1/
+	$(INSTALL) -c -m 644 $(ZEKMAPDIR)/install_scripts/unix/*.desktop $(DESTDIR)$(deskdir)
+# Create a symlink from kmapfe to zekmap if kmapfe doesn't exist or is
 # already a link.
-	if [ ! -f $(DESTDIR)$(bindir)/nmapfe -o -L $(DESTDIR)$(bindir)/nmapfe ]; then \
-		ln -sf zenmap $(DESTDIR)$(bindir)/nmapfe; \
+	if [ ! -f $(DESTDIR)$(bindir)/kmapfe -o -L $(DESTDIR)$(bindir)/kmapfe ]; then \
+		ln -sf zekmap $(DESTDIR)$(bindir)/kmapfe; \
 	fi
-# Create a symlink from xnmap to zenmap unconditionally.
-	ln -sf zenmap $(DESTDIR)$(bindir)/xnmap
+# Create a symlink from xkmap to zekmap unconditionally.
+	ln -sf zekmap $(DESTDIR)$(bindir)/xkmap
 
-$(NDIFFDIR)/Version.py: $(ZENMAPDIR)/zenmapCore/Version.py
+$(NDIFFDIR)/Version.py: $(ZEKMAPDIR)/zekmapCore/Version.py
 	cp $^ $@
 
 build-ndiff: $(NDIFFDIR)/pyproject.toml $(NDIFFDIR)/Version.py
@@ -385,21 +389,21 @@ NSE_FILES = scripts/script.db scripts/*.nse
 NSE_LIB_LUA_FILES = nselib/*.lua nselib/*.luadoc
 
 install-nse: $(TARGET)
-	mkdir -p $(DESTDIR)$(nmapdatadir)/scripts
-	mkdir -p $(DESTDIR)$(nmapdatadir)/nselib
+	mkdir -p $(DESTDIR)$(kmapdatadir)/scripts
+	mkdir -p $(DESTDIR)$(kmapdatadir)/nselib
 
 # Remove obsolete scripts from a previous installation.
-	(cd $(DESTDIR)$(nmapdatadir)/scripts && rm -f $(OLD_SCRIPT_NAMES))
+	(cd $(DESTDIR)$(kmapdatadir)/scripts && rm -f $(OLD_SCRIPT_NAMES))
 
-	$(INSTALL) -c -m 644 nse_main.lua $(DESTDIR)$(nmapdatadir)/
-	$(INSTALL) -c -m 644 $(NSE_FILES) $(DESTDIR)$(nmapdatadir)/scripts
-	$(INSTALL) -c -m 644 $(NSE_LIB_LUA_FILES) $(DESTDIR)$(nmapdatadir)/nselib
-	mkdir -p $(DESTDIR)$(nmapdatadir)/nselib/data
+	$(INSTALL) -c -m 644 nse_main.lua $(DESTDIR)$(kmapdatadir)/
+	$(INSTALL) -c -m 644 $(NSE_FILES) $(DESTDIR)$(kmapdatadir)/scripts
+	$(INSTALL) -c -m 644 $(NSE_LIB_LUA_FILES) $(DESTDIR)$(kmapdatadir)/nselib
+	mkdir -p $(DESTDIR)$(kmapdatadir)/nselib/data
 	for f in `find nselib/data -name .svn -prune -o -type d -print`; do \
-		mkdir -p $(DESTDIR)$(nmapdatadir)/$$f; \
+		mkdir -p $(DESTDIR)$(kmapdatadir)/$$f; \
 	done
 	for f in `find nselib/data -name .svn -prune -o -type f -print`; do \
-		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(nmapdatadir)/$$f; \
+		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(kmapdatadir)/$$f; \
 	done
 
 install-%: build-% %/Makefile
@@ -407,25 +411,25 @@ install-%: build-% %/Makefile
 uninstall-%: %/Makefile
 	cd $* && $(MAKE) uninstall
 
-install: install-nmap $(INSTALLNSE) $(INSTALLZENMAP) @NCAT_INSTALL@ $(INSTALLNDIFF) $(INSTALLNPING)
-	@echo "NMAP SUCCESSFULLY INSTALLED"
+install: install-kmap $(INSTALLNSE) $(INSTALLZEKMAP) @NCAT_INSTALL@ $(INSTALLNDIFF) $(INSTALLNPING)
+	@echo "KMAP SUCCESSFULLY INSTALLED"
 
-uninstall: uninstall-nmap $(UNINSTALLZENMAP) @NCAT_UNINSTALL@ $(UNINSTALLNDIFF) $(UNINSTALLNPING)
+uninstall: uninstall-kmap $(UNINSTALLZEKMAP) @NCAT_UNINSTALL@ $(UNINSTALLNDIFF) $(UNINSTALLNPING)
 
-uninstall-nmap:
+uninstall-kmap:
 	rm -f $(DESTDIR)$(bindir)/$(TARGET)
 	rm -f $(DESTDIR)$(mandir)/man1/$(TARGET).1
 	rm -f $(DESTDIR)$(mandir)/*/man1/$(TARGET).1
-	rm -rf $(DESTDIR)$(nmapdatadir)
+	rm -rf $(DESTDIR)$(kmapdatadir)
 
-uninstall-zenmap:
-	$(PYTHON) -m pip uninstall $(ZENMAPDIR)
-	rm -f $(DESTDIR)$(mandir)/man1/zenmap.1
-# Uninstall nmapfe only if it's a symlink.
-	if [ -L $(DESTDIR)$(bindir)/nmapfe ]; then \
-		rm -f $(DESTDIR)$(bindir)/nmapfe; \
+uninstall-zekmap:
+	$(PYTHON) -m pip uninstall $(ZEKMAPDIR)
+	rm -f $(DESTDIR)$(mandir)/man1/zekmap.1
+# Uninstall kmapfe only if it's a symlink.
+	if [ -L $(DESTDIR)$(bindir)/kmapfe ]; then \
+		rm -f $(DESTDIR)$(bindir)/kmapfe; \
 	fi
-	rm -f $(DESTDIR)$(bindir)/xnmap
+	rm -f $(DESTDIR)$(bindir)/xkmap
 
 uninstall-ndiff:
 	$(PYTHON) -m pip uninstall $(NDIFFDIR)
@@ -438,7 +442,7 @@ uninstall-nping:
 	@cd $(NPINGDIR) && $(MAKE) uninstall
 
 check-nse:
-	./nmap -d --datadir . --script=unittest --script-args=unittest.run --release-mem
+	./kmap -d --datadir . --script=unittest --script-args=unittest.run --release-mem
 
 check-ncat:
 	@cd $(NCATDIR) && $(MAKE) check
@@ -449,13 +453,13 @@ check-ndiff:
 check-nsock:
 	@cd $(NSOCKDIR)/src && $(MAKE) check
 
-check-zenmap:
-	@cd $(ZENMAPDIR)/test && $(PYTHON) run_tests.py
+check-zekmap:
+	@cd $(ZEKMAPDIR)/test && $(PYTHON) run_tests.py
 
-check-nmap: tests/nmap_dns_test tests/expr_match_test
+check-kmap: tests/kmap_dns_test tests/expr_match_test
 	for test in $^; do ./$$test; done
 
-check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZENMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-nmap
+check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZEKMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-kmap
 
 ${srcdir}/configure: configure.ac
 	cd ${srcdir} && autoconf

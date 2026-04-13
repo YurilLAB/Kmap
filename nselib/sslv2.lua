@@ -8,7 +8,7 @@
 local stdnse = require "stdnse"
 local table = require "table"
 local tableaux = require "tableaux"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local sslcert = require "sslcert"
 local string = require "string"
 local rand = require "rand"
@@ -323,7 +323,7 @@ function test_sslv2 (host, port)
       return nil
     end
   else
-    socket = nmap.new_socket()
+    socket = kmap.new_socket()
     socket:set_timeout(timeout)
     status, err = socket:connect(host, port)
     if not status then

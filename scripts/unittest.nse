@@ -12,7 +12,7 @@ Runs unit tests on all NSE libraries.
 -- @args unittest.tests Run tests from only these libraries (defaults to all)
 --
 -- @usage
--- nmap --script unittest --script-args unittest.run
+-- kmap --script unittest --script-args unittest.run
 --
 -- @output
 -- Pre-scan script results:
@@ -21,7 +21,7 @@ Runs unit tests on all NSE libraries.
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe"}
 

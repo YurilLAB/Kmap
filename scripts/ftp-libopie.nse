@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local vulns = require "vulns"
@@ -6,7 +6,7 @@ local vulns = require "vulns"
 description = [[
 Checks if an FTPd is prone to CVE-2010-1938 (OPIE off-by-one stack overflow),
 a vulnerability discovered by Maksymilian Arciemowicz and Adam "pi3" Zabrocki.
-See the advisory at https://nmap.org/r/fbsd-sa-opie.
+See the advisory at https://kmap.org/r/fbsd-sa-opie.
 Be advised that, if launched against a vulnerable host, this script will crash the FTPd.
 ]]
 
@@ -34,7 +34,7 @@ Be advised that, if launched against a vulnerable host, this script will crash t
 
 
 author = "Ange Gutek"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln","intrusive"}
 
 
@@ -63,7 +63,7 @@ via a long username.]],
 
   local report = vulns.Report:new(SCRIPT_NAME, host, port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local result
   -- If we use more that 31 chars for username, ftpd will crash (quoted from the advisory).
   local user_account = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -73,7 +73,7 @@ via a long username.]],
     socket:close()
   end
 
-  local try = nmap.new_try(err_catch)
+  local try = kmap.new_try(err_catch)
 
   socket:set_timeout(10000)
   try(socket:connect(host, port))

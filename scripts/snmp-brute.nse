@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local creds = require "creds"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local shortport = require "shortport"
 local snmp = require "snmp"
@@ -38,7 +38,7 @@ No output is reported if no valid account is found.
 
 ---
 -- @usage
--- nmap -sU --script snmp-brute <target> [--script-args snmp-brute.communitiesdb=<wordlist> ]
+-- kmap -sU --script snmp-brute <target> [--script-args snmp-brute.communitiesdb=<wordlist> ]
 --
 -- @args snmp-brute.communitiesdb The filename of a list of community strings to try.
 --
@@ -51,7 +51,7 @@ No output is reported if no valid account is found.
 
 author = {"Philip Pickering", "Gorjan Petrovski", "Patrik Karlsson", "Gioacchino Mazzurco"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 
@@ -111,7 +111,7 @@ end
 
 local communities = function()
   local communities_file = stdnse.get_script_args('snmp-brute.communitiesdb') or
-  nmap.fetchfile("nselib/data/snmpcommunities.lst")
+  kmap.fetchfile("nselib/data/snmpcommunities.lst")
 
   if communities_file then
     stdnse.debug1("Using the %s as the communities file", communities_file)
@@ -131,14 +131,14 @@ local communities = function()
 
     return true, unpwdb.limited_iterator(iterator, time_limit, count_limit, "communities")
   else
-    stdnse.debug1("Cannot read the communities file, using the nmap username/password database instead")
+    stdnse.debug1("Cannot read the communities file, using the kmap username/password database instead")
 
     return unpwdb.passwords()
   end
 end
 
 local send_snmp_queries = function(socket, result, nextcommunity)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
 
   local request = snmp.buildGetRequest({}, "1.3.6.1.2.1.1.3.0")
 
@@ -168,8 +168,8 @@ local send_snmp_queries = function(socket, result, nextcommunity)
 end
 
 local sniff_snmp_responses = function(host, port, lport, result)
-  local condvar = nmap.condvar(result)
-  local pcap = nmap.new_socket()
+  local condvar = kmap.condvar(result)
+  local pcap = kmap.new_socket()
   pcap:set_timeout(host.times.timeout * 1000 * 3)
   pcap:pcap_open(host.interface, 300, false,
     ("src host %s and udp and src port %d and dst port %d"):format(host.ip, port.number, lport))
@@ -237,14 +237,14 @@ action = function(host, port)
   local result = {}
   local threads = {}
 
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
 
   result.sent = false --whether the probes are sent
   result.msg = "" -- Error/Status msg
   result.status = true -- Status (is everything ok)
   result.main_thread = coroutine.running() -- to check if the main thread is dead.
 
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   status = socket:connect(host, port)
 
   if ( not(status) ) then

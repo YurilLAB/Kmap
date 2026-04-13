@@ -20,8 +20,8 @@ References:
 ]]
 
 ---
--- @usage nmap -sV --script http-method-tamper <target>
--- @usage nmap -p80 --script http-method-tamper --script-args 'http-method-tamper.paths={/protected/db.php,/protected/index.php}' <target>
+-- @usage kmap -sV --script http-method-tamper <target>
+-- @usage kmap -p80 --script http-method-tamper --script-args 'http-method-tamper.paths={/protected/db.php,/protected/index.php}' <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -53,7 +53,7 @@ References:
 
 author = "Paulino Calderon <calderon@websec.mx>"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"auth", "vuln"}
 

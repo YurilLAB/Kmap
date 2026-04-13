@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -18,7 +18,7 @@ packet.
 
 ---
 -- @usage
--- ./nmap -6 --script=targets-ipv6-multicast-invalid-dst.nse --script-args 'newtargets,interface=eth0' -sP
+-- ./kmap -6 --script=targets-ipv6-multicast-invalid-dst.nse --script-args 'newtargets,interface=eth0' -sP
 -- @output
 -- Pre-scan script results:
 -- | targets-ipv6-multicast-invalid-dst:
@@ -28,13 +28,13 @@ packet.
 
 author = {"David Fifield", "Xu Weilin"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "broadcast", "safe"}
 
 
 prerule = function()
-  return nmap.is_privileged()
+  return kmap.is_privileged()
 end
 
 --- Build an IPv6 invalid extension header.
@@ -59,7 +59,7 @@ end
 local function single_interface_broadcast(if_nfo, results)
   stdnse.debug1("Starting " .. SCRIPT_NAME .. " on " .. if_nfo.device)
 
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   local src_mac = if_nfo.mac
   local src_ip6 = ipOps.ip_to_str(if_nfo.address)
   local dst_mac = packet.mactobin("33:33:00:00:00:01")
@@ -68,14 +68,14 @@ local function single_interface_broadcast(if_nfo, results)
   ----------------------------------------------------------------------------
   --Multicast invalid destination exheader probe
 
-  local dnet = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local dnet = kmap.new_dnet()
+  local pcap = kmap.new_socket()
 
   local function catch ()
     dnet:ethernet_close()
     pcap:pcap_close()
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(dnet:ethernet_open(if_nfo.device))
   pcap:pcap_open(if_nfo.device, 128, false, "icmp6 and ip6[6:1] = 58 and ip6[40:1] = 4")
@@ -109,14 +109,14 @@ local function single_interface_broadcast(if_nfo, results)
   pcap:set_timeout(1000)
   local pcap_timeout_count = 0
   local nse_timeout = 5
-  local start_time = nmap:clock()
-  local cur_time = nmap:clock()
+  local start_time = kmap:clock()
+  local cur_time = kmap:clock()
 
   local addrs = {}
 
   repeat
     local status, length, layer2, layer3 = pcap:pcap_receive()
-    cur_time = nmap:clock()
+    cur_time = kmap:clock()
     if not status then
       pcap_timeout_count = pcap_timeout_count + 1
     else
@@ -159,7 +159,7 @@ end
 action = function()
   local threads = {}
   local results = {}
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
 
   for _, if_nfo in ipairs(stdnse.get_script_interfaces(filter_interfaces)) do
     -- create a thread for each interface

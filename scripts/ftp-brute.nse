@@ -14,7 +14,7 @@ Based on old ftp-brute.nse script by Diman Todorov, Vlatko Kosturjak and Ron Bow
 -- @see ftp-anon.nse
 --
 -- @usage
--- nmap --script ftp-brute -p 21 <host>
+-- kmap --script ftp-brute -p 21 <host>
 --
 -- This script uses brute library to perform password
 -- guessing.
@@ -34,7 +34,7 @@ Based on old ftp-brute.nse script by Diman Todorov, Vlatko Kosturjak and Ron Bow
 
 -- 06.08.16 - Modified by Sergey Khegay to support new brute.lua adaptability mechanism.
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(21, "ftp")

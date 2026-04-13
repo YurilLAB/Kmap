@@ -17,9 +17,9 @@ Other interesting files:
 ]]
 
 ---
--- @usage nmap -p80 --script http-tplink-dir-traversal.nse <target>
--- @usage nmap -p80 -Pn -n --script http-tplink-dir-traversal.nse <target>
--- @usage nmap -p80 --script http-tplink-dir-traversal.nse --script-args rfile=/etc/topology.conf -d -n -Pn <target>
+-- @usage kmap -p80 --script http-tplink-dir-traversal.nse <target>
+-- @usage kmap -p80 -Pn -n --script http-tplink-dir-traversal.nse <target>
+-- @usage kmap -p80 --script http-tplink-dir-traversal.nse --script-args rfile=/etc/topology.conf -d -n -Pn <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -62,7 +62,7 @@ Other interesting files:
 --
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "exploit"}
 
 local http = require "http"

@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -15,7 +15,7 @@ Performs password guessing against MySQL.
 -- @see mysql-empty-password.nse
 --
 -- @usage
--- nmap --script=mysql-brute <target>
+-- kmap --script=mysql-brute <target>
 --
 -- @output
 -- 3306/tcp open  mysql
@@ -26,7 +26,7 @@ Performs password guessing against MySQL.
 -- @args mysql-brute.timeout socket timeout for connecting to MySQL (default 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 -- Version 0.5
@@ -71,10 +71,10 @@ Driver = {
     status, response = mysql.loginRequest( self.socket, { authversion = "post41", charset = response.charset }, user, pass, response.salt )
     if status then
       -- Add credentials for other mysql scripts to use
-      if nmap.registry.mysqlusers == nil then
-        nmap.registry.mysqlusers = {}
+      if kmap.registry.mysqlusers == nil then
+        kmap.registry.mysqlusers = {}
       end
-      nmap.registry.mysqlusers[user]=pass
+      kmap.registry.mysqlusers[user]=pass
       return true, creds.Account:new( user, pass, creds.State.VALID)
     end
     return false,brute.Error:new( "Incorrect password" )

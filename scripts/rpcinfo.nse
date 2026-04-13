@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rpc = require "rpc"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -76,13 +76,13 @@ supported version numbers, port number and protocol, and program name.
 -- @see rpc-grind.nse
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "default", "safe", "version"}
 
 
 -- don't match "rpcbind" because that's what version scan labels any RPC service
 portrule = function(host, port)
-  return nmap.version_intensity() >= 7 and
+  return kmap.version_intensity() >= 7 and
   shortport.portnumber(111, {"tcp", "udp"})(host, port)
 end
 
@@ -100,19 +100,19 @@ action = function(host, port)
     xmlout[tostring(progid)] = v
     for proto, v2 in pairs(v) do
       if proto == "tcp" or proto == "udp" then
-        local nmapport = nmap.get_port_state(host, {number=v2.port, protocol=proto})
-        if nmapport and (nmapport.state == "open" or nmapport.state == "open|filtered") then
-          nmapport.version = nmapport.version or {}
+        local kmapport = kmap.get_port_state(host, {number=v2.port, protocol=proto})
+        if kmapport and (kmapport.state == "open" or kmapport.state == "open|filtered") then
+          kmapport.version = kmapport.version or {}
           -- If we don't already know it, or we only know that it's "rpcbind"
-          if nmapport.service == nil or nmapport.version.service_dtype == "table" or port.service == "rpcbind" then
-            nmapport.version.name = rpc.Util.ProgNumberToName(progid)
-            nmapport.version.extrainfo = "RPC #" .. progid
+          if kmapport.service == nil or kmapport.version.service_dtype == "table" or port.service == "rpcbind" then
+            kmapport.version.name = rpc.Util.ProgNumberToName(progid)
+            kmapport.version.extrainfo = "RPC #" .. progid
             if #v2.version > 1 then
-              nmapport.version.version = ("%d-%d"):format(v2.version[1], v2.version[#v2.version])
+              kmapport.version.version = ("%d-%d"):format(v2.version[1], v2.version[#v2.version])
             else
-              nmapport.version.version = tostring(v2.version[1])
+              kmapport.version.version = tostring(v2.version[1])
             end
-            nmap.set_port_version(host, nmapport, "softmatched")
+            kmap.set_port_version(host, kmapport, "softmatched")
           end
         end
       end

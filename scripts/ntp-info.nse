@@ -1,7 +1,7 @@
 local comm = require "comm"
 local datetime = require "datetime"
 local os = require "os"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -25,7 +25,7 @@ documentation of the protocol.
 
 ---
 -- @usage
--- nmap -sU -p 123 --script ntp-info <target>
+-- kmap -sU -p 123 --script ntp-info <target>
 -- @output
 -- PORT    STATE SERVICE VERSION
 -- 123/udp open  ntp     NTP v4.2.4p4@1.1520-o
@@ -59,7 +59,7 @@ documentation of the protocol.
 -- <elem key="wander">0.000</elem>
 
 author = "Richard Sammet"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -139,21 +139,21 @@ action = function(host, port)
 
   if(#output > 0) then
     stdnse.debug1("Test len: %d", #output)
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     if output['version'] then
       -- Look for the version string from the official ntpd and format it
-      -- in a manner similar to the output of the standard Nmap version detection
+      -- in a manner similar to the output of the standard Kmap version detection
       local version_num = string.match(output['version'],"^ntpd ([^ ]+)")
       if version_num then
         port.version.version = "v" .. version_num
-        nmap.set_port_version(host, port, "hardmatched")
+        kmap.set_port_version(host, port, "hardmatched")
       end
     end
     if output['system'] then
       port.version.ostype = output['system']
-      nmap.set_port_version(host, port, "hardmatched")
+      kmap.set_port_version(host, port, "hardmatched")
     end
-    if nmap.verbosity() < 1 then
+    if kmap.verbosity() < 1 then
       local mt = getmetatable(output)
       mt["__tostring"] = function(t)
         local out = {}

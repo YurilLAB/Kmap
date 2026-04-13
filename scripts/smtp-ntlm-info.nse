@@ -20,7 +20,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 25,465,587 --script smtp-ntlm-info --script-args smtp-ntlm-info.domain=domain.com <target>
+-- kmap -p 25,465,587 --script smtp-ntlm-info --script-args smtp-ntlm-info.domain=domain.com <target>
 --
 -- @output
 -- 25/tcp   open     smtp
@@ -44,7 +44,7 @@ information to include NetBIOS, DNS, and OS build version.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

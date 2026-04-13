@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local drda = require "drda"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -18,7 +18,7 @@ Performs password guessing against databases supporting the IBM DB2 protocol suc
 -- passwords (default <code>"SAMPLE"</code>).
 --
 -- @usage
--- nmap -p 50000 --script drda-brute <target>
+-- kmap -p 50000 --script drda-brute <target>
 --
 -- @output
 -- 50000/tcp open  drda
@@ -26,7 +26,7 @@ Performs password guessing against databases supporting the IBM DB2 protocol suc
 -- |_  db2admin:db2admin => Valid credentials
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories={"intrusive", "brute"}
 
 
@@ -67,11 +67,11 @@ end
 -- @param valid_accounts table in which to store found accounts
 doLogin = function( host, port, database, creds, valid_accounts )
   local helper, status, response, passwords
-  local condvar = nmap.condvar( valid_accounts )
+  local condvar = kmap.condvar( valid_accounts )
 
   for username, password in creds do
     -- Checks if a password was already discovered for this account
-    if ( nmap.registry.db2users == nil or nmap.registry.db2users[username] == nil ) then
+    if ( kmap.registry.db2users == nil or kmap.registry.db2users[username] == nil ) then
       helper = drda.Helper:new()
       helper:connect( host, port )
       stdnse.debug1( "Trying %s/%s against %s...", username, password, host.ip )
@@ -80,10 +80,10 @@ doLogin = function( host, port, database, creds, valid_accounts )
 
       if ( status ) then
         -- Add credentials for future drda scripts to use
-        if nmap.registry.db2users == nil then
-          nmap.registry.db2users = {}
+        if kmap.registry.db2users == nil then
+          kmap.registry.db2users = {}
         end
-        nmap.registry.db2users[username]=password
+        kmap.registry.db2users[username]=password
         table.insert( valid_accounts, string.format("%s:%s => Valid credentials", username, password:len()>0 and password or "<empty>" ) )
       end
     end
@@ -135,7 +135,7 @@ action = function( host, port )
   local valid_accounts, threads = {}, {}
   local usernames, passwords, creds
   local database = stdnse.get_script_args('drda-brute.dbname') or "SAMPLE"
-  local condvar = nmap.condvar( valid_accounts )
+  local condvar = kmap.condvar( valid_accounts )
   local max_threads = tonumber( stdnse.get_script_args('drda-brute.threads') ) or 10
 
   -- Check if the DB specified is valid

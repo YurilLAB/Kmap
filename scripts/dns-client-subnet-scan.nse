@@ -1,6 +1,6 @@
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -19,12 +19,12 @@ requests using a given subnet.
 
 ---
 -- @usage
---   nmap -sU -p 53 --script dns-client-subnet-scan  --script-args \
+--   kmap -sU -p 53 --script dns-client-subnet-scan  --script-args \
 --     'dns-client-subnet-scan.domain=www.example.com, \
 --     dns-client-subnet-scan.address=192.168.0.1 \
 --     [,dns-client-subnet-scan.nameserver=8.8.8.8] \
 --     [,dns-client-subnet-scan.mask=24]' <target>
---   nmap --script dns-client-subnet-scan --script-args \
+--   kmap --script dns-client-subnet-scan --script-args \
 --     'dns-client-subnet-scan.domain=www.example.com, \
 --     dns-client-subnet-scan.address=192.168.0.1 \
 --     dns-client-subnet-scan.nameserver=8.8.8.8, \
@@ -49,7 +49,7 @@ requests using a given subnet.
 --
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"discovery", "safe"}
 
 
@@ -59,11 +59,11 @@ local argMask = stdnse.get_script_args(SCRIPT_NAME .. '.mask') or 24
 local argAddr = stdnse.get_script_args(SCRIPT_NAME .. '.address')
 
 prerule = function()
-  return argDomain and nmap.address_family() == "inet"
+  return argDomain and kmap.address_family() == "inet"
 end
 
 portrule = function(host, port)
-  if ( nmap.address_family() ~= "inet" ) then
+  if ( kmap.address_family() ~= "inet" ) then
     return false
   end
   if not shortport.port_or_service(53, "domain", {"tcp", "udp"})(host, port) then
@@ -71,7 +71,7 @@ portrule = function(host, port)
   end
   -- only check tcp if udp is not open or open|filtered
   if port.protocol == 'tcp' then
-    local tmp_port = nmap.get_port_state(host, {number=port.number, protocol="udp"})
+    local tmp_port = kmap.get_port_state(host, {number=port.number, protocol="udp"})
     if tmp_port then
       return not string.match(tmp_port.state, '^open')
     end
@@ -319,7 +319,7 @@ local get_addresses = function(address, mask, domain, nameserver, port)
     address = ipOps.fromdword(address)
   end
 
-  local subnet = { family = nmap.address_family(), address = address, mask = mask }
+  local subnet = { family = kmap.address_family(), address = address, mask = mask }
   local status, resp = dns.query(domain, {host = nameserver, port=port.number, protocol=port.protocol, retAll=true, subnet=subnet})
   if ( not(status) ) then
     return {}

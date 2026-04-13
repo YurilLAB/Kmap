@@ -15,7 +15,7 @@ Windows Vista disables remote registry access by default, so unless it was enabl
 this script won't work.
 
 If you know of more information stored in the Windows registry that could be interesting,
-post a message to the nmap-dev mailing list and I (Ron Bowes) will add it to my todo list.
+post a message to the kmap-dev mailing list and I (Ron Bowes) will add it to my todo list.
 Adding new checks to this is extremely easy.
 
 WARNING: I have experienced crashes in <code>regsvc.exe</code> while making registry calls
@@ -27,8 +27,8 @@ the system, besides showing a message box to the user.
 
 ---
 -- @usage
--- nmap --script smb-system-info.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-system-info.nse -p U:137,T:139 <host>
+-- kmap --script smb-system-info.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-system-info.nse -p U:137,T:139 <host>
 --
 -- @output
 -- Host script results:
@@ -53,7 +53,7 @@ the system, besides showing a message box to the user.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 

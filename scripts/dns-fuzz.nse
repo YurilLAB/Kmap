@@ -1,7 +1,7 @@
 local comm = require "comm"
 local dns = require "dns"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -23,7 +23,7 @@ development lifecycle.
 
 ---
 -- @usage
--- nmap -sU --script dns-fuzz --script-args timelimit=2h <target>
+-- kmap -sU --script dns-fuzz --script-args timelimit=2h <target>
 --
 -- @args dns-fuzz.timelimit How long to run the fuzz attack. This is a
 -- number followed by a suffix: <code>s</code> for seconds,
@@ -36,7 +36,7 @@ development lifecycle.
 -- |_dns-fuzz: Server stopped responding... He's dead, Jim.
 
 author = "Michael Pattrick"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"fuzzer", "intrusive"}
 
 
@@ -50,7 +50,7 @@ DNStimeout = 500
 recursiveOnly = false
 
 -- We only perform a DNS lookup of this site
-recursiveServer = "scanme.nmap.org"
+recursiveServer = "scanme.kmap.org"
 
 ---
 -- Checks if the server is alive/DNS
@@ -63,7 +63,7 @@ function pingServer (host, port, attempts)
   local slowDown = 1
   if not recursiveOnly then
     -- try to get a server status message
-    -- The method that nmap uses by default
+    -- The method that kmap uses by default
     local data
     local pkt = dns.newPacket()
     pkt.id = math.random(65535)
@@ -82,7 +82,7 @@ function pingServer (host, port, attempts)
 
     return false
   else
-    -- just do a vanilla recursive lookup of scanme.nmap.org
+    -- just do a vanilla recursive lookup of scanme.kmap.org
     for i = 1, attempts do
       status, response = dns.query(recursiveServer, {host=host.ip, port=port.number, proto=port.protocol, tries=1, timeout=DNStimeout^slowDown})
       if status then
@@ -261,8 +261,8 @@ action = function(host, port)
   local query
 
   for _, k in ipairs({"dns-fuzz.timelimit", "timelimit"}) do
-    if nmap.registry.args[k] then
-      timelimit, err = stdnse.parse_timespec(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      timelimit, err = stdnse.parse_timespec(kmap.registry.args[k])
       if not timelimit then
         error(err)
       end
@@ -271,10 +271,10 @@ action = function(host, port)
   end
   if timelimit and timelimit > 0 then
     -- seconds to milliseconds plus the current time
-    endT = timelimit*1000 + nmap.clock_ms()
+    endT = timelimit*1000 + kmap.clock_ms()
   elseif not timelimit then
     -- 10 minutes
-    endT = 10*60*1000 + nmap.clock_ms()
+    endT = 10*60*1000 + kmap.clock_ms()
   end
 
 
@@ -286,11 +286,11 @@ action = function(host, port)
       return "Server didn't response to our probe, can't fuzz"
     end
   end
-  nmap.set_port_state (host, port, "open")
+  kmap.set_port_state (host, port, "open")
 
   -- If the user specified that we should run for n seconds, then don't run for too much longer
   -- If 0 seconds, then run forever
-  while not endT or nmap.clock_ms()<endT do
+  while not endT or kmap.clock_ms()<endT do
     -- Forge an initial packet
     -- We start off with an only slightly corrupted packet, then add more and more corruption
     -- if we corrupt the packet too much then the server will just drop it, so we only recorrupt several times

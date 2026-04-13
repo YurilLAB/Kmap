@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -13,14 +13,14 @@ must bind to a low source port number.
 
 ---
 -- @usage
--- nmap -p 513 --script rlogin-brute <ip>
+-- kmap -p 513 --script rlogin-brute <ip>
 --
 -- @output
 -- PORT    STATE SERVICE
 -- 513/tcp open  login
 -- | rlogin-brute:
 -- |   Accounts
--- |     nmap:test - Valid credentials
+-- |     kmap:test - Valid credentials
 -- |   Statistics
 -- |_    Performed 4 guesses in 5 seconds, average tps: 0
 --
@@ -31,7 +31,7 @@ must bind to a low source port number.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service(513, "login", "tcp")
@@ -147,9 +147,9 @@ arg_timeout = (arg_timeout or 10) * 1000
 
 action = function(host, port)
 
-  if ( not(nmap.is_privileged()) ) then
+  if ( not(kmap.is_privileged()) ) then
     stdnse.verbose1("Script must be run in privileged mode. Skipping.")
-    return stdnse.format_output(false, "rlogin-brute needs Nmap to be run in privileged mode")
+    return stdnse.format_output(false, "rlogin-brute needs Kmap to be run in privileged mode")
   end
 
   local options = {

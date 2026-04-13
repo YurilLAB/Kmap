@@ -1,59 +1,59 @@
 /***************************************************************************
  * netutil.cc                                                              *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -62,7 +62,7 @@
 #define __APPLE_USE_RFC_3542
 
 #if HAVE_CONFIG_H
-#include "../nmap_config.h"
+#include "../kmap_config.h"
 #endif
 
 #include "nbase.h"
@@ -951,7 +951,7 @@ int pcap_select(pcap_t *p, long usecs) {
         netutil_error("%s: %s", __func__, strerror(errno));
       }
       else
-        netutil_fatal("Your system does not support select()ing on pcap devices (%s). PLEASE REPORT THIS ALONG WITH DETAILED SYSTEM INFORMATION TO THE nmap-dev MAILING LIST!", strerror(errno));
+        netutil_fatal("Your system does not support select()ing on pcap devices (%s). PLEASE REPORT THIS ALONG WITH DETAILED SYSTEM INFORMATION TO THE kmap-dev MAILING LIST!", strerror(errno));
     }
   } while (ret == -1 && elapsed < usecs);
 #endif
@@ -1957,7 +1957,7 @@ memset(buffer, 0, 129);
     break;
 
 switch(nextheader){
-  /* Generate these lines from nmap-protocols using the following perl command:
+  /* Generate these lines from kmap-protocols using the following perl command:
    perl -lne'if(/^(\S+)\s*(\d+)\s*\#?\s*(.*)/){my$l=$3||$1;print qq{HDRTOA($2, "$1", "$l")}}'
   */
   HDRTOA(0, "hopopt", "IPv6 Hop-by-Hop Option")
@@ -4177,7 +4177,7 @@ pcap_t *my_pcap_open_live(const char *device, int snaplen, int promisc, int to_m
   assert(device != NULL);
 
 #ifdef WIN32
-  /* Nmap normally uses device names obtained through dnet for interfaces, but
+  /* Kmap normally uses device names obtained through dnet for interfaces, but
      Pcap has its own naming system.  So the conversion is done here */
   if (!DnetName2PcapName(device, pcapdev, sizeof(pcapdev))) {
     /* Oh crap -- couldn't find the corresponding dev apparently.  Let's just go
@@ -4190,7 +4190,7 @@ pcap_t *my_pcap_open_live(const char *device, int snaplen, int promisc, int to_m
 
 #ifdef __amigaos__
   // Amiga doesn't have pcap_create
-  // TODO: Does Nmap still work on Amiga?
+  // TODO: Does Kmap still work on Amiga?
   pt = pcap_open_live(pcapdev, snaplen, promisc, to_ms, err0r);
   if (!pt) {
     netutil_error("pcap_open_live(%s, %d, %d, %d) FAILED. Reported error: %s.", pcapdev, snaplen, promisc, to_ms, err0r);
@@ -4462,8 +4462,8 @@ int read_reply_pcap(pcap_t *pd, long to_usec,
   if (rcvdtime) {
     // TODO: come up with a better way to synchronize pcap with gettimeofday.
     // Npcap and WinPcap both suffer from clock drift relative to gettimeofday().
-    // We hope to fix this with better time sources for Npcap ( http://issues.nmap.org/1407 )
-    // and for Nmap ( http://issues.nmap.org/180 )
+    // We hope to fix this with better time sources for Npcap ( http://issues.kmap.org/1407 )
+    // and for Kmap ( http://issues.kmap.org/180 )
     // For now, we use gettimeofday() for Windows in this case.
     // Sometimes the time from the pcap header is a
     // COUPLE SECONDS before the gettimeofday() results :(.
@@ -4510,7 +4510,7 @@ static bool accept_arp(const unsigned char *p, const struct pcap_pkthdr *head,
    blocking to the extent possible.  Returns -1 or exits if there is
    an error.  The last parameter is a pointer to a callback function
    that can be used for packet tracing. This is intended to be used
-   by Nmap only. Any other calling this should pass NULL instead. */
+   by Kmap only. Any other calling this should pass NULL instead. */
 int read_arp_reply_pcap(pcap_t *pd, u8 *sendermac,
                         struct in_addr *senderIP, long to_usec,
                         struct timeval *rcvdtime,
@@ -4530,7 +4530,7 @@ int read_arp_reply_pcap(pcap_t *pd, u8 *sendermac,
   memcpy(&senderIP->s_addr, p + offset + 14, 4);
 
   if (trace_callback != NULL) {
-    /* TODO: First parameter "2" is a hardcoded value for Nmap's PacketTrace::RECV. */
+    /* TODO: First parameter "2" is a hardcoded value for Kmap's PacketTrace::RECV. */
     trace_callback(2, (u8 *) p + offset, ARP_HDR_LEN + ARP_ETHIP_LEN, rcvdtime);
   }
 
@@ -4558,7 +4558,7 @@ static bool accept_ns(const unsigned char *p, const struct pcap_pkthdr *head,
    blocking to the extent possible.  Returns -1 or exits if there is
    an error.  The last parameter is a pointer to a callback function
    that can be used for packet tracing. This is intended to be used
-   by Nmap only. Any other calling this should pass NULL instead. */
+   by Kmap only. Any other calling this should pass NULL instead. */
 int read_ns_reply_pcap(pcap_t *pd, u8 *sendermac,
                         struct sockaddr_in6 *senderIP, long to_usec,
                         struct timeval *rcvdtime, bool *has_mac,
@@ -4588,7 +4588,7 @@ int read_ns_reply_pcap(pcap_t *pd, u8 *sendermac,
   memcpy(&senderIP->sin6_addr.s6_addr, &na->icmpv6_target, 16);
 
   if (trace_callback != NULL) {
-    /* TODO: First parameter "2" is a hardcoded value for Nmap's PacketTrace::RECV. */
+    /* TODO: First parameter "2" is a hardcoded value for Kmap's PacketTrace::RECV. */
     trace_callback(2, (u8 *) p + offset, IP6_HDR_LEN + ICMPV6_HDR_LEN + 4 + 16 + 8, rcvdtime);
   }
 
@@ -4603,7 +4603,7 @@ int read_ns_reply_pcap(pcap_t *pd, u8 *sendermac,
    times.  If none of these elicit a response, false will be returned.
    If the mac is determined, true is returned. The last parameter is
    a pointer to a callback function that can be used for packet tracing.
-   This is intended to be used by Nmap only. Any other calling this
+   This is intended to be used by Kmap only. Any other calling this
    should pass NULL instead. */
 bool doND(const char *dev, const u8 *srcmac,
                   const struct sockaddr_storage *srcip,
@@ -4680,7 +4680,7 @@ bool doND(const char *dev, const u8 *srcmac,
      netutil_error("WARNING: %s: eth_send of Neighbor Solicitation packet returned %u rather than expected %d bytes", __func__, rc, (int) sizeof(frame));
     }
     if(traceND_callback!=NULL){
-        /* TODO: First parameter "1" is a hardcoded value for Nmap's PacketTrace::SENT*/
+        /* TODO: First parameter "1" is a hardcoded value for Kmap's PacketTrace::SENT*/
         traceND_callback(1, (u8 *) frame + ETH_HDR_LEN, IP6_HDR_LEN + ICMPV6_HDR_LEN + 4 + 16 + 8, &now);
     }
     num_sends++;
@@ -4723,7 +4723,7 @@ bool doND(const char *dev, const u8 *srcmac,
    times.  If none of these elicit a response, false will be returned.
    If the mac is determined, true is returned. The last parameter is
    a pointer to a callback function that can be used for packet tracing.
-   This is intended to be used by Nmap only. Any other calling this
+   This is intended to be used by Kmap only. Any other calling this
    should pass NULL instead. */
 bool doArp(const char *dev, const u8 *srcmac,
                   const struct sockaddr_storage *srcip,
@@ -4777,7 +4777,7 @@ bool doArp(const char *dev, const u8 *srcmac,
      netutil_error("WARNING: %s: eth_send of ARP packet returned %u rather than expected %d bytes", __func__, rc, (int) sizeof(frame));
     }
     if(traceArp_callback!=NULL){
-        /* TODO: First parameter "1" is a hardcoded value for Nmap's PacketTrace::SENT*/
+        /* TODO: First parameter "1" is a hardcoded value for Kmap's PacketTrace::SENT*/
         traceArp_callback(1, (u8 *) frame + ETH_HDR_LEN, ARP_HDR_LEN + ARP_ETHIP_LEN, &now);
     }
     num_sends++;

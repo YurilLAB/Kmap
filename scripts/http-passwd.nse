@@ -15,7 +15,7 @@ The script uses several technique:
 
 ---
 -- @usage
--- nmap --script http-passwd --script-args http-passwd.root=/test/ <target>
+-- kmap --script http-passwd --script-args http-passwd.root=/test/ <target>
 --
 -- @args http-passwd.root Query string tests will be done relative to this path.
 -- The default value is <code>/</code>. Normally the value should contain a
@@ -62,7 +62,7 @@ The script uses several technique:
 
 author = {"Kris Katterjohn", "Ange Gutek"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "vuln"}
 

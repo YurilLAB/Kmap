@@ -45,17 +45,17 @@ function do_jhbuild_app() {
 mkdir -p "$bundle_res"
 mkdir -p "$bundle_contents"/MacOS
 
-APP_WEB_SITE=https://nmap.org/
-BUNDLE_ID=org.insecure.nmap
+APP_WEB_SITE=https://kmap.org/
+BUNDLE_ID=org.insecure.kmap
 case "$package" in
-  nmap)
+  kmap)
     do_jhbuild_app
     do_lib libpcap
     do_lib libpcre2
     rm "$bundle_lib"/libpcre2-{16,32,posix}.*
     do_lib libssh2
     do_lib zlib
-    run_install_name_tool "$bundle_bin"/nmap
+    run_install_name_tool "$bundle_bin"/kmap
     ;;
   ncat)
     do_jhbuild_app
@@ -97,9 +97,9 @@ with open(sys.argv[1],"r",encoding="utf-8") as f:
     BUNDLE_NAME=environ["package"].title(),
     BUNDLE_EXE=environ["package"],
     OSX_MIN_VERSION=environ["OSX_MIN_VERSION"],
-    VERSION=environ["NMAP_VERSION"],
+    VERSION=environ["KMAP_VERSION"],
     APP_WEB_SITE=environ["APP_WEB_SITE"],
-    APP_COPYRIGHT="Copyright 1996-2026 Nmap Software LLC",
+    APP_COPYRIGHT="Copyright 1996-2026 Kmap Software LLC",
     EXTRA_DICT_CONTENT=""
     ))
 EOF

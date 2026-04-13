@@ -2,8 +2,8 @@
 DTD for the Ndiff XML output format.
 David Fifield <david@bamsoftware.com>
 
-Ndiff XML output is similar to Nmap XML output. Inside of the root
-nmapdiff element, the scandiff element represents a single diff of two
+Ndiff XML output is similar to Kmap XML output. Inside of the root
+kmapdiff element, the scandiff element represents a single diff of two
 scans. Inside scandiff, host differences are within hostdiff elements
 and port differences are within portdiff elements. These may appear
 anywhere where host and port elements would appear, respectively.
@@ -66,15 +66,15 @@ unchanged.
 <!ENTITY % protocol "(ip | tcp | udp)">
 <!ENTITY % port-state "CDATA">
 
-<!ELEMENT nmapdiff (scandiff)>
+<!ELEMENT kmapdiff (scandiff)>
 <!-- The current version is "1". Lack of a version attribute indicates
 version 0, which was rather different. -->
-<!ATTLIST nmapdiff version CDATA #IMPLIED>
+<!ATTLIST kmapdiff version CDATA #IMPLIED>
 
 <!ELEMENT scandiff (prescript | hostdiff | host | postscript | (a, b?) | b)*>
 
-<!ELEMENT nmaprun EMPTY>
-<!ATTLIST nmaprun
+<!ELEMENT kmaprun EMPTY>
+<!ATTLIST kmaprun
     scanner CDATA #REQUIRED
     args CDATA #IMPLIED
     start CDATA #IMPLIED
@@ -134,6 +134,6 @@ version 0, which was rather different. -->
 
 <!ELEMENT hostscript (script | a | b)*>
 
-<!ENTITY % diff-elem "(nmaprun | prescript | postscript | host | status | address | hostname | extraports* | port | state | service | script | os | osmatch* | hostscript)">
+<!ENTITY % diff-elem "(kmaprun | prescript | postscript | host | status | address | hostname | extraports* | port | state | service | script | os | osmatch* | hostscript)">
 <!ELEMENT a %diff-elem;>
 <!ELEMENT b %diff-elem;>

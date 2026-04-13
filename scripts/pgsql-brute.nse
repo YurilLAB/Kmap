@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local pgsql = require "pgsql"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -14,7 +14,7 @@ Performs password guessing against PostgreSQL.
 
 ---
 -- @usage
--- nmap -p 5432 --script pgsql-brute <host>
+-- kmap -p 5432 --script pgsql-brute <host>
 --
 -- @output
 -- 5432/tcp open  pgsql
@@ -33,7 +33,7 @@ Performs password guessing against PostgreSQL.
 --  o SSL can be denied per host or network level
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -53,7 +53,7 @@ portrule = shortport.port_or_service(5432, "postgresql")
 -- @param ssl boolean, if true connect using SSL
 -- @return socket connected to server
 local function connectSocket(host, port, ssl)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- set a reasonable timeout value
   socket:set_timeout(5000)
@@ -76,13 +76,13 @@ action = function( host, port )
   local valid_accounts = {}
   local pg
 
-  if ( nmap.registry.args['pgsql.version'] ) then
-    if ( tonumber(nmap.registry.args['pgsql.version']) == 2 ) then
+  if ( kmap.registry.args['pgsql.version'] ) then
+    if ( tonumber(kmap.registry.args['pgsql.version']) == 2 ) then
       pg = pgsql.v2
-    elseif ( tonumber(nmap.registry.args['pgsql.version']) == 3 ) then
+    elseif ( tonumber(kmap.registry.args['pgsql.version']) == 3 ) then
       pg = pgsql.v3
     else
-      stdnse.debug1("Unsupported version %s", nmap.registry.args['pgsql.version'])
+      stdnse.debug1("Unsupported version %s", kmap.registry.args['pgsql.version'])
       return
     end
   else
@@ -101,8 +101,8 @@ action = function( host, port )
   end
 
   -- If the user explicitly does not disable SSL, enforce it
-  if ( ( nmap.registry.args['pgsql.nossl'] == 'true' ) or
-    ( nmap.registry.args['pgsql.nossl'] == '1' ) ) then
+  if ( ( kmap.registry.args['pgsql.nossl'] == 'true' ) or
+    ( kmap.registry.args['pgsql.nossl'] == '1' ) ) then
     nossl = true
   end
 
@@ -146,10 +146,10 @@ action = function( host, port )
 
       if status then
         -- Add credentials for other pgsql scripts to use
-        if nmap.registry.pgsqlusers == nil then
-          nmap.registry.pgsqlusers = {}
+        if kmap.registry.pgsqlusers == nil then
+          kmap.registry.pgsqlusers = {}
         end
-        nmap.registry.pgsqlusers[username]=password
+        kmap.registry.pgsqlusers[username]=password
         if ( response.authtype ~= pgsql.AuthenticationType.Success ) then
           table.insert( valid_accounts, string.format("%s:%s => Valid credentials", username, password:len()>0 and password or "<empty>" ) )
         else

@@ -1,4 +1,4 @@
----Implements the HTTP client protocol in a standard form that Nmap scripts can
+---Implements the HTTP client protocol in a standard form that Kmap scripts can
 -- take advantage of.
 --
 -- Because HTTP has so many uses, there are a number of interfaces to this
@@ -45,7 +45,7 @@
 -- * <code>no_cache_body</code>: Do not save the body of the response to the local HTTP cache.
 -- * <code>max_body_size</code>: Limit the received body to specific number of bytes. Overrides script argument <code>http.max-body-size</code>. See the script argument for details.
 -- * <code>truncated_ok</code>: Do not treat oversized body as error. Overrides script argument <code>http.truncated-ok</code>.
--- * <code>any_af</code>: Allow connecting to any address family, inet or inet6. By default, these functions will only use the same AF as nmap.address_family to resolve names. (This option is a straight pass-thru to <code>comm.lua</code> functions.)
+-- * <code>any_af</code>: Allow connecting to any address family, inet or inet6. By default, these functions will only use the same AF as kmap.address_family to resolve names. (This option is a straight pass-thru to <code>comm.lua</code> functions.)
 -- * <code>redirect_ok</code>: Closure that overrides the default redirect_ok used to validate whether to follow HTTP redirects or not. False, if no HTTP redirects should be followed. Alternatively, a number may be passed to change the number of redirects to follow.
 --   The following example shows how to write a custom closure that follows 5 consecutive redirects, without the safety checks in the default redirect_ok:
 --   <code>
@@ -75,8 +75,8 @@
 --  all = http.pipeline_add('/test',    nil, all)
 --  all = http.pipeline_add('/monkeys', nil, all, 'HEAD')
 --
---  -- Perform all three requests as parallel as Nmap is able to
---  local results = http.pipeline_go('nmap.org', 80, all)
+--  -- Perform all three requests as parallel as Kmap is able to
+--  local results = http.pipeline_go('kmap.org', 80, all)
 --</code>
 --
 -- At this point, <code>results</code> is an array with three elements.
@@ -98,7 +98,7 @@
 --
 -- @args http.useragent The value of the User-Agent header field sent with
 -- requests. By default it is
--- <code>"Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"</code>.
+-- <code>"Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)"</code>.
 -- A value of the empty string disables sending the User-Agent header field.
 --
 -- @args http.pipeline If set, it represents the number of HTTP requests that'll be
@@ -134,7 +134,7 @@ local base64 = require "base64"
 local comm = require "comm"
 local coroutine = require "coroutine"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local sasl = require "sasl"
 local shortport = require "shortport"
@@ -157,7 +157,7 @@ local have_ssl, openssl = pcall(require,'openssl')
 --Use zlib if we have it
 local have_zlib, zlib = pcall(require,'zlib')
 
-USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"
+USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)"
 local host_header = stdnse.get_script_args('http.host')
 local MAX_REDIRECT_COUNT = 5
 local MAX_BODY_SIZE = tonumber(stdnse.get_script_args('http.max-body-size')) or 2*1024*1024
@@ -1092,7 +1092,7 @@ local function lookup_cache (method, host, port, path, options)
   if type(port) == "table" then port = port.number end
 
   local key = ascii_hostname(host)..":"..port..":"..path;
-  local mutex = nmap.mutex(tostring(lookup_cache)..key);
+  local mutex = kmap.mutex(tostring(lookup_cache)..key);
 
   local state = {
     mutex = mutex,
@@ -1462,7 +1462,7 @@ function generic_request(host, port, method, path, options)
     -- ntlm works with three messages. we send a request, it sends
     -- a challenge, we respond to the challenge.
     local hostname = options.auth.hostname or "localhost" -- the hostname to be sent
-    local workstation_name = options.auth.workstation_name or "NMAP" -- the workstation name to be sent
+    local workstation_name = options.auth.workstation_name or "KMAP" -- the workstation name to be sent
     local username = options.auth.username -- the username as specified
 
     local auth_blob = "NTLMSSP\x00" .. -- NTLM signature
@@ -2553,7 +2553,7 @@ function clean_404(body)
 
   -- If we have SSL available, save us a lot of memory by hashing the page (if SSL isn't available, this will work fine, but
   -- take up more memory). If we're debugging, don't hash (it makes things far harder to debug).
-  if(have_ssl and nmap.debugging() == 0) then
+  if(have_ssl and kmap.debugging() == 0) then
     return openssl.md5(body)
   end
 
@@ -2628,9 +2628,9 @@ function identify_404(host, port)
   local data
 
   -- The URLs used to check 404s
-  local URL_404_1 = '/nmaplowercheck' .. os.time(os.date('*t'))
-  local URL_404_2 = '/NmapUpperCheck' .. os.time(os.date('*t'))
-  local URL_404_3 = '/Nmap/folder/check' .. os.time(os.date('*t'))
+  local URL_404_1 = '/kmaplowercheck' .. os.time(os.date('*t'))
+  local URL_404_2 = '/KmapUpperCheck' .. os.time(os.date('*t'))
+  local URL_404_3 = '/Kmap/folder/check' .. os.time(os.date('*t'))
 
   data = get(host, port, URL_404_1, identify_404_get_opts)
   if(data == nil) then
@@ -2688,13 +2688,13 @@ function identify_404(host, port)
       local clean_body3 = clean_404(data3.body)
       if(clean_body ~= clean_body2) then
         stdnse.debug1("HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response.")
-        stdnse.debug1("HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
+        stdnse.debug1("HTTP: If you investigate the server and it's possible to clean up the pages, please post to kmap-dev mailing list.")
         return cache_404_response(host, port, identify_404_cache_unknown)
       end
 
       if(clean_body ~= clean_body3) then
         stdnse.debug1("HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response (happened when checking a folder).")
-        stdnse.debug1("HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
+        stdnse.debug1("HTTP: If you investigate the server and it's possible to clean up the pages, please post to kmap-dev mailing list.")
         return cache_404_response(host, port, identify_404_cache_unknown_folder)
       end
 

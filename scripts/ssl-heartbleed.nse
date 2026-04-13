@@ -1,5 +1,5 @@
 local match = require('match')
-local nmap = require('nmap')
+local kmap = require('kmap')
 local shortport = require('shortport')
 local sslcert = require('sslcert')
 local stdnse = require('stdnse')
@@ -7,7 +7,7 @@ local string = require "string"
 local tableaux = require "tableaux"
 local vulns = require('vulns')
 local have_tls, tls = pcall(require,'tls')
-assert(have_tls, "This script requires the tls.lua library from https://nmap.org/nsedoc/lib/tls.html")
+assert(have_tls, "This script requires the tls.lua library from https://kmap.org/nsedoc/lib/tls.html")
 
 description = [[
 Detects whether a server is vulnerable to the OpenSSL Heartbleed bug (CVE-2014-0160).
@@ -16,7 +16,7 @@ The code is based on the Python script ssltest.py authored by Katie Stafford (ka
 
 ---
 -- @usage
--- nmap -p 443 --script ssl-heartbleed <target>
+-- kmap -p 443 --script ssl-heartbleed <target>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -39,7 +39,7 @@ The code is based on the Python script ssltest.py authored by Katie Stafford (ka
 --
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln", "safe" }
 dependencies = {"https-redirect"}
 
@@ -84,7 +84,7 @@ local function testversion(host, port, version)
       },
     })
 
-  local payload = "Nmap ssl-heartbleed"
+  local payload = "Kmap ssl-heartbleed"
   local hb = tls.record_write("heartbeat", version, string.pack("B>I2",
       1, -- HeartbeatMessageType heartbeat_request
       0x4000) -- payload length (falsified)
@@ -102,7 +102,7 @@ local function testversion(host, port, version)
       return
     end
   else
-    s = nmap.new_socket()
+    s = kmap.new_socket()
     status, err = s:connect(host, port)
     if not status then
       stdnse.debug3("Connection to server failed: %s", err)

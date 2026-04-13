@@ -17,7 +17,7 @@ Performs brute force password auditing against VNC servers.
 --                            SASL (not supported), and ATEN) Default: false,
 --                            since most VNC auth types are password-only.
 -- @usage
--- nmap --script vnc-brute -p 5900 <host>
+-- kmap --script vnc-brute -p 5900 <host>
 --
 -- @output
 -- PORT     STATE  SERVICE REASON
@@ -39,7 +39,7 @@ Performs brute force password auditing against VNC servers.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

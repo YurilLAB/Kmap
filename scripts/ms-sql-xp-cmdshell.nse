@@ -1,5 +1,5 @@
 local mssql = require "mssql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -35,14 +35,14 @@ authentication required to connect to the SQL Server instances itself. See the
 documentation and arguments for the <code>smb</code> library for more information.
 
 NOTE: By default, the ms-sql-* scripts may attempt to connect to and communicate
-with ports that were not included in the port list for the Nmap scan. This can
+with ports that were not included in the port list for the Kmap scan. This can
 be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 ]]
 
 ---
 -- @usage
--- nmap -p 445 --script ms-sql-discover,ms-sql-empty-password,ms-sql-xp-cmdshell <host>
--- nmap -p 1433 --script ms-sql-xp-cmdshell --script-args mssql.username=sa,mssql.password=sa,ms-sql-xp-cmdshell.cmd="net user test test /add" <host>
+-- kmap -p 445 --script ms-sql-discover,ms-sql-empty-password,ms-sql-xp-cmdshell <host>
+-- kmap -p 1433 --script ms-sql-xp-cmdshell --script-args mssql.username=sa,mssql.password=sa,ms-sql-xp-cmdshell.cmd="net user test test /add" <host>
 --
 -- @args ms-sql-xp-cmdshell.cmd The OS command to run (default: ipconfig /all).
 --
@@ -82,7 +82,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 --                 added compatibility with changes in mssql.lua (Chris Woodbury)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 
 
@@ -124,7 +124,7 @@ local function process_instance( instance )
         output[ "name" ] = string.format( "Command: %s", cmd )
         break
       elseif ( result and result:gmatch("xp_configure") ) then
-        if( nmap.verbosity() > 1 ) then
+        if( kmap.verbosity() > 1 ) then
           output = "Procedure xp_cmdshell disabled. For more information see \"Surface Area Configuration\" in Books Online."
         end
       end

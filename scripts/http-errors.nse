@@ -11,7 +11,7 @@ Please, note that the script will become more intrusive though.
 ]]
 
 ---
--- @usage nmap -p80 --script http-errors.nse <target>
+-- @usage kmap -p80 --script http-errors.nse <target>
 --
 -- @args http-errors.errcodes The error codes we are interested in.
 --       Default: nil (all codes >= 400)
@@ -35,7 +35,7 @@ Please, note that the script will become more intrusive though.
 
 categories = {"discovery", "intrusive"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local shortport = require "shortport"
 local stdnse = require "stdnse"

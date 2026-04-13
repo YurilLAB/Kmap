@@ -10,7 +10,7 @@ Performs brute force password auditing against SOCKS 5 proxy servers.
 
 ---
 -- @usage
--- nmap --script socks-brute -p 1080 <host>
+-- kmap --script socks-brute -p 1080 <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -23,7 +23,7 @@ Performs brute force password auditing against SOCKS 5 proxy servers.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
@@ -78,7 +78,7 @@ local function checkAuth(host, port)
     return false, "\n  No authentication required"
   end
 
-  local status, err = helper:authenticate({username="nmap", password="nmapbruteprobe"})
+  local status, err = helper:authenticate({username="kmap", password="kmapbruteprobe"})
   if ( err ~= "Authentication failed" ) then
     return false, err
   end

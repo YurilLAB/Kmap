@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -10,7 +10,7 @@ Attempts to discover DB2 servers on the network by sending a broadcast request t
 
 ---
 -- @usage
--- nmap --script db2-discover
+-- kmap --script db2-discover
 --
 -- @output
 -- Pre-scan script results:
@@ -22,7 +22,7 @@ Attempts to discover DB2 servers on the network by sending a broadcast request t
 -- Created 07/10/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -39,7 +39,7 @@ local function parseVersion( server_version )
     local major_version = string.sub(server_version,4,5)
 
     -- strip the leading 0 from the major version, for consistency with
-    -- nmap-service-probes results
+    -- kmap-service-probes results
     if string.sub(major_version,1,1) == "0" then
       major_version = string.sub(major_version,2)
     end
@@ -56,7 +56,7 @@ end
 action = function()
 
   local DB2GETADDR = "DB2GETADDR\0SQL09010\0"
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   local result = {}
   local host, port = "255.255.255.255", 523
 

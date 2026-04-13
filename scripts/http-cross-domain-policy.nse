@@ -1,7 +1,7 @@
 local http = require "http"
 local stdnse = require "stdnse"
 local vulns = require "vulns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local table = require "table"
 local tableaux = require "tableaux"
@@ -27,8 +27,8 @@ References:
 ]]
 
 ---
--- @usage nmap --script http-cross-domain-policy <target>
--- @usage nmap -p 80 --script http-cross-domain-policy --script-args http-cross-domain-policy.domain-lookup=true <target>
+-- @usage kmap --script http-cross-domain-policy <target>
+-- @usage kmap -p 80 --script http-cross-domain-policy --script-args http-cross-domain-policy.domain-lookup=true <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -135,7 +135,7 @@ References:
 ---
 
 author = {"Seth Art <sethsec()gmail>", "Paulino Calderon <calderon()websec.mx>", "Gyanendra Mishra"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "external", "vuln"}
 
 portrule = shortport.http
@@ -148,11 +148,11 @@ local tlds_instantdomainsearch = {".com", ".net", ".org", ".co", ".info", ".biz"
 --
 -- Sample response:
 --
--- {"label":"nmap","tld":"com","isRegistered":true,"isBid":false,
+-- {"label":"kmap","tld":"com","isRegistered":true,"isBid":false,
 -- "price":0,"aftermarketProvider":"","rank":14.028985023498535,"search":"name"}
--- {"words":["nmap"],"synonyms":["nmap","scans"],"tld":"com","isBid":false,"price":0,
+-- {"words":["kmap"],"synonyms":["kmap","scans"],"tld":"com","isBid":false,"price":0,
 -- "aftermarketProvider":"","rank":0.23496590554714203,"search":"word"}
--- {"label":"snmap","tld":"com","isBid":false,"price":2994,"aftermarketProvider":"afternic.com",
+-- {"label":"skmap","tld":"com","isBid":false,"price":2994,"aftermarketProvider":"afternic.com",
 -- "rank":9.352656364440918,"search":"ngram"}
 ---
 local function check_domain (domain)
@@ -292,7 +292,7 @@ Forgery attacks, and may allow third parties to access sensitive data meant for 
     end
     vuln.check_results = content
     vuln.extra_info = string.format("Trusted domains:%s\n", table.concat(domains, ', '))
-    if not(lookup) and nmap.verbosity()>=2 then
+    if not(lookup) and kmap.verbosity()>=2 then
       vuln.extra_info = vuln.extra_info .. "Use the script argument 'domain-lookup' to find trusted domains available for purchase"
     end
     if lookup ~= nil and #domains_available>0 then

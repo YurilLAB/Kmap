@@ -1,72 +1,72 @@
 
 /***************************************************************************
  * osscan.cc -- Routines used for OS detection via TCP/IP fingerprinting.  *
- * For more information on how this works in Nmap, see my paper at         *
- * https://nmap.org/osdetect/                                               *
+ * For more information on how this works in Kmap, see my paper at         *
+ * https://kmap.org/osdetect/                                               *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
 /* $Id$ */
 
 #include "osscan.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "charpool.h"
 #include "FingerPrintResults.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "string_pool.h"
 
 #include <errno.h>
@@ -75,7 +75,7 @@
 #include <algorithm>
 #include <set>
 
-extern NmapOps o;
+extern KmapOps o;
 
 template<u8 _MaxStrLen> void ShortStr<_MaxStrLen>::setStr(const char *in) {
   const char *end = in;
@@ -653,7 +653,7 @@ static const char *dist_method_fp_string(enum dist_calc_method method)
 
 /* Writes an informational "Test" result suitable for including at the
    top of a fingerprint.  Gives info which might be useful when the
-   FPrint is submitted (eg Nmap version, etc).  Result is written (up
+   FPrint is submitted (eg Kmap version, etc).  Result is written (up
    to ostrlen) to the ostr var passed in */
 void WriteSInfo(char *ostr, int ostrlen, bool isGoodFP,
                                 const char *engine_id,
@@ -694,9 +694,9 @@ void WriteSInfo(char *ostr, int ostrlen, bool isGoodFP,
     Snprintf(macbuf, sizeof(macbuf), "%%M=%02X%02X%02X", mac[0], mac[1], mac[2]);
 
   Snprintf(ostr, ostrlen, "SCAN(V=%s%%E=%s%%D=%d/%d%%OT=%s%%CT=%s%%CU=%s%%PV=%c%s%s%%G=%c%s%%TM=%X%%P=%s)",
-                   NMAP_VERSION, engine_id, err ? 0 : ltime.tm_mon + 1, err ? 0 : ltime.tm_mday,
+                   KMAP_VERSION, engine_id, err ? 0 : ltime.tm_mon + 1, err ? 0 : ltime.tm_mday,
                    otbuf, ctbuf, cubuf, ip_is_reserved(addr) ? 'Y' : 'N', dsbuf, dcbuf, isGoodFP ? 'Y' : 'N',
-                   macbuf, (int) timep, NMAP_PLATFORM);
+                   macbuf, (int) timep, KMAP_PLATFORM);
 }
 
 /* Puts a textual representation of the test in s.
@@ -762,13 +762,13 @@ bool FingerTest::str2AVal(const char *str, const char *end) {
   for (u8 i = 0; i < count && p < end; i++) {
     q = strchr_p(p, end, '=');
     if (!q) {
-      error("Parse error with AVal string (%s) in nmap-os-db file", str);
+      error("Parse error with AVal string (%s) in kmap-os-db file", str);
       return false;
     }
     std::map<FPstr, u8>::const_iterator idx = def->AttrIdx.find(FPstr(p, q));
     u8 j = idx->second;
     if (idx == def->AttrIdx.end() || AVs[j] != NULL) {
-      error("Parse error with AVal string (%s) in nmap-os-db file", str);
+      error("Parse error with AVal string (%s) in kmap-os-db file", str);
       return false;
     }
     p = q+1;
@@ -1063,8 +1063,8 @@ static void parse_cpeline(FingerPrint *FP, const char *thisline, const char *lin
    when done.  This function does not require the fingerprint to be 100%
    complete since it is used by scripts such as scripts/fingerwatch for
    which some partial fingerpritns are OK. */
-/* This function is not currently used by Nmap, but it is present here because
-   it is used by fingerprint utilities that link with Nmap object files. */
+/* This function is not currently used by Kmap, but it is present here because
+   it is used by fingerprint utilities that link with Kmap object files. */
 ObservationPrint *parse_single_fingerprint(const FingerPrintDB *DB, const char *fprint) {
   int lineno = 0;
   const char *p, *q;
@@ -1162,7 +1162,7 @@ FingerPrintDB *parse_fingerprint_file(const char *fname, bool points_only) {
 
   fp = fopen(fname, "r");
   if (!fp)
-    pfatal("Unable to open Nmap fingerprint file: %s", fname);
+    pfatal("Unable to open Kmap fingerprint file: %s", fname);
 
 top:
   while (fgets(line, sizeof(line), fp)) {
@@ -1181,17 +1181,17 @@ fparse:
       if (DB->MatchPoints)
         fatal("Found MatchPoints directive on line %d of %s even though it has previously been seen in the file", lineno, fname);
       parsingMatchPoints = true;
-    } else if (strncmp(line, "This nmap-os-db", 15) == 0) {
-      p = strstr(line, "Nmap ");
+    } else if (strncmp(line, "This kmap-os-db", 15) == 0) {
+      p = strstr(line, "Kmap ");
       if (!p)
-        fatal("Parse error on line %d of nmap-os-db file: %s", lineno, line);
+        fatal("Parse error on line %d of kmap-os-db file: %s", lineno, line);
       q = strchr(p + 5, ' ');
-      if (strncmp(p + 5, NMAP_NUM_VERSION, q - p) > 0) {
+      if (strncmp(p + 5, KMAP_NUM_VERSION, q - p) > 0) {
         error("%sOS detection results may be inaccurate.", line);
       }
       continue;
     } else {
-      error("Parse error on line %d of nmap-os-db file: %s", lineno, line);
+      error("Parse error on line %d of kmap-os-db file: %s", lineno, line);
       continue;
     }
 
@@ -1232,7 +1232,7 @@ fparse:
         goto fparse;
       } else if (parsingMatchPoints) {
         if (!DB->MatchPoints->parseTestStr(line, q)) {
-          fatal("Parse error in MatchPoints on line %d of nmap-os-db file: %s", lineno, line);
+          fatal("Parse error in MatchPoints on line %d of kmap-os-db file: %s", lineno, line);
         }
       } else if (strncmp(line, "Class ", 6) == 0) {
         parse_classline(current, line, q, lineno);
@@ -1242,18 +1242,18 @@ fparse:
         p = line;
         q = strchr(line, '(');
         if (!q) {
-          error("Parse error on line %d of nmap-os-db file: %s", lineno, line);
+          error("Parse error on line %d of kmap-os-db file: %s", lineno, line);
           goto top;
         }
         FingerTest test(FPstr(p, q), *DB->MatchPoints);
         p = q+1;
         q = strchr(p, ')');
         if (!q) {
-          error("Parse error on line %d of nmap-os-db file: %s", lineno, line);
+          error("Parse error on line %d of kmap-os-db file: %s", lineno, line);
           goto top;
         }
         if (!test.str2AVal(p, q)) {
-          error("Parse error on line %d of nmap-os-db file: %s", lineno, line);
+          error("Parse error on line %d of kmap-os-db file: %s", lineno, line);
           goto top;
         }
         current->setTest(test);
@@ -1269,7 +1269,7 @@ fparse:
 FingerPrintDB *parse_fingerprint_reference_file(const char *dbname) {
   char filename[256];
 
-  if (nmap_fetchfile(filename, sizeof(filename), dbname) != 1) {
+  if (kmap_fetchfile(filename, sizeof(filename), dbname) != 1) {
     fatal("OS scan requested but I cannot find %s file.", dbname);
   }
   /* Record where this data file was found. */

@@ -18,7 +18,7 @@ References:
 -- @see http-slowloris.nse
 --
 -- @usage
--- nmap --script http-vuln-cve2011-3192.nse [--script-args http-vuln-cve2011-3192.hostname=nmap.scanme.org] -pT:80,443 <host>
+-- kmap --script http-vuln-cve2011-3192.nse [--script-args http-vuln-cve2011-3192.hostname=kmap.scanme.org] -pT:80,443 <host>
 --
 -- @output
 -- Host script results:
@@ -52,7 +52,7 @@ References:
 -----------------------------------------------------------------------
 
 author = "Duarte Silva <duarte.silva@serializing.me>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 

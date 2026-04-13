@@ -14,7 +14,7 @@ types:
 
 ---
 -- @usage
--- nmap -p 1080 <ip> --script socks-auth-info
+-- kmap -p 1080 <ip> --script socks-auth-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -34,7 +34,7 @@ types:
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "default"}
 
 portrule = shortport.port_or_service({1080, 9050}, {"socks", "socks5", "tor-socks"})

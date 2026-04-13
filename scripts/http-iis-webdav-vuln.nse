@@ -1,6 +1,6 @@
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -10,7 +10,7 @@ description = [[
 Checks for a vulnerability in IIS 5.1/6.0 that allows arbitrary users to access
 secured WebDAV folders by searching for a password-protected folder and
 attempting to access it. This vulnerability was patched in Microsoft Security
-Bulletin MS09-020, https://nmap.org/r/ms09-020.
+Bulletin MS09-020, https://kmap.org/r/ms09-020.
 
 A list of well known folders (almost 900) is used by default. Each one is
 checked, and if returns an authentication request (401), another attempt is
@@ -30,7 +30,7 @@ For more information on this vulnerability and script, see:
 
 ---
 -- @usage
--- nmap --script http-iis-webdav-vuln -p80,8080 <host>
+-- kmap --script http-iis-webdav-vuln -p80,8080 <host>
 --
 -- @output
 -- 80/tcp open  http    syn-ack
@@ -42,7 +42,7 @@ For more information on this vulnerability and script, see:
 -----------------------------------------------------------------------
 
 author = {"Ron Bowes", "Andrew Orr"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive"}
 
 
@@ -113,8 +113,8 @@ local function go(host, port)
   local is_vulnerable = true
 
   local folder_file
-  local farg = nmap.registry.args.folderdb
-  folder_file = farg and (nmap.fetchfile(farg) or farg) or nmap.fetchfile('nselib/data/http-folders.txt')
+  local farg = kmap.registry.args.folderdb
+  folder_file = farg and (kmap.fetchfile(farg) or farg) or kmap.fetchfile('nselib/data/http-folders.txt')
 
   if(folder_file == nil) then
     return false, "Couldn't find http-folders.txt (should be in nselib/data)"
@@ -132,8 +132,8 @@ local function go(host, port)
       break
     end
 
-    if(nmap.registry.args.basefolder ~= nil) then
-      line = "/" .. nmap.registry.args.basefolder .. "/" .. line
+    if(kmap.registry.args.basefolder ~= nil) then
+      line = "/" .. kmap.registry.args.basefolder .. "/" .. line
     else
       line = "/" .. line
     end
@@ -159,7 +159,7 @@ action = function(host, port)
   local result = go_single(host, port, "/")
   if(result == enum_results.NOT_VULNERABLE) then
     stdnse.debug1("Root folder is password protected, aborting.")
-    return nmap.verbosity() > 0 and "Could not determine vulnerability, since root folder is password protected" or nil
+    return kmap.verbosity() > 0 and "Could not determine vulnerability, since root folder is password protected" or nil
   end
 
   stdnse.debug1("Root folder is not password protected, continuing...")
@@ -168,7 +168,7 @@ action = function(host, port)
   if(response.status == 501) then
     -- WebDAV is disabled
     stdnse.debug1("WebDAV is DISABLED (PROPFIND failed).")
-    return nmap.verbosity() > 0 and "WebDAV is DISABLED. Server is not currently vulnerable." or nil
+    return kmap.verbosity() > 0 and "WebDAV is DISABLED. Server is not currently vulnerable." or nil
   else
     if(response.status == 207) then
       -- PROPFIND works, WebDAV is enabled
@@ -187,16 +187,16 @@ action = function(host, port)
   end
 
 
-  if(nmap.registry.args.webdavfolder ~= nil) then
-    local folder = nmap.registry.args.webdavfolder
+  if(kmap.registry.args.webdavfolder ~= nil) then
+    local folder = kmap.registry.args.webdavfolder
     local result = go_single(host, port, "/" .. folder)
 
     if(result == enum_results.VULNERABLE) then
       return string.format("WebDAV is ENABLED. Folder is vulnerable: %s", folder)
     elseif(result == enum_results.NOT_VULNERABLE) then
-      return nmap.verbosity() > 0 and string.format("WebDAV is ENABLED. Folder is NOT vulnerable: %s", folder) or nil
+      return kmap.verbosity() > 0 and string.format("WebDAV is ENABLED. Folder is NOT vulnerable: %s", folder) or nil
     else
-      return nmap.verbosity() > 0 and string.format("WebDAV is ENABLED. Could not determine vulnerability of folder: %s", folder) or nil
+      return kmap.verbosity() > 0 and string.format("WebDAV is ENABLED. Could not determine vulnerability of folder: %s", folder) or nil
     end
 
   else
@@ -207,9 +207,9 @@ action = function(host, port)
     else
       if(#results == 0) then
         if(is_vulnerable == false) then
-          return nmap.verbosity() > 0 and "WebDAV is ENABLED. Protected folder found but could not be exploited. Server does not appear to be vulnerable." or nil
+          return kmap.verbosity() > 0 and "WebDAV is ENABLED. Protected folder found but could not be exploited. Server does not appear to be vulnerable." or nil
         else
-          return nmap.verbosity() > 0 and "WebDAV is ENABLED. No protected folder found; check not run. If you know a protected folder, add --script-args=webdavfolder=<path>" or nil
+          return kmap.verbosity() > 0 and "WebDAV is ENABLED. No protected folder found; check not run. If you know a protected folder, add --script-args=webdavfolder=<path>" or nil
         end
       else
         return "WebDAV is ENABLED. Vulnerable folders discovered: " .. table.concat(results, ", ")

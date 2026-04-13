@@ -2,7 +2,7 @@
 -- Facilities for manipulating raw packets.
 --
 -- @author Marek Majkowski <majek04+nse@gmail.com>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"

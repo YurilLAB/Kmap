@@ -19,12 +19,12 @@ of Windows and Windows Server are not supported.
 ]]
 
 author = "Niklaus Schiess <nschiess@adversec.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {'discovery', 'safe', 'default'}
 
 ---
 --@usage
--- nmap --script ip-https-discover
+-- kmap --script ip-https-discover
 --
 --@output
 -- 443/tcp open  https

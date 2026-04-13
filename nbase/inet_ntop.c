@@ -14,7 +14,7 @@
  * SOFTWARE.
  */
 
-/* Modified by Fyodor (fyodor@nmap.org) for inclusion in the Nmap
+/* Modified by Fyodor (fyodor@kmap.org) for inclusion in the Kmap
  * Security Scanner.
  *
  * $Id$

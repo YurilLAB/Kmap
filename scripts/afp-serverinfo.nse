@@ -1,5 +1,5 @@
 local afp = require "afp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -83,7 +83,7 @@ hostname, IPv4 and IPv6 addresses, and hardware type (for example
 -- Revised 2015/02/25 - v0.3 - XML structured output
 
 author = "Andrew Orr"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -91,7 +91,7 @@ portrule = shortport.port_or_service(548, "afp")
 
 action = function(host, port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status
   local result = stdnse.output_table()
   local temp
@@ -104,7 +104,7 @@ action = function(host, port)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try( socket:connect(host, port) )
 

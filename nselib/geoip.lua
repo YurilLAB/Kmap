@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local coroutine = require "coroutine"
@@ -9,7 +9,7 @@ _ENV = stdnse.module("geoip", stdnse.seeall)
 -- Consolidation of GeoIP functions.
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 --- Add a geolocation to the registry
 -- @param ip The IP that was geolocated
@@ -28,11 +28,11 @@ add = function(ip, lat, lon)
     return
   end
 
-  if not nmap.registry.geoip then
-    nmap.registry.geoip = {}
+  if not kmap.registry.geoip then
+    kmap.registry.geoip = {}
   end
 
-  nmap.registry.geoip[ip] = {
+  kmap.registry.geoip[ip] = {
     latitude = lat,
     longitude = lon
   }
@@ -41,7 +41,7 @@ end
 --- Check if any coordinates have been stored in the registry
 --@return True if any coordinates have been returned, false otherwise
 empty = function()
-  return not nmap.registry.geoip
+  return not kmap.registry.geoip
 end
 
 --- Retrieve the table of coordinates by IP
@@ -51,7 +51,7 @@ get_all_by_ip = function()
     return nil
   end
 
-  return nmap.registry.geoip
+  return kmap.registry.geoip
 end
 
 --- Retrieve a table of IPs by coordinate

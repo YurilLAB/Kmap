@@ -34,7 +34,7 @@ supports.
 
 
 author = {"Matthew Boyle", "Daniel Miller"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local coroutine = require "coroutine"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -20,14 +20,14 @@ Further information:
 ]]
 
 author = {"Niklaus Schiess <nschiess@ernw.de>", "Dominik Schneider <dschneider@ernw.de>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "broadcast"}
 
 ---
 --@args timeout Max time to wait for a response. (default 3s)
 --
 --@usage
--- nmap --script knx-gateway-discover -e eth0
+-- kmap --script knx-gateway-discover -e eth0
 --
 --@output
 -- Pre-scan script results:
@@ -50,7 +50,7 @@ categories = {"discovery", "safe", "broadcast"}
 --
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("Not running due to lack of privileges.")
     return false
   end
@@ -63,7 +63,7 @@ end
 -- @param port Port to sent to
 local knxSend = function(query, mcast, mport)
   -- Multicast IP and UDP port
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(mcast, mport, "udp")
   if not status then
     stdnse.debug1("%s", err)
@@ -133,7 +133,7 @@ local knxParseSearchResponse = function(ips, results, knxMessage)
   end
 
   local search_response = stdnse.output_table()
-  if nmap.debugging() > 0 then
+  if kmap.debugging() > 0 then
     search_response.Header = stdnse.output_table()
     search_response.Header["Header length"] = knx_header_length
     search_response.Header["Protocol version"] = knx_protocol_version
@@ -181,16 +181,16 @@ end
 -- @param ips Table to put IP addresses into.
 -- @param result Table to put responses into.
 local knxListen = function(interface, timeout, ips, results)
-  local condvar = nmap.condvar(results)
-  local start = nmap.clock_ms()
-  local listener = nmap.new_socket()
+  local condvar = kmap.condvar(results)
+  local start = kmap.clock_ms()
+  local listener = kmap.new_socket()
   local threads = {}
   local status, l3data, _
   local filter = 'dst host ' .. interface.address .. ' and udp src port 3671'
   listener:set_timeout(100)
   listener:pcap_open(interface.device, 1024, true, filter)
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, _, _, l3data = listener:pcap_receive()
     if status then
       local p = packet.Packet:new(l3data, #l3data)
@@ -217,7 +217,7 @@ end
 -- @return interface Network interface used for target host.
 local getInterface = function(interfaces, target)
   -- First, create dummy UDP connection to get interface
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(target, "12345", "udp")
   if not status then
     stdnse.verbose1("%s", err)
@@ -245,7 +245,7 @@ end
 -- @param target host to which the interface is used.
 -- @return lport Local port which can be used in KNX messages.
 local getSourcePort = function(target)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local _, _ = socket:connect(target, "12345", "udp")
   local _, _, lport, _, _ = socket:get_info()
   return lport
@@ -282,7 +282,7 @@ action = function()
   -- Send query
   knxSend(query, mcast, mport)
   -- Wait for listener thread to finish
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   condvar("wait")
 
   -- Check responses

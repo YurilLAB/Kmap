@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -23,14 +23,14 @@ between each port's data.  Ports which have round-trip times that are
 statistically the same are grouped together in the same family.
 
 This script is based on Doug Hoyte's Qscan documentation and patches
-for Nmap.
+for Kmap.
 ]]
 
--- See http://hcsw.org/nmap/QSCAN for more on Doug's research
+-- See http://hcsw.org/kmap/QSCAN for more on Doug's research
 
 ---
 -- @usage
--- nmap --script qscan --script-args qscan.confidence=0.95,qscan.delay=200ms,qscan.numtrips=10 target
+-- kmap --script qscan --script-args qscan.confidence=0.95,qscan.delay=200ms,qscan.numtrips=10 target
 --
 -- @args confidence Confidence level: <code>0.75</code>, <code>0.9</code>,
 --       <code>0.95</code>, <code>0.975</code>, <code>0.99</code>,
@@ -62,7 +62,7 @@ for Nmap.
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -283,22 +283,22 @@ local getopts = function()
   local k
 
   for _, k in ipairs({"qscan.confidence", "confidence"}) do
-    if nmap.registry.args[k] then
-      conf = tonumber(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      conf = tonumber(kmap.registry.args[k])
       break
     end
   end
 
   for _, k in ipairs({"qscan.delay", "delay"}) do
-    if nmap.registry.args[k] then
-      delay = stdnse.parse_timespec(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      delay = stdnse.parse_timespec(kmap.registry.args[k])
       break
     end
   end
 
   for _, k in ipairs({"qscan.numtrips", "numtrips"}) do
-    if nmap.registry.args[k] then
-      numtrips = tonumber(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      numtrips = tonumber(kmap.registry.args[k])
       break
     end
   end
@@ -351,7 +351,7 @@ local getports = function(host, numopen, numclosed)
 
   port = nil
   while numopen < 0 or #open < numopen do
-    port = nmap.get_ports(host, port, "tcp", "open")
+    port = kmap.get_ports(host, port, "tcp", "open")
     if not port then
       break
     end
@@ -359,7 +359,7 @@ local getports = function(host, numopen, numclosed)
   end
   port = nil
   while numclosed < 0 or #closed < numclosed do
-    port = nmap.get_ports(host, port, "tcp", "closed")
+    port = kmap.get_ports(host, port, "tcp", "closed")
     if not port then
       break
     end
@@ -370,18 +370,18 @@ local getports = function(host, numopen, numclosed)
 end
 
 hostrule = function(host)
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return nil
   end
 
   local numopen, numclosed = NUMOPEN, NUMCLOSED
 
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -390,15 +390,15 @@ hostrule = function(host)
   end
 
   for _, k in ipairs({"qscan.numopen", "numopen"}) do
-    if nmap.registry.args[k] then
-      numopen = tonumber(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      numopen = tonumber(kmap.registry.args[k])
       break
     end
   end
 
   for _, k in ipairs({"qscan.numclosed", "numclosed"}) do
-    if nmap.registry.args[k] then
-      numclosed = tonumber(nmap.registry.args[k])
+    if kmap.registry.args[k] then
+      numclosed = tonumber(kmap.registry.args[k])
       break
     end
   end
@@ -408,14 +408,14 @@ hostrule = function(host)
 end
 
 action = function(host)
-  local sock = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local sock = kmap.new_dnet()
+  local pcap = kmap.new_socket()
   local saddr = ipOps.str_to_ip(host.bin_ip_src)
   local daddr = ipOps.str_to_ip(host.bin_ip)
   local start
   local rtt
   local stats = {}
-  local try = nmap.new_try()
+  local try = kmap.new_try()
 
   local conf, delay, numtrips = try(getopts())
 
@@ -423,10 +423,10 @@ action = function(host)
 
   try(sock:ip_open())
 
-  try = nmap.new_try(function() sock:ip_close() end)
+  try = kmap.new_try(function() sock:ip_close() end)
 
   -- Simply double the calculated host timeout to account for possible
-  -- extra time due to port forwarding or whathaveyou.  Nmap has all
+  -- extra time due to port forwarding or whathaveyou.  Kmap has all
   -- ready scanned this host, so the timing should have taken into
   -- account some of the RTT differences, but I think it really depends
   -- on how many ports were scanned and how many were forwarded where.

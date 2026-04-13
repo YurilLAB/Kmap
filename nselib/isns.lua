@@ -6,7 +6,7 @@
 
 local ipOps  = require('ipOps')
 local match  = require('match')
-local nmap = require('nmap')
+local kmap = require('kmap')
 local stdnse = require('stdnse')
 local string = require "string"
 local table = require('table')
@@ -367,7 +367,7 @@ Session = {
   -- Connects to the server
   -- @return status true on success, false on failure
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(5000)
     return self.socket:connect(self.host, self.port)
   end,

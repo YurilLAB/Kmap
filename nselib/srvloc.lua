@@ -26,12 +26,12 @@
 --  </code>
 
 --@author Patrik Karlsson <patrik@cqure.net>
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- Version 0.1
 -- Created 24/04/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -266,10 +266,10 @@ Request = {
 Helper = {
 
   new = function(self, host, port)
-    local o = { xid = 1, socket = nmap.new_socket("udp") }
+    local o = { xid = 1, socket = kmap.new_socket("udp") }
     setmetatable(o, self)
     self.__index = self
-    local family = nmap.address_family()
+    local family = kmap.address_family()
     o.host = host or (family=="inet6" and "FF02::116" or "239.255.255.253")
     o.port = port or { number=427, proto="udp" }
     return o

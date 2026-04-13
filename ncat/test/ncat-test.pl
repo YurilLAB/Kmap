@@ -1038,7 +1038,7 @@ server_client_test_sctp_ssl "--send-only server closes socket write and stops ru
 kill_children;
 
 # SCTP doesn't have half-open sockets, so the program should exit.
-# http://seclists.org/nmap-dev/2013/q1/203
+# http://seclists.org/kmap-dev/2013/q1/203
 server_client_test_tcp_sctp_ssl "Client closes stdout and stops running after socket EOF",
 [], [], eof_test("Client", 1, "socket");
 kill_children;
@@ -1059,7 +1059,7 @@ kill_children;
 # its input. The listener must close its standard output so the program knows
 # to stop reading and process what remains in its buffer.
 {
-# XFAIL because of http://seclists.org/nmap-dev/2013/q1/227. The "close stdout"
+# XFAIL because of http://seclists.org/kmap-dev/2013/q1/227. The "close stdout"
 # part works, but not the "server keeps running" part.
 local $xfail = 1;
 server_client_test_tcp_ssl "Server closes stdout and keeps running after socket EOF",

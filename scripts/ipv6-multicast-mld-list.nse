@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -14,7 +14,7 @@ Multicast Address Space Registry have their descriptions listed.
 
 ---
 -- @usage
--- nmap --script=ipv6-multicast-mld-list
+-- kmap --script=ipv6-multicast-mld-list
 --
 -- @output
 -- Pre-scan script results:
@@ -59,7 +59,7 @@ Multicast Address Space Registry have their descriptions listed.
 -- </table>
 
 author = {"alegen", "Daniel Miller"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 -- Technically multicast, not broadcast
 categories = {"broadcast", "discovery"}
 
@@ -258,7 +258,7 @@ end
 
 local function single_interface_broadcast(if_nfo, results)
   stdnse.debug2("Starting " .. SCRIPT_NAME .. " on " .. if_nfo.device)
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. '.timeout')) or 10
 
   local reports = multicast.mld_query(if_nfo, timeout)
@@ -307,7 +307,7 @@ local function sorted_keys(t)
 end
 
 prerule = function()
-  if not(nmap.is_privileged()) then
+  if not(kmap.is_privileged()) then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -317,7 +317,7 @@ end
 action = function()
   local results = {}
   local threads = {}
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
 
   for _, if_nfo in ipairs(stdnse.get_script_interfaces(filter_interfaces)) do
     -- create a thread for each interface

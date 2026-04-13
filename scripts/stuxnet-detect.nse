@@ -16,7 +16,7 @@ for the filename is given on the command line.
 
 ---
 -- @usage
--- nmap --script stuxnet-detect -p 445 <host>
+-- kmap --script stuxnet-detect -p 445 <host>
 --
 -- @args stuxnet-detect.save Path to save Stuxnet executable under, with
 --       <code>%h</code> replaced by the host's IP address, and <code>%v</code>
@@ -32,7 +32,7 @@ for the filename is given on the command line.
 -- @see smb-vuln-ms10-061.nse
 
 author = "Mak Kolybabi"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 

@@ -23,8 +23,8 @@ Credit to wafw00f and w3af for some fingerprints.
 -- which takes more time. Off by default.
 --
 -- @usage
--- nmap --script=http-waf-fingerprint <targets>
--- nmap --script=http-waf-fingerprint --script-args http-waf-fingerprint.intensive=1 <targets>
+-- kmap --script=http-waf-fingerprint <targets>
+-- kmap --script=http-waf-fingerprint --script-args http-waf-fingerprint.intensive=1 <targets>
 --
 --@output
 --PORT   STATE SERVICE REASON
@@ -34,7 +34,7 @@ Credit to wafw00f and w3af for some fingerprints.
 --|_    BinarySec version 3.2.2
 
 author = "Hani Benhabiles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 --

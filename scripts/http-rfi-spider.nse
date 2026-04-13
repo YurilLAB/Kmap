@@ -6,7 +6,7 @@ query.
 
 ---
 -- @usage
--- nmap --script http-rfi-spider -p80 <host>
+-- kmap --script http-rfi-spider -p80 <host>
 --
 --
 -- @output
@@ -65,7 +65,7 @@ query.
 --
 
 author = "Piotr Olma"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 
 local shortport = require 'shortport'

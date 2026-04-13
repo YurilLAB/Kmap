@@ -7,7 +7,7 @@ description = [[Requests information from a Subversion repository.
 ]]
 
 ---
--- @usage nmap --script http-svn-info <target>
+-- @usage kmap --script http-svn-info <target>
 --
 -- @args http-svn-info.url This is a URL relative to the scanned host eg. /default.html (default: /)
 --
@@ -15,9 +15,9 @@ description = [[Requests information from a Subversion repository.
 -- 443/tcp open  https   syn-ack
 -- | http-svn-info:
 -- |   Path: .
--- |   URL: https://svn.nmap.org/
+-- |   URL: https://svn.kmap.org/
 -- |   Relative URL: ^/
--- |   Repository Root: https://svn.nmap.org
+-- |   Repository Root: https://svn.kmap.org
 -- |   Repository UUID: e0a8ed71-7df4-0310-8962-fdc924857419
 -- |   Revision: 34938
 -- |   Node Kind: directory
@@ -27,9 +27,9 @@ description = [[Requests information from a Subversion repository.
 --
 -- @xmloutput
 -- <elem key="Path">.</elem>
--- <elem key="URL">https://svn.nmap.org/</elem>
+-- <elem key="URL">https://svn.kmap.org/</elem>
 -- <elem key="Relative URL">^/</elem>
--- <elem key="Repository Root">https://svn.nmap.org</elem>
+-- <elem key="Repository Root">https://svn.kmap.org</elem>
 -- <elem key="Repository UUID">e0a8ed71-7df4-0310-8962-fdc924857419</elem>
 -- <elem key="Revision">34938</elem>
 -- <elem key="Node Kind">directory</elem>
@@ -40,7 +40,7 @@ description = [[Requests information from a Subversion repository.
 
 author = "Gyanendra Mishra"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 

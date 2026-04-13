@@ -2,7 +2,7 @@ local coroutine = require "coroutine"
 local dhcp = require "dhcp"
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local packet = require "packet"
 local rand = require "rand"
@@ -28,7 +28,7 @@ The script needs to be run as a privileged user, typically root.
 -- @see dhcp-discover.nse
 --
 -- @usage
--- sudo nmap --script broadcast-dhcp-discover
+-- sudo kmap --script broadcast-dhcp-discover
 --
 -- @output
 -- | broadcast-dhcp-discover:
@@ -82,18 +82,18 @@ The script needs to be run as a privileged user, typically root.
 -- Created 07/14/2011 - v0.1 - created by Patrik Karlsson
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
 
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -109,7 +109,7 @@ end
 -- @param xid the DHCP transaction id
 -- @param result a table to which the result is written
 local function dhcp_listener(sock, iface, macaddr, options, timeout, xid, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local srcip = ipOps.ip_to_str("0.0.0.0")
   local dstip = ipOps.ip_to_str("255.255.255.255")
 
@@ -149,7 +149,7 @@ local function dhcp_listener(sock, iface, macaddr, options, timeout, xid, result
     "\xff\xff\xff\xff\xff\xff",
     iface.mac) -- can't use macaddr or we won't see response
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
   dnet:ethernet_open(iface.device)
   local status, err = dnet:ethernet_send(frame.frame_buf)
   dnet:ethernet_close()
@@ -159,7 +159,7 @@ local function dhcp_listener(sock, iface, macaddr, options, timeout, xid, result
     return
   end
 
-  local start_time = nmap.clock_ms()
+  local start_time = kmap.clock_ms()
   local now = start_time
   while( now - start_time < timeout ) do
     sock:set_timeout(timeout - (now - start_time))
@@ -176,7 +176,7 @@ local function dhcp_listener(sock, iface, macaddr, options, timeout, xid, result
         end
       end
     end
-    now = nmap.clock_ms()
+    now = kmap.clock_ms()
   end
   sock:close()
   condvar "signal"
@@ -236,7 +236,7 @@ action = function()
 
   local threads = {}
   local result = {}
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
 
   -- start a listening thread for each interface
   for if_name, iface in pairs(interfaces) do
@@ -244,7 +244,7 @@ action = function()
     local xid = string.pack(">I4", transaction_id)
 
     local sock, co
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:pcap_open(if_name, 1500, true, "ip && udp dst port 68")
     co = stdnse.new_thread( dhcp_listener, sock, iface, macaddr, options, timeout, xid, result )
     threads[co] = true

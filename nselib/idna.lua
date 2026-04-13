@@ -45,7 +45,7 @@
 -- * http://www.unicode.org/reports/tr46/#Right_to_Left_Scripts
 --
 -- @author Rewanth Cool
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local stdnse = require "stdnse"
 local string = require "string"

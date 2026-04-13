@@ -1,5 +1,5 @@
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -14,7 +14,7 @@ scripts.
 
 ---
 -- @usage
--- nmap -p 3306 <ip> --script mysql-dump-hashes --script-args='username=root,password=secret'
+-- kmap -p 3306 <ip> --script mysql-dump-hashes --script-args='username=root,password=secret'
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -29,7 +29,7 @@ scripts.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "discovery", "safe"}
 
 
@@ -47,13 +47,13 @@ local function getCredentials()
   if ( arg_username ) then
     return { [arg_username] = arg_password }
   -- next, let's see if mysql-brute or mysql-empty-password brought us anything
-  elseif nmap.registry.mysqlusers then
+  elseif kmap.registry.mysqlusers then
     -- do we have root credentials?
-    if nmap.registry.mysqlusers['root'] then
-      return { ['root'] = nmap.registry.mysqlusers['root'] }
+    if kmap.registry.mysqlusers['root'] then
+      return { ['root'] = kmap.registry.mysqlusers['root'] }
     else
       -- we didn't have root, so let's make sure we loop over them all
-      return nmap.registry.mysqlusers
+      return kmap.registry.mysqlusers
     end
   -- last, no dice, we don't have any credentials at all
   end
@@ -77,7 +77,7 @@ action = function(host, port)
 
   local result = {}
   for username, password in pairs(creds) do
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     if ( not(socket:connect(host, port)) ) then
       return fail("Failed to connect to server")
     end

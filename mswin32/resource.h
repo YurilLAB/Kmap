@@ -1,8 +1,8 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
-// Used by nmap.rc
+// Used by kmap.rc
 //
-#define IDI_NMAP                        101
+#define IDI_KMAP                        101
 
 // Next default values for new objects
 // 

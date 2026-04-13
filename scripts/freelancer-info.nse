@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local stdnse = require "stdnse"
@@ -21,8 +21,8 @@ See http://sourceforge.net/projects/gameq/
 
 ---
 -- @usage
--- nmap -sU -sV -p 2302 <target>
--- nmap -sU -p 2302 --script=freelancer-info <target>
+-- kmap -sU -sV -p 2302 <target>
+-- kmap -sU -p 2302 --script=freelancer-info <target>
 -- @output
 -- PORT     STATE SERVICE    REASON       VERSION
 -- 2302/udp open  freelancer udp-response Freelancer (name: Discovery Freelancer RP 24/7; players: 152/225; password: no)
@@ -45,7 +45,7 @@ See http://sourceforge.net/projects/gameq/
 -- <elem key="allow new players">yes</elem>
 
 author = "Marin Maržić"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "default", "discovery", "safe", "version" }
 
 portrule = shortport.version_port_or_service({2302}, "freelancer", "udp")
@@ -59,7 +59,7 @@ action = function(host, port)
   end
 
   -- port is open
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local passwordbyte, maxplayers, numplayers, name, pvpallow, newplayersallow, description =
     string.match(data, "^\x00\x03\xf1\x26............(.)...(.)...(.)...................................................................(.*)\0\0(.):(.):.*:.*:.*:(.*)\0\0$")
@@ -101,7 +101,7 @@ action = function(host, port)
   port.version.extrainfo = "name: " .. o["server name"] .. "; players: " ..
   o["players"] .. "/" ..  o["max. players"] .. "; password: " .. o["password"]
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   return o
 end

@@ -1,7 +1,7 @@
 local datetime = require "datetime"
 local formulas = require "formulas"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -59,7 +59,7 @@ You must run at least 1 of the following scripts to collect clock data:
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
@@ -68,7 +68,7 @@ hostrule = function(host)
 end
 
 postrule = function()
-  return nmap.registry.clock_skews and #nmap.registry.clock_skews > 0
+  return kmap.registry.clock_skews and #kmap.registry.clock_skews > 0
 end
 
 local function format_host (host)
@@ -81,7 +81,7 @@ local function format_host (host)
 end
 
 local function record_stats(host, mean, stddev, median)
-  local reg = nmap.registry.clock_skews or {}
+  local reg = kmap.registry.clock_skews or {}
   reg[#reg+1] = {
     ip = format_host(host),
     mean = mean,
@@ -90,7 +90,7 @@ local function record_stats(host, mean, stddev, median)
     -- Allowable variance to regard this a match.
     variance = host.times.rttvar * 2
   }
-  nmap.registry.clock_skews = reg
+  kmap.registry.clock_skews = reg
 end
 
 hostaction = function(host)
@@ -105,7 +105,7 @@ hostaction = function(host)
   stddev = math.modf(stddev)
   median = math.modf(median)
   record_stats(host, mean, stddev, median)
-  if mean ~= 0 or stddev ~= 0 or nmap.verbosity() > 1 then
+  if mean ~= 0 or stddev ~= 0 or kmap.verbosity() > 1 then
     local out = {count = #skews, mean = mean, stddev = stddev, median = median}
     return out, (#skews == 1 and datetime.format_time(mean)
       or ("mean: %s, deviation: %s, median: %s"):format(
@@ -127,7 +127,7 @@ local function sorted_keys(t)
 end
 
 postaction = function()
-  local skews = nmap.registry.clock_skews
+  local skews = kmap.registry.clock_skews
 
   local host_count = #skews
   local groups = {}

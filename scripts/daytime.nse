@@ -14,7 +14,7 @@ Retrieves the day and time from the Daytime service.
 
 author = "Diman Todorov"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe"}
 

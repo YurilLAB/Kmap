@@ -1,7 +1,7 @@
 local base64 = require "base64"
 local http = require "http"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -282,7 +282,7 @@ Comm = {
   -- @return status true on success, false on failure
   -- @return err string containing error message on failure
   connect = function(self, socket)
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or 5000)
     return self.socket:connect(self.host, self.port)
   end,

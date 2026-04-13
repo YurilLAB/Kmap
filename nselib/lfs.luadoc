@@ -1,4 +1,4 @@
--- The <code>lfs</code> module provides Nmap with a portable interface to file
+-- The <code>lfs</code> module provides Kmap with a portable interface to file
 -- system functions that are missing in the standard Lua libraries. The module
 -- is a port of the LuaFileSystem module which was written as part of the
 -- Kepler Project.

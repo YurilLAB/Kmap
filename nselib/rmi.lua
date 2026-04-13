@@ -32,7 +32,7 @@
 -- fetched from the registry (afaik) but not currently implemented. Some object ids are static : the registry is always 0
 --
 -- @author Martin Holst Swende
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @see java 1.4 RMI-spec: http://java.sun.com/j2se/1.4.2/docs/guide/rmi/
 -- @see java 5 RMI-spec: http://java.sun.com/j2se/1.5.0/docs/guide/rmi/spec/rmiTOC.html
 -- @see java 6 RMI-spec : http://java.sun.com/javase/6/docs/technotes/guides/rmi/index.html
@@ -42,7 +42,7 @@
 -- Created 09/06/2010 - v0.1 - created by Martin Holst Swende <martin@swende.se>
 -- Fixed more documentation - v0.2 Martin Holst Swende <martin@swende.se>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -127,7 +127,7 @@ BufferedWriter = {
 ---
 -- BufferedReader reads data from the supplied socket and contains functionality
 -- to read all that is available and store all that is not currently needed, so the caller
--- gets an exact number of bytes (which is not the case with the basic nmap socket implementation)
+-- gets an exact number of bytes (which is not the case with the basic kmap socket implementation)
 -- If not enough data is available, it blocks until data is received, thereby handling the case
 -- if data is spread over several tcp packets (which is a pitfall for many scripts)
 --
@@ -704,7 +704,7 @@ RmiDataStream = {
 function RmiDataStream:connect(host, port)
   local status, err
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
 
   --  local bsocket = BufferedSocket:new()

@@ -1,5 +1,5 @@
 local informix = require "informix"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,7 +10,7 @@ Retrieves a list of tables and column definitions for each database on an Inform
 
 ---
 -- @usage
--- nmap -p 9088 <host> --script informix-tables --script-args informix-tables.username=informix,informix-tables.password=informix
+-- kmap -p 9088 <host> --script informix-tables --script-args informix-tables.username=informix,informix-tables.password=informix
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -50,7 +50,7 @@ Retrieves a list of tables and column definitions for each database on an Inform
 -- Created 27/07/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 dependencies = { "informix-brute" }
 
@@ -75,9 +75,9 @@ action = function( host, port )
   -- If no user was specified lookup the first user in the registry saved by
   -- the informix-brute script
   if ( not(user) ) then
-    if ( nmap.registry['informix-brute'] and nmap.registry['informix-brute'][1]["username"] ) then
-      user = nmap.registry['informix-brute'][1]["username"]
-      pass = nmap.registry['informix-brute'][1]["password"]
+    if ( kmap.registry['informix-brute'] and kmap.registry['informix-brute'][1]["username"] ) then
+      user = kmap.registry['informix-brute'][1]["username"]
+      pass = kmap.registry['informix-brute'][1]["password"]
     else
       return fail("No credentials specified (see informix-table.username and informix-table.password)")
     end

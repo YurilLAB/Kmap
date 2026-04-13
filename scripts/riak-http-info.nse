@@ -10,7 +10,7 @@ Retrieves information (such as node name and architecture) from a Basho Riak dis
 
 ---
 -- @usage
--- nmap -p 8098 <ip> --script riak-http-info
+-- kmap -p 8098 <ip> --script riak-http-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -50,7 +50,7 @@ Retrieves information (such as node name and architecture) from a Basho Riak dis
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

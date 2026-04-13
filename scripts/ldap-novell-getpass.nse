@@ -27,7 +27,7 @@ administrative account.
 --       to the server
 --
 -- @usage
--- nmap -p 636 --script ldap-novell-getpass --script-args \
+-- kmap -p 636 --script ldap-novell-getpass --script-args \
 -- 'ldap-novell-getpass.username="CN=admin,O=cqure", \
 -- ldap-novell-getpass.password=pass1234, \
 -- ldap-novell-getpass.account="CN=paka,OU=hr,O=cqure"'
@@ -45,7 +45,7 @@ administrative account.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

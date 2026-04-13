@@ -10,7 +10,7 @@ Daemon (rpcap).
 
 ---
 -- @usage
--- nmap -p 2002 <ip> --script rpcap-brute
+-- kmap -p 2002 <ip> --script rpcap-brute
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -25,7 +25,7 @@ Daemon (rpcap).
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(2002, "rpcap", "tcp")

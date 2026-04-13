@@ -66,7 +66,7 @@
 -- on both Linux and Windows. For details regarding what versions where tested
 -- please consult the matrix below.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- @args tns.sid specifies the Oracle instance to connect to
@@ -112,7 +112,7 @@
 local bits = require "bits"
 local math = require "math"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -138,10 +138,10 @@ AuthOptions =
   new = function( self )
     local o = {
       auth_term = "pts/" .. math.random(255),
-      auth_prog = ("sqlplus@nmap_%d (TNS V1-V3)"):format(math.random(32768)),
-      auth_machine = "nmap_target",
+      auth_prog = ("sqlplus@kmap_%d (TNS V1-V3)"):format(math.random(32768)),
+      auth_machine = "kmap_target",
       auth_pid = "" .. math.random(32768),
-      auth_sid = "nmap_" .. math.random(32768)
+      auth_sid = "kmap_" .. math.random(32768)
     }
     setmetatable(o, self)
     self.__index = self
@@ -300,7 +300,7 @@ Packet.Connect = {
   CONN_STR = [[
   (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=%s)(PORT=%d))
   (CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=%s)(CID=
-  (PROGRAM=sqlplus)(HOST=%s)(USER=nmap))))]],
+  (PROGRAM=sqlplus)(HOST=%s)(USER=kmap))))]],
 
   version = 314,
   version_comp = 300,
@@ -339,7 +339,7 @@ Packet.Connect = {
 
   setCmd = function( self, cmd )
     local tmp = [[
-    (DESCRIPTION=(CONNECT_DATA=(CID=(PROGRAM=)(HOST=%s)(USER=nmap))(COMMAND=%s)(ARGUMENTS=64)(SERVICE=%s:%d)(VERSION=185599488)))
+    (DESCRIPTION=(CONNECT_DATA=(CID=(PROGRAM=)(HOST=%s)(USER=kmap))(COMMAND=%s)(ARGUMENTS=64)(SERVICE=%s:%d)(VERSION=185599488)))
     ]]
     self.conn_data = tmp:format( self.rhost, cmd, self.rhost, self.rport )
   end,
@@ -1550,7 +1550,7 @@ Helper = {
     local o = {
       host = host,
       port = port,
-      socket = socket or nmap.new_socket(),
+      socket = socket or kmap.new_socket(),
       dbinstance = instance or stdnse.get_script_args('tns.sid') or "orcl"
     }
     o.socket:set_timeout(30000)

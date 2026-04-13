@@ -1,5 +1,5 @@
 local msrpc = require "msrpc"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -12,7 +12,7 @@ description = [[
 Attempts to guess username/password combinations over SMB, storing discovered combinations
 for use in other scripts. Every attempt will be made to get a valid list of users and to
 verify each username before actually using them. When a username is discovered, besides
-being printed, it is also saved in the Nmap registry so other Nmap scripts can use it. That
+being printed, it is also saved in the Kmap registry so other Kmap scripts can use it. That
 means that if you're going to run <code>smb-brute.nse</code>, you should run other <code>smb</code> scripts you want.
 This checks passwords in a case-insensitive way, determining case after a password is found,
 for Windows versions before Vista.
@@ -39,7 +39,7 @@ and invalid password responses. As soon as it is able, this script will download
 of usernames from the server and replace the unpw usernames with those. This enables the
 script to restrict itself to actual accounts only.
 
-When an account is discovered, it's saved in the <code>smb</code> module (which uses the Nmap
+When an account is discovered, it's saved in the <code>smb</code> module (which uses the Kmap
 registry). If an account is already saved, the account's privileges are checked; accounts
 with administrator privileges are kept over accounts without. The specific method for checking
 is by calling <code>GetShareInfo("IPC$")</code>, which requires administrative privileges. Once this script
@@ -71,8 +71,8 @@ determined with a fairly efficient bruteforce. For example, if the actual passwo
 ]]
 ---
 --@usage
--- nmap --script smb-brute.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-brute.nse -p U:137,T:139 <host>
+-- kmap --script smb-brute.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-brute.nse -p U:137,T:139 <host>
 --
 --@output
 -- Host script results:
@@ -104,7 +104,7 @@ determined with a fairly efficient bruteforce. For example, if the actual passwo
 
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 
@@ -227,8 +227,8 @@ end
 --@return A string representing the login type to use (that can be passed to SMB functions).
 local function get_type(hostinfo)
   -- Check if the user requested a specific type
-  if(nmap.registry.args.smbtype ~= nil) then
-    return nmap.registry.args.smbtype
+  if(kmap.registry.args.smbtype ~= nil) then
+    return kmap.registry.args.smbtype
   end
 
   -- Otherwise, base the type on the operating system (TODO: other versions of Windows (7, 2008))
@@ -749,7 +749,7 @@ function test_lockouts(hostinfo)
 
   if(username ~= nil) then
     -- Try logging in as the "canary" account
-    local canaries = nmap.registry.args.canaries
+    local canaries = kmap.registry.args.canaries
     if(canaries == nil) then
       canaries = 3
     else

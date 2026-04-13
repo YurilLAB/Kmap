@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -9,13 +9,13 @@ that mimes NetBus.
 
 ---
 -- @usage
--- nmap -sV -p 12345 --script netbus-version <target>
+-- kmap -sV -p 12345 --script netbus-version <target>
 --
 -- @output
 -- 12345/tcp open  netbus  Netbuster (honeypot)
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 
@@ -23,7 +23,7 @@ portrule = shortport.version_port_or_service ({}, "netbus", {"tcp"})
 
 action = function( host, port )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
   local status, err = socket:connect(host, port)
   if not status then
@@ -47,7 +47,7 @@ action = function( host, port )
   port.version.product = "NetBuster"
   port.version.extrainfo = "honeypot"
   port.version.version = nil
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   return
 end
 

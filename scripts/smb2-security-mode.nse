@@ -2,7 +2,7 @@ local smb = require "smb"
 local smb2 = require "smb2"
 local stdnse = require "stdnse"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Determines the message signing configuration in SMBv2 servers
@@ -17,8 +17,8 @@ References:
 ]]
 
 ---
--- @usage nmap -p 445 --script smb2-security-mode <target>
--- @usage nmap -p 139 --script smb2-security-mode <target>
+-- @usage kmap -p 445 --script smb2-security-mode <target>
+-- @usage kmap -p 139 --script smb2-security-mode <target>
 --
 -- @output
 -- | smb2-security-mode:
@@ -32,7 +32,7 @@ References:
 ---
 
 author = "Paulino Calderon"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery", "default"}
 
 hostrule = function(host)
@@ -81,7 +81,7 @@ action = function(host,port)
     return output
   else
     stdnse.debug1("No SMB2/SMB3 dialects were accepted.")
-    if nmap.verbosity()>1 then
+    if kmap.verbosity()>1 then
       return "Couldn't establish a SMBv2 connection."
     end
   end

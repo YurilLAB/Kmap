@@ -1,6 +1,6 @@
 local shortport = require "shortport"
 local vulns = require "vulns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local io = require "io"
@@ -24,9 +24,9 @@ Reference:
 
 ---
 -- @usage
--- nmap -sV --script clamav-exec <target>
--- nmap --script clamav-exec --script-args cmd='scan',scandb='files.txt' <target>
--- nmap --script clamav-exec --script-args cmd='shutdown' <target>
+-- kmap -sV --script clamav-exec <target>
+-- kmap --script clamav-exec --script-args cmd='scan',scandb='files.txt' <target>
+-- kmap --script clamav-exec --script-args cmd='shutdown' <target>
 --
 -- @output
 -- PORT     STATE SERVICE VERSION
@@ -47,7 +47,7 @@ Reference:
 -- |       https://bugzilla.clamav.net/show_bug.cgi?id=11585
 -- |_      https://twitter.com/nitr0usmx/status/740673507684679680
 -- @xmloutput
--- <table key="NMAP-1">
+-- <table key="KMAP-1">
 -- <elem key="title">ClamAV Remote Command Execution</elem>
 -- <elem key="state">VULNERABLE</elem>
 -- <table key="description">
@@ -79,7 +79,7 @@ Reference:
 ---
 
 author = "Paulino Calderon <calderon()websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "vuln"}
 
 portrule = shortport.port_or_service(3310, "clam")
@@ -102,7 +102,7 @@ local function scan(host, port, file)
   local status, data
 
   if not file then
-    status, data = comm.exchange(host, port, "SCAN /trinity/loves/nmap")
+    status, data = comm.exchange(host, port, "SCAN /trinity/loves/kmap")
     if not status then
       stdnse.debug1("Failed to send SCAN command:%s", data)
       return nil
@@ -157,7 +157,7 @@ action = function(host, port)
     stdnse.debug1("ClamAV daemon found")
     port.version.name = "clam"
     port.version.product = "ClamAV"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
   end
 
   local vuln = {

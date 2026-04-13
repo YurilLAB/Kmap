@@ -15,7 +15,7 @@ extern "C" {
 #include "nse_nsock.h"
 #include "nse_utility.h"
 #include "nbase.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 
 #include <fcntl.h>
 #include <assert.h>
@@ -395,7 +395,7 @@ static int l_session_open (lua_State *L) {
         return nseU_safeerror(L, "%s", strerror(errno));
 #endif
 
-    lua_getglobal(L, "nmap");
+    lua_getglobal(L, "kmap");
     lua_getfield(L, -1, "new_socket");
     lua_replace(L, -2);
     lua_call(L, 0, 1);

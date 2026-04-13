@@ -8,7 +8,7 @@
 --  smb.lua but some fields may have changed name or don't exist anymore.
 --
 -- @author Paulino Calderon <paulino@calderonpale.com>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 ---
 
 local datetime = require "datetime"

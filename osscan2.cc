@@ -2,61 +2,61 @@
 /***************************************************************************
  * osscan2.cc -- Routines used for 2nd Generation OS detection via         *
  * TCP/IP fingerprinting.  * For more information on how this works in     *
- * Nmap, see https://nmap.org/osdetect/                                     *
+ * Kmap, see https://kmap.org/osdetect/                                     *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -65,11 +65,11 @@
 #include "osscan.h"
 #include "osscan2.h"
 #include "timing.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "tcpip.h"
 #include "Target.h"
 #include "utils.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "FPEngine.h"
 #include "FingerPrintResults.h"
 #include <dnet.h>
@@ -79,7 +79,7 @@
 #include <list>
 #include <math.h>
 
-extern NmapOps o;
+extern KmapOps o;
 
 /* 8 options:
  *  0~5: six options for SEQ/OPS/WIN/T1 probes.
@@ -181,7 +181,7 @@ int get_initial_ttl_guess(u8 ttl) {
 
 /* This function takes an array of "numSamples" IP IDs and analyzes
  them to determine their sequence classification.  It returns
- one of the IPID_SEQ_* classifications defined in nmap.h .  If the
+ one of the IPID_SEQ_* classifications defined in kmap.h .  If the
  function cannot determine the sequence, IPID_SEQ_UNKNOWN is returned.
  This islocalhost argument is a boolean specifying whether these
  numbers were generated by scanning localhost. */
@@ -2300,9 +2300,9 @@ void HostOsScan::makeTSeqFP(HostOsScanStats *hss) {
   double seq_avg_rate = 0;
   double avg_ts_hz = 0.0; /* Avg. amount that timestamps incr. each second */
   u32 seq_gcd = 1;
-  int tcp_ipid_seqclass; /* TCP IPID SEQ TYPE defines in nmap.h */
-  int tcp_closed_ipid_seqclass; /* TCP IPID SEQ TYPE defines in nmap.h */
-  int icmp_ipid_seqclass; /* ICMP IPID SEQ TYPE defines in nmap.h */
+  int tcp_ipid_seqclass; /* TCP IPID SEQ TYPE defines in kmap.h */
+  int tcp_closed_ipid_seqclass; /* TCP IPID SEQ TYPE defines in kmap.h */
+  int icmp_ipid_seqclass; /* ICMP IPID SEQ TYPE defines in kmap.h */
   int good_tcp_ipid_num, good_tcp_closed_ipid_num, good_icmp_ipid_num;
   int tsnewval = 0;
 
@@ -3048,10 +3048,15 @@ bool HostOsScan::processTIcmpResp(HostOsScanStats *hss, const struct ip *ip, int
   if (hss->FP_TIcmp)
     return false;
 
-  if (hss->icmpEchoReply == NULL) {
+  if (hss->icmpEchoReply == nullptr) {
     /* This is the first icmp reply we get, store it and return. */
-    hss->icmpEchoReply = (struct ip *) safe_malloc(ntohs(ip->ip_len));
-    memcpy(hss->icmpEchoReply, ip, ntohs(ip->ip_len));
+    uint16_t pkt_len = ntohs(ip->ip_len);
+    if (pkt_len < 20 || pkt_len > 65535) {
+      /* Invalid packet length, skip */
+      return false;
+    }
+    hss->icmpEchoReply = static_cast<struct ip *>(safe_malloc(pkt_len));
+    memcpy(hss->icmpEchoReply, ip, pkt_len);
     hss->storedIcmpReply = replyNo;
     return true;
   } else if (hss->storedIcmpReply == replyNo) {
@@ -3399,7 +3404,7 @@ void OSScan::reset() {
 
 
 /* This function takes a group of targets and divides it in chunks if there are
- * too many to be processed at the same time. The threshold is based on Nmap's
+ * too many to be processed at the same time. The threshold is based on Kmap's
  * timing level (when timing level is above 4, no chunking is performed).
  * The reason targets are processed in smaller groups is to improve accuracy. */
 int OSScan::chunk_and_do_scan(std::vector<Target *> &Targets, int family) {

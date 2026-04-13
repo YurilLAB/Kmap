@@ -10,9 +10,9 @@ PROXY) or to a specific service name.  ]]
 
 ---
 -- @usage
--- nmap --script dns-blacklist --script-args='dns-blacklist.ip=<ip>'
+-- kmap --script dns-blacklist --script-args='dns-blacklist.ip=<ip>'
 -- or
--- nmap -sn <ip> --script dns-blacklist
+-- kmap -sn <ip> --script dns-blacklist
 --
 -- @output
 -- Pre-scan script results:
@@ -67,7 +67,7 @@ PROXY) or to a specific service name.  ]]
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"external", "safe"}
 
 

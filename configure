@@ -612,7 +612,7 @@ PACKAGE_STRING=''
 PACKAGE_BUGREPORT=''
 PACKAGE_URL=''
 
-ac_unique_file="nmap.cc"
+ac_unique_file="kmap.cc"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stddef.h>
@@ -706,13 +706,13 @@ INSTALLNPING
 BUILDNPING
 NPINGDIR
 subdirs
-ZENMAP_DIST_CLEAN
-ZENMAP_CLEAN
-ZENMAP_CHECK
-UNINSTALLZENMAP
-INSTALLZENMAP
-BUILDZENMAP
-ZENMAPDIR
+ZEKMAP_DIST_CLEAN
+ZEKMAP_CLEAN
+ZEKMAP_CHECK
+UNINSTALLZEKMAP
+INSTALLZEKMAP
+BUILDZEKMAP
+ZEKMAPDIR
 NDIFF_DIST_CLEAN
 NDIFF_CLEAN
 NDIFF_CHECK
@@ -804,7 +804,7 @@ enable_option_checking
 enable_nls
 with_localdirs
 with_ndiff
-with_zenmap
+with_zekmap
 with_nping
 with_openssl
 with_libpcap
@@ -1467,35 +1467,35 @@ Optional Packages:
   --with-localdirs        Explicitly ask compiler to use
                           /usr/local/{include,libs} if they exist
   --without-ndiff         Skip installation of the Ndiff utility
-  --without-zenmap        Skip installation of the Zenmap graphical frontend
+  --without-zekmap        Skip installation of the Zekmap graphical frontend
   --without-nping         Skip installation of the Nping utility
   --with-openssl=DIR      Use optional openssl libs and includes from
                           [DIR]/lib/ and [DIR]/include/openssl/)
   --with-libpcap=DIR      Look for pcap in DIR/include and DIR/libs.
-  --with-libpcap=included Always use version included with Nmap
+  --with-libpcap=included Always use version included with Kmap
   --with-libpcre=DIR      Use an existing (compiled) pcre2 lib from
                           DIR/include and DIR/lib.
-  --with-libpcre=included Always use the version included with Nmap
+  --with-libpcre=included Always use the version included with Kmap
   --with-libz=DIR         Use specific copy of libz
-  --with-libz=included    Always use version included with Nmap
+  --with-libz=included    Always use version included with Kmap
   --with-libssh2=DIR      Use specific copy of libssh2
-  --with-libssh2=included Always use version included with Nmap
+  --with-libssh2=included Always use version included with Kmap
   --without-libssh2       Compile without libssh2
   --with-libdnet=DIR      Use an existing (compiled) dnet lib from DIR/include
                           and DIR/lib. This is NOT RECOMMENDED because we have
                           made many important fixes to our included libdnet,
                           as described at
-                          ./libdnet-stripped/NMAP_MODIFICATIONS
-  --with-libdnet=included Use the libdnet version included with Nmap (default)
+                          ./libdnet-stripped/KMAP_MODIFICATIONS
+  --with-libdnet=included Use the libdnet version included with Kmap (default)
   --with-liblua=DIR       Use an existing (compiled) lua lib from DIR/include
                           and DIR/lib.
-  --with-liblua=included  Use the liblua version included with Nmap
+  --with-liblua=included  Use the liblua version included with Kmap
   --without-liblua        Compile without lua (this will exclude all of NSE
                           from compilation)
   --with-liblinear=DIR    Use an existing (compiled) liblinear from
                           DIR/include and DIR/lib.
   --with-liblinear=included
-                          Use the liblinear version included with Nmap
+                          Use the liblinear version included with Kmap
   --with-libnbase=DIR     Look for nbase include/libs in DIR
   --with-libnsock=DIR     Compile and link to libnsock in DIR
   --without-ncat          Skip build and installation of Ncat
@@ -2991,9 +2991,9 @@ else
   trace_no_use="$trace_no_use localdirs"
 fi
 
-if test "${top_nmap_srcdir+set}" != set; then
-  top_nmap_srcdir=`cd "$srcdir" && pwd`
-  export top_nmap_srcdir
+if test "${top_kmap_srcdir+set}" != set; then
+  top_kmap_srcdir=`cd "$srcdir" && pwd`
+  export top_kmap_srcdir
 fi
 
 libpcapdir=libpcap
@@ -3008,7 +3008,7 @@ ZLIBDIR=libz
 pcredir=libpcre
 
 
-ac_config_headers="$ac_config_headers nmap_config.h"
+ac_config_headers="$ac_config_headers kmap_config.h"
 
 
 
@@ -6601,48 +6601,48 @@ fi
 
 
 
-ZENMAPDIR=zenmap
+ZEKMAPDIR=zekmap
 
-# Do they want Zenmap?
+# Do they want Zekmap?
 
-# Check whether --with-zenmap was given.
-if test ${with_zenmap+y}
+# Check whether --with-zekmap was given.
+if test ${with_zekmap+y}
 then :
-  withval=$with_zenmap;
+  withval=$with_zekmap;
 else $as_nop
-  with_zenmap=check
+  with_zekmap=check
 fi
 
 
 if $PY_BUILD_OK ; then : ;
 else
-  if test "$with_zenmap" = "check"; then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Not building Zenmap because Python was not found" >&5
-printf "%s\n" "$as_me: WARNING: Not building Zenmap because Python was not found" >&2;}
-  elif test "$with_zenmap" = "yes"; then
+  if test "$with_zekmap" = "check"; then
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Not building Zekmap because Python was not found" >&5
+printf "%s\n" "$as_me: WARNING: Not building Zekmap because Python was not found" >&2;}
+  elif test "$with_zekmap" = "yes"; then
     { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--with-zenmap requires Python
+as_fn_error $? "--with-zekmap requires Python
 See \`config.log' for more details" "$LINENO" 5; }
   fi
-  with_zenmap=no
+  with_zekmap=no
 fi
-if test "$with_zenmap" = "no"; then
-  trace_no_use="$trace_no_use zenmap"
-  BUILDZENMAP=""
-  INSTALLZENMAP=""
-  UNINSTALLZENMAP=""
-  ZENMAP_CHECK=""
-  ZENMAP_CLEAN=""
-  ZENMAP_DIST_CLEAN=""
+if test "$with_zekmap" = "no"; then
+  trace_no_use="$trace_no_use zekmap"
+  BUILDZEKMAP=""
+  INSTALLZEKMAP=""
+  UNINSTALLZEKMAP=""
+  ZEKMAP_CHECK=""
+  ZEKMAP_CLEAN=""
+  ZEKMAP_DIST_CLEAN=""
 else
-  trace_use="$trace_use zenmap"
-  BUILDZENMAP=build-zenmap
-  INSTALLZENMAP=install-zenmap
-  UNINSTALLZENMAP=uninstall-zenmap
-  ZENMAP_CHECK=check-zenmap
-  ZENMAP_CLEAN=clean-zenmap
-  ZENMAP_DIST_CLEAN=distclean-zenmap
+  trace_use="$trace_use zekmap"
+  BUILDZEKMAP=build-zekmap
+  INSTALLZEKMAP=install-zekmap
+  UNINSTALLZEKMAP=uninstall-zekmap
+  ZEKMAP_CHECK=check-zekmap
+  ZEKMAP_CLEAN=clean-zekmap
+  ZEKMAP_DIST_CLEAN=distclean-zekmap
 fi
 
 
@@ -9637,7 +9637,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "nmap_config.h") CONFIG_HEADERS="$CONFIG_HEADERS nmap_config.h" ;;
+    "kmap_config.h") CONFIG_HEADERS="$CONFIG_HEADERS kmap_config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "libnetutil/Makefile") CONFIG_FILES="$CONFIG_FILES libnetutil/Makefile" ;;
 
@@ -10372,7 +10372,7 @@ fi
 
 # Krad ASCII ART#!#@$!@#$
 # Randomly store the name of one of the ASCII Art files in FILENAME
-FILENAME=`ls $srcdir/docs/leet-nmap-ascii-art*.txt 2>/dev/null | $AWK '
+FILENAME=`ls $srcdir/docs/leet-kmap-ascii-art*.txt 2>/dev/null | $AWK '
     BEGIN {
         srand();
     }
@@ -10390,7 +10390,7 @@ FILENAME=`ls $srcdir/docs/leet-nmap-ascii-art*.txt 2>/dev/null | $AWK '
 if test "$FILENAME"; then
   cat "$FILENAME"
 fi
-echo "  NMAP IS A POWERFUL TOOL -- USE CAREFULLY AND RESPONSIBLY"
+echo "  KMAP IS A POWERFUL TOOL -- USE CAREFULLY AND RESPONSIBLY"
 
 echo "Configured with:$trace_use"
 echo "Configured without:$trace_no_use"

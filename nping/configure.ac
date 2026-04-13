@@ -192,7 +192,7 @@ test "${with_libpcap+set}" != "set" && with_libpcap=yes
 
 AC_ARG_WITH(libpcap,
 AC_HELP_STRING([--with-libpcap=DIR], [Look for pcap in DIR/include and DIR/libs.])
-AC_HELP_STRING([--with-libpcap=included], [Always use version included with Nmap]),
+AC_HELP_STRING([--with-libpcap=included], [Always use version included with Kmap]),
 [  case "$with_libpcap" in
   yes)
     AC_CHECK_HEADER(pcap.h,[
@@ -282,7 +282,7 @@ LIBDNETDIR=../libdnet-stripped
 # specifically asked to use a system version.
 AC_ARG_WITH(libdnet,
 AC_HELP_STRING([--with-libdnet=DIR], [Use an existing (compiled) dnet lib from DIR/include and DIR/lib.])
-AC_HELP_STRING([--with-libdnet=included], [Use the libdnet version included with Nmap (default)]),
+AC_HELP_STRING([--with-libdnet=included], [Use the libdnet version included with Kmap (default)]),
 [  case "$with_libdnet" in
   yes)
     ;;

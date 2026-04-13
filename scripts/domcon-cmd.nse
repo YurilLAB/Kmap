@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
@@ -10,7 +10,7 @@ Runs a console command on the Lotus Domino Console using the given authenticatio
 
 ---
 -- @usage
--- nmap -p 2050 <host> --script domcon-cmd --script-args domcon-cmd.cmd="show server", \
+-- kmap -p 2050 <host> --script domcon-cmd --script-args domcon-cmd.cmd="show server", \
 --   domcon-cmd.user="Patrik Karlsson",domcon-cmd.pass="secret"
 --
 -- @output
@@ -57,7 +57,7 @@ Runs a console command on the Lotus Domino Console using the given authenticatio
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 
 
@@ -101,7 +101,7 @@ local function fail (err) return stdnse.format_output(false, err) end
 
 action = function(host, port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local result_part, result, cmds = {}, {}, {}
   local user = stdnse.get_script_args('domcon-cmd.user')
   local pass = stdnse.get_script_args('domcon-cmd.pass')

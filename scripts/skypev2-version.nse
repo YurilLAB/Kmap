@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local U = require "lpeg-utility"
@@ -14,7 +14,7 @@ Detects the Skype version 2 service.
 -- 80/tcp open  skype2  Skype
 
 author = "Brandon Enright"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 
@@ -25,7 +25,7 @@ portrule = function(host, port)
   and port.protocol == "tcp" and port.state == "open"
   and port.version.name_confidence < 10
   and not(shortport.port_is_excluded(port.number,port.protocol))
-  and nmap.version_intensity() >= 7
+  and kmap.version_intensity() >= 7
 end
 
 action = function(host, port)
@@ -73,7 +73,7 @@ action = function(host, port)
     -- Detected
     port.version.name = "skype2"
     port.version.product = "Skype"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
     return
   end
   return

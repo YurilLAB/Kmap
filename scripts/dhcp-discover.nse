@@ -1,6 +1,6 @@
 local dhcp = require "dhcp"
 local rand = require "rand"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -56,7 +56,7 @@ Some of the more useful fields:
 --         requests (and display the results).
 --
 -- @usage
--- nmap -sU -p 67 --script=dhcp-discover <target>
+-- kmap -sU -p 67 --script=dhcp-discover <target>
 -- @output
 -- Interesting ports on 192.168.1.1:
 -- PORT   STATE SERVICE
@@ -100,14 +100,14 @@ Some of the more useful fields:
 
 author = "Ron Bowes"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe"}
 
 
 -- We want to run against a specific host if UDP/67 is open
 function portrule(host, port)
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -129,7 +129,7 @@ action = function(host, port)
     return stdnse.format_output(false, "Invalid request count")
   end
 
-  local iface, err = nmap.get_interface_info(host.interface)
+  local iface, err = kmap.get_interface_info(host.interface)
   if not (iface and iface.address) then
     return stdnse.format_output(false, "Couldn't determine local IP for interface: " .. host.interface)
   end
@@ -199,7 +199,7 @@ action = function(host, port)
     return nil
   end
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local response = stdnse.output_table()
 

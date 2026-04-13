@@ -6,7 +6,7 @@
 -- error message when debugging.
 --
 -- @author Daniel Miller
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @class module
 -- @name oops
 
@@ -14,9 +14,9 @@ local require = require
 local setmetatable = setmetatable
 local _ENV = require "strict" {}
 
-local nmap = require "nmap"
-local debugging = nmap.debugging
-local verbosity = nmap.verbosity
+local kmap = require "kmap"
+local debugging = kmap.debugging
+local verbosity = kmap.verbosity
 
 local table = require "table"
 local concat = table.concat

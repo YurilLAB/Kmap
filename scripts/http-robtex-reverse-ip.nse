@@ -11,27 +11,27 @@ Obtains up to 100 forward DNS names for a target IP address by querying the Robt
 
 ---
 -- @usage
--- nmap --script http-robtex-reverse-ip --script-args http-robtex-reverse-ip.host='<ip>'
+-- kmap --script http-robtex-reverse-ip --script-args http-robtex-reverse-ip.host='<ip>'
 --
 -- @output
 -- Pre-scan script results:
 -- | http-robtex-reverse-ip:
 -- |   *.insecure.org
--- |   *.nmap.com
--- |   *.nmap.org
+-- |   *.kmap.com
+-- |   *.kmap.org
 -- |   *.seclists.org
 -- |   insecure.com
 -- |   insecure.org
 -- |   lists.insecure.org
--- |   nmap.com
--- |   nmap.net
--- |   nmap.org
+-- |   kmap.com
+-- |   kmap.net
+-- |   kmap.org
 -- |   seclists.org
 -- |   sectools.org
 -- |   web.insecure.org
 -- |   www.insecure.org
--- |   www.nmap.com
--- |   www.nmap.org
+-- |   www.kmap.com
+-- |   www.kmap.org
 -- |   www.seclists.org
 -- |_  images.insecure.org
 --
@@ -39,7 +39,7 @@ Obtains up to 100 forward DNS names for a target IP address by querying the Robt
 --
 
 author = "riemann"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
 

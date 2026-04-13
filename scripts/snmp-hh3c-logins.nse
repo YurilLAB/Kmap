@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -22,7 +22,7 @@ http://grutztopia.jingojango.net/2012/10/hph3c-and-huawei-snmp-weak-access-to.ht
 
 ---
 -- @usage
--- nmap -sU -p 161 --script snmp-hh3c-logins --script-args creds.snmp=:<community> <target>
+-- kmap -sU -p 161 --script snmp-hh3c-logins --script-args creds.snmp=:<community> <target>
 --
 -- @output
 -- | snmp-hh3c-logins:
@@ -43,7 +43,7 @@ http://grutztopia.jingojango.net/2012/10/hph3c-and-huawei-snmp-weak-access-to.ht
 -- </table>
 
 author = "Kurt Grutzmacher"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -141,7 +141,7 @@ action = function(host, port)
 
   end
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
   return process_answer(users)
 
 end

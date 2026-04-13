@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -10,13 +10,13 @@ local openssl = stdnse.silent_require "openssl"
 description = [[
 Performs brute force password auditing against an Nping Echo service.
 
-See https://nmap.org/book/nping-man-echo-mode.html for Echo Mode
+See https://kmap.org/book/nping-man-echo-mode.html for Echo Mode
 documentation.
 ]]
 
 ---
 -- @usage
--- nmap -p 9929 --script nping-brute <target>
+-- kmap -p 9929 --script nping-brute <target>
 --
 -- @output
 -- 9929/tcp open  nping-echo
@@ -27,7 +27,7 @@ documentation.
 -- |_    Perfomed 204 guesses in 204 seconds, average tps: 1
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
@@ -92,7 +92,7 @@ Driver =
     local NEP_CLIENT_CIPHER_ID = "NEPkeyforCiphertextClient2Server"
     local NEP_CLIENT_MAC_ID = "NEPkeyforMACClient2Server"
 
-    local now = nmap.clock()
+    local now = kmap.clock()
     local seqb = openssl.rand_bytes(4)
     local cnonce = openssl.rand_bytes(32)
     local nonce = snonce .. cnonce

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -62,7 +62,7 @@ requested.
 
 author = {"Patrik Karlsson", "Tom Sellers"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery", "version"}
 
@@ -138,7 +138,7 @@ function parse_db2_packet(packet)
   response.info_length = len - 4
   response.info = packet.data:sub(info_offset, info_offset + response.info_length - (info_offset-info_length_offset))
 
-  if(nmap.debugging() > 3)  then
+  if(kmap.debugging() > 3)  then
     stdnse.debug1("version: %s", response.version)
     stdnse.debug1("info_length: %d", response.info_length)
     stdnse.debug1("response.info:len(): %d", response.info:len())
@@ -175,7 +175,7 @@ function read_db2_packet(socket)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   packet.header = {}
 
   buf = try( socket:receive_bytes(header_len) )
@@ -196,7 +196,7 @@ function read_db2_packet(socket)
 
     total_len = header_len + packet.header.data_len
 
-    if(nmap.debugging() > 3) then
+    if(kmap.debugging() > 3) then
       stdnse.debug1("data_len: %d", packet.header.data_len)
       stdnse.debug1("buf_len: %d", buf:len())
       stdnse.debug1("total_len: %d", total_len)
@@ -205,11 +205,11 @@ function read_db2_packet(socket)
     -- do we have all data as specified by data_len?
     while total_len > buf:len() do
       -- if not read additional bytes
-      if(nmap.debugging() > 3)  then
+      if(kmap.debugging() > 3)  then
         stdnse.debug1("Reading %d additional bytes", total_len - buf:len())
       end
       local tmp = try( socket:receive_bytes( total_len - buf:len() ) )
-      if(nmap.debugging() > 3)  then
+      if(kmap.debugging() > 3)  then
         stdnse.debug1("Read %d bytes", tmp:len())
       end
       buf = buf .. tmp
@@ -238,7 +238,7 @@ function send_db2_packet( socket, packet )
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   local buf = packet.header.raw .. packet.data
 
@@ -281,7 +281,7 @@ action = function(host, port)
 
 
   -- create the socket used for our connection
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- set a reasonable timeout value
   socket:set_timeout(10000)
@@ -292,7 +292,7 @@ action = function(host, port)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
 
   try(socket:connect(host, port))
@@ -383,7 +383,7 @@ action = function(host, port)
     local major_version = string.sub(db2response.version,4,5)
 
     -- strip the leading 0 from the major version, for consistency with
-    -- nmap-service-probes results
+    -- kmap-service-probes results
     if string.sub(major_version,1,1) == "0" then
       major_version = string.sub(major_version,2)
     end
@@ -421,8 +421,8 @@ action = function(host, port)
     port.version.name = "ibm-db2"
     port.version.product = "IBM DB2 Database Server"
     port.version.name_confidence = 10
-    nmap.set_port_version(host, port)
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_version(host, port)
+    kmap.set_port_state(host, port, "open")
   end
 
   return result

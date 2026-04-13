@@ -11,7 +11,7 @@ Currently working on:
 Maybe:
 
 -- NSE Debugger. Look at Diman's implementation:
-   http://seclists.org/nmap-dev/2008/q1/0228.html
+   http://seclists.org/kmap-dev/2008/q1/0228.html
    http://www.keplerproject.org/remdebug/
 
 -- Review NSE Nsock Socket Allocation:

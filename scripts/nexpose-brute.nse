@@ -18,7 +18,7 @@ value or 0 (zero) to guess the whole dictionary.
 
 ---
 -- @usage
--- nmap --script nexpose-brute -p 3780 <ip>
+-- kmap --script nexpose-brute -p 3780 <ip>
 --
 -- @output
 -- PORT     STATE SERVICE     REASON  VERSION
@@ -32,7 +32,7 @@ value or 0 (zero) to guess the whole dictionary.
 
 author = "Vlatko Kosturjak"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 

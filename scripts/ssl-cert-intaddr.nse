@@ -8,12 +8,12 @@ local ipOps = require "ipOps"
 description = [[
 Reports any private (RFC1918) IPv4 addresses found in the various fields of
 an SSL service's certificate.  These will only be reported if the target
-address itself is not private.  Nmap v7.30 or later is required.
+address itself is not private.  Kmap v7.30 or later is required.
 ]]
 
 ---
 -- @usage
--- nmap -p 443 --script ssl-cert-intaddr <target>
+-- kmap -p 443 --script ssl-cert-intaddr <target>
 --
 -- @output
 -- 443/tcp open  https
@@ -37,7 +37,7 @@ address itself is not private.  Nmap v7.30 or later is required.
 -- @see ssl-cert.nse
 
 author = "Steve Benson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "discovery", "safe"}
 dependencies = {"https-redirect"}
 
@@ -101,7 +101,7 @@ end
 -- search the X509v3 extensions for leaked private IP addresses
 local searchCertExtensions = function(cert)
   if not cert.extensions then
-    stdnse.debug1("X509v3 extensions not present in certificate or the extensions are not supported by this nmap version (7.30 or later needed)")
+    stdnse.debug1("X509v3 extensions not present in certificate or the extensions are not supported by this kmap version (7.30 or later needed)")
     return {}
   end
 

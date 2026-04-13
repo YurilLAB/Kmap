@@ -1,65 +1,65 @@
 
 /***************************************************************************
- * output.h -- Handles the Nmap output system.  This currently involves    *
+ * output.h -- Handles the Kmap output system.  This currently involves    *
  * console-style human readable output, XML output, Script |<iddi3         *
  * output, and the legacy grepable output (used to be called "machine      *
  * readable").  I expect that future output forms (such as HTML) may be    *
  * created by a different program, library, or script using the XML        *
  * output.                                                                 *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -70,12 +70,13 @@
 
 #include <nbase.h> // __attribute__
 
-#define LOG_NUM_FILES 4 /* # of values that actual files (they must come first */
-#define LOG_FILE_MASK 15 /* The mask for log types in the file array */
+#define LOG_NUM_FILES 5 /* # of values that actual files (they must come first */
+#define LOG_FILE_MASK 31 /* The mask for log types in the file array */
 #define LOG_NORMAL 1
 #define LOG_MACHINE 2
 #define LOG_SKID 4
 #define LOG_XML 8
+#define LOG_JSON 16
 #define LOG_STDOUT 1024
 #define LOG_STDERR 2048
 #define LOG_SKID_NOXLT 4096
@@ -83,7 +84,7 @@
 
 #define LOG_PLAIN LOG_NORMAL|LOG_SKID|LOG_STDOUT
 
-#define LOG_NAMES {"normal", "machine", "$Cr!pT |<!dd!3", "XML"}
+#define LOG_NAMES {"normal", "machine", "$Cr!pT |<!dd!3", "XML", "JSON"}
 
 #define PCAP_OPEN_ERRMSG "Call to pcap_open_live() failed three times. "\
 "There are several possible reasons for this, depending on your operating "\
@@ -92,7 +93,7 @@
  "*BSD:  If you are getting device not configured, you need to recompile "\
  "your kernel with Berkeley Packet Filter support.  If you are getting "\
  "No such file or directory, try creating the device (eg cd /dev; "\
- "MAKEDEV <device>; or use mknod).\n*WINDOWS:  Nmap only supports "\
+ "MAKEDEV <device>; or use mknod).\n*WINDOWS:  Kmap only supports "\
  "ethernet interfaces on Windows for most operations because Microsoft "\
  "disabled raw sockets as of Windows XP SP2.  Depending on the reason for "\
  "this error, it is possible that the --unprivileged command-line argument "\
@@ -123,7 +124,7 @@ class Target;
 # endif
 #endif
 
-/* Prints the familiar Nmap tabular output showing the "interesting"
+/* Prints the familiar Kmap tabular output showing the "interesting"
    ports found on the machine.  It also handles the Machine/Grepable
    output and the XML output.  It is pretty ugly -- in particular I
    should write helper functions to handle the table creation */
@@ -181,7 +182,7 @@ std::string join_quoted(const char * const strings[], unsigned int n);
    requested and the ports which it will scan for */
 void output_xml_scaninfo_records(const struct scan_lists *ports);
 
-/* Writes a heading for a full scan report ("Nmap scan report for..."),
+/* Writes a heading for a full scan report ("Kmap scan report for..."),
    including host status and DNS records. */
 void write_host_header(const Target *currenths);
 
@@ -221,7 +222,7 @@ void printtraceroute(const Target *currenths);
 /* Print "times for host" output with latency. */
 void printtimes(const Target *currenths);
 
-/* Print a detailed list of Nmap interfaces and routes to
+/* Print a detailed list of Kmap interfaces and routes to
    normal/skiddy/stdout output */
 int print_iflist(void);
 
@@ -233,7 +234,7 @@ void print_xml_finished_open(time_t timep, const struct timeval *tv);
 void print_xml_hosts();
 
 /* Prints the statistics and other information that goes at the very end
-   of an Nmap run */
+   of an Kmap run */
 void printfinaloutput();
 
 /* Prints the names of data files that were loaded and the paths at which they
@@ -241,8 +242,8 @@ void printfinaloutput();
 void printdatafilepaths();
 
 /* nsock logging interface */
-void nmap_adjust_loglevel(bool trace);
-void nmap_set_nsock_logger();
+void kmap_adjust_loglevel(bool trace);
+void kmap_set_nsock_logger();
 
 #endif /* OUTPUT_H */
 

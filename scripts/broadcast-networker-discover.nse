@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rpc = require "rpc"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -8,7 +8,7 @@ Discovers EMC Networker backup software servers on a LAN by sending a network br
 ]]
 
 ---
--- @usage nmap --script broadcast-networker-discover
+-- @usage kmap --script broadcast-networker-discover
 --
 -- @output
 -- Pre-scan script results:
@@ -18,7 +18,7 @@ Discovers EMC Networker backup software servers on a LAN by sending a network br
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -61,13 +61,13 @@ end
 action = function()
 
   local results = {}
-  local ip = ( nmap.address_family() == "inet" ) and "255.255.255.255" or "ff02::202"
+  local ip = ( kmap.address_family() == "inet" ) and "255.255.255.255" or "ff02::202"
   local iface
   local collect_interface = function (if_table)
     if not iface and if_table.up == "up" and if_table.link == "ethernet"
       and if_table.address and (
-        (nmap.address_family() == "inet" and if_table.address:match("^%d+%.%d+%.%d+%.%d+$"))
-        or (nmap.address_family() == "inet6" and if_table.address:match(":"))
+        (kmap.address_family() == "inet" and if_table.address:match("^%d+%.%d+%.%d+%.%d+$"))
+        or (kmap.address_family() == "inet6" and if_table.address:match(":"))
         )
       then
       iface = if_table.device
@@ -78,7 +78,7 @@ action = function()
 
   -- handle problematic sends on OS X requiring the interface to be
   -- supplied as part of IPv6
-  if ( iface and nmap.address_family() == "inet6" ) then
+  if ( iface and kmap.address_family() == "inet6" ) then
     ip = ip .. "%" .. iface
   end
 

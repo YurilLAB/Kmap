@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -33,7 +33,7 @@ systems will blank out various pieces (some will send back 0 for the current
 time, for example).
 
 If this script is used in conjunction with version detection it can augment the
-standard nmap version detection information with data that this script has discovered.
+standard kmap version detection information with data that this script has discovered.
 
 Retrieving the name and operating system of a server is a vital step in targeting
 an attack against it, and this script makes that retrieval easy. Additionally, if
@@ -48,8 +48,8 @@ will speed up the script on targets that do not allow guest access.
 
 ---
 --@usage
--- nmap --script smb-os-discovery.nse -p445 127.0.0.1
--- sudo nmap -sU -sS --script smb-os-discovery.nse -p U:137,T:139 127.0.0.1
+-- kmap --script smb-os-discovery.nse -p445 127.0.0.1
+-- sudo kmap -sU -sS --script smb-os-discovery.nse -p U:137,T:139 127.0.0.1
 --
 --@output
 -- Host script results:
@@ -76,7 +76,7 @@ will speed up the script on targets that do not allow guest access.
 -- <elem key="forest_dns">test.local</elem>
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"smb-brute"}
 
@@ -203,16 +203,16 @@ action = function(host)
       proto = 'udp'
     end
 
-    local port = nmap.get_port_state(host,{number=result.port,protocol=proto})
+    local port = kmap.get_port_state(host,{number=result.port,protocol=proto})
 
     local version, product
     if string.match(response.lanmanager,"^Samba ") then
       port.version.product = 'Samba smbd'
       port.version.version = string.match(response.lanmanager,"^Samba (.*)")
-      nmap.set_port_version(host,port)
+      kmap.set_port_version(host,port)
     elseif smb.get_windows_version(response.os) then
       port.version.product = string.format("%s %s",smb.get_windows_version(response.os), port.version.name)
-      nmap.set_port_version(host,port)
+      kmap.set_port_version(host,port)
     end
   end
 

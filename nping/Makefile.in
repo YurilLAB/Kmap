@@ -1,7 +1,7 @@
 # Extract the version string from nping.h.
 export NPING_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NPING_VERSION' nping.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 NPING_NAME= Nping
-NPING_URL= https://nmap.org/nping
+NPING_URL= https://kmap.org/nping
 NPING_PLATFORM=@host@
 prefix = @prefix@
 datarootdir = @datarootdir@
@@ -13,7 +13,7 @@ srcdir = @srcdir@
 npingdatadir = @datadir@/nping
 NPINGDEVDIR=~/nping-private-dev
 WIN32STUFFDIR=mswin32
-NPINGWEBDIR=../../../web/nmap/nping
+NPINGWEBDIR=../../../web/kmap/nping
 NPINGWININSTDIR=mswin32/nsis
 export RELEASE_DATE := $(shell date +"%b %d, %Y")
 
@@ -127,7 +127,7 @@ install-nping: $(TARGET)
 	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
 	$(INSTALL) -c -m 755 nping $(DESTDIR)$(bindir)/nping
 # Use strip -x to avoid stripping dynamically loaded NSE functions. See
-# http://seclists.org/nmap-dev/2007/q4/0272.html.
+# http://seclists.org/kmap-dev/2007/q4/0272.html.
 	$(STRIP) -x $(DESTDIR)$(bindir)/nping
 	$(INSTALL) -c -m 644 docs/$(TARGET).1 $(DESTDIR)$(mandir)/man1/
 

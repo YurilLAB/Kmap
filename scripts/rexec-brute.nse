@@ -9,14 +9,14 @@ Performs brute force password auditing against the classic UNIX rexec (remote ex
 
 ---
 -- @usage
--- nmap -p 512 --script rexec-brute <ip>
+-- kmap -p 512 --script rexec-brute <ip>
 --
 -- @output
 -- PORT    STATE SERVICE
 -- 512/tcp open  exec
 -- | rexec-brute:
 -- |   Accounts
--- |     nmap:test - Valid credentials
+-- |     kmap:test - Valid credentials
 -- |   Statistics
 -- |_    Performed 16 guesses in 7 seconds, average tps: 2
 --
@@ -27,7 +27,7 @@ Performs brute force password auditing against the classic UNIX rexec (remote ex
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service(512, "exec", "tcp")

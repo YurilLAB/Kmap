@@ -9,7 +9,7 @@ Determines which methods are supported by the RTSP (real time streaming protocol
 
 ---
 -- @usage
--- nmap -p 554 --script rtsp-methods <ip>
+-- kmap -p 554 --script rtsp-methods <ip>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -33,7 +33,7 @@ Determines which methods are supported by the RTSP (real time streaming protocol
 -- Created 23/10/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 --
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe"}
 
 

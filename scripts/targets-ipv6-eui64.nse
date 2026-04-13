@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local target = require "target"
@@ -12,12 +12,12 @@ addresses may be added to the scan queue.
 
 The MAC addresses used as input are read from the file named by the
 <code>targets-ipv6-eui64.input</code> script-arg. A good source of these
-addresses would be an IPv4 host discovery Nmap scan.
+addresses would be an IPv4 host discovery Kmap scan.
 ]]
 
 ---
 -- @usage
--- nmap -6 --script targets-ipv6-eui64 --script-args newtargets,targets-ipv6-eui64.input=macs.txt,targets-ipv6-subnet={2001:db8:c0ca::/64}
+-- kmap -6 --script targets-ipv6-eui64 --script-args newtargets,targets-ipv6-eui64.input=macs.txt,targets-ipv6-subnet={2001:db8:c0ca::/64}
 --
 -- @output
 -- Pre-scan script results:
@@ -36,7 +36,7 @@ addresses would be an IPv4 host discovery Nmap scan.
 
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {
   "discovery",
 }
@@ -46,7 +46,7 @@ local subnets = stdnse.get_script_args("targets-ipv6-subnet") or "fe80::/64"
 
 prerule = function ()
 
-  if nmap.address_family() ~= "inet6" then
+  if kmap.address_family() ~= "inet6" then
     stdnse.verbose1("This script is IPv6 only.")
     return false
   end

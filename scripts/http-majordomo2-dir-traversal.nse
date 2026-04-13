@@ -18,7 +18,7 @@ For more information about this vulnerability:
 
 ---
 -- @usage
--- nmap -p80 --script http-majordomo2-dir-traversal <host/ip>
+-- kmap -p80 --script http-majordomo2-dir-traversal <host/ip>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -38,7 +38,7 @@ For more information about this vulnerability:
 --
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln", "exploit"}
 
 

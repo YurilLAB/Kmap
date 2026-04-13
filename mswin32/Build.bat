@@ -35,8 +35,8 @@ del "%TEMP%\vspath.txt" 2>nul
 del "%TEMP%\vsver.txt" 2>nul
 
 :: Check and install dependencies
-set NMAP_AUX_DIR=%~dp0..\..\nmap-mswin32-aux
-if not exist "%NMAP_AUX_DIR%" (
+set KMAP_AUX_DIR=%~dp0..\..\kmap-mswin32-aux
+if not exist "%KMAP_AUX_DIR%" (
   echo.
   echo ========================================
   echo Installing required dependencies...
@@ -46,11 +46,11 @@ if not exist "%NMAP_AUX_DIR%" (
 )
 
 :: Verify dependencies are present
-if not exist "%NMAP_AUX_DIR%\Npcap\Include\pcap.h" (
+if not exist "%KMAP_AUX_DIR%\Npcap\Include\pcap.h" (
   echo ERROR: Npcap SDK not found after installation
   exit /b 1
 )
-if not exist "%NMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
+if not exist "%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
   echo ERROR: OpenSSL not found after installation
   exit /b 1
 )
@@ -73,7 +73,7 @@ cd build-pcre2
 cmake.exe -A Win32 -G "%VS_GENERATOR%" ..\..\libpcre\ || goto :QUIT
 cd ..
 )
-msbuild -nologo nmap.sln -m -t:%TARGET% -p:Configuration="%VCCONFIG%" -p:Platform="Win32" -fl
+msbuild -nologo kmap.sln -m -t:%TARGET% -p:Configuration="%VCCONFIG%" -p:Platform="Win32" -fl
 goto :QUIT
 
 :vars
@@ -81,8 +81,8 @@ cl.exe /nologo /EP make-vars.h > make-vars.make
 
 :install_dependencies
 echo.
-echo Creating auxiliary directory: %NMAP_AUX_DIR%
-mkdir "%NMAP_AUX_DIR%" 2>nul
+echo Creating auxiliary directory: %KMAP_AUX_DIR%
+mkdir "%KMAP_AUX_DIR%" 2>nul
 
 :: Install Npcap SDK
 echo Downloading Npcap SDK...
@@ -95,22 +95,22 @@ if errorlevel 1 (
 )
 
 echo Extracting Npcap SDK...
-powershell -Command "Expand-Archive -Path '%NPCAP_ZIP%' -DestinationPath '%NMAP_AUX_DIR%\Npcap' -Force"
+powershell -Command "Expand-Archive -Path '%NPCAP_ZIP%' -DestinationPath '%KMAP_AUX_DIR%\Npcap' -Force"
 if errorlevel 1 (
   echo ERROR: Failed to extract Npcap SDK
   exit /b 1
 )
 del "%NPCAP_ZIP%" 2>nul
 
-:: Install OpenSSL - Use nmap's SVN repository
-echo Downloading OpenSSL from nmap SVN repository...
-set OPENSSL_SVN_URL=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
+:: Install OpenSSL - Use kmap's SVN repository
+echo Downloading OpenSSL from kmap SVN repository...
+set OPENSSL_SVN_URL=https://svn.kmap.org/kmap-mswin32-aux/OpenSSL
 
 :: Check if svn is available
 where svn >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
   echo Using SVN to download OpenSSL...
-  svn export "%OPENSSL_SVN_URL%" "%NMAP_AUX_DIR%\OpenSSL" --force
+  svn export "%OPENSSL_SVN_URL%" "%KMAP_AUX_DIR%\OpenSSL" --force
   if errorlevel 1 (
     echo WARNING: SVN export failed, trying alternative method...
     goto :openssl_fallback
@@ -120,19 +120,19 @@ if %ERRORLEVEL% EQU 0 (
 
 :openssl_fallback
 echo SVN not available, downloading OpenSSL headers manually...
-mkdir "%NMAP_AUX_DIR%\OpenSSL\include\openssl" 2>nul
-mkdir "%NMAP_AUX_DIR%\OpenSSL\lib" 2>nul
+mkdir "%KMAP_AUX_DIR%\OpenSSL\include\openssl" 2>nul
+mkdir "%KMAP_AUX_DIR%\OpenSSL\lib" 2>nul
 
-:: Download from nmap SVN via HTTP
-set SVN_BASE=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
-echo Downloading OpenSSL files from nmap repository...
+:: Download from kmap SVN via HTTP
+set SVN_BASE=https://svn.kmap.org/kmap-mswin32-aux/OpenSSL
+echo Downloading OpenSSL files from kmap repository...
 
 :: Use PowerShell to recursively download the directory structure
-powershell -Command "$ErrorActionPreference='SilentlyContinue'; $wc=New-Object System.Net.WebClient; $wc.DownloadFile('%SVN_BASE%/include/openssl/ssl.h','%NMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/crypto.h','%NMAP_AUX_DIR%\OpenSSL\include\openssl\crypto.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/opensslconf.h','%NMAP_AUX_DIR%\OpenSSL\include\openssl\opensslconf.h')"
+powershell -Command "$ErrorActionPreference='SilentlyContinue'; $wc=New-Object System.Net.WebClient; $wc.DownloadFile('%SVN_BASE%/include/openssl/ssl.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/crypto.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\crypto.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/opensslconf.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\opensslconf.h')"
 
-if not exist "%NMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
+if not exist "%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
   echo ERROR: Failed to download OpenSSL files
-  echo Please install SVN or manually download OpenSSL to %NMAP_AUX_DIR%\OpenSSL
+  echo Please install SVN or manually download OpenSSL to %KMAP_AUX_DIR%\OpenSSL
   exit /b 1
 )
 

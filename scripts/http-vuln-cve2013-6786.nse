@@ -9,8 +9,8 @@ other software may be vulnerable in the same way.
 ---
 -- @see http-vuln-misfortune-cookie.nse
 --
--- @usage nmap -p80 --script http-vuln-cve2013-6786 <target>
--- @usage nmap -sV http-vuln-cve2013-6786 <target>
+-- @usage kmap -p80 --script http-vuln-cve2013-6786 <target>
+-- @usage kmap -sV http-vuln-cve2013-6786 <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -31,7 +31,7 @@ other software may be vulnerable in the same way.
 ---
 
 author = "Vlatko Kosturjak <kost@linux.hr>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"

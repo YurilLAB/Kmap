@@ -3,7 +3,7 @@ This script searches the xssed.com database and outputs the result.
 ]]
 
 ---
--- @usage nmap -p80 --script http-xssed.nse <target>
+-- @usage kmap -p80 --script http-xssed.nse <target>
 --
 -- This script will search the xssed.com database and it will output any
 -- results. xssed.com is the largest online archive of XSS vulnerable
@@ -27,11 +27,11 @@ This script searches the xssed.com database and outputs the result.
 -- @see http-phpself-xss.nse
 
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "external", "discovery"}
 
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local table = require "table"
 local string = require "string"
@@ -52,7 +52,7 @@ action = function(host, port)
   local target = XSSED_SEARCH .. (host.targetname or host.name or host.ip)
 
   -- Only one instantiation of the script should ping xssed at once.
-  local mutex = nmap.mutex("http-xssed")
+  local mutex = kmap.mutex("http-xssed")
   mutex "lock"
 
   local response = http.get(XSSED_SITE, 80, target, {any_af=true})

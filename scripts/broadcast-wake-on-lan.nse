@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 
@@ -8,7 +8,7 @@ Wakes a remote system up from sleep by sending a Wake-On-Lan packet.
 
 ---
 -- @usage
--- nmap --script broadcast-wake-on-lan --script-args broadcast-wake-on-lan.MAC='00:12:34:56:78:9A'
+-- kmap --script broadcast-wake-on-lan --script-args broadcast-wake-on-lan.MAC='00:12:34:56:78:9A'
 --
 -- @output
 -- Pre-scan script results:
@@ -20,7 +20,7 @@ Wakes a remote system up from sleep by sending a Wake-On-Lan packet.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 local MAC = stdnse.get_script_args("broadcast-wake-on-lan.MAC")
@@ -28,7 +28,7 @@ local address = stdnse.get_script_args("broadcast-wake-on-lan.address")
 
 prerule = function()
   -- only run if we are ipv4 and have a MAC
-  return (MAC ~= nil and nmap.address_family() == "inet")
+  return (MAC ~= nil and kmap.address_family() == "inet")
 end
 
 -- Creates the WoL packet based on the remote MAC
@@ -53,7 +53,7 @@ action = function()
 
   local host = { ip = address or "255.255.255.255" }
   local port = { number = 9, protocol = "udp" }
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
 
   -- send two packets, just in case
   for i=1,2 do

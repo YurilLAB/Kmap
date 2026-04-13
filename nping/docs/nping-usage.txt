@@ -1,9 +1,9 @@
-Nping 0.7.92SVN ( https://nmap.org/nping )
+Nping 0.7.92SVN ( https://kmap.org/nping )
 Usage: nping [Probe mode] [Options] {target specification}
 
 TARGET SPECIFICATION:
   Targets may be specified as hostnames, IP addresses, networks, etc.
-  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.*.1-24
+  Ex: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.*.1-24
 PROBE MODES:
   --tcp-connect                    : Unprivileged TCP connect probe mode.
   --tcp                            : TCP probe mode.
@@ -110,11 +110,11 @@ OUTPUT:
   --quiet                          : Set verbosity and debug level to minimum.
   --debug                          : Set verbosity and debug to the max level.
 EXAMPLES:
-  nping scanme.nmap.org
+  nping scanme.kmap.org
   nping --tcp -p 80 --flags rst --ttl 2 192.168.1.1
   nping --icmp --icmp-type time --delay 500ms 192.168.254.254
   nping --echo-server "public" -e wlan0 -vvv 
-  nping --echo-client "public" echo.nmap.org --tcp -p1-1024 --flags ack
+  nping --echo-client "public" echo.kmap.org --tcp -p1-1024 --flags ack
 
 SEE THE MAN PAGE FOR MANY MORE OPTIONS, DESCRIPTIONS, AND EXAMPLES
 

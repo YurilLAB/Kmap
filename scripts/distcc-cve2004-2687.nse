@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -12,7 +12,7 @@ present in modern implementation due to poor configuration of the service.
 
 ---
 -- @usage
--- nmap -p 3632 <ip> --script distcc-exec --script-args="distcc-exec.cmd='id'"
+-- kmap -p 3632 <ip> --script distcc-exec --script-args="distcc-exec.cmd='id'"
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -41,7 +41,7 @@ present in modern implementation due to poor configuration of the service.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "vuln"}
 
 
@@ -75,7 +75,7 @@ earlier. The vulnerability is the consequence of weak service configuration.
   local report = vulns.Report:new(SCRIPT_NAME, host, port)
   distcc_vuln.state = vulns.STATE.NOT_VULN
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   if ( not(socket:connect(host, port)) ) then
     return fail("Failed to connect to distcc server")
   end

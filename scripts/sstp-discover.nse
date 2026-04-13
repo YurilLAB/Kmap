@@ -56,7 +56,7 @@ portrule = function(host, port)
 end
 
 -- The SSTPCORRELATIONID GUID is optional and client-generated.
--- The last 5 bytes are "Nmap!"
+-- The last 5 bytes are "Kmap!"
 local request =
 'SSTP_DUPLEX_POST /sra_{BA195980-CD49-458b-9E23-C84EE0ADCD75}/ HTTP/1.1\r\n' ..
 'Host: %s\r\n' ..

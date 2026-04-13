@@ -16,7 +16,7 @@ References:
 
 ---
 -- @usage
--- nmap -p80 --script http-iis-short-name-brute <target>
+-- kmap -p80 --script http-iis-short-name-brute <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -46,7 +46,7 @@ References:
 ---
 
 author = {"Jesper Kueckelhahn", "Paulino Calderon"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 local stdnse    = require "stdnse"

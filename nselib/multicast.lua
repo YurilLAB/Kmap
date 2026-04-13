@@ -1,9 +1,9 @@
 ---
 -- Utility functions for sending MLD requests and parsing reports.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local ipOps = require "ipOps"
 local packet = require "packet"
 local stdnse = require "stdnse"
@@ -17,13 +17,13 @@ _ENV = stdnse.module("multicast", stdnse.seeall)
 -- subsequent calls to this function do not generate additional traffic.
 --
 -- @param if_nfo A table containing information about the interface to send the request on.
--- Can be one of those returned by nmap.list_interfaces().
+-- Can be one of those returned by kmap.list_interfaces().
 -- @param arg_timeout The amount of time to wait for reports.
 --
 -- @return A list of tables, each table containing three items, namely device, layer 2 reply and layer 3 reply.
 --
 mld_query = function( if_nfo, arg_timeout )
-  -- check if the interface name is valid or if nmap can find one
+  -- check if the interface name is valid or if kmap can find one
   if if_nfo == nil then
     return nil
   end
@@ -31,13 +31,13 @@ mld_query = function( if_nfo, arg_timeout )
   -- we need some ID for this interface & address combination to use as the
   -- registry key and the object to lock the mutex on
   local reg_entry = "mld_reports_" .. if_nfo.device .. "_" .. if_nfo.address
-  local mutex = nmap.mutex( reg_entry )
+  local mutex = kmap.mutex( reg_entry )
   mutex('lock')
 
-  -- first check if nmap.registry contains reports for this interface from a previous call of this function
-  if nmap.registry[reg_entry] ~= nil then
+  -- first check if kmap.registry contains reports for this interface from a previous call of this function
+  if kmap.registry[reg_entry] ~= nil then
     mutex('done')
-    return nmap.registry[reg_entry]
+    return kmap.registry[reg_entry]
   end
 
   if not ipOps.ip_in_range(if_nfo.address, "fe80::/10")  -- link local address
@@ -53,8 +53,8 @@ mld_query = function( if_nfo, arg_timeout )
   local dst_ip6 = ipOps.ip_to_str("ff02::1")
   local general_qry = ipOps.ip_to_str("::")
 
-  local dnet = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local dnet = kmap.new_dnet()
+  local pcap = kmap.new_socket()
 
   dnet:ethernet_open(if_nfo.device)
   pcap:pcap_open(if_nfo.device, 1500, false, "ip6[40:1] == 58")
@@ -99,20 +99,20 @@ mld_query = function( if_nfo, arg_timeout )
   pcap:set_timeout(1000)
   local pcap_timeout_count = 0
   local nse_timeout = arg_timeout or 10
-  local start_time = nmap:clock()
+  local start_time = kmap:clock()
   local addrs = {}
-  nmap.registry[reg_entry] = {}
+  kmap.registry[reg_entry] = {}
 
   repeat
     local status, length, layer2, layer3 = pcap:pcap_receive()
-    local cur_time = nmap:clock()
+    local cur_time = kmap:clock()
     if status then
       local l2reply = packet.Frame:new(layer2)
       local l3reply = packet.Packet:new(layer3, length, true)
       local target_ip = l3reply.ip_src
       if l3reply.ip6_nhdr == packet.MLD_LISTENER_REPORT or l3reply.ip6_nhdr == packet.MLDV2_LISTENER_REPORT then
         table.insert(
-          nmap.registry[reg_entry],
+          kmap.registry[reg_entry],
           { if_nfo.device, l2reply, l3reply }
         )
       end
@@ -124,7 +124,7 @@ mld_query = function( if_nfo, arg_timeout )
   pcap:pcap_close()
 
   mutex('done')
-  return nmap.registry[reg_entry]
+  return kmap.registry[reg_entry]
 end
 
 ---

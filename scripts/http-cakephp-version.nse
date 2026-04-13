@@ -17,7 +17,7 @@ For more information about CakePHP visit: http://www.cakephp.org/.
 
 ---
 -- @usage
--- nmap -p80,443 --script http-cakephp-version <host/ip>
+-- kmap -p80,443 --script http-cakephp-version <host/ip>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -27,11 +27,11 @@ For more information about CakePHP visit: http://www.cakephp.org/.
 -- | Version of stylesheet: 1.2.6
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","safe"}
 
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -104,7 +104,7 @@ action = function(host, port)
   end
   if stylesheet_versions then
     output_lines[#output_lines + 1] = "Version of stylesheet: " .. table.concat(stylesheet_versions, ", ")
-  elseif stylesheet_hash and nmap.verbosity() >= 2 then
+  elseif stylesheet_hash and kmap.verbosity() >= 2 then
     output_lines[#output_lines + 1] = "Default stylesheet has an unknown hash: " .. stylesheet_hash
   end
   if #output_lines > 0 then

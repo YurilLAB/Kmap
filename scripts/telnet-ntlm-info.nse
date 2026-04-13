@@ -19,7 +19,7 @@ NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 23 --script telnet-ntlm-info <target>
+-- kmap -p 23 --script telnet-ntlm-info <target>
 --
 -- @output
 -- 23/tcp   open     telnet
@@ -43,7 +43,7 @@ NetBIOS, DNS, and OS build version.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

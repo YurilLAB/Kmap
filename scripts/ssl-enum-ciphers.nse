@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local shortport = require "shortport"
 local sslcert = require "sslcert"
@@ -53,7 +53,7 @@ References:
 
 ---
 -- @usage
--- nmap -sV --script ssl-enum-ciphers -p 443 <host>
+-- kmap -sV --script ssl-enum-ciphers -p 443 <host>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -306,14 +306,14 @@ References:
 
 author = {"Mak Kolybabi <mak@kolybabi.com>", "Gabriel Lawrence"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive"}
 dependencies = {"https-redirect"}
 
 -- Test at most this many ciphersuites at a time.
--- http://seclists.org/nmap-dev/2012/q3/156
--- http://seclists.org/nmap-dev/2010/q1/859
+-- http://seclists.org/kmap-dev/2012/q3/156
+-- http://seclists.org/kmap-dev/2010/q1/859
 local CHUNK_SIZE = 64
 local have_ssl, openssl = pcall(require,'openssl')
 
@@ -348,7 +348,7 @@ end
 
 local function try_params(host, port, t)
 
-  -- Use Nmap's own discovered timeout plus 5 seconds for host processing
+  -- Use Kmap's own discovered timeout plus 5 seconds for host processing
   -- Default to 10 seconds total.
   local timeout = ((host.times and host.times.timeout) or 5) * 1000 + 5000
 
@@ -362,7 +362,7 @@ local function try_params(host, port, t)
       return nil
     end
   else
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(timeout)
     status, err = sock:connect(host, port)
     if not status then
@@ -1006,7 +1006,7 @@ local function sort_ciphers(host, port, protocol, ciphers)
 end
 
 local function try_protocol(host, port, protocol, upresults)
-  local condvar = nmap.condvar(upresults)
+  local condvar = kmap.condvar(upresults)
 
   local results = stdnse.output_table()
 
@@ -1107,7 +1107,7 @@ action = function(host, port)
 
   local results = {}
 
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   local threads = {}
 
   for name, _ in pairs(tls.PROTOCOLS) do

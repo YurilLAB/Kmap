@@ -2,7 +2,7 @@ local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local nsedebug = require "nsedebug"
 
 description = [[
@@ -23,7 +23,7 @@ https://www.fieldcommgroup.org/hart-specifications.
 ]]
 ---
 -- @usage
--- nmap <host> -p 5094 --script hartip-info
+-- kmap <host> -p 5094 --script hartip-info
 --
 --
 -- @output
@@ -54,10 +54,10 @@ https://www.fieldcommgroup.org/hart-specifications.
 --<elem>Private Label Distributor: Phoenix Contact</elem>
 
 author = "DINA-community"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
--- Function to define the portrule as per nmap standards
+-- Function to define the portrule as per kmap standards
 portrule = shortport.port_or_service(5094, "hart-ip", "tcp")
 
 --  Table to look up the Product Name based on number-represented Expanded Device Type Code
@@ -90,16 +90,16 @@ local function manid_lookup(manidnum)
 end
 
 --  Action Function that is used to run the NSE. This function will send
---  the initial query to the host and port that were passed in via nmap.
+--  the initial query to the host and port that were passed in via kmap.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host,port)
   -- create local vars for socket handling
   local socket, try, catch, status, err
 
   -- create new socket
-  socket = nmap.new_socket()
+  socket = kmap.new_socket()
 
   -- set timeout
   socket:set_timeout(stdnse.get_timeout(host))
@@ -110,7 +110,7 @@ action = function(host,port)
   end
 
   -- create new try
-  try = nmap.new_try(catch)
+  try = kmap.new_try(catch)
 
   -- connect to port on host
   try(socket:connect(host, port))
@@ -297,6 +297,6 @@ action = function(host,port)
   output['Device Information'] = deviceInfo
   output['Sub-Device Information'] = subDeviceInfo
 
-  -- return output table to Nmap
+  -- return output table to Kmap
   return output
 end

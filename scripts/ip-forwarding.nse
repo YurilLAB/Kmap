@@ -1,5 +1,5 @@
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local ipOps = require "ipOps"
@@ -14,14 +14,14 @@ to ICMP requests (ping) in order for the test to be successful. In addition,
 if the given target is a routed host, the scanned host needs to have the proper
 routing to reach it.
 
-In order to use the scanned host as default gateway Nmap needs to discover
-the MAC address. This requires Nmap to be run in privileged mode and the host
+In order to use the scanned host as default gateway Kmap needs to discover
+the MAC address. This requires Kmap to be run in privileged mode and the host
 to be on the LAN.
 ]]
 
 ---
 -- @usage
--- sudo nmap -sn <target> --script ip-forwarding --script-args='target=www.example.com'
+-- sudo kmap -sn <target> --script ip-forwarding --script-args='target=www.example.com'
 --
 -- @output
 -- | ip-forwarding:
@@ -32,13 +32,13 @@ to be on the LAN.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 local arg_target = stdnse.get_script_args(SCRIPT_NAME .. ".target")
 
 hostrule = function(host)
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("Script is IPv4-only")
     return false
   end
@@ -55,8 +55,8 @@ end
 
 
 icmpEchoRequest = function(ifname, host, addr)
-  local iface = nmap.get_interface_info(ifname)
-  local dnet, pcap = nmap.new_dnet(), nmap.new_socket()
+  local iface = kmap.get_interface_info(ifname)
+  local dnet, pcap = kmap.new_dnet(), kmap.new_socket()
 
   pcap:set_timeout(5000)
   pcap:pcap_open(iface.device, 128, false, ("ether src %s and icmp and ( icmp[0] = 0 or icmp[0] = 5 ) and dst %s"):format(stdnse.format_mac(host.mac_addr), iface.address))
@@ -69,7 +69,7 @@ icmpEchoRequest = function(ifname, host, addr)
   probe.ip_bin_dst = ipOps.ip_to_str(addr)
   probe.echo_id = 0x1234
   probe.echo_seq = 6
-  probe.echo_data = "Nmap host discovery."
+  probe.echo_data = "Kmap host discovery."
   probe:build_icmp_echo_request()
   probe:build_icmp_header()
   probe:build_ip_packet()
@@ -85,7 +85,7 @@ local function fail(err) return stdnse.format_output(false, err) end
 
 action = function(host)
 
-  local ifname = nmap.get_interface() or host.interface
+  local ifname = kmap.get_interface() or host.interface
   if ( not(ifname) ) then
     return fail("Failed to determine the network interface name")
   end

@@ -7,7 +7,7 @@ Additional information:
 
 ---
 -- @usage
--- nmap -p8728 --script mikrotik-routeros-brute <target>
+-- kmap -p8728 --script mikrotik-routeros-brute <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -23,13 +23,13 @@ Additional information:
 ---
 
 author = "Paulino Calderon <calderon()websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 local shortport = require "shortport"
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local openssl = stdnse.silent_require "openssl"
@@ -57,7 +57,7 @@ Driver =
     data = string.pack("s1x", "/login")
 
     --Connect to service and obtain the challenge response
-    try = nmap.new_try(function() return false end)
+    try = kmap.new_try(function() return false end)
     try(self.s:send(data))
     data = try(self.s:receive_bytes(50))
     stdnse.debug1("Response #1:%s", data)

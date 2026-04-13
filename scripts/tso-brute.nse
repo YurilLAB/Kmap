@@ -4,7 +4,7 @@ local tn3270    = require "tn3270"
 local brute     = require "brute"
 local creds     = require "creds"
 local unpwdb    = require "unpwdb"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 
@@ -12,7 +12,7 @@ description = [[
 TSO account brute forcer.
 
 This script relies on the NSE TN3270 library which emulates a
-TN3270 screen for NMAP.
+TN3270 screen for KMAP.
 
 TSO user IDs have the following rules:
  - it cannot begin with a number
@@ -22,7 +22,7 @@ TSO user IDs have the following rules:
 
 ---
 -- @usage
--- nmap -p 2401 --script tso-brute <host>
+-- kmap -p 2401 --script tso-brute <host>
 --
 -- @output
 -- 23/tcp open  tn3270  syn-ack IBM Telnet TN3270
@@ -46,11 +46,11 @@ TSO user IDs have the following rules:
 -- 2015-10-29 - v0.1 - created by Soldier of Fortran
 --
 -- @author Philip Young
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 author = "Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 
 portrule = shortport.port_or_service({23,992,623}, {"tn3270"})
@@ -59,11 +59,11 @@ portrule = shortport.port_or_service({23,992,623}, {"tn3270"})
 --
 -- @param username to stop checking
 local function register_invalid( username )
-  if nmap.registry.tsoinvalid == nil then
-    nmap.registry.tsoinvalid = {}
+  if kmap.registry.tsoinvalid == nil then
+    kmap.registry.tsoinvalid = {}
   end
   stdnse.debug(2,"Registering %s", username)
-  nmap.registry.tsoinvalid[username] = true
+  kmap.registry.tsoinvalid[username] = true
 end
 
 Driver = {
@@ -329,7 +329,7 @@ end
 --  ^%D     = The first char must NOT be a digit
 -- [%w@#%$] = All letters including the special chars @, #, and $.
 local valid_name = function(x)
-  if  nmap.registry.tsoinvalid and nmap.registry.tsoinvalid[x] then
+  if  kmap.registry.tsoinvalid and kmap.registry.tsoinvalid[x] then
     return false
   else
     return (string.len(x) <= 7 and string.match(x,"^%D+[%w@#%$]"))

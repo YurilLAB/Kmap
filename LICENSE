@@ -1,5 +1,5 @@
-Nmap Public Source License Version 0.95
-For more information on this license, see https://nmap.org/npsl/
+Kmap Public Source License Version 0.95
+For more information on this license, see https://kmap.org/npsl/
 
 0. Preamble
 
@@ -7,21 +7,21 @@ The intent of this license is to establish freedom to share and change
 the software regulated by this license under the open source model. It
 also includes a Contributor Agreement and disclaims any warranty on
 Covered Software. Companies wishing to use or incorporate Covered
-Software within their own products may find that our Nmap OEM product
-(https://nmap.org/oem/) better suits their needs. Open source
+Software within their own products may find that our Kmap OEM product
+(https://kmap.org/oem/) better suits their needs. Open source
 developers who wish to incorporate parts of Covered Software into free
 software with conflicting licenses may write Licensor to request a
 waiver of terms.
 
-If the Nmap Project (directly or through one of its commercial
-licensing customers) has granted you additional rights to Nmap or Nmap
+If the Kmap Project (directly or through one of its commercial
+licensing customers) has granted you additional rights to Kmap or Kmap
 OEM, those additional rights take precedence where they conflict with
 the terms of this license agreement.
 
 This License represents the complete agreement concerning subject
 matter hereof. It contains the license terms themselves, but not the
 reasoning behind them or detailed explanations. For further
-information about this License, see https://nmap.org/npsl/ . That page
+information about this License, see https://kmap.org/npsl/ . That page
 makes a good faith attempt to explain this License, but it does not
 and can not modify its governing terms in any way.
 
@@ -81,7 +81,7 @@ and can not modify its governing terms in any way.
 
 * "License" means this document, including Exhibits.
 
-* "Licensor" means Nmap Software LLC and its successors and assigns.
+* "Licensor" means Kmap Software LLC and its successors and assigns.
 
 * "Main License Body" means all of the terms of this document,
   excluding Exhibits.
@@ -118,8 +118,8 @@ if it does any of the following:
 
 * Integrates source code from Covered Software
 
-* Reads or includes Covered Software data files, such as nmap-os-db or
-  nmap-service-probes.
+* Reads or includes Covered Software data files, such as kmap-os-db or
+  kmap-service-probes.
 
 * Is designed specifically to execute Covered Software and parse the
   results (as opposed to typical shell or execution-menu apps, which
@@ -127,7 +127,7 @@ if it does any of the following:
 
 * Includes Covered Software in a proprietary executable installer. The
   installers produced by InstallShield are an example of
-  this. Including Nmap with other software in compressed or archival
+  this. Including Kmap with other software in compressed or archival
   form does not trigger this provision, provided appropriate open
   source decompression or de-archiving software is widely available
   for no charge. For the purposes of this license, an installer is
@@ -220,11 +220,11 @@ damages.
 6. External Deployment
 
 If You Externally Deploy Covered Software, such as hosting a website
-designed to execute Nmap scans for users, the system and its
+designed to execute Kmap scans for users, the system and its
 documentation must, if technically feasible, prominently display a
-notice stating that the system uses the Nmap Security Scanner to
+notice stating that the system uses the Kmap Security Scanner to
 perform its tasks. If technically feasible, the notice must contain a
-hyperlink to https://nmap.org/ or provide that URL in the text.
+hyperlink to https://kmap.org/ or provide that URL in the text.
 
 7. Trademarks
 
@@ -256,17 +256,17 @@ that District with respect to this License. The application of the
 United Nations Convention on Contracts for the International Sale of
 Goods is expressly excluded.
 
-10. Npcap and the Official Nmap Windows Builds
+10. Npcap and the Official Kmap Windows Builds
 
-The official Windows Nmap builds includes the Npcap driver and library
+The official Windows Kmap builds includes the Npcap driver and library
 (https://npcap.com) for packet capture and transmission on
 Windows. That software is under its own separate license terms rather
 than this license. Therefore anyone wishing to use or redistribute
 both pieces of software must comply with both licenses. Since Npcap
 does not allow for redistribution without special permission, the
-official Nmap Windows builds which include Npcap may not be
+official Kmap Windows builds which include Npcap may not be
 redistributed without special permission. Such permission can be
-requested by email to sales@nmap.com.
+requested by email to sales@kmap.com.
 
 11. Permission to link with OpenSSL
 

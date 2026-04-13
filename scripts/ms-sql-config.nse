@@ -28,13 +28,13 @@ authentication required to connect to the SQL Server instances itself. See the
 documentation and arguments for the <code>smb</code> library for more information.
 
 NOTE: By default, the ms-sql-* scripts may attempt to connect to and communicate
-with ports that were not included in the port list for the Nmap scan. This can
+with ports that were not included in the port list for the Kmap scan. This can
 be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 ]]
 
 ---
 -- @usage
--- nmap -p 1433 --script ms-sql-config --script-args mssql.username=sa,mssql.password=sa <host>
+-- kmap -p 1433 --script ms-sql-config --script-args mssql.username=sa,mssql.password=sa <host>
 --
 -- @args ms-sql-config.showall If set, shows all configuration options.
 --
@@ -44,7 +44,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 -- |     Databases
 -- |       name      db_size owner
 -- |       ====      ======= =====
--- |       nmap      2.74 MB MAC-MINI\david
+-- |       kmap      2.74 MB MAC-MINI\david
 -- |     Configuration
 -- |       name      value   inuse   description
 -- |       ====      =====   =====   ===========
@@ -66,7 +66,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 --                 added compatibility with changes in mssql.lua (Chris Woodbury)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -92,12 +92,12 @@ local function process_instance( instance )
     [3]={ ["Linked Servers"] = [[ SELECT srvname, srvproduct, providername
       FROM master..sysservers
       WHERE srvid > 0 ]] },
-    [1]={ ["Databases"] = [[ CREATE TABLE #nmap_dbs(name varchar(255), db_size varchar(255), owner varchar(255),
+    [1]={ ["Databases"] = [[ CREATE TABLE #kmap_dbs(name varchar(255), db_size varchar(255), owner varchar(255),
       dbid int, created datetime, status varchar(512), compatibility_level int )
-      INSERT INTO #nmap_dbs EXEC sp_helpdb
+      INSERT INTO #kmap_dbs EXEC sp_helpdb
       SELECT name, db_size, owner
-      FROM #nmap_dbs ]] .. db_filter .. [[
-      DROP TABLE #nmap_dbs ]] }
+      FROM #kmap_dbs ]] .. db_filter .. [[
+      DROP TABLE #kmap_dbs ]] }
   }
 
   status, errorMessage = helper:ConnectEx( instance )

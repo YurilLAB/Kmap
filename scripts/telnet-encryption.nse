@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -19,7 +19,7 @@ References:
 
 ---
 -- @usage
--- nmap -p 23 <ip> --script telnet-encryption
+-- kmap -p 23 <ip> --script telnet-encryption
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -35,7 +35,7 @@ categories = {"safe", "discovery"}
 portrule = shortport.port_or_service(23, 'telnet')
 
 author = {"Patrik Karlsson", "David Fifield", "Fyodor"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local COMMAND = {
   SubCommand = 0xFA,
@@ -75,7 +75,7 @@ local function fail(err) return stdnse.format_output(false, err) end
 
 action = function(host, port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status = socket:connect(host, port)
   local data = stdnse.fromhex( "FFFD26FFFB26")
   local result

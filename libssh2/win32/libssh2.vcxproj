@@ -59,7 +59,7 @@
       <Optimization>MaxSpeed</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\..\libz;..\..\..\nmap-mswin32-aux\OpenSSL\include;..\win32;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\libz;..\..\..\kmap-mswin32-aux\OpenSSL\include;..\win32;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;LIBSSH2_WIN32;LIBSSH2_OPENSSL;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AssemblerListingLocation>.\Release_dll\</AssemblerListingLocation>
       <PrecompiledHeaderOutputFile>.\Release_dll\libssh2.pch</PrecompiledHeaderOutputFile>
@@ -89,7 +89,7 @@
       <OutputFile>.\Release_dll\libssh2.dll</OutputFile>
       <ImportLibrary>.\Release_dll\libssh2.lib</ImportLibrary>
       <AdditionalDependencies>ws2_32.lib;libcrypto.lib;zlibwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm;..\..\..\nmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm;..\..\..\kmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
@@ -104,7 +104,7 @@
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\..\..\nmap-mswin32-aux\OpenSSL\include;..\..\libz;..\win32;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\kmap-mswin32-aux\OpenSSL\include;..\..\libz;..\win32;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;LIBSSH2_WIN32;LIBSSH2_OPENSSL;_LIB;LIBSSH2DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AssemblerListingLocation>.\Debug_dll\</AssemblerListingLocation>
       <PrecompiledHeaderOutputFile>.\Debug_dll\libssh2.pch</PrecompiledHeaderOutputFile>
@@ -136,7 +136,7 @@
       <OutputFile>.\Debug_dll\libssh2.dll</OutputFile>
       <ImportLibrary>.\Debug_dll\libssh2.lib</ImportLibrary>
       <AdditionalDependencies>ws2_32.lib;libcrypto.lib;zlibwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\..\..\nmap-mswin32-aux\OpenSSL\lib;..\..\libz\contrib\vstudio\vc16\x86\ZlibDllDebugWithoutAsm;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\..\kmap-mswin32-aux\OpenSSL\lib;..\..\libz\contrib\vstudio\vc16\x86\ZlibDllDebugWithoutAsm;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

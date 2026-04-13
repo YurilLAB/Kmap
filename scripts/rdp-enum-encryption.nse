@@ -10,7 +10,7 @@ http://labs.mwrinfosecurity.com/tools/2009/01/12/rdp-cipher-checker/
 
 ---
 -- @usage
--- nmap -p 3389 --script rdp-enum-encryption <ip>
+-- kmap -p 3389 --script rdp-enum-encryption <ip>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -30,10 +30,10 @@ http://labs.mwrinfosecurity.com/tools/2009/01/12/rdp-cipher-checker/
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 
-local nmap = require("nmap")
+local kmap = require("kmap")
 local table = require("table")
 local shortport = require("shortport")
 local rdp = require("rdp")
@@ -83,7 +83,7 @@ local function enum_protocols(host, port)
 
         if ( success == 2 ) then
           table.insert(res_proto, ("%s: SUCCESS"):format(k))
-        elseif ( nmap.debugging() > 0 ) then
+        elseif ( kmap.debugging() > 0 ) then
           local err = string.unpack("B", response.itut.data, 5)
           if ( err > 0 ) then
             table.insert(res_proto, ("%s: FAILED (%s)"):format(k, ERRORS[err] or "Unknown"))
@@ -182,7 +182,7 @@ local function enum_ciphers(host, port)
       if response.ccr.proto_version then
         proto_version = response.ccr.proto_version
       end
-    elseif ( nmap.debugging() > 0 ) then
+    elseif ( kmap.debugging() > 0 ) then
       table.insert(res_ciphers, ("%s: FAILURE"):format(k))
     end
   end

@@ -1,5 +1,5 @@
 local datafiles = require "datafiles"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -25,19 +25,19 @@ definitions of some terms.
 
 ---
 -- @output
--- Nmap scan report for ::1.2.3.4
+-- Kmap scan report for ::1.2.3.4
 -- Host script results:
 -- | address-info:
 -- |   IPv4-compatible:
 -- |_    IPv4 address: 1.2.3.4
 --
--- Nmap scan report for ::ffff:1.2.3.4
+-- Kmap scan report for ::ffff:1.2.3.4
 -- Host script results:
 -- | address-info:
 -- |   IPv4-mapped:
 -- |_    IPv4 address: 1.2.3.4
 --
--- Nmap scan report for 2001:0:506:708:282a:3d75:fefd:fcfb
+-- Kmap scan report for 2001:0:506:708:282a:3d75:fefd:fcfb
 -- Host script results:
 -- | address-info:
 -- |   Teredo:
@@ -45,13 +45,13 @@ definitions of some terms.
 -- |     Client IPv4 address: 1.2.3.4
 -- |_    UDP port: 49802
 --
--- Nmap scan report for 2002:102:304::1
+-- Kmap scan report for 2002:102:304::1
 -- Host script results:
 -- | address-info:
 -- |   6to4:
 -- |_    IPv4 address: 1.2.3.4
 --
--- Nmap scan report for fe80::a8bb:ccff:fedd:eeff
+-- Kmap scan report for fe80::a8bb:ccff:fedd:eeff
 -- Host script results:
 -- | address-info:
 -- |   IPv6 EUI-64:
@@ -59,13 +59,13 @@ definitions of some terms.
 -- |       address: aa:bb:cc:dd:ee:ff
 -- |_      manuf: Unknown
 --
--- Nmap scan report for 64:ff9b::c000:221
+-- Kmap scan report for 64:ff9b::c000:221
 -- Host script results:
 -- | address-info:
 -- |   IPv4-embedded IPv6 address:
 -- |_    IPv4 address: 192.0.2.33
 --
--- Nmap scan report for ::ffff:0:c0a8:101
+-- Kmap scan report for ::ffff:0:c0a8:101
 -- Host script results:
 -- | address-info:
 -- |   IPv4-translated IPv6 address:
@@ -111,7 +111,7 @@ definitions of some terms.
 
 author = "David Fifield"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
@@ -149,7 +149,7 @@ end
 
 local function get_manuf(mac)
   local catch = function() return "Unknown" end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local mac_prefixes = try(datafiles.parse_mac_prefixes())
   local prefix = string.upper(string.format("%02x%02x%02x", mac[1], mac[2], mac[3]))
   return mac_prefixes[prefix] or "Unknown"

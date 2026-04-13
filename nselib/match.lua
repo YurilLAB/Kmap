@@ -2,8 +2,8 @@
 -- Buffered network I/O helper functions.
 --
 -- The functions in this module can be used for delimiting data received by the
--- <code>nmap.receive_buf</code> function in the Network I/O API (which see).
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- <code>kmap.receive_buf</code> function in the Network I/O API (which see).
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local stdnse = require "stdnse"
 local find = (require "string").find
@@ -28,7 +28,7 @@ _ENV = stdnse.module("match", stdnse.seeall)
 -- <code>num</code>
 -- @param num Number of bytes.
 -- @usage sock:receive_buf(match.numbytes(80), true)
--- @see nmap.receive_buf
+-- @see kmap.receive_buf
 numbytes = function(num)
   local n = num
   return function(buf)

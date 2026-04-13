@@ -1,7 +1,7 @@
 local anyconnect = require('anyconnect')
 local stdnse = require('stdnse')
 local shortport = require('shortport')
-local nmap = require('nmap')
+local kmap = require('kmap')
 
 description = [[
 Connect as Cisco AnyConnect client to a Cisco SSL VPN and retrieves version
@@ -10,7 +10,7 @@ and tunnel information.
 
 ---
 -- @usage
--- nmap -p 443 --script http-cisco-anyconnect <target>
+-- kmap -p 443 --script http-cisco-anyconnect <target>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -31,7 +31,7 @@ and tunnel information.
 --
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = function(host, port)
@@ -50,7 +50,7 @@ action = function(host, port)
       'host-scan-base-uri', 'host-scan-wait-uri', 'host' }
 
     -- add login banner if running in debug mode
-    if nmap.verbosity() > 2 then xmltags[#xmltags] = 'banner' end
+    if kmap.verbosity() > 2 then xmltags[#xmltags] = 'banner' end
 
     for _, tag in ipairs(xmltags) do
       o[tag] = ac.conn_attr[tag]

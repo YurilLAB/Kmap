@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local os = require "os"
 local shortport = require "shortport"
@@ -18,7 +18,7 @@ http://arc.opensolaris.org/caselog/PSARC/2006/638/ServiceTag_API_CLI_v07.pdf
 
 ---
 -- @usage
--- nmap -sU -p 6481 --script=servicetags <target>
+-- kmap -sU -p 6481 --script=servicetags <target>
 -- @output
 -- | servicetags:
 -- |   URN: urn:st:3bf76681-5e68-415b-f980-abcdef123456
@@ -77,7 +77,7 @@ http://arc.opensolaris.org/caselog/PSARC/2006/638/ServiceTag_API_CLI_v07.pdf
 
 author = "Matthew Flanagan"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -130,7 +130,7 @@ local get_agent, get_svctag_list, get_svctag
 action = function(host, port)
 
     -- create the socket used for our connection
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
 
     -- set a reasonable timeout value
     socket:set_timeout(5000)
@@ -140,7 +140,7 @@ action = function(host, port)
         socket:close()
     end
 
-    local try = nmap.new_try(catch)
+    local try = kmap.new_try(catch)
 
     -- connect to the potential service tags discoverer
     try(socket:connect(host, port))
@@ -159,7 +159,7 @@ action = function(host, port)
     socket:close()
 
     -- since we got something back, the port is definitely open
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
 
     -- buffer to hold script output
     local output = {}
@@ -193,13 +193,13 @@ action = function(host, port)
     end
 
     port.name = "servicetags"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
 
     return stdnse.format_output(true, output)
 end
 
 function get_agent(host, port, output)
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     local status, err, response
     socket:set_timeout(5000)
 
@@ -231,7 +231,7 @@ function get_agent(host, port, output)
 end
 
 function get_svctag_list(host, port)
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     local status, err, response
     socket:set_timeout(5000)
 
@@ -261,7 +261,7 @@ function get_svctag_list(host, port)
 end
 
 function get_svctag(host, port, svctag)
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     local status, err, response
     socket:set_timeout(5000)
 

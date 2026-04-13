@@ -2,11 +2,11 @@
 -- Functions for the SSH-2 protocol.
 --
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local base64 = require "base64"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local openssl = stdnse.silent_require "openssl"
 _ENV = stdnse.module("ssh2", stdnse.seeall)
@@ -152,14 +152,14 @@ end
 
 
 --- Fetch an SSH-2 host key.
--- @param host Nmap host table.
--- @param port Nmap port table.
+-- @param host Kmap host table.
+-- @param port Kmap port table.
 -- @param key_type key type to fetch.
 -- @return A table with the following fields: <code>key</code>,
 -- <code>key_type</code>, <code>fp_input</code>, <code>bits</code>,
 -- <code>full_key</code>, <code>algorithm</code>, and <code>fingerprint</code>.
 fetch_host_key = function( host, port, key_type )
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status
 
   -- oakley group 2 prime taken from rfc 2409
@@ -211,7 +211,7 @@ fetch_host_key = function( host, port, key_type )
   status = socket:receive_lines(1)
   if not status then socket:close(); return end
   -- send our banner
-  status = socket:send("SSH-2.0-Nmap-SSH2-Hostkey\r\n")
+  status = socket:send("SSH-2.0-Kmap-SSH2-Hostkey\r\n")
   if not status then socket:close(); return end
 
   local packet = transport.build( transport.kex_init( {

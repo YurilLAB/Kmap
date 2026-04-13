@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -11,15 +11,15 @@ Guesses Oracle instance/SID names against the TNS-listener.
 If the <code>oraclesids</code> script argument is not used to specify an
 alternate file, the default <code>oracle-sids</code> file will be used.
 License to use the <code>oracle-sids</code> file was granted by its
-author, Alexander Kornbrust (http://seclists.org/nmap-dev/2009/q4/645).
+author, Alexander Kornbrust (http://seclists.org/kmap-dev/2009/q4/645).
 ]]
 
 ---
 -- @args oraclesids A file containing SIDs to try.
 --
 -- @usage
--- nmap --script=oracle-sid-brute --script-args=oraclesids=/path/to/sidfile -p 1521-1560 <host>
--- nmap --script=oracle-sid-brute -p 1521-1560 <host>
+-- kmap --script=oracle-sid-brute --script-args=oraclesids=/path/to/sidfile -p 1521-1560 <host>
+-- kmap --script=oracle-sid-brute -p 1521-1560 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -36,7 +36,7 @@ author, Alexander Kornbrust (http://seclists.org/nmap-dev/2009/q4/645).
 -- Revised 12/14/2009 - v0.3 - Fixed ugly file_exist kludge
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -124,16 +124,16 @@ end
 action = function(host, port)
 
   local found_sids = {}
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local catch = function() socket:close() end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local request, response, tns_packet
   local sidfile
 
   socket:set_timeout(5000)
 
   -- open the sid file specified by the user or fallback to the default oracle-sids file
-  local sidfilename = nmap.registry.args.oraclesids or nmap.fetchfile("nselib/data/oracle-sids")
+  local sidfilename = kmap.registry.args.oraclesids or kmap.fetchfile("nselib/data/oracle-sids")
 
   sidfile = io.open(sidfilename)
 

@@ -23,8 +23,8 @@ References:
 ]]
 
 ---
--- @usage nmap -O --script smb2-vuln-uptime <target>
--- @usage nmap -p445 --script smb2-vuln-uptime --script-args smb2-vuln-uptime.skip-os=true <target>
+-- @usage kmap -O --script smb2-vuln-uptime <target>
+-- @usage kmap -p445 --script smb2-vuln-uptime --script-args smb2-vuln-uptime.skip-os=true <target>
 --
 -- @output
 -- | smb2-vuln-uptime:
@@ -60,7 +60,7 @@ References:
 ---
 
 author = "Paulino Calderon <calderon()calderonpale.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 hostrule = function(host)

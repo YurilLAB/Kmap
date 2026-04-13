@@ -29,13 +29,13 @@ References:
 --<elem key="dump">&#xa;balancer: [1] Name: seta-cluster-jboss Sticky: 1 [JSESSIONID]/[jsessionid] remove: 0 force: 0 Timeout: 0 maxAttempts: 1&#xa;node: [1:1],Balancer: seta-cluster-jboss,JVMRoute: sv-seta-sas-jb1,LBGroup: [],Host: 10.20.98.38,Port: 8009,Type: ajp,flushpackets: 0,flushwait: 10,ping: 10,smax: 2,ttl: 60,timeout: 0&#xa;node: [2:2],Balancer: seta-cluster-jboss,JVMRoute: sv-seta-sas-jb2,LBGroup: [],Host: 10.20.98.39,Port: 8009,Type: ajp,flushpackets: 0,flushwait: 10,ping: 10,smax: 2,ttl: 60,timeout: 0&#xa;host: 1 [example.com] vhost: 1 node: 1&#xa;host: 2 [localhost] vhost: 1 node: 1&#xa;host: 3 [default-host] vhost: 1 node: 1&#xa;host: 4 [example.com] vhost: 1 node: 2&#xa;host: 5 [localhost] vhost: 1 node: 2&#xa;host: 6 [default-host] vhost: 1 node: 2&#xa;context: 1 [/cgs] vhost: 1 node: 1 status: 1&#xa;context: 2 [/RequisicaoSeta] vhost: 1 node: 1 status: 1&#xa;context: 3 [/prodex-ensaio] vhost: 1 node: 1 status: 1&#xa;context: 4 [/gestordeacessos] vhost: 1 node: 1 status: 1&#xa;</elem>
 
 author = "Frank Spierings"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 local stdnse = require "stdnse"
 local shortport = require "shortport"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local table = require "table"
 
 portrule = shortport.http
@@ -57,7 +57,7 @@ action = function(host, port)
         end
         if not cpe_found then
           table.insert(port.version.cpe, ("cpe:/a:redhat:mod_cluster:%s"):format(version))
-          nmap.set_port_version(host, port, "hardmatched")
+          kmap.set_port_version(host, port, "hardmatched")
         end
       end
     end

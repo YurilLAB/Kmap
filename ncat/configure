@@ -1363,10 +1363,10 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-openssl=DIR    Use optional openssl libs and includes from DIR/lib/ and DIR/include/openssl/
   --with-libpcap=DIR      Look for pcap in DIR/include and DIR/libs.
-  --with-libpcap=included Always use version included with Nmap
+  --with-libpcap=included Always use version included with Kmap
   --with-liblua=DIR       Use an existing (compiled) lua lib from DIR/include
                           and DIR/lib.
-  --with-liblua=included  Use the liblua version included with Nmap
+  --with-liblua=included  Use the liblua version included with Kmap
   --without-liblua        Compile without lua (this will exclude all of NSE
                           from compilation)
 

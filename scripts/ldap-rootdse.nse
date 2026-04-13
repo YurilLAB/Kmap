@@ -1,6 +1,6 @@
 local comm = require "comm"
 local ldap = require "ldap"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -12,7 +12,7 @@ Retrieves the LDAP root DSA-specific Entry (DSE)
 ---
 --
 -- @usage
--- nmap -p 389 --script ldap-rootdse <host>
+-- kmap -p 389 --script ldap-rootdse <host>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -92,7 +92,7 @@ Retrieves the LDAP root DSA-specific Entry (DSE)
 
 author = "Patrik Karlsson"
 copyright = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"ldap-brute"}
 
@@ -113,7 +113,7 @@ function action(host,port)
 
   if port.protocol == 'tcp' then
 
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
 
     -- In order to discover what protocol to use (SSL/TCP) we need to send a few bytes to the server
     -- An anonymous bind should do it
@@ -205,8 +205,8 @@ function action(host,port)
 
   -- Set port information
   port.version.name = "ldap"
-  nmap.set_port_version(host, port, "hardmatched")
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_state(host, port, "open")
 
   return scriptResult
 end

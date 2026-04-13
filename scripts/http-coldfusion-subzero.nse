@@ -11,8 +11,8 @@ This was based on the exploit 'ColdSub-Zero.pyFusion v2'.
 -- @see http-vuln-cve2009-3960.nse
 -- @see http-vuln-cve2010-2861.nse
 --
--- @usage nmap -sV --script http-coldfusion-subzero <target>
--- @usage nmap -p80 --script http-coldfusion-subzero --script-args basepath=/cf/ <target>
+-- @usage kmap -sV --script http-coldfusion-subzero <target>
+-- @usage kmap -p80 --script http-coldfusion-subzero --script-args basepath=/cf/ <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -33,7 +33,7 @@ This was based on the exploit 'ColdSub-Zero.pyFusion v2'.
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit"}
 
 local http = require "http"

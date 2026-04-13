@@ -9,7 +9,7 @@ Runs remote command on ssh server and returns command output.
 ]]
 
 ---
--- @usage nmap -p 22 --script=ssh-run \
+-- @usage kmap -p 22 --script=ssh-run \
 -- --script-args="ssh-run.cmd=ls -l /, ssh-run.username=myusername, ssh-run.password=mypassword" <target>
 --
 -- @output
@@ -37,7 +37,7 @@ Runs remote command on ssh server and returns command output.
 
 
 author = "Devin Bjelland"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {
   'intrusive',

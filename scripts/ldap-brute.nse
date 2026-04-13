@@ -1,7 +1,7 @@
 local comm = require "comm"
 local creds = require "creds"
 local ldap = require "ldap"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -32,7 +32,7 @@ This script uses some AD-specific support and optimizations:
 
 ---
 -- @usage
--- nmap -p 389 --script ldap-brute --script-args ldap.base='"cn=users,dc=cqure,dc=net"' <host>
+-- kmap -p 389 --script ldap-brute --script-args ldap.base='"cn=users,dc=cqure,dc=net"' <host>
 --
 -- @output
 -- 389/tcp open  ldap
@@ -77,7 +77,7 @@ This script uses some AD-specific support and optimizations:
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -136,7 +136,7 @@ action = function( host, port )
   local usernames, passwords, username, password, fq_username
   local user_cnt, invalid_account_cnt, tot_tries = 0, 0, 0
 
-  local clock_start = nmap.clock_ms()
+  local clock_start = kmap.clock_ms()
 
   local ldap_anonymous_bind = "\x30\x0c\x02\x01\x01\x60\x07\x02\x01\x03\x04\x00\x80\x00"
   local socket, _, opt = comm.tryssl( host, port, ldap_anonymous_bind, nil )
@@ -277,10 +277,10 @@ action = function( host, port )
           table.insert( valid_accounts, string.format("%s:%s => Valid credentials", fq_username, password:len()>0 and password or "<empty>" ) )
           stdnse.verbose2("%s:%s => Valid credentials", fq_username, password:len()>0 and password or "<empty>")
           -- Add credentials for other ldap scripts to use
-          if nmap.registry.ldapaccounts == nil then
-            nmap.registry.ldapaccounts = {}
+          if kmap.registry.ldapaccounts == nil then
+            kmap.registry.ldapaccounts = {}
           end
-          nmap.registry.ldapaccounts[fq_username]=password
+          kmap.registry.ldapaccounts[fq_username]=password
           credTable:add(fq_username,password, creds.State.VALID)
 
           break
@@ -290,7 +290,7 @@ action = function( host, port )
     passwords("reset")
   end
 
-  stdnse.debug1( "Finished brute against LDAP, total tries: %d, tps: %.f", tot_tries, ( tot_tries / ( ( nmap.clock_ms() - clock_start ) / 1000 ) ) )
+  stdnse.debug1( "Finished brute against LDAP, total tries: %d, tps: %.f", tot_tries, ( tot_tries / ( ( kmap.clock_ms() - clock_start ) / 1000 ) ) )
 
   if ( invalid_account_cnt == user_cnt and base_dn ~= nil ) then
     return "WARNING: All usernames were invalid. Invalid LDAP base?"

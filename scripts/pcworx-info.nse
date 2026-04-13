@@ -1,5 +1,5 @@
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -14,7 +14,7 @@ http://digitalbond.com
 ]]
 ---
 -- @usage
--- nmap --script pcworx-info -p 1962 <host>
+-- kmap --script pcworx-info -p 1962 <host>
 --
 --
 -- @output
@@ -35,7 +35,7 @@ http://digitalbond.com
 --<elem key="Firmware Time">09:39:02</elem>
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery"}
 
 portrule = shortport.port_or_service(1962, "pcworx", "tcp")
@@ -49,11 +49,11 @@ local function get_string(blob, offset)
 end
 ---
 --  Action Function that is used to run the NSE. This function will send the initial query to the
---  host and port that were passed in via nmap. The initial response is parsed to determine if host
+--  host and port that were passed in via kmap. The initial response is parsed to determine if host
 --  is a pcworx Protocol device. If it is then more actions are taken to gather extra information.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host,port)
   local init_comms = "\x01\x01\0\x1a\0\0\0\0x\x80\0\x03\0\x0cIBETH01N0_M\0"
 
@@ -61,12 +61,12 @@ action = function(host,port)
   local output = stdnse.output_table()
 
   -- create new socket
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   -- define the catch of the try statement
   local catch = function()
     socket:close()
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(socket:connect(host, port))
   try(socket:send(init_comms))

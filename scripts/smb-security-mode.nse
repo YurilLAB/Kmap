@@ -44,8 +44,8 @@ them.
 
 ---
 --@usage
--- nmap --script smb-security-mode.nse -p445 127.0.0.1
--- sudo nmap -sU -sS --script smb-security-mode.nse -p U:137,T:139 127.0.0.1
+-- kmap --script smb-security-mode.nse -p445 127.0.0.1
+-- sudo kmap -sU -sS --script smb-security-mode.nse -p U:137,T:139 127.0.0.1
 --
 --@output
 -- | smb-security-mode:
@@ -62,7 +62,7 @@ them.
 --
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"smb-brute"}
 

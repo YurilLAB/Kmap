@@ -1,5 +1,5 @@
 local mssql = require "mssql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 
@@ -19,7 +19,7 @@ Run criteria:
 NOTE: Unlike previous versions, this script will NOT attempt to log in to SQL
 Server instances. Blank passwords can be checked using the
 <code>ms-sql-empty-password</code> script. E.g.:
-<code>nmap -sn --script ms-sql-empty-password --script-args mssql.instance-all <host></code>
+<code>kmap -sn --script ms-sql-empty-password --script-args mssql.instance-all <host></code>
 
 The script uses two means of getting version information for SQL Server instances:
 * Querying the SQL Server Browser service, which runs by default on UDP port
@@ -28,7 +28,7 @@ service may be disabled without affecting the functionality of the instances.
 Additionally, it provides imprecise version information.
 * Sending a probe to the instance, causing the instance to respond with
 information including the exact version number. This is the same method that
-Nmap uses for service versioning; however, this script can also do the same for
+Kmap uses for service versioning; however, this script can also do the same for
 instances accessible via Windows named pipes, and can target all of the
 instances listed by the SQL Server Browser service.
 
@@ -57,13 +57,13 @@ authentication required to connect to the SQL Server instances itself. See the
 documentation and arguments for the <code>smb</code> library for more information.
 
 NOTE: By default, the ms-sql-* scripts may attempt to connect to and communicate
-with ports that were not included in the port list for the Nmap scan. This can
+with ports that were not included in the port list for the Kmap scan. This can
 be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 ]]
 ---
 -- @usage
--- nmap -p 445 --script ms-sql-info <host>
--- nmap -p 1433 --script ms-sql-info --script-args mssql.instance-port=1433 <host>
+-- kmap -p 445 --script ms-sql-info <host>
+-- kmap -p 1433 --script ms-sql-info --script-args mssql.instance-port=1433 <host>
 --
 -- @output
 -- | ms-sql-info:
@@ -139,14 +139,14 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 -- rev 1.4 (2011-01-24 - Revised logic in order to get version data without logging in;
 --                       added functionality to interpret version in terms of SP level, etc.
 --                       added script arg to prevent script from connecting to ports that
---                         weren't in original Nmap scan <chris3E3@gmail.com>)
+--                         weren't in original Kmap scan <chris3E3@gmail.com>)
 -- rev 1.5 (2011-02-01 - Moved discovery functionality into ms-sql-discover.nse and
 --               broadcast-ms-sql-discovery.nse <chris3E3@gmail.com>)
 -- rev 1.6 (2014-09-04 - Added structured output Daniel Miller)
 
 author = {"Chris Woodbury", "Thomas Buchanan"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -221,10 +221,10 @@ local function process_instance( instance )
     end
   end
 
-  -- Give some version info back to Nmap
+  -- Give some version info back to Kmap
   if ( instance.port and instance.version ) then
-    instance.version:PopulateNmapPortVersion( instance.port )
-    nmap.set_port_version( instance.host, instance.port)
+    instance.version:PopulateKmapPortVersion( instance.port )
+    kmap.set_port_version( instance.host, instance.port)
   end
 
 end

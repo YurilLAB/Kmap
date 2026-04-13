@@ -3,66 +3,66 @@
  * scan_engine_raw.cc -- includes helper functions for scan_engine.cc that *
  * are related to port scanning using raw (IP, Ethernet) packets.          *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
 /* $Id$ */
 
-#include "nmap_error.h"
-#include "NmapOps.h"
+#include "kmap_error.h"
+#include "KmapOps.h"
 #include "Target.h"
 #include "payload.h"
 #include "scan_engine.h"
@@ -76,7 +76,7 @@
 #include "libnetutil/netutil.h"
 #endif
 
-extern NmapOps o;
+extern KmapOps o;
 
 u16 UltraProbe::sport() const {
   switch (mypspec.proto) {
@@ -343,7 +343,7 @@ static bool tcp_probe_match(const UltraScanInfo *USI, const UltraProbe *probe,
        returned ACK value because SYN and FIN consume a sequence number (section
        3.3). Otherwise, our SEQ is the returned ACK.
 
-       However, nmap-os-db shows that these assumptions can't be relied on, so
+       However, kmap-os-db shows that these assumptions can't be relied on, so
        we try all three possibilities for each probe. */
     goodseq = seq32_decode(USI, ntohl(tcp->th_ack) - 1, &tryno)
               || seq32_decode(USI, ntohl(tcp->th_ack), &tryno)
@@ -1707,7 +1707,7 @@ bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
               newstate = PORT_UNFILTERED;
             } else newstate = PORT_CLOSED;
           } else if (USI->scantype == SYN_SCAN && (tcp->th_flags & TH_SYN)) {
-            /* A SYN from a TCP Split Handshake - https://nmap.org/misc/split-handshake.pdf - open port */
+            /* A SYN from a TCP Split Handshake - https://kmap.org/misc/split-handshake.pdf - open port */
             newstate = PORT_OPEN;
             current_reason = ER_SYN;
           } else {
@@ -1892,7 +1892,7 @@ bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
           default:
             error("Unexpected ICMP type/code 3/%d unreachable packet:\n",
                   icmp->icmp_code);
-            nmap_hexdump((unsigned char *)icmp, datalen);
+            kmap_hexdump((unsigned char *)icmp, datalen);
             break;
           }
           current_reason = icmp_to_reason(hdr.proto, icmp->icmp_type, icmp->icmp_code);
@@ -2023,7 +2023,7 @@ bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
           default:
             error("Unexpected ICMPv6 type/code %d/%d unreachable packet:\n",
                   icmpv6->icmpv6_type, icmpv6->icmpv6_code);
-            nmap_hexdump((unsigned char *)icmpv6, datalen);
+            kmap_hexdump((unsigned char *)icmpv6, datalen);
             break;
           }
         } else if (icmpv6->icmpv6_type == ICMPV6_PARAMPROBLEM) {
@@ -2042,13 +2042,13 @@ bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
           default:
             error("Unexpected ICMPv6 type/code %d/%d unreachable packet:\n",
                   icmpv6->icmpv6_type, icmpv6->icmpv6_code);
-            nmap_hexdump((unsigned char *)icmpv6, datalen);
+            kmap_hexdump((unsigned char *)icmpv6, datalen);
             break;
           }
         } else {
           error("Unexpected ICMPv6 type/code %d/%d unreachable packet:\n",
                 icmpv6->icmpv6_type, icmpv6->icmpv6_code);
-          nmap_hexdump((unsigned char *)icmpv6, datalen);
+          kmap_hexdump((unsigned char *)icmpv6, datalen);
           break;
         }
         current_reason = icmp_to_reason(hdr.proto, icmpv6->icmpv6_type, icmpv6->icmpv6_code);

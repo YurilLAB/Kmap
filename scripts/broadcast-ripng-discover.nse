@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"
@@ -12,7 +12,7 @@ LAN by sending a broadcast RIPng Request command and collecting any responses.
 
 ---
 -- @usage
--- nmap --script broadcast-ripng-discover
+-- kmap --script broadcast-ripng-discover
 --
 -- @output
 -- | broadcast-ripng-discover:
@@ -26,11 +26,11 @@ LAN by sending a broadcast RIPng Request command and collecting any responses.
 --       (default: 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
-prerule = function() return ( nmap.address_family() == "inet6" ) end
+prerule = function() return ( kmap.address_family() == "inet6" ) end
 
 RIPng = {
 
@@ -181,7 +181,7 @@ action = function()
   local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME..".timeout"))
   timeout = (timeout or 5) * 1000
 
-  local sock = nmap.new_socket("udp")
+  local sock = kmap.new_socket("udp")
   sock:bind(nil, 521)
   sock:set_timeout(timeout)
 

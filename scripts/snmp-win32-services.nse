@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local table = require "table"
@@ -9,7 +9,7 @@ Attempts to enumerate Windows services through SNMP.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script=snmp-win32-services <target>
+-- kmap -sU -p 161 --script=snmp-win32-services <target>
 -- @output
 -- | snmp-win32-services:
 -- |   Apache Tomcat
@@ -41,7 +41,7 @@ Attempts to enumerate Windows services through SNMP.
 -- <elem>DCOM Server Process Launcher</elem>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -88,7 +88,7 @@ action = function(host, port)
   end
 
   services = process_answer(services)
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   return services
 end

@@ -28,7 +28,7 @@ For more information see:
 -- @args http-vuln-cve2009-3960.readfile target file to be read. Defaults to "/etc/passwd"
 --
 -- @usage
--- nmap --script=http-vuln-cve2009-3960 --script-args http-http-vuln-cve2009-3960.root="/root/" <target>
+-- kmap --script=http-vuln-cve2009-3960 --script-args http-http-vuln-cve2009-3960.root="/root/" <target>
 --
 --@output
 -- PORT   STATE SERVICE
@@ -60,7 +60,7 @@ For more information see:
 --|_
 
 author = "Hani Benhabiles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "vuln"}
 
 

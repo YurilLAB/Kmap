@@ -22,7 +22,7 @@
 --
 
 local rand = require "rand"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -649,7 +649,7 @@ Comm = {
   -- Sets up the pcap receiving socket
   -- @return status true on success
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(10000)
 
     local mac = stdnse.format_mac(self.src_mac)
@@ -668,7 +668,7 @@ Comm = {
     local ether = self.dst_mac .. self.src_mac .. string.pack(">I2", eth_type)
     local p = packet.Frame:new(ether .. tostring(data))
 
-    local sock = nmap.new_dnet()
+    local sock = kmap.new_dnet()
     if ( not(sock) ) then
       return false, "Failed to create raw socket"
     end
@@ -765,12 +765,12 @@ Helper = {
     setmetatable(o, self)
     self.__index = self
 
-    if ( not(nmap.is_privileged()) ) then
-      return nil, "The PPPoE library requires Nmap to be run in privileged mode"
+    if ( not(kmap.is_privileged()) ) then
+      return nil, "The PPPoE library requires Kmap to be run in privileged mode"
     end
 
     -- get src_mac
-    local info = nmap.get_interface_info(iface)
+    local info = kmap.get_interface_info(iface)
     if ( not(info) or not(info.mac) ) then
       return nil, "Failed to get source MAC address"
     end

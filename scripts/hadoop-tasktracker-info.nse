@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -14,7 +14,7 @@ Information gathered:
 
 ---
 -- @usage
--- nmap --script hadoop-tasktracker-info -p 50060 host
+-- kmap --script hadoop-tasktracker-info -p 50060 host
 --
 -- @output
 -- PORT      STATE SERVICE            REASON
@@ -31,7 +31,7 @@ Information gathered:
 
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 
@@ -73,7 +73,7 @@ action = function( host, port )
     if #result > 0 then
       port.version.name = "hadoop-tasktracker"
       port.version.product = "Apache Hadoop"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
       return result
     end
   end

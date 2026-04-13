@@ -1,11 +1,11 @@
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 
 description = [[
 Prints a list of ports found in each state.
 
-Nmap ordinarily summarizes "uninteresting" ports as "Not shown: 94 closed
+Kmap ordinarily summarizes "uninteresting" ports as "Not shown: 94 closed
 ports, 4 filtered ports" but users may want to know which ports were filtered
 vs which were closed. This script will expand these summaries into a list of
 ports and port ranges that were found in each state.
@@ -33,7 +33,7 @@ ports and port ranges that were found in each state.
 -- </table>
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "safe" }
 
 -- the hostrule iterates over open ports for the host
@@ -57,13 +57,13 @@ action = function(host)
     local proto_out = stdnse.output_table()
     for _, s in ipairs(states) do
       local t = {}
-      local port = nmap.get_ports(host, nil, p, s)
+      local port = kmap.get_ports(host, nil, p, s)
       while port do
         local rstart = port.number
         local prev
         repeat
           prev = port.number
-          port = nmap.get_ports(host, port, p, s)
+          port = kmap.get_ports(host, port, p, s)
           if not port then break end
         until (port.number > prev + 1)
         if prev > rstart then

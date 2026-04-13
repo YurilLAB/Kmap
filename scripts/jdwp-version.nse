@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -13,7 +13,7 @@ Documentation for JDWP is available at
 http://java.sun.com/javase/6/docs/technotes/guides/jpda/jdwp-spec.html
 ]]
 author = "Michael Schierl <schierlm@gmx.de>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 ---
@@ -28,7 +28,7 @@ portrule = function(host, port)
   return port.service == "tcpwrapped"
     and port.protocol == "tcp" and port.state == "open"
     and not(shortport.port_is_excluded(port.number,port.protocol))
-    and nmap.version_intensity() >= 7
+    and kmap.version_intensity() >= 7
 end
 
 action = function(host, port)
@@ -46,7 +46,7 @@ action = function(host, port)
     if (string.match(result,"^JDWP%-Handshake\0.*\128") ~= nil) then
       port.version.name="jdwp"
       port.version.product="unknown"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
     end
     return
   end
@@ -54,6 +54,6 @@ action = function(host, port)
   port.version.product = match[1]
   port.version.version = match[3]
   -- port.version.extrainfo = match[2] .. "\n" .. match[4]
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   return
 end

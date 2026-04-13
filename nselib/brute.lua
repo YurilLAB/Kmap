@@ -96,7 +96,7 @@
 --     return o
 --   end,
 --   connect = function( self )
---     self.socket = nmap.new_socket()
+--     self.socket = kmap.new_socket()
 --     return self.socket:connect( self.host, self.port )
 --   end,
 --   disconnect = function( self )
@@ -138,7 +138,7 @@
 -- conditions, other scripts' needs, and protocol response. This indeed works
 -- well, but only in ideal conditions. In reality there might be several
 -- scripts running or only limited number of threads are allowed to use sockets
--- at any given moment (as it is in Nmap). A more intelligent approach is to
+-- at any given moment (as it is in Kmap). A more intelligent approach is to
 -- automate the management of Engine's running threads, so that performance
 -- of other scripts does not suffer because of exhaustive brute force work.
 -- This can be done on three levels: protocol, network, and resource level.
@@ -184,7 +184,7 @@
 -- bloated scripts with lots of repetitive code. The Engine takes care of that
 -- with a little help from the developer. The only thing that needs to be
 -- done is to use <code>brute.new_socket()</code> instead of
--- <code>nmap.new_socket()</code> when creating a socket in a script.
+-- <code>kmap.new_socket()</code> when creating a socket in a script.
 --
 -- NOTE: A socket created with <code>brute.new_socket()</code> will behave as
 -- a regular socket when used without the brute library. The returned object
@@ -265,7 +265,7 @@
 --       (default: 5).
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 --
 -- Version 0.73
@@ -296,7 +296,7 @@
 local coroutine = require "coroutine"
 local creds = require "creds"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -795,7 +795,7 @@ Engine = {
 
 
   login = function (self, cvar)
-    local condvar = nmap.condvar(cvar)
+    local condvar = kmap.condvar(cvar)
     local thread_data = self.threads[coroutine.running()]
     local interval_start = os.time()
 
@@ -975,7 +975,7 @@ Engine = {
   start = function (self)
 
     local cvar = {}
-    local condvar = nmap.condvar(cvar)
+    local condvar = kmap.condvar(cvar)
 
     assert(self.options.script_name, "SCRIPT_NAME was not set in options.script_name")
     assert(self.port.number and self.port.protocol, "Invalid port table detected")
@@ -1073,7 +1073,7 @@ Engine = {
     local start_threads = self.start_threads
     -- If there are already too many threads waiting for connection,
     -- then start humbly with one thread
-    if nmap.socket.get_stats().connect_waiting > 0 then
+    if kmap.socket.get_stats().connect_waiting > 0 then
       start_threads = 1
     end
 
@@ -1171,7 +1171,7 @@ Engine = {
 
       -- Check if we possibly exhaust resources.
       if not killed_one then
-        local waiting = nmap.socket.get_stats().connect_waiting
+        local waiting = kmap.socket.get_stats().connect_waiting
 
         if waiting ~= 0 then
           local kill_count = 1
@@ -1221,7 +1221,7 @@ Engine = {
       local threads = self:threadCount()
       stdnse.debug2("Status: #threads = %d, #retry_accounts = %d, initial_accounts_exhausted = %s, waiting = %d",
         threads, #self.retry_accounts, tostring(self.initial_accounts_exhausted),
-        nmap.socket.get_stats().connect_waiting)
+        kmap.socket.get_stats().connect_waiting)
 
       if threads > 0 then
         -- wake up other threads
@@ -1512,7 +1512,7 @@ BruteSocket = {
       return f
     end
 
-    o.socket = nmap.new_socket()
+    o.socket = kmap.new_socket()
 
     return o
   end,

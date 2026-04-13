@@ -27,8 +27,8 @@ References:
 
 ---
 -- @usage
--- nmap -sV -p- --script http-shellshock <target>
--- nmap -sV -p- --script http-shellshock --script-args uri=/cgi-bin/bin,cmd=ls <target>
+-- kmap -sV -p- --script http-shellshock <target>
+-- kmap -sV -p- --script http-shellshock --script-args uri=/cgi-bin/bin,cmd=ls <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 80/tcp open  http    syn-ack
@@ -76,7 +76,7 @@ References:
 -- @args http-shellshock.cmd Custom command to send inside payload. Default: nil
 ---
 author = {"Paulino Calderon <calderon()websec.mx","Paul Amar <paul()sensepost com>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.http

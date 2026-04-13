@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local informix = require "informix"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local table = require "table"
 
@@ -11,7 +11,7 @@ Performs brute force password auditing against IBM Informix Dynamic Server.
 
 ---
 -- @usage
--- nmap --script informix-brute -p 9088 <host>
+-- kmap --script informix-brute -p 9088 <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -34,7 +34,7 @@ Performs brute force password auditing against IBM Informix Dynamic Server.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -57,7 +57,7 @@ Driver =
   -- @return true on success, false on failure
   connect = function( self )
     local status, data
-    self.helper = informix.Helper:new( self.host, self.port, "on_nmap_dummy" )
+    self.helper = informix.Helper:new( self.host, self.port, "on_kmap_dummy" )
 
     status, data = self.helper:Connect(brute.new_socket())
     if ( not(status) ) then
@@ -78,10 +78,10 @@ Driver =
     local status, data = self.helper:Login( username, password, {} )
 
     if ( status ) then
-      if ( not(nmap.registry['informix-brute']) ) then
-        nmap.registry['informix-brute'] = {}
+      if ( not(kmap.registry['informix-brute']) ) then
+        kmap.registry['informix-brute'] = {}
       end
-      table.insert( nmap.registry['informix-brute'], { ["username"] = username, ["password"] = password } )
+      table.insert( kmap.registry['informix-brute'], { ["username"] = username, ["password"] = password } )
       return true, creds.Account:new(username, password, creds.State.VALID)
       -- Check for account locked message
     elseif ( data:match("INFORMIXSERVER does not match either DBSERVERNAME or DBSERVERALIASES") ) then

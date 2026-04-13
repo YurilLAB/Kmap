@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -30,9 +30,9 @@ TODO:
 ---
 -- @see http-vuln-cve2014-8877.nse
 --
--- @usage nmap -sV --script http-wordpress-enum <target>
--- @usage nmap --script http-wordpress-enum --script-args check-latest=true,search-limit=10 <target>
--- @usage nmap --script http-wordpress-enum --script-args type="themes" <target>
+-- @usage kmap -sV --script http-wordpress-enum <target>
+-- @usage kmap --script http-wordpress-enum --script-args check-latest=true,search-limit=10 <target>
+-- @usage kmap --script http-wordpress-enum --script-args type="themes" <target>
 --
 -- @args http-wordpress-enum.root Base path. By default the script will try to find a WP directory
 --                                installation or fall back to '/'.
@@ -77,7 +77,7 @@ TODO:
 
 author = {"Ange Gutek", "Peter Hill", "Gyanendra Mishra", "Paulino Calderon"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive"}
 
@@ -157,8 +157,8 @@ action = function(host, port)
   local wp_root = stdnse.get_script_args(SCRIPT_NAME .. ".root")
   local resource_search_arg = stdnse.get_script_args(SCRIPT_NAME .. ".search-limit") or DEFAULT_SEARCH_LIMIT
 
-  local wp_themes_file = nmap.fetchfile("nselib/data/wp-themes.lst")
-  local wp_plugins_file = nmap.fetchfile("nselib/data/wp-plugins.lst")
+  local wp_themes_file = kmap.fetchfile("nselib/data/wp-themes.lst")
+  local wp_plugins_file = kmap.fetchfile("nselib/data/wp-plugins.lst")
 
   if operation_type_arg == "themes" or operation_type_arg == "all" then
     local theme_db = existence_check_assign(wp_themes_file)
@@ -287,7 +287,7 @@ end
     result.name = output_table.title
     return output_table, stdnse.format_output(true, result)
   else
-    if nmap.verbosity()>1 then
+    if kmap.verbosity()>1 then
       return string.format("Nothing found amongst the top %s resources,"..
                          "use --script-args search-limit=<number|all> for deeper analysis)", resource_count)
     else

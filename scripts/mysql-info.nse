@@ -1,5 +1,5 @@
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 
@@ -41,7 +41,7 @@ isn't run (see the portrule).
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = { "default", "discovery", "safe" }
 
@@ -73,7 +73,7 @@ end
 
 action = function(host, port)
   local output = stdnse.output_table()
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   local status, err = socket:connect(host, port)
 
@@ -87,7 +87,7 @@ action = function(host, port)
   if not status then
     stdnse.debug1("MySQL error: %s", info)
     output["MySQL Error"] = info
-    if nmap.verbosity() > 1 then
+    if kmap.verbosity() > 1 then
       return output
     else
       return nil

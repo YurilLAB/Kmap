@@ -2,7 +2,7 @@ local geoip = require "geoip"
 local io = require "io"
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 
@@ -19,7 +19,7 @@ the commercial ones.
 
 ---
 -- @usage
--- nmap --script ip-geolocation-maxmind <target> [--script-args ip-geolocation.maxmind_db=<filename>]
+-- kmap --script ip-geolocation-maxmind <target> [--script-args ip-geolocation.maxmind_db=<filename>]
 --
 -- @arg maxmind_db string indicates which file to use as a Maxmind database
 --
@@ -42,16 +42,16 @@ the commercial ones.
 -- @see ip-geolocation-map-kml.nse
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","external","safe"}
 
 local function get_db_file()
   return (stdnse.get_script_args(SCRIPT_NAME .. ".maxmind_db") or
-    nmap.fetchfile("nselib/data/GeoLiteCity.dat"))
+    kmap.fetchfile("nselib/data/GeoLiteCity.dat"))
 end
 
 hostrule = function(host)
-  if nmap.address_family() ~= "inet" then
+  if kmap.address_family() ~= "inet" then
     stdnse.verbose1("Only IPv4 is currently supported.")
     return false
   end
@@ -617,11 +617,11 @@ local GeoIP = {
 }
 
 action = function(host,port)
-  local gi = nmap.registry.maxmind_db
+  local gi = kmap.registry.maxmind_db
   if not gi then
     local f_maxmind = get_db_file()
     gi = assert( GeoIP:new(f_maxmind), "Wrong file specified for a Maxmind database")
-    nmap.registry.maxmind_db = gi
+    kmap.registry.maxmind_db = gi
   end
 
   return gi:output_record_by_addr(host.ip)

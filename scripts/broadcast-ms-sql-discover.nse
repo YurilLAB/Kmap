@@ -14,7 +14,7 @@ SQL Server credentials required: No (will not benefit from
 <code>mssql.username</code> & <code>mssql.password</code>).
 
 The script attempts to discover SQL Server instances in the same broadcast
-domain. Any instances found are stored in the Nmap registry for use by any
+domain. Any instances found are stored in the Kmap registry for use by any
 other ms-sql-* scripts that are run in the same scan.
 
 In contrast to the <code>ms-sql-discover</code> script, the broadcast version
@@ -24,8 +24,8 @@ broadcast version will only use the SQL Server Browser service discovery method.
 
 ---
 -- @usage
--- nmap --script broadcast-ms-sql-discover
--- nmap --script broadcast-ms-sql-discover,ms-sql-info --script-args=newtargets
+-- kmap --script broadcast-ms-sql-discover
+-- kmap --script broadcast-ms-sql-discover,ms-sql-info --script-args=newtargets
 --
 -- @output
 -- | broadcast-ms-sql-discover:
@@ -50,7 +50,7 @@ broadcast version will only use the SQL Server Browser service discovery method.
 -- Revised 02/01/2011 - v0.2 - Added compatibility with changes in mssql.lua (Chris Woodbury)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 

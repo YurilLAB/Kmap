@@ -1,7 +1,7 @@
 local http = require "http"
 local httpspider = require "httpspider"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -25,7 +25,7 @@ virtually hosted sites.
 
 
 author = {"Eddie Bell", "Piotr Olma"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 ---
@@ -45,7 +45,7 @@ categories = {"intrusive", "vuln"}
 --       comments). The default file is nselib/data/http-sql-errors.lst
 --       which was taken from fuzzdb project, for more info, see http://code.google.com/p/fuzzdb/.
 --       If someone detects some strings in that file causing a lot of false positives,
---       then please report them to dev@nmap.org.
+--       then please report them to dev@kmap.org.
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -210,7 +210,7 @@ end
 
 -- load error strings to the errorstrings table
 local function get_error_strings(path)
-  local f = nmap.fetchfile(path) or path
+  local f = kmap.fetchfile(path) or path
   if f then
     for e in io.lines(f) do
       if not string.match(e, "^#") then

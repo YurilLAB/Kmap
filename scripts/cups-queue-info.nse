@@ -9,7 +9,7 @@ printer.
 
 ---
 -- @usage
--- nmap -p 631 <ip> --script cups-queue-info
+-- kmap -p 631 <ip> --script cups-queue-info
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -28,7 +28,7 @@ printer.
 categories = {"safe", "discovery"}
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 

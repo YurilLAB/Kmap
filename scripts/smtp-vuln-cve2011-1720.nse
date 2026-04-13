@@ -18,7 +18,7 @@ Reference:
 
 ---
 -- @usage
--- nmap --script=smtp-vuln-cve2011-1720 --script-args='smtp.domain=<domain>' -pT:25,465,587 <host>
+-- kmap --script=smtp-vuln-cve2011-1720 --script-args='smtp.domain=<domain>' -pT:25,465,587 <host>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -43,7 +43,7 @@ Reference:
 -- |_      https://www.securityfocus.com/bid/47778
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 

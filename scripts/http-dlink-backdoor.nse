@@ -14,7 +14,7 @@ Reference: http://www.devttys0.com/2013/10/reverse-engineering-a-d-link-backdoor
 
 ---
 -- @usage
--- nmap -sV --script http-dlink-backdoor <target>
+-- kmap -sV --script http-dlink-backdoor <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -32,7 +32,7 @@ Reference: http://www.devttys0.com/2013/10/reverse-engineering-a-d-link-backdoor
 ---
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"

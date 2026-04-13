@@ -4,9 +4,9 @@ dnl #
 dnl # Process this file with autoconf to produce a configure script.
 dnl # $Id$
 
-# Because nbase is usually distributed with Nmap, the necessary files
+# Because nbase is usually distributed with Kmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
-# nbase. Rather they are gotten from Nmap.
+# nbase. Rather they are gotten from Kmap.
 
 # Require autoconf 2.13
 AC_PREREQ(2.13)

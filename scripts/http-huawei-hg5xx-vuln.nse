@@ -18,8 +18,8 @@ References:
 ]]
 
 ---
--- @usage nmap -p80 --script http-huawei-hg5xx-vuln <target>
--- @usage nmap -sV http-huawei-hg5xx-vuln <target>
+-- @usage kmap -p80 --script http-huawei-hg5xx-vuln <target>
+-- @usage kmap -sV http-huawei-hg5xx-vuln <target>
 --
 -- @output
 -- PORT   STATE SERVICE VERSION
@@ -54,11 +54,11 @@ References:
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local vulns = require "vulns"
@@ -123,7 +123,7 @@ including PPPoE credentials, firmware version, model, gateway, dns servers and a
     end
     if firmware_version and model then
       port.version.product = string.format("Huawei aDSL modem %s (%s)", model, firmware_version)
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
     end
     vuln.extra_info = info
     return vuln_report:make_output(vuln)

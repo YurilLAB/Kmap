@@ -16,7 +16,7 @@ discovered by other scripts.
 
 ---
 -- @usage
--- nmap -p 1433 <ip> --script ms-sql-dump-hashes
+-- kmap -p 1433 <ip> --script ms-sql-dump-hashes
 --
 -- @args ms-sql-dump-hashes.dir Dump hashes to a file in this directory. File
 --                              name is <ip>_<instance>_ms-sql_hashes.txt.
@@ -26,7 +26,7 @@ discovered by other scripts.
 -- PORT     STATE SERVICE
 -- 1433/tcp open  ms-sql-s
 -- | ms-sql-dump-hashes:
--- |   nmap_test:0x01001234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF0123
+-- |   kmap_test:0x01001234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF0123
 -- |   sa:0x01001234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF0123
 -- |_  webshop_dbo:0x01001234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF01234567890ABCDEF0123
 
@@ -37,7 +37,7 @@ discovered by other scripts.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "discovery", "safe"}
 
 dependencies = {"broadcast-ms-sql-discover", "ms-sql-brute", "ms-sql-empty-password"}

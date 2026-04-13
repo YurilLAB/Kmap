@@ -1,12 +1,12 @@
-#include "nmap.h"
+#include "kmap.h"
 #include "nbase.h"
-#include "nmap_error.h"
+#include "kmap_error.h"
 #include "portlist.h"
 #include "nsock.h"
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "timing.h"
 #include "Target.h"
-#include "nmap_tty.h"
+#include "kmap_tty.h"
 #include "xml.h"
 
 #include "nse_main.h"
@@ -14,7 +14,7 @@
 #include "nse_db.h"
 #include "nse_fs.h"
 #include "nse_nsock.h"
-#include "nse_nmaplib.h"
+#include "nse_kmaplib.h"
 #include "nse_openssl.h"
 #include "nse_debug.h"
 #include "nse_lpeg.h"
@@ -47,7 +47,7 @@
 #  define MAXPATHLEN 2048
 #endif
 
-extern NmapOps o;
+extern KmapOps o;
 
 /* global object to store Pre-Scan and Post-Scan script results */
 static ScriptResults script_scan_results;
@@ -184,7 +184,7 @@ static int scan_progress_meter (lua_State *L)
   return 1;
 }
 
-/* This is like nmap.log_write, but doesn't append "NSE:" to the beginning of
+/* This is like kmap.log_write, but doesn't append "NSE:" to the beginning of
    messages. It is only used internally by nse_main.lua and is not available to
    scripts. */
 static int l_log_write(lua_State *L)
@@ -292,7 +292,7 @@ static bool filename_is_absolute(const char *file) {
   return false;
 }
 
-/* This is a modification of nmap_fetchfile that first looks for an
+/* This is a modification of kmap_fetchfile that first looks for an
  * absolute file name.
  */
 static int nse_fetchfile_absolute(char *path, size_t path_len, const char *file) {
@@ -303,10 +303,10 @@ static int nse_fetchfile_absolute(char *path, size_t path_len, const char *file)
     return file_is_readable(file);
   }
 
-  return nmap_fetchfile(path, path_len, file);
+  return kmap_fetchfile(path, path_len, file);
 }
 
-/* This is a modification of nmap_fetchfile specialized to look for files
+/* This is a modification of kmap_fetchfile specialized to look for files
  * in the scripts subdirectory. If the path is absolute, it is always tried
  * verbatim. Otherwise, the file is looked for under scripts/, and then finally
  * in the current directory.
@@ -323,7 +323,7 @@ static int nse_fetchscript(char *path, size_t path_len, const char *file) {
   }
 
   // lets look in <path>/scripts
-  type = nmap_fetchfile(path, path_len, scripts_path.c_str());
+  type = kmap_fetchfile(path, path_len, scripts_path.c_str());
 
   if (type == 0) {
     // current directory
@@ -376,7 +376,7 @@ static void open_cnse (lua_State *L)
   nseU_setsfield(L, -1, "script_dbpath", SCRIPT_ENGINE_DATABASE);
   nseU_setsfield(L, -1, "scriptargs", o.scriptargs);
   nseU_setsfield(L, -1, "scriptargsfile", o.scriptargsfile);
-  nseU_setsfield(L, -1, "NMAP_URL", NMAP_URL);
+  nseU_setsfield(L, -1, "KMAP_URL", KMAP_URL);
   nseU_setnfield(L, -1, "script_timeout", o.scripttimeout);
 
 }
@@ -558,10 +558,10 @@ static int panic (lua_State *L)
   return 0;
 }
 
-static void set_nmap_libraries (lua_State *L)
+static void set_kmap_libraries (lua_State *L)
 {
   static const luaL_Reg libs[] = {
-    {NSE_NMAPLIBNAME, luaopen_nmap},
+    {NSE_KMAPLIBNAME, luaopen_kmap},
     {NSE_DBLIBNAME, luaopen_db},
     {LFSLIBNAME, luaopen_lfs},
     {LPEGLIBNAME, luaopen_lpeg},
@@ -591,12 +591,12 @@ static int init_main (lua_State *L)
 
   /* Load some basic libraries */
   luaL_openlibs(L);
-  set_nmap_libraries(L);
+  set_kmap_libraries(L);
 
   lua_newtable(L);
   lua_setfield(L, LUA_REGISTRYINDEX, NSE_CURRENT_HOSTS);
 
-  if (nmap_fetchfile(path, sizeof(path), "nse_main.lua") != 1)
+  if (kmap_fetchfile(path, sizeof(path), "nse_main.lua") != 1)
     luaL_error(L, "could not locate nse_main.lua");
   if (luaL_loadfile(L, path) != 0)
     luaL_error(L, "could not load nse_main.lua: %s", lua_tostring(L, -1));

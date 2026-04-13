@@ -24,8 +24,8 @@ References:
 ]]
 
 ---
--- @usage nmap --script http-vuln-cve2017-8917 -p 80 <target>
--- @usage nmap --script http-vuln-cve2017-8917 --script-args http-vuln-cve2017-8917.uri=joomla/ -p 80<target>
+-- @usage kmap --script http-vuln-cve2017-8917 -p 80 <target>
+-- @usage kmap --script http-vuln-cve2017-8917 --script-args http-vuln-cve2017-8917.uri=joomla/ -p 80<target>
 -- @output
 -- PORT   STATE SERVICE VERSION
 -- 80/tcp open  http    Apache httpd 2.4.7 ((Ubuntu))
@@ -81,7 +81,7 @@ References:
 ---
 
 author = "Wong Wai Tuck"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive"}
 
 local REG_EXP_SUCCESS = {"XPATH syntax error: &#039;(.-)&#039;",

@@ -2,7 +2,7 @@ local smb = require "smb"
 local smb2 = require "smb2"
 local stdnse = require "stdnse"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Attempts to list the supported capabilities in a SMBv2 server for each
@@ -21,8 +21,8 @@ References:
 ]]
 
 ---
--- @usage nmap -p 445 --script smb2-capabilities <target>
--- @usage nmap -p 139 --script smb2-capabilities <target>
+-- @usage kmap -p 445 --script smb2-capabilities <target>
+-- @usage kmap -p 139 --script smb2-capabilities <target>
 --
 -- @output
 -- | smb2-capabilities:
@@ -45,7 +45,7 @@ References:
 ---
 
 author = "Paulino Calderon"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 hostrule = function(host)
@@ -122,7 +122,7 @@ action = function(host,port)
       return output
     else
       stdnse.debug1("No dialects were accepted.")
-      if nmap.verbosity()>1 then
+      if kmap.verbosity()>1 then
         return "Couldn't establish a SMBv2 connection."
       end
     end

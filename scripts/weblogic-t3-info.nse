@@ -1,11 +1,11 @@
 local comm = require "comm"
 local string = require "string"
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = "Detect the T3 RMI protocol and Weblogic version"
 author = {"Alessandro ZANNI <alessandro.zanni@bt.com>", "Daniel Miller"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default","safe","discovery","version"}
 
 ---@output
@@ -13,7 +13,7 @@ categories = {"default","safe","discovery","version"}
 
 portrule = function(host, port)
   if type(port.version) == "table" and port.version.name_confidence > 3 and port.version.product ~= nil then
-    return string.find(port.version.product, "WebLogic", 1, true) and nmap.version_intensity() >= 7
+    return string.find(port.version.product, "WebLogic", 1, true) and kmap.version_intensity() >= 7
   end
   return shortport.version_port_or_service({7001,7002,7003},"http")(host,port)
 end
@@ -87,7 +87,7 @@ action = function(host, port)
     if port.version.product == nil then
       port.version.product = "WebLogic application server"
     end
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   end
 
   return rval

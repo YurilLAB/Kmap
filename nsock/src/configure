@@ -1347,7 +1347,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-localdirs        Explicitly ask compiler to use /usr/local/{include,libs} if they exist
   --with-libpcap=DIR      Look for pcap headers in DIR/include.
-  --with-libpcap=included Always use version included with Nmap
+  --with-libpcap=included Always use version included with Kmap
   --without-libpcap       Disable pcap functions.
   --with-openssl=DIR      Use optional openssl libs and includes from
                           [DIR]/lib/ and [DIR]/include/openssl/)
@@ -2403,9 +2403,9 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-if test "${top_nmap_srcdir+set}" != set; then
-  top_nmap_srcdir=../..
-  export top_nmap_srcdir
+if test "${top_kmap_srcdir+set}" != set; then
+  top_kmap_srcdir=../..
+  export top_kmap_srcdir
 fi
 
 ac_config_files="$ac_config_files Makefile ../tests/Makefile"
@@ -3734,8 +3734,8 @@ fi
 
 
 if test "$with_libpcap" != "no" -a "$have_libpcap" = "no"; then
-  LIBPCAP_INC=${top_nmap_srcdir}/libpcap
-  LIBPCAP_LIB=${top_nmap_srcdir}/libpcap
+  LIBPCAP_INC=${top_kmap_srcdir}/libpcap
+  LIBPCAP_LIB=${top_kmap_srcdir}/libpcap
   LIBPCAP_LIBS=${LIBPCAP_LIB}/libpcap.a
   have_libpcap=yes
 
@@ -5282,7 +5282,7 @@ then :
     ;;
   esac
 else $as_nop
-  NBASEDIR="${top_nmap_srcdir}/nbase"
+  NBASEDIR="${top_kmap_srcdir}/nbase"
 
 fi
 

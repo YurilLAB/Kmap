@@ -1,18 +1,18 @@
 # Require autoconf 2.13 -*- mode: fundamental; -*-
 
-# Because nsock is usually distributed with Nmap, the necessary files
+# Because nsock is usually distributed with Kmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
-# nbase. Rather they are gotten from Nmap.
+# nbase. Rather they are gotten from Kmap.
 
 AC_PREREQ(2.13)
 
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(nsock_core.c)
 
-dnl Find the Nmap source for nbase, etc.
-if test "${top_nmap_srcdir+set}" != set; then
-  top_nmap_srcdir=../..
-  export top_nmap_srcdir
+dnl Find the Kmap source for nbase, etc.
+if test "${top_kmap_srcdir+set}" != set; then
+  top_kmap_srcdir=../..
+  export top_kmap_srcdir
 fi
 
 dnl Generate these files
@@ -123,7 +123,7 @@ test "${with_libpcap+set}" != "set" && with_libpcap=yes
 
 AC_ARG_WITH(libpcap,
 AC_HELP_STRING([--with-libpcap=DIR], [Look for pcap headers in DIR/include.])
-AC_HELP_STRING([--with-libpcap=included], [Always use version included with Nmap])
+AC_HELP_STRING([--with-libpcap=included], [Always use version included with Kmap])
 AC_HELP_STRING([--without-libpcap], [Disable pcap functions.]),
 [  case "$with_libpcap" in
   yes)
@@ -157,8 +157,8 @@ AC_HELP_STRING([--without-libpcap], [Disable pcap functions.]),
 )
 
 if test "$with_libpcap" != "no" -a "$have_libpcap" = "no"; then
-  LIBPCAP_INC=${top_nmap_srcdir}/libpcap
-  LIBPCAP_LIB=${top_nmap_srcdir}/libpcap
+  LIBPCAP_INC=${top_kmap_srcdir}/libpcap
+  LIBPCAP_LIB=${top_kmap_srcdir}/libpcap
   LIBPCAP_LIBS=${LIBPCAP_LIB}/libpcap.a
   have_libpcap=yes
   AC_DEFINE(HAVE_PCAP_SET_IMMEDIATE_MODE, 1, [Included libpcap has pcap_set_immediate_mode])
@@ -287,7 +287,7 @@ AC_ARG_WITH(libnbase,
     NBASEDIR="$with_libnbase"
     ;;
   esac],
-NBASEDIR="${top_nmap_srcdir}/nbase"
+NBASEDIR="${top_kmap_srcdir}/nbase"
 )
 
 NSOCKTESTDIR="../tests"

@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -11,7 +11,7 @@ Performs brute force password auditing against the Lotus Domino Console.
 
 ---
 -- @usage
--- nmap --script domcon-brute -p 2050 <host>
+-- kmap --script domcon-brute -p 2050 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -31,7 +31,7 @@ Performs brute force password auditing against the Lotus Domino Console.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -59,7 +59,7 @@ SocketPool = {
         end
       end
       if ( #self.pool < self.max_sockets ) then
-        local socket = nmap.new_socket()
+        local socket = kmap.new_socket()
         local status = socket:connect( host, port )
 
         if ( status ) then

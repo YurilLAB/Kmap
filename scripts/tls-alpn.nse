@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,7 +17,7 @@ For more information, see:
 
 ---
 -- @usage
--- nmap --script=tls-alpn <targets>
+-- kmap --script=tls-alpn <targets>
 --
 --@output
 -- 443/tcp open  https
@@ -34,7 +34,7 @@ For more information, see:
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "default"}
 dependencies = {"https-redirect"}
@@ -75,7 +75,7 @@ local client_hello = function(host, port, protos)
       return false
     end
   else
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     status, err = sock:connect(host, port)
     if not status then
       stdnse.debug1("Connection to server failed: %s", err)

@@ -16,9 +16,9 @@ if not exist "%PROG%" (
 	echo because that file does not exist.
 	exit /B 1
 )
-set NMAPDIR=%~dp0
+set KMAPDIR=%~dp0
 
-set PATH=%NMAPDIR%\zenmap\bin;%PATH%
+set PATH=%KMAPDIR%\zekmap\bin;%PATH%
 
 for /D %%P in ("%ProgramFiles%\Python 3.*",
 	       "%ProgramFiles(x86)%\Python 3.*",

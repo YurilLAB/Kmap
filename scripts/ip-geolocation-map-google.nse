@@ -7,7 +7,7 @@ local table = require "table"
 local url = require "url"
 
 description = [[
-This script queries the Nmap registry for the GPS coordinates of targets stored
+This script queries the Kmap registry for the GPS coordinates of targets stored
 by previous geolocation scripts and renders a Google Map of markers representing
 the targets.
 
@@ -17,7 +17,7 @@ Additional information for the Google Static Maps API can be found at:
 
 ---
 -- @usage
--- nmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-google --script-args ip-geolocation-map-google.api_key=[redacted],ip-geolocation-map-google.map_path=map.png <target>
+-- kmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-google --script-args ip-geolocation-map-google.api_key=[redacted],ip-geolocation-map-google.map_path=map.png <target>
 --
 -- @output
 -- | ip-geolocation-map-google:
@@ -65,7 +65,7 @@ Additional information for the Google Static Maps API can be found at:
 -- @see ip-geolocation-maxmind.nse
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"external", "safe"}
 
 local render = function(params, options)

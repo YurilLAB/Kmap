@@ -12,7 +12,7 @@ References:
 ]]
 
 ---
--- @usage nmap -p49152 --script supermicro-ipmi-conf <target>
+-- @usage kmap -p49152 --script supermicro-ipmi-conf <target>
 --
 -- @output
 -- PORT      STATE SERVICE REASON
@@ -38,7 +38,7 @@ References:
 ---
 
 author = "Paulino Calderon <calderon () websec mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"

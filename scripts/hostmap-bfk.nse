@@ -24,7 +24,7 @@ This script was formerly (until April 2012) known as hostmap.nse.
 -- can change their behavior based on hostname.
 --
 -- @usage
--- nmap --script hostmap-bfk --script-args hostmap-bfk.prefix=hostmap- <targets>
+-- kmap --script hostmap-bfk --script-args hostmap-bfk.prefix=hostmap- <targets>
 --
 -- @output
 -- Host script results:
@@ -34,11 +34,11 @@ This script was formerly (until April 2012) known as hostmap.nse.
 -- |     173.255.243.189
 -- |     images.insecure.org
 -- |     www.insecure.org
--- |     nmap.org
+-- |     kmap.org
 -- |     189.243.255.173.in-addr.arpa
--- |     mail.nmap.org
--- |     svn.nmap.org
--- |     www.nmap.org
+-- |     mail.kmap.org
+-- |     svn.kmap.org
+-- |     www.kmap.org
 -- |     sectools.org
 -- |     seclists.org
 -- |_    li253-189.members.linode.com
@@ -49,11 +49,11 @@ This script was formerly (until April 2012) known as hostmap.nse.
 --  <elem>173.255.243.189</elem>
 --  <elem>images.insecure.org</elem>
 --  <elem>www.insecure.org</elem>
---  <elem>nmap.org</elem>
+--  <elem>kmap.org</elem>
 --  <elem>189.243.255.173.in-addr.arpa</elem>
---  <elem>mail.nmap.org</elem>
---  <elem>svn.nmap.org</elem>
---  <elem>www.nmap.org</elem>
+--  <elem>mail.kmap.org</elem>
+--  <elem>svn.kmap.org</elem>
+--  <elem>www.kmap.org</elem>
 --  <elem>sectools.org</elem>
 --  <elem>seclists.org</elem>
 --  <elem>li253-189.members.linode.com</elem>
@@ -62,7 +62,7 @@ This script was formerly (until April 2012) known as hostmap.nse.
 
 author = "Ange Gutek"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"external", "discovery"}
 

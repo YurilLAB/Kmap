@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -26,7 +26,7 @@ For more information, see:
 -- Among other values, TRACE is probably the most interesting.
 --
 -- @usage
--- nmap --script=http-traceroute <targets>
+-- kmap --script=http-traceroute <targets>
 --
 --@output
 -- PORT   STATE SERVICE REASON
@@ -59,7 +59,7 @@ For more information, see:
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe"}
 
@@ -172,7 +172,7 @@ action = function(host, port)
 
   -- Check results
   local results = compare_responses(responses, method)
-  if results ~= nil and nmap.verbosity() == 1 then
+  if results ~= nil and kmap.verbosity() == 1 then
       return stdnse.format_output(true,detected)
   else
       return stdnse.format_output(true,results)

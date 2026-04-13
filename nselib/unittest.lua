@@ -15,12 +15,12 @@
 --
 -- The library is driven by the unittest NSE script.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local nsedebug = require "nsedebug"
 local listop = require "listop"
 _ENV = stdnse.module("unittest", stdnse.seeall)
@@ -99,7 +99,7 @@ local libs = {
 "ncp",
 "ndmp",
 "netbios",
-"nmap",
+"kmap",
 "nrpc",
 "nsedebug",
 "omp2",
@@ -259,7 +259,7 @@ TestSuite = {
       else
         result = "Fail"
         lvl = 1
-        if nmap.debugging() < 2 then
+        if kmap.debugging() < 2 then
           stdnse.debug1("| Test: %s...", test[2])
         end
         failures = failures + 1

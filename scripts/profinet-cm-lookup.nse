@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local shortport = require "shortport"
 local string = require "string"
@@ -19,7 +19,7 @@ References:
 ]]
 
 ---
--- @usage nmap -sU <target_ip> -p 34964 --script profinet-cm-lookup
+-- @usage kmap -sU <target_ip> -p 34964 --script profinet-cm-lookup
 ---
 -- @output
 --PORT		STATE	SERVICE			REASON
@@ -37,7 +37,7 @@ References:
 
 categories = {"discovery", "intrusive"}
 author = "DINA-community"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local EPM_UDP_PORT = 34964
 
@@ -58,8 +58,8 @@ local EPM_Lookup = string.char(
 
 -- The Rules
 portrule = shortport.port_or_service(34964, "profinet-cm", "udp")
-if not nmap.is_privileged() then
-    stdnse.debug(1, "Nmap is NOT running as privileged.")
+if not kmap.is_privileged() then
+    stdnse.debug(1, "Kmap is NOT running as privileged.")
     portrule = nil
     prerule = function() return false end
 end
@@ -111,12 +111,12 @@ lookup_request = function(host, port, payload, timeout)
   local socket, try, catch
 
   -- create a new udp socket for sending the lookup request
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
 
   -- create a socket for receiving incoming data
   -- 'socket:receive()'' alone won't suffice as the UDP port of
   -- the scanned device can be selected arbitrarily
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
 
   -- set timeout
   socket:set_timeout(tonumber(timeout))
@@ -127,7 +127,7 @@ lookup_request = function(host, port, payload, timeout)
   end
 
   -- create new try
-  try = nmap.new_try(catch)
+  try = kmap.new_try(catch)
 
   -- connect to port on host for sending payload
   try(socket:connect(host.ip, port["number"], "udp"))
@@ -147,7 +147,7 @@ lookup_request = function(host, port, payload, timeout)
 
     -- when successful, set port state to "open" and parse response
     if status_rec and len > 200 then
-      nmap.set_port_state(host, port, "open")
+      kmap.set_port_state(host, port, "open")
       return parse_response(host, port, layer3)
     end
   end

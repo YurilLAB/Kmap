@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"
@@ -28,9 +28,9 @@ Cisco IOS.
 -- Defaults to <code>5s</code>.
 --
 --@usage
--- nmap --script mrinfo
--- nmap --script mrinfo -e eth1
--- nmap --script mrinfo --script-args 'mrinfo.target=172.16.0.4'
+-- kmap --script mrinfo
+-- kmap --script mrinfo -e eth1
+-- kmap --script mrinfo --script-args 'mrinfo.target=172.16.0.4'
 --
 --@output
 -- Pre-scan script results:
@@ -64,17 +64,17 @@ Cisco IOS.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "broadcast"}
 
 
 prerule = function()
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
   end
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -133,9 +133,9 @@ end
 --@param timeout Time to listen for a response.
 --@param responses table to insert responses into.
 local mrinfoListen = function(interface, timeout, responses)
-  local condvar = nmap.condvar(responses)
-  local start = nmap.clock_ms()
-  local listener = nmap.new_socket()
+  local condvar = kmap.condvar(responses)
+  local start = kmap.clock_ms()
+  local listener = kmap.new_socket()
   local p, mrinfo_raw, status, l3data, response, _
 
   -- IGMP packets that are sent to our host
@@ -143,7 +143,7 @@ local mrinfoListen = function(interface, timeout, responses)
   listener:set_timeout(100)
   listener:pcap_open(interface.device, 1024, true, filter)
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, _, _, l3data = listener:pcap_receive()
     if status then
       p = packet.Packet:new(l3data, #l3data)
@@ -199,7 +199,7 @@ local mrinfoQuery = function(interface, dstip)
   end
   mrinfo_packet:ip_count_checksum()
 
-  sock = nmap.new_dnet()
+  sock = kmap.new_dnet()
   if dstip == "224.0.0.1" then
     sock:ethernet_open(interface.device)
     -- Ethernet IPv4 multicast, our ethernet address and packet type IP
@@ -218,7 +218,7 @@ end
 --@return interface Network interface used for target host.
 local getInterface = function(interfaces, target)
   -- First, create dummy UDP connection to get interface
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(target, "12345", "udp")
   if not status then
     stdnse.verbose1("%s", err)
@@ -269,7 +269,7 @@ action = function()
   -- Send request after small wait to let Listener start
   stdnse.sleep(0.1)
   mrinfoQuery(interface, target)
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   condvar("wait")
 
   if #responses > 0 then

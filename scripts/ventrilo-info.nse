@@ -1,6 +1,6 @@
 local stdnse = require "stdnse"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local strbuf = require "strbuf"
 local string = require "string"
 local table = require "table"
@@ -33,9 +33,9 @@ Original reversing of the protocol was done by Luigi Auriemma
 
 ---
 -- @usage
--- nmap -sV <target>
+-- kmap -sV <target>
 -- @usage
--- nmap -Pn -sU -sV --script ventrilo-info -p <port> <target>
+-- kmap -Pn -sU -sV --script ventrilo-info -p <port> <target>
 --
 -- @output
 -- PORT     STATE SERVICE  VERSION
@@ -152,7 +152,7 @@ Original reversing of the protocol was done by Luigi Auriemma
 -- </table>
 
 author = "Marin Maržić"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "default", "discovery", "safe", "version" }
 
 local crypt_head = {
@@ -524,7 +524,7 @@ end
 portrule = shortport.version_port_or_service({3784}, "ventrilo", {"tcp", "udp"})
 
 action = function(host, port)
-  local mutex = nmap.mutex("ventrilo-info:" .. host.ip .. ":" .. port.number)
+  local mutex = kmap.mutex("ventrilo-info:" .. host.ip .. ":" .. port.number)
   mutex("lock")
 
   if host.registry["ventrilo-info"] == nil then
@@ -536,14 +536,14 @@ action = function(host, port)
     r = {}
     host.registry["ventrilo-info"][port.number] = r
 
-    local socket = nmap.new_socket()
+    local socket = kmap.new_socket()
     socket:set_timeout(2000)
 
     local cleanup = function()
       socket:close()
       mutex("done")
     end
-    local try = nmap.new_try(cleanup)
+    local try = kmap.new_try(cleanup)
 
     local udpport = { number = port.number, protocol = "udp" }
     try(socket:connect(host.ip, udpport))
@@ -555,7 +555,7 @@ action = function(host, port)
       try(socket:send(static_probe_payload))
       status, response = socket:receive()
       if status then
-        nmap.set_port_state(host, udpport, "open")
+        kmap.set_port_state(host, udpport, "open")
         break
       end
     end
@@ -658,7 +658,7 @@ action = function(host, port)
   port.version.extrainfo = port.version.extrainfo .. "; uptime: " .. uptime_str(r.info.uptime)
   port.version.extrainfo = port.version.extrainfo .. "; auth: " .. auth_str(r.info.auth)
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   -- an output table for XML output and a custom string for normal output
   return r.info, o_str(r.info)

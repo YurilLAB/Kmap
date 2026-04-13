@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -8,7 +8,7 @@ Attempts to retrieve a list of usernames using the finger service.
 
 author = "Eddie Bell"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -30,7 +30,7 @@ categories = {"default", "discovery", "safe"}
 portrule = shortport.port_or_service(79, "finger")
 
 action = function(host, port)
-  local try = nmap.new_try()
+  local try = kmap.new_try()
 
   return try(comm.exchange(host, port, "\r\n",
     {lines=100, timeout=5000}))

@@ -1,5 +1,5 @@
 local afp = require "afp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -23,7 +23,7 @@ information.
 
 For additional information:
 * http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-0533
-* http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-nmap
+* http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-kmap
 * http://support.apple.com/kb/HT1222
 ]]
 
@@ -52,7 +52,7 @@ For additional information:
 -- |     References:
 -- |       http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-0533
 -- |       http://support.apple.com/kb/HT1222
--- |_      http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-nmap
+-- |_      http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-kmap
 --
 
 --
@@ -65,7 +65,7 @@ For additional information:
 -- Revised 21/10/2011 - v0.4 - Use the vulnerability library vulns.lua
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "vuln"}
 
 
@@ -128,8 +128,8 @@ action = function(host, port)
 
   local status, response, shares
   local afp_helper = afp.Helper:new()
-  local args = nmap.registry.args
-  local users = nmap.registry.afp or { ['nil'] = 'nil' }
+  local args = kmap.registry.args
+  local users = kmap.registry.afp or { ['nil'] = 'nil' }
   local vulnerable = false
 
   local MAX_FILES = 5
@@ -145,7 +145,7 @@ action = function(host, port)
 Directory traversal vulnerability in AFP Server in Apple Mac OS X before
 10.6.3 allows remote attackers to list a share root's parent directory.]],
     references = {
-      'http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-nmap',
+      'http://www.cqure.net/wp/2010/03/detecting-apple-mac-os-x-afp-vulnerability-cve-2010-0533-with-kmap',
       'http://support.apple.com/kb/HT1222',
     },
     dates = {
@@ -192,7 +192,7 @@ Directory traversal vulnerability in AFP Server in Apple Mac OS X before
       else
         if ( isVulnerable( response ) ) then
           vulnerable = true
-          if(nmap.verbosity() > 1) then
+          if(kmap.verbosity() > 1) then
             response = processResponse( response )
             local name = share .. "/../"
             table.insert(afp_vuln.exploit_results,

@@ -22,8 +22,8 @@ execute specified shell command.
 
 ---
 -- @usage
--- nmap --script http-vuln-cve2014-8877 --script-args http-vuln-cve2014-8877.cmd="whoami",http-vuln-cve2014-8877.uri="/wordpress" <target>
--- nmap --script http-vuln-cve2014-8877 <target>
+-- kmap --script http-vuln-cve2014-8877 --script-args http-vuln-cve2014-8877.cmd="whoami",http-vuln-cve2014-8877.uri="/wordpress" <target>
+-- kmap --script http-vuln-cve2014-8877 <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -49,7 +49,7 @@ execute specified shell command.
 ---
 
 author = "Mariusz Ziulek <mzet()owasp org>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive", "exploit"}
 
 portrule = shortport.http

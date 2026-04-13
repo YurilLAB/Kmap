@@ -1,6 +1,6 @@
 local ftp = require "ftp"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -34,7 +34,7 @@ and highlights writeable files.
 -- |_Only 6 shown. Use --script-args ftp-anon.maxlist=-1 to see all.
 
 author = {"Eddie Bell", "Rob Nicholls", "Ange Gutek", "David Fifield"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "auth", "safe"}
 
 
@@ -79,7 +79,7 @@ end
 action = function(host, port)
   local max_list = stdnse.get_script_args("ftp-anon.maxlist")
   if not max_list then
-    if nmap.verbosity() == 0 then
+    if kmap.verbosity() == 0 then
       max_list = 20
     else
       max_list = nil

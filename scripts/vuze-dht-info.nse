@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -19,7 +19,7 @@ are two options:
 
 ---
 -- @usage
--- nmap -sU -p <port> <ip> --script vuze-dht-info -sV
+-- kmap -sU -p <port> <ip> --script vuze-dht-info -sV
 --
 -- @output
 -- PORT      STATE SERVICE  VERSION
@@ -35,7 +35,7 @@ are two options:
 -- @args vuze-dht-info.allports if set runs this script against every open port
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -82,7 +82,7 @@ action = function(host, port)
   end
 
   if ( status ) then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     return tostring(response)
   end
 end

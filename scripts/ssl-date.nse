@@ -1,7 +1,7 @@
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local string = require "string"
 local sslcert = require "sslcert"
@@ -23,7 +23,7 @@ Original idea by Jacob Appelbaum and his TeaTime and tlsdate tools:
 
 ---
 -- @usage
--- nmap <target> --script=ssl-date
+-- kmap <target> --script=ssl-date
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -35,7 +35,7 @@ Original idea by Jacob Appelbaum and his TeaTime and tlsdate tools:
 -- <elem key="delta">4</elem>
 
 author = {"Aleksandar Nikolic", "nnposter"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "default"}
 dependencies = {"https-redirect"}
 
@@ -70,7 +70,7 @@ local client_hello = function(host, port)
   local specialized_function = sslcert.getPrepareTLSWithoutReconnect(port)
 
   if not specialized_function then
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(1000 * conn_timeout)
     status, err = sock:connect(host, port)
     if not status then

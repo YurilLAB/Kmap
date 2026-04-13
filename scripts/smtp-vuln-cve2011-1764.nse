@@ -22,7 +22,7 @@ Reference:
 
 ---
 -- @usage
--- nmap --script=smtp-vuln-cve2011-1764 -pT:25,465,587 <host>
+-- kmap --script=smtp-vuln-cve2011-1764 -pT:25,465,587 <host>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -50,7 +50,7 @@ Reference:
 --       to be used.
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 
@@ -103,7 +103,7 @@ local function check_dkim(socket, smtp_opts)
   local message = (
     string.format( "MIME-Version: 1.0\r\nFrom: <%s>\r\nTo: <%s>\r\n",
       smtp_opts.mailfrom, smtp_opts.mailto)
-    .."Subject: Nmap Exim DKIM Format String check\r\n"
+    .."Subject: Kmap Exim DKIM Format String check\r\n"
     -- use a fake DKIM-Signature header.
     .."DKIM-Signature: v=1; a=%s%s%s%s;"
     .." c=%s%s%s%s; q=dns/txt;\r\n"
@@ -201,7 +201,7 @@ action = function(host, port)
     host = host,
     port = port,
     domain = stdnse.get_script_args('smtp.domain') or
-              'nmap.scanme.org',
+              'kmap.scanme.org',
     mailfrom = stdnse.get_script_args('smtp-vuln-cve2011-1764.mailfrom'),
     mailto = stdnse.get_script_args('smtp-vuln-cve2011-1764.mailto'),
     vuln = {

@@ -33,7 +33,7 @@
 local _VERSION = _VERSION;
 local MAJOR, MINOR = assert(_VERSION:match "^Lua (%d+).(%d+)$");
 if tonumber(MAJOR.."."..MINOR) < 5.4 then
-  error "NSE requires Lua 5.4 or newer. It looks like you're using an older version of nmap."
+  error "NSE requires Lua 5.4 or newer. It looks like you're using an older version of kmap."
 end
 
 local NAME = "NSE";
@@ -161,10 +161,10 @@ local Cf = lpeg.Cf;
 local Cg = lpeg.Cg;
 local Ct = lpeg.Ct;
 
-local nmap = require "nmap";
+local kmap = require "kmap";
 local lfs = require "lfs";
 
-local socket = require "nmap.socket";
+local socket = require "kmap.socket";
 local loop = socket.loop;
 
 local stdnse = require "stdnse";
@@ -222,7 +222,7 @@ end
 -- Some local helper functions --
 
 local log_write, verbosity, debugging =
-    nmap.log_write, nmap.verbosity, nmap.debugging;
+    kmap.log_write, kmap.verbosity, kmap.debugging;
 local log_write_raw = cnse.log_write;
 
 local function print_verbose (level, fmt, ...)
@@ -531,9 +531,9 @@ do
       return self:resume(timeouts);
     elseif not ok then
       -- Extend this to create new types of errors with custom handling.
-      -- nmap.new_try does equivalent of: error({errtype="nmap.new_try", message="TIMEOUT"})
-      if type(r1) == "table" and r1.errtype == "nmap.new_try" then
-        -- nmap.new_try "exception" is closing the script
+      -- kmap.new_try does equivalent of: error({errtype="kmap.new_try", message="TIMEOUT"})
+      if type(r1) == "table" and r1.errtype == "kmap.new_try" then
+        -- kmap.new_try "exception" is closing the script
         if debugging() > 0 then
           self:d("Finished %THREAD_AGAINST. Reason: %s\n", r1.message);
         end
@@ -761,7 +761,7 @@ local function get_chosen_scripts (rules)
   script_database.Entry = function (script_entry)
     local categories = rawget(script_entry, "categories");
     local filename = rawget(script_entry, "filename");
-    assert(type(categories) == "table" and type(filename) == "string", "script database appears corrupt, try `nmap --script-updatedb`");
+    assert(type(categories) == "table" and type(filename) == "string", "script database appears corrupt, try `kmap --script-updatedb`");
     local escaped_basename = match(filename, "([^/\\]-)%.nse$") or match(filename, "([^/\\]-)$");
     local selected_by_name = false;
     -- The script selection parameters table.
@@ -1181,7 +1181,7 @@ end
 
 -- Return the NSEDoc URL for the script with the given id.
 local function nsedoc_url(id)
-  return format("%s/nsedoc/scripts/%s.html", cnse.NMAP_URL, id)
+  return format("%s/nsedoc/scripts/%s.html", cnse.KMAP_URL, id)
 end
 
 local function script_help_normal(chosen_scripts)
@@ -1242,7 +1242,7 @@ local function script_help_xml(chosen_scripts)
   cnse.xml_newline();
 end
 
-nmap.registry.args = {};
+kmap.registry.args = {};
 do
   local args = {};
 
@@ -1288,14 +1288,14 @@ do
     };
     --U.debug(parser,function(...)return print_debug(1,...)end)
     parser = assert(P(parser));
-    nmap.registry.args = parser:match("{"..args.."}");
-    if not nmap.registry.args then
+    kmap.registry.args = parser:match("{"..args.."}");
+    if not kmap.registry.args then
       log_write("stdout", "args = "..args);
       error "arguments did not parse!"
     end
     if debugging() >= 2 then
       local out = {}
-      rawget(stdnse, "pretty_printer")(nmap.registry.args, function (s) out[#out+1] = s end)
+      rawget(stdnse, "pretty_printer")(kmap.registry.args, function (s) out[#out+1] = s end)
       print_debug(2, "%s", concat(out))
     end
   end
@@ -1311,7 +1311,7 @@ else
   if not script_database.chunk then
     log_write("stdout",
       "NSE script database appears to be corrupt or out of date;\n"..
-      "\tplease update using: nmap --script-updatedb")
+      "\tplease update using: kmap --script-updatedb")
     print_debug(1, "loadfile error: %s", err)
     script_database_update = true
   end
@@ -1450,7 +1450,7 @@ local function main (hosts, scantype)
   --  args    A table that contains the arguments passed to scripts,
   --            arguments can be host and port tables.
   --  env     A table that contains the global script environment:
-  --            categories, description, author, license, nmap table,
+  --            categories, description, author, license, kmap table,
   --            action function, rule functions, SCRIPT_PATH,
   --            SCRIPT_NAME, SCRIPT_TYPE (pre|host|port|post rule).
   --  identifier

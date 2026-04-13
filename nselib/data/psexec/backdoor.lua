@@ -1,7 +1,7 @@
 ---This config file is designed for adding a backdoor to the system. It has a few
 -- options by default, only one enabled by default. I suggest
 --
--- Note that none of these modules are included with Nmap by default.
+-- Note that none of these modules are included with Kmap by default.
 
 -- Any variable in the 'config' table in smb-psexec.nse can be overriden in the
 -- 'overrides' table. Most of them are not really recommended, such as the host,

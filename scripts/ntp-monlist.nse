@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -8,7 +8,7 @@ local string = require "string"
 local table = require "table"
 
 author = "jah"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 description = [[
 Obtains and prints an NTP server's monitor data.
@@ -38,8 +38,8 @@ It should be noted that the very nature of the NTP monitor data means that the
 Mode 7 commands sent by this script are recorded by the target (and will often
 appear in these results). Since the monitor data is a MRU list, it is probable
 that you can overwrite the record of the Mode 7 command by sending an innocuous
-looking Client Mode request. This can be achieved easily using Nmap:
-<code>nmap -sU -pU:123 -Pn -n --max-retries=0 <target></code>
+looking Client Mode request. This can be achieved easily using Kmap:
+<code>kmap -sU -pU:123 -Pn -n --max-retries=0 <target></code>
 
 Notes:
 * The monitor list in response to the monlist command is limited to 600 associations.
@@ -50,7 +50,7 @@ Notes:
 
 ---
 -- @usage
--- nmap -sU -pU:123 -Pn -n --script=ntp-monlist <target>
+-- kmap -sU -pU:123 -Pn -n --script=ntp-monlist <target>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -141,8 +141,8 @@ end
 --
 -- @param  sock    Socket object which must be supplied in a connected state.
 --                 nil may be supplied instead and a socket will be created.
--- @param  host    Nmap host table for the target.
--- @param  port    Nmap port table for the target.
+-- @param  host    Kmap host table for the target.
+-- @param  port    Kmap port table for the target.
 -- @param  inum    NTP implementation number (i.e. 0, 2 or 3).
 -- @param  rcode   NTP Mode 7 request code (e.g. 42 for 'monlist').
 -- @param  records Table in which to store records parsed from responses.
@@ -164,7 +164,7 @@ function doquery(sock, host, port, inum, rcode, records)
 
   -- connect a new socket if one wasn't supplied
   if not sock then
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(TIMEOUT)
     local constatus, conerr = sock:connect(host, port)
     if not constatus then
@@ -837,7 +837,7 @@ function summary(t)
 
   local o = {}
   local count = 0
-  local vbs = nmap.verbosity()
+  local vbs = kmap.verbosity()
 
   -- Target is Synchronised with:
   if t.sync ~= '' then

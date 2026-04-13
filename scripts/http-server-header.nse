@@ -2,7 +2,7 @@ local comm = require "comm"
 local string = require "string"
 local table = require "table"
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local U = require "lpeg-utility"
 
@@ -28,12 +28,12 @@ correctly.
 --</table>
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 dependencies = {"https-redirect"}
 
 portrule = function(host, port)
-  return (shortport.http(host,port) and nmap.version_intensity() >= 7)
+  return (shortport.http(host,port) and kmap.version_intensity() >= 7)
 end
 
 action = function(host, port)
@@ -80,7 +80,7 @@ action = function(host, port)
         port.version.service = "http"
         port.version.product = http_server
         -- Setting "softmatched" allows the service fingerprint to be printed
-        nmap.set_port_version(host, port, "softmatched")
+        kmap.set_port_version(host, port, "softmatched")
       elseif port.version.product == http_server then
         -- If we already detected exactly this, no need to report it
         http_server = nil

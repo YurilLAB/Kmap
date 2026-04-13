@@ -5,11 +5,11 @@
 -- @args proxy.pattern Pattern that will be searched inside the request results
 --
 -- @author Joao Correa <joao@livewire.com.br>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -147,15 +147,15 @@ end
 function return_args()
   local url = false
   local pattern = false
-  if nmap.registry.args['proxy.url']
-    then url = nmap.registry.args['proxy.url']
-  elseif nmap.registry.args.proxy and nmap.registry.args.proxy.url
-    then url = nmap.registry.args.proxy.url
+  if kmap.registry.args['proxy.url']
+    then url = kmap.registry.args['proxy.url']
+  elseif kmap.registry.args.proxy and kmap.registry.args.proxy.url
+    then url = kmap.registry.args.proxy.url
   end
-  if nmap.registry.args['proxy.pattern']
-    then pattern = nmap.registry.args['proxy.pattern']
-  elseif nmap.registry.args.proxy and nmap.registry.args.proxy.url
-    then pattern = nmap.registry.args.proxy.pattern
+  if kmap.registry.args['proxy.pattern']
+    then pattern = kmap.registry.args['proxy.pattern']
+  elseif kmap.registry.args.proxy and kmap.registry.args.proxy.url
+    then pattern = kmap.registry.args.proxy.pattern
   end
   return url, pattern
 end
@@ -169,7 +169,7 @@ end
 --  @return status True if handshake succeeded, false otherwise
 --  @return socket A socket with the handshake already done, or an error if
 function connectProxy(host, port, proxyType, hostname)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(10000)
   local status, err = socket:connect(host, port)
   if not status then

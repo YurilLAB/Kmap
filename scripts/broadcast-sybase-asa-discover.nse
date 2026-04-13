@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -10,7 +10,7 @@ Discovers Sybase Anywhere servers on the LAN by sending broadcast discovery mess
 
 ---
 -- @usage
--- nmap --script broadcast-sybase-asa-discover
+-- kmap --script broadcast-sybase-asa-discover
 --
 -- @output
 -- Pre-scan script results:
@@ -20,10 +20,10 @@ Discovers Sybase Anywhere servers on the LAN by sending broadcast discovery mess
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "broadcast", "safe" }
 
-prerule = function() return ( nmap.address_family() == "inet") end
+prerule = function() return ( kmap.address_family() == "inet") end
 
 --
 -- The following code is a bit overkill and is meant to go into a library once
@@ -121,7 +121,7 @@ Helper = {
   --  <code>port</code> - the instance port
   --         err string containing error message on failure
   ping = function(self)
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
     socket:set_timeout(1000)
 
     -- send 2 packets just in case
@@ -135,7 +135,7 @@ Helper = {
 
     local stime = os.time()
     local instances = {}
-    local timeout = self.options.timeout or ( 20 / ( nmap.timing_level() + 1 ) )
+    local timeout = self.options.timeout or ( 20 / ( kmap.timing_level() + 1 ) )
 
     repeat
       local status, data = socket:receive()
@@ -163,7 +163,7 @@ Helper = {
 
 action = function()
 
-  local timeout = ( 20 / ( nmap.timing_level() + 1 ) )
+  local timeout = ( 20 / ( kmap.timing_level() + 1 ) )
   local host = { ip = "255.255.255.255" }
   local port = { number = 2638, protocol = "udp" }
 

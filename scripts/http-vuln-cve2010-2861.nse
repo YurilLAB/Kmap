@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -22,7 +22,7 @@ the password hash.
 -- @see http-vuln-cve2009-3960.nse
 --
 -- @usage
--- nmap --script http-vuln-cve2010-2861 <host>
+-- kmap --script http-vuln-cve2010-2861 <host>
 --
 -- @output
 -- 80/tcp open  http
@@ -52,10 +52,10 @@ the password hash.
 --
 -- This script relies on the service being identified as HTTP or HTTPS. If the
 -- ColdFusion server you run this against is on a port other than 80/tcp or 443/tcp
--- then use "nmap -sV" so that nmap discovers the port as an HTTP server.
+-- then use "kmap -sV" so that kmap discovers the port as an HTTP server.
 
 author = "Micah Hoffman"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 
@@ -130,7 +130,7 @@ locale parameter]],
   local results = {}
   for prod, exploit in pairs(exploits) do
     local status, result = grabAndGrep('/CFIDE/administrator/enter.cfm?locale=' .. exploit)
-    if ( status or ( not(status) and nmap.verbosity() > 1 ) ) then
+    if ( status or ( not(status) and kmap.verbosity() > 1 ) ) then
       if ( "string" == type(result) ) then
         result = { result }
       end

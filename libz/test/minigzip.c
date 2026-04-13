@@ -355,7 +355,7 @@ static int gz_compress_mmap(FILE *in, gzFile out) {
 
     if (len != (int)buf_len) error(gzerror(out, &err));
 
-    munmap(buf, buf_len);
+    mukmap(buf, buf_len);
     fclose(in);
     if (gzclose(out) != Z_OK) error("failed gzclose");
     return Z_OK;

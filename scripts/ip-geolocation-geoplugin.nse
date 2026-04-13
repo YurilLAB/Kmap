@@ -14,7 +14,7 @@ is no limit on lookups using this service.
 
 ---
 -- @usage
--- nmap --script ip-geolocation-geoplugin <target>
+-- kmap --script ip-geolocation-geoplugin <target>
 --
 -- @output
 -- | ip-geolocation-geoplugin:
@@ -33,7 +33,7 @@ is no limit on lookups using this service.
 -- @see ip-geolocation-maxmind.nse
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","external","safe"}
 
 

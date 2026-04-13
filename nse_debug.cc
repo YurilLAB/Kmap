@@ -88,8 +88,8 @@ void lua_state_dump (lua_State *L)
   table_dump(L, LUA_REGISTRYINDEX, 0);
   printf("\n");
 
-  printf("=== nmap.registry\n");
-  lua_getglobal(L, "nmap");
+  printf("=== kmap.registry\n");
+  lua_getglobal(L, "kmap");
   lua_getfield(L, -1, "registry");
   table_dump(L, -1, 1);
   lua_pop(L, 2);

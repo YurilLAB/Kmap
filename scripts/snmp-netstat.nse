@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -14,7 +14,7 @@ newtargets script argument.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script=snmp-netstat <target>
+-- kmap -sU -p 161 --script=snmp-netstat <target>
 -- @output
 -- | snmp-netstat:
 -- |   TCP  0.0.0.0:21           0.0.0.0:2256
@@ -30,7 +30,7 @@ newtargets script argument.
 -- |_  UDP  192.168.56.3:464     *:*
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -131,7 +131,7 @@ action = function(host, port)
 
   netstat = table_merge( tcp, udp )
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   return stdnse.format_output( true, netstat )
 end

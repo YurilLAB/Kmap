@@ -1,5 +1,5 @@
 local eap = require "eap"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -12,7 +12,7 @@ anonymous identity if no argument is passed.
 
 ---
 -- @usage
--- nmap -e interface --script eap-info [--script-args="eap-info.identity=0-user,eap-info.scan={13,50}"] <target>
+-- kmap -e interface --script eap-info [--script-args="eap-info.identity=0-user,eap-info.scan={13,50}"] <target>
 --
 -- @output
 -- Pre-scan script results:
@@ -29,13 +29,13 @@ anonymous identity if no argument is passed.
 -- @args eap-info.timeout Maximum time allowed for the scan (default 10s). Methods not tested because of timeout will be listed as "unknown".
 
 author = "Riccardo Cecolin"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = { "broadcast", "safe" }
 
 
 prerule = function()
-  return nmap.is_privileged()
+  return kmap.is_privileged()
 end
 
 local default_scan = {
@@ -71,7 +71,7 @@ action = function()
 
   stdnse.debug2("timeout: %s", timeout)
 
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
   pcap:pcap_open(iface.device, 512, true, "ether proto 0x888e")
 
 
@@ -104,10 +104,10 @@ action = function()
 
   local tried_all = false
 
-  local start_time = nmap.clock_ms()
+  local start_time = kmap.clock_ms()
   eap.send_start(iface)
 
-  while(nmap.clock_ms() - start_time < timeout) and not tried_all do
+  while(kmap.clock_ms() - start_time < timeout) and not tried_all do
     local status, plen, l2_data, l3_data, time = pcap:pcap_receive()
     if (status) then
       stdnse.debug2("packet size: 0x%x", plen )

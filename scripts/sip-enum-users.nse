@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local shortport = require "shortport"
 local sip = require "sip"
@@ -40,9 +40,9 @@ response status code.
 --  Defaults to <code>nselib/data/usernames.lst</code>.
 --
 --@usage
--- nmap --script=sip-enum-users -sU -p 5060 <targets>
+-- kmap --script=sip-enum-users -sU -p 5060 <targets>
 --
--- nmap --script=sip-enum-users -sU -p 5060 <targets> --script-args
+-- kmap --script=sip-enum-users -sU -p 5060 <targets> --script-args
 -- 'sip-enum-users.padding=4, sip-enum-users.minext=1000,
 -- sip-enum-users.maxext=9999'
 --
@@ -58,7 +58,7 @@ response status code.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"auth", "intrusive"}
 
@@ -117,7 +117,7 @@ end
 -- @return status false if error.
 -- @return string current line.
 local useriterator = function(list)
-  local f = nmap.fetchfile(list) or list
+  local f = kmap.fetchfile(list) or list
   if not f then
     return false, ("Couldn't find %s"):format(list)
   end

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -15,14 +15,14 @@ and login to the service by typing Password;1; into the console.
 ---
 -- @see netbus-brute.nse
 -- @usage
--- nmap -p 12345 --script netbus-auth-bypass <target>
+-- kmap -p 12345 --script netbus-auth-bypass <target>
 --
 -- @output
 -- 12345/tcp open  netbus
 -- |_netbus-auth-bypass: Vulnerable
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "safe", "vuln"}
 
 
@@ -32,7 +32,7 @@ portrule = shortport.port_or_service (12345, "netbus", {"tcp"})
 
 action = function( host, port )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, err = socket:connect(host, port)
   if not status then
     return

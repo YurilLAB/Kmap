@@ -1,5 +1,5 @@
 local ipmi = require "ipmi"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -13,7 +13,7 @@ description = [[
 
 ---
 -- @usage
--- nmap -sU --script ipmi-cipher-zero -p 623 <host>
+-- kmap -sU --script ipmi-cipher-zero -p 623 <host>
 --
 -- @output
 ---PORT      STATE         SERVICE REASON
@@ -39,7 +39,7 @@ description = [[
 --
 
 author = "Claudiu Perta <claudiu.perta@gmail.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 portrule = shortport.port_or_service(623, "asf-rmcp", "udp", {"open", "open|filtered"})
@@ -70,7 +70,7 @@ functionality
 
   local request = ipmi.session_open_cipher_zero_request()
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(
       ((host.times and host.times.timeout) or 8) * 1000)
   socket:connect(host, port, "udp")
@@ -90,7 +90,7 @@ functionality
     return nil
   end
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local info = ipmi.parse_open_session_reply(reply)
   if info["session_payload_type"] == ipmi.PAYLOADS["RMCPPLUSOPEN_REP"] and info["error_code"] == 0 then

@@ -1,7 +1,7 @@
 local brute = require "brute"
 local comm = require "comm"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local pop3 = require "pop3"
 local shortport = require "shortport"
 local string = require "string"
@@ -25,7 +25,7 @@ Tries to log into a POP3 account by guessing usernames and passwords.
 -- |_ Performed 8 scans in 1 seconds, average tps: 8
 
 author = {"Philip Pickering", "Piotr Olma"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 
@@ -107,8 +107,8 @@ Driver = {
 portrule = shortport.port_or_service({110, 995}, {"pop3","pop3s"})
 
 action = function(host, port)
-  local pMeth = nmap.registry.args.pop3loginmethod
-  if (not pMeth) then pMeth = nmap.registry.pop3loginmethod end
+  local pMeth = kmap.registry.args.pop3loginmethod
+  if (not pMeth) then pMeth = kmap.registry.pop3loginmethod end
   if (not pMeth) then pMeth = "USER" end
 
   --determine function we will use to login to server

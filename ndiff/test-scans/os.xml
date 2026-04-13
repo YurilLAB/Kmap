@@ -1,13 +1,13 @@
 <?xml version="1.0" ?>
-<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
-<!-- Nmap 4.90RC2 scan initiated Fri Jul 10 17:23:03 2009 as: nmap -oX os.xml -p 22,113 -O scanme.nmap.org -->
-<nmaprun scanner="nmap" args="nmap -oX os.xml -p 22,113 -O scanme.nmap.org" start="1247268183" startstr="Fri Jul 10 17:23:03 2009" version="4.90RC2" xmloutputversion="1.03">
+<?xml-stylesheet href="file:///usr/share/kmap/kmap.xsl" type="text/xsl"?>
+<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:23:03 2009 as: kmap -oX os.xml -p 22,113 -O scanme.kmap.org -->
+<kmaprun scanner="kmap" args="kmap -oX os.xml -p 22,113 -O scanme.kmap.org" start="1247268183" startstr="Fri Jul 10 17:23:03 2009" version="4.90RC2" xmloutputversion="1.03">
 <scaninfo type="syn"  protocol="tcp" numservices="2" services="22,113" />
 <verbose level="0" />
 <debugging level="0" />
 <host starttime="1247268183" endtime="1247268185"><status state="up" reason="echo-reply"/>
 <address addr="64.13.134.52" addrtype="ipv4" />
-<hostnames><hostname name="scanme.nmap.org" type="PTR" /></hostnames>
+<hostnames><hostname name="scanme.kmap.org" type="PTR" /></hostnames>
 <ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" method="table" conf="3" /></port>
 <port protocol="tcp" portid="113"><state state="closed" reason="reset" reason_ttl="52"/><service name="auth" method="table" conf="3" /></port>
 </ports>
@@ -23,5 +23,5 @@
 <times srtt="91197" rttvar="3569" to="105473" />
 </host>
 <runstats><finished time="1247268186" timestr="Fri Jul 10 17:23:06 2009" elapsed="3.56"/><hosts up="1" down="0" total="1" />
-<!-- Nmap done at Fri Jul 10 17:23:06 2009; 1 IP address (1 host up) scanned in 3.56 seconds -->
-</runstats></nmaprun>
+<!-- Kmap done at Fri Jul 10 17:23:06 2009; 1 IP address (1 host up) scanned in 3.56 seconds -->
+</runstats></kmaprun>

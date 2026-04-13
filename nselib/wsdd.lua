@@ -29,10 +29,10 @@
 -- </code>
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local target = require "target"
@@ -206,10 +206,10 @@ Comm = {
     local probedata = self.probe.data:gsub("#uuid#", Util.generateUUID())
 
     if ( self.mcast ) then
-      self.socket = nmap.new_socket("udp")
+      self.socket = kmap.new_socket("udp")
       self.socket:set_timeout(self.timeout)
     else
-      self.socket = nmap.new_socket()
+      self.socket = kmap.new_socket()
       self.socket:set_timeout(self.timeout)
       status, err = self.socket:connect( self.host, self.port, "udp" )
       if ( not(status) ) then return err end
@@ -320,7 +320,7 @@ Helper = {
   -- @param mcast boolean true if multicast is to be used, false otherwise
   setMulticast = function( self, mcast )
     assert( type(mcast)=="boolean", "mcast has to be either true or false")
-    local family = nmap.address_family()
+    local family = kmap.address_family()
     self.mcast = mcast
     self.host = (family=="inet6" and "FF02::C" or "239.255.255.250")
     self.port = 3702

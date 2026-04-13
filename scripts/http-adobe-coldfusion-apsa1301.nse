@@ -11,8 +11,8 @@ Reference:
 -- @see http-vuln-cve2009-3960.nse
 -- @see http-vuln-cve2010-2861.nse
 --
--- @usage nmap -sV --script http-adobe-coldfusion-apsa1301 <target>
--- @usage nmap -p80 --script http-adobe-coldfusion-apsa1301 --script-args basepath=/cf/adminapi/ <target>
+-- @usage kmap -sV --script http-adobe-coldfusion-apsa1301 <target>
+-- @usage kmap -p80 --script http-adobe-coldfusion-apsa1301 --script-args basepath=/cf/adminapi/ <target>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -25,7 +25,7 @@ Reference:
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit", "vuln"}
 
 local http = require "http"

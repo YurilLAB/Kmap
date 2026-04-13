@@ -1,7 +1,7 @@
 ---
 -- Simple Mail Transfer Protocol (SMTP) operations.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @args smtp.domain The domain to be returned by get_domain, overriding the
 --                   target's own domain name.
 
@@ -166,12 +166,12 @@ local SMTP_CMD = {
 -- If the user specified one through the script argument
 -- <code>smtp.domain</code> this function will return it. Otherwise it will try
 -- to find the domain from the typed hostname and from the rDNS name. If it
--- still can't find one it will return the nmap.scanme.org by default.
+-- still can't find one it will return the kmap.scanme.org by default.
 --
 -- @param host The host table
 -- @return The hostname to be used by the different SMTP commands.
 get_domain = function(host)
-  local nmap_domain = "nmap.scanme.org"
+  local kmap_domain = "kmap.scanme.org"
 
   -- Use the user provided options.
   local result = stdnse.get_script_args("smtp.domain")
@@ -185,7 +185,7 @@ get_domain = function(host)
     end
   end
 
-  return result or nmap_domain
+  return result or kmap_domain
 end
 
 --- Gets the authentication mechanisms that are listed in the response

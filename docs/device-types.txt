@@ -1,6 +1,6 @@
 general purpose
 This category contains general-purpose operating systems like Linux and
-Windows. In the nmap-service-probes file this class is indicated by a
+Windows. In the kmap-service-probes file this class is indicated by a
 lack of a
 d//<indexterm><primary><literal>d//</literal> (device type) version detection field</primary></indexterm>
 field.
@@ -140,7 +140,7 @@ Move web server (2) to general purpose or specialized.
 
 Put Ethernet-serial bridges in the "bridge" category.
 
-Put the http-proxy matches in nmap-service-probes into the "proxy
+Put the http-proxy matches in kmap-service-probes into the "proxy
 server" category if they are from a dedicated proxy device. Some of them
 are "security-misc" currently.
 

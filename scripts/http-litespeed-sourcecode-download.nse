@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,8 +22,8 @@ References:
 
 ---
 -- @usage
--- nmap -p80 --script http-litespeed-sourcecode-download --script-args http-litespeed-sourcecode-download.uri=/phpinfo.php <host>
--- nmap -p8088 --script http-litespeed-sourcecode-download <host>
+-- kmap -p80 --script http-litespeed-sourcecode-download --script-args http-litespeed-sourcecode-download.uri=/phpinfo.php <host>
+-- kmap -p8088 --script http-litespeed-sourcecode-download <host>
 --
 -- @output
 -- PORT     STATE SERVICE    REASON
@@ -39,7 +39,7 @@ References:
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive", "exploit"}
 
 
@@ -56,9 +56,9 @@ action = function(host, port)
   --If we don't get status 200, the server is not vulnerable
   if req.status then
     if req.status ~= 200 then
-      if req.status == 400 and nmap.verbosity() >= 2 then
+      if req.status == 400 and kmap.verbosity() >= 2 then
         output[#output+1] = "Request with null byte did not work. This web server might not be vulnerable"
-      elseif req.status == 404 and nmap.verbosity() >= 2 then
+      elseif req.status == 404 and kmap.verbosity() >= 2 then
         output[#output+1] = string.format("Page: %s was not found. Try with an existing file.", rfile)
       end
       stdnse.debug2("Request status:%s body:%s", req.status, req.body)

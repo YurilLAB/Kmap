@@ -2,14 +2,14 @@
 -- A minimal CVS (Concurrent Versions System) pserver protocol implementation which currently only supports authentication.
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 -- Version 0.1
 -- Created 07/13/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -26,7 +26,7 @@ Helper = {
   end,
 
   connect = function(self, socket)
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
     return self.socket:connect(self.host, self.port)
   end,
 

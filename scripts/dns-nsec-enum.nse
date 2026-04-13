@@ -1,5 +1,5 @@
 local dns = require "dns"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -26,7 +26,7 @@ servers that use NSEC3 rather than NSEC; for that, see
 -- name of the target.
 --
 -- @usage
--- nmap -sSU -p 53 --script dns-nsec-enum --script-args dns-nsec-enum.domains=example.com <target>
+-- kmap -sSU -p 53 --script dns-nsec-enum --script-args dns-nsec-enum.domains=example.com <target>
 --
 -- @see dns-nsec3-enum.nse
 -- @see dns-ip6-arpa-scan.nse
@@ -52,7 +52,7 @@ servers that use NSEC3 rather than NSEC; for that, see
 -- |_    vulpix.example.com
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 
 categories = {"discovery", "intrusive"}
 
@@ -63,7 +63,7 @@ portrule = function (host, port)
   end
   -- only check tcp if udp is not open or open|filtered
   if port.protocol == 'tcp' then
-    local tmp_port = nmap.get_port_state(host, {number=port.number, protocol="udp"})
+    local tmp_port = kmap.get_port_state(host, {number=port.number, protocol="udp"})
     if tmp_port then
       return not string.match(tmp_port.state, '^open')
     end

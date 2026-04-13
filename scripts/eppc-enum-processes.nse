@@ -1,4 +1,4 @@
-local nmap      = require('nmap')
+local kmap      = require('kmap')
 local shortport = require('shortport')
 local stdnse    = require('stdnse')
 local string    = require('string')
@@ -13,7 +13,7 @@ prior to requesting authentication.
 
 ---
 -- @usage
--- nmap -p 3031 <ip> --script eppc-enum-processes
+-- kmap -p 3031 <ip> --script eppc-enum-processes
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -33,17 +33,17 @@ prior to requesting authentication.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(3031, "eppc", "tcp", "open")
 
 action = function( host, port )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
 
-  local try = nmap.new_try(
+  local try = kmap.new_try(
     function()
       stdnse.debug1("failed")
       socket:close()

@@ -29,7 +29,7 @@ Each requirement is tagged with one of the following tags:
 * Run and be tested under OS X........................................[MustHave]
 * Compile as a single, statically-linked executable..................[CouldHave]
 * Use of libdnet......................................................[MustHave]  [DONE]
-* Designed to be integrated into Nmap tarball.........................[MustHave]
+* Designed to be integrated into Kmap tarball.........................[MustHave]
 * Design to allow easy extension to other protocols...................[MustHave]  [DONE]
 
 
@@ -146,7 +146,7 @@ Each requirement is tagged with one of the following tags:
 * Traceroute mode.....................................................[MustHave]  [DONE]
   - Traceroute to a TCP port..........................................[MustHave]  [DONE]
   - Traceroute to a UDP port..........................................[MustHave]  [DONE]
-* Nmap style packet output............................................[MustHave]  [DONE]
+* Kmap style packet output............................................[MustHave]  [DONE]
 * Provide useful stats................................................[MustHave]
 * Save responses in a pcap file......................................[CouldHave]
 * Implement student's t test to compare data-sets of timing

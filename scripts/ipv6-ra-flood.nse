@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -37,23 +37,23 @@ Additional documents: https://tools.ietf.org/rfc/rfc6104.txt
 --       (default: 30s). If timeout is zero, the script will run forever.
 --
 -- @usage
--- nmap -6 --script ipv6-ra-flood.nse
--- nmap -6 --script ipv6-ra-flood.nse --script-args 'interface=<interface>'
--- nmap -6 --script ipv6-ra-flood.nse --script-args 'interface=<interface>,timeout=10s'
+-- kmap -6 --script ipv6-ra-flood.nse
+-- kmap -6 --script ipv6-ra-flood.nse --script-args 'interface=<interface>'
+-- kmap -6 --script ipv6-ra-flood.nse --script-args 'interface=<interface>,timeout=10s'
 
 author = "Adam Števko"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"dos", "intrusive"}
 
-try = nmap.new_try()
+try = kmap.new_try()
 
 prerule = function()
-  if nmap.address_family() ~= "inet6" then
+  if kmap.address_family() ~= "inet6" then
     stdnse.debug1("is IPv6 compatible only.")
     return false
   end
 
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.debug1("Running %s needs root privileges.", SCRIPT_NAME)
     return false
   end
@@ -128,7 +128,7 @@ local function broadcast_on_interface(iface)
   local arg_timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME..".timeout"))
   arg_timeout = arg_timeout or 30
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
 
   try(dnet:ethernet_open(iface))
 

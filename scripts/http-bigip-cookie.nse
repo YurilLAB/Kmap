@@ -12,7 +12,7 @@ local table = require "table"
 
 ---
 -- @usage
--- nmap -p <port> --script http-bigip-cookie <target>
+-- kmap -p <port> --script http-bigip-cookie <target>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -36,7 +36,7 @@ local table = require "table"
 -- @args http-bigip-cookie.path The URL path to request. The default path is "/".
 
 author = "Seth Jackson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "discovery", "safe" }
 
 portrule = shortport.http

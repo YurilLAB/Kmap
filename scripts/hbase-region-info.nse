@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local target = require "target"
@@ -16,7 +16,7 @@ Information gathered:
 
 ---
 -- @usage
--- nmap --script hbase-region-info -p 60030 host
+-- kmap --script hbase-region-info -p 60030 host
 --
 -- @output
 -- PORT      STATE SERVICE      REASON
@@ -33,7 +33,7 @@ Information gathered:
 
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 
@@ -48,7 +48,7 @@ action = function( host, port )
 
   local result = stdnse.output_table()
   -- uri was previously "/regionserver.jsp". See
-  -- http://seclists.org/nmap-dev/2012/q3/903.
+  -- http://seclists.org/kmap-dev/2012/q3/903.
   local uri = "/rs-status"
   stdnse.debug1("HTTP GET %s:%s%s", host.targetname or host.ip, port.number, uri)
   local response = http.get( host, port, uri )
@@ -87,7 +87,7 @@ action = function( host, port )
     if #result > 0 then
       port.version.name = "hbase-region"
       port.version.product = "Apache Hadoop Hbase"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
       return result
     end
   end

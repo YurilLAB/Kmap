@@ -1,4 +1,4 @@
-name: nmap multiplatform autobuilds
+name: kmap multiplatform autobuilds
 
 on:
   push:

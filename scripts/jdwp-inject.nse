@@ -1,7 +1,7 @@
 local io = require "io"
 local jdwp = require "jdwp"
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -18,7 +18,7 @@ See nselib/data/jdwp-class/README for more.
 ]]
 
 ---
--- @usage nmap -sT <target> -p <port> --script=+jdwp-inject --script-args filename=HelloWorld.class
+-- @usage kmap -sT <target> -p <port> --script=+jdwp-inject --script-args filename=HelloWorld.class
 --
 -- @args jdwp-inject.filename Java <code>.class</code> file to inject.
 -- @output
@@ -28,7 +28,7 @@ See nselib/data/jdwp-class/README for more.
 -- |_  Hello world from the remote machine!
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","intrusive"}
 
 portrule = function(host, port)
@@ -52,7 +52,7 @@ action = function(host, port)
   if filename == nil then
     return stdnse.format_output(false, "This script requires a .class file to inject.")
   end
-  local file = io.open(nmap.fetchfile(filename) or filename, "rb")
+  local file = io.open(kmap.fetchfile(filename) or filename, "rb")
   local class_bytes = file:read("a")
   file:close()
 

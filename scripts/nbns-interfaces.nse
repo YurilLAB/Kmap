@@ -1,6 +1,6 @@
 local shortport = require "shortport"
 local netbios = require "netbios"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -13,7 +13,7 @@ including finding paths to hidden non-routed networks via multihomed systems.
 
 ---
 -- @usage
--- nmap -sU -p 137 --script nbns-interfaces <host>
+-- kmap -sU -p 137 --script nbns-interfaces <host>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -36,11 +36,11 @@ including finding paths to hidden non-routed networks via multihomed systems.
 ---
 
 author = {"Andrey Zhukov from USSC"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
-portrule = nmap.address_family() == 'inet' -- NBNS is IPv4 only
+portrule = kmap.address_family() == 'inet' -- NBNS is IPv4 only
            and shortport.portnumber(137, "udp")
            or function () return false end
 

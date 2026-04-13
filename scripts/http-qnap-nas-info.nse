@@ -11,7 +11,7 @@ QNAP Network Attached Storage (NAS) device.
 
 ---
 -- @usage
--- nmap --script http-qnap-nas-info -p <port> <host>
+-- kmap --script http-qnap-nas-info -p <port> <host>
 --
 -- @output
 -- PORT   STATE SERVICE   REASON
@@ -43,7 +43,7 @@ QNAP Network Attached Storage (NAS) device.
 --
 
 author = "Brendan Coles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe","discovery"}
 
 

@@ -17,7 +17,7 @@ local rand = require "rand"
 
 ---
 -- @usage
--- nmap -p 16992 --script http-vuln-cve2017-5689 <target>
+-- kmap -p 16992 --script http-vuln-cve2017-5689 <target>
 --
 -- @output
 -- PORT      STATE SERVICE       REASON
@@ -77,7 +77,7 @@ local rand = require "rand"
 ---
 
 author = "Andrew Orr"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln", "auth", "exploit" }
 
 portrule = shortport.port_or_service({623, 664, 16992, 16993}, "amt-soap-http")

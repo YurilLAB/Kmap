@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local sslcert = require "sslcert"
 local stdnse = require "stdnse"
@@ -23,7 +23,7 @@ Opportunistic STARTTLS sessions are established on services that support them.
 
 ---
 -- @usage
--- nmap --script ssl-dh-params <target>
+-- kmap --script ssl-dh-params <target>
 --
 -- @output
 -- Host script results:
@@ -89,7 +89,7 @@ Opportunistic STARTTLS sessions are established on services that support them.
 -- |_      https://weakdh.org
 
 author = "Jacob Gajek"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 dependencies = {"https-redirect"}
 
@@ -569,7 +569,7 @@ local function get_server_response(host, port, t)
       return nil
     end
   else
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(timeout)
     status, err = sock:connect(host, port)
     if not status then

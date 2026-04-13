@@ -21,8 +21,8 @@ The Ncat requirements, ideas and general support and help were given by
 Fyodor.
 
 Many helpful comments, suggestions and other useful information was
-taken from the nmap-dev list (@insecure.org) as well as other
+taken from the kmap-dev list (@insecure.org) as well as other
 contributors via email.
 
-Ncat shares the Nmap infrastructure libraries (Nsock and Nbase) which
+Ncat shares the Kmap infrastructure libraries (Nsock and Nbase) which
 were originally written by Fyodor.

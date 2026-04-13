@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -15,7 +15,7 @@ servers (this bug was fixed in Oracle's October 2009 Critical Patch Update).
 
 ---
 -- @usage
--- nmap --script oracle-enum-users --script-args oracle-enum-users.sid=ORCL,userdb=orausers.txt -p 1521-1560 <host>
+-- kmap --script oracle-enum-users --script-args oracle-enum-users.sid=ORCL,userdb=orausers.txt -p 1521-1560 <host>
 --
 -- If no userdb is supplied the default userlist is used
 --
@@ -37,7 +37,7 @@ servers (this bug was fixed in Oracle's October 2009 Critical Patch Update).
 -- Revised 21/07/2010 - v0.3 - removed references to smb in get_random_string
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 
 
@@ -45,7 +45,7 @@ portrule = shortport.port_or_service(1521, 'oracle-tns' )
 
 local function checkAccount( host, port, user )
 
-  local helper = tns.Helper:new( host, port, nmap.registry.args['oracle-enum-users.sid'] )
+  local helper = tns.Helper:new( host, port, kmap.registry.args['oracle-enum-users.sid'] )
   local status, data = helper:Connect()
   local tnscomm, auth
   local auth_options = tns.AuthOptions:new()
@@ -78,7 +78,7 @@ action = function( host, port )
   local result = {}
   local usernames
 
-  if ( not( nmap.registry.args['oracle-enum-users.sid'] ) and not( nmap.registry.args['tns.sid'] ) ) then
+  if ( not( kmap.registry.args['oracle-enum-users.sid'] ) and not( kmap.registry.args['tns.sid'] ) ) then
     return fail("Oracle instance not set (see oracle-enum-users.sid or tns.sid)")
   end
 

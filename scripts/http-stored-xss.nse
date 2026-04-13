@@ -5,7 +5,7 @@ strings to determine whether the payloads were successful.
 ]]
 
 ---
--- @usage nmap -p80 --script http-stored-xss.nse <target>
+-- @usage kmap -p80 --script http-stored-xss.nse <target>
 --
 -- This script works in two phases.
 -- 1) Posts specially crafted strings to every form it encounters.
@@ -55,7 +55,7 @@ strings to determine whether the payloads were successful.
 
 categories = {"intrusive", "exploit", "vuln"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local io = require "io"

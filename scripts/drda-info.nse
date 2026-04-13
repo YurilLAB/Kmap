@@ -1,5 +1,5 @@
 local drda = require "drda"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,7 +22,7 @@ command packet and parses the response.
 
 author = "Patrik Karlsson"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery", "version"}
 
@@ -49,7 +49,7 @@ local function parseVersion( server_version )
     local major_version = string.sub(server_version,4,5)
 
     -- strip the leading 0 from the major version, for consistency with
-    -- nmap-service-probes results
+    -- kmap-service-probes results
     if string.sub(major_version,1,1) == "0" then
       major_version = string.sub(major_version,2)
     end
@@ -100,10 +100,10 @@ action = function( host, port )
   else
     table.insert( results, ("Version: %s"):format( response.prodrel ) )
   end
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
   if response.srvclass ~= nil then port.version.extrainfo = response.srvclass   end
 
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   -- Generate results
   table.insert( results, ("Server Platform: %s"):format( response.srvclass ) )

@@ -21,9 +21,9 @@ Ayoub ELAASSAL.
 -- @args cics-info.pass Password to use if access to CEMT requires authentication
 --
 -- @usage
--- nmap --script=cics-info -p 23 <targets>
+-- kmap --script=cics-info -p 23 <targets>
 --
--- nmap --script=cics-info --script-args cics-info.commands='logon applid(coolcics)',
+-- kmap --script=cics-info --script-args cics-info.commands='logon applid(coolcics)',
 -- cics-info.user=test,cics-info.pass=test,cics-info.cemt='ZEMT',
 -- cics-info.trans=CICA -p 23 <targets>
 --
@@ -72,7 +72,7 @@ Ayoub ELAASSAL.
 -- 2017-01-30 - v0.1 - created by Soldier of Fortran
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 portrule = shortport.port_or_service({23,992}, "tn3270")
 

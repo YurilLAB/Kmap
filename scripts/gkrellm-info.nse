@@ -1,7 +1,7 @@
 local datetime = require "datetime"
 local math = require "math"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
@@ -16,7 +16,7 @@ request.
 
 ---
 -- @usage
--- nmap -p 19150 <ip> --script gkrellm-info
+-- kmap -p 19150 <ip> --script gkrellm-info
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -49,7 +49,7 @@ request.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -135,7 +135,7 @@ local function decodeTag(tag, lines)
 end
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
 
   if ( not(socket:connect(host, port)) ) then

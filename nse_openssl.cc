@@ -1,7 +1,7 @@
 /* OpenSSL library for lua
  * adapted from lmd5 library (http://www.tecgraf.puc-rio.br/~lhf/ftp/lua/)
  * Original code written by Luiz Henrique de Figueiredo <lhf@tecgraf.puc-rio.br>
- * Adapted for Nmap by Thomas Buchanan <tbuchanan@thecompassgrp.net>
+ * Adapted for Kmap by Thomas Buchanan <tbuchanan@thecompassgrp.net>
  * bignum and rand_bytes functions added by Sven Klemm <sven@c3d2.de>
  * Primality tests added by Jacob Gajek <jgajek@gmail.com>
  */
@@ -28,9 +28,9 @@
 #include "nse_lua.h"
 /* Needed for get_random_bytes */
 #include <nbase.h>
-#include "NmapOps.h"
+#include "KmapOps.h"
 #include "output.h"
-extern NmapOps o;
+extern KmapOps o;
 
 #include "nse_openssl.h"
 

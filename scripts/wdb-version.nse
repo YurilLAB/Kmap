@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rpc = require "rpc"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -19,7 +19,7 @@ http://www.kb.cert.org/vuls/id/362332
 
 ---
 -- @usage
--- nmap -sU -p 17185 --script wdb-version <target>
+-- kmap -sU -p 17185 --script wdb-version <target>
 -- @output
 -- 17185/udp open  wdb  Wind DeBug Agent 2.0
 -- | wdb-version:
@@ -36,7 +36,7 @@ http://www.kb.cert.org/vuls/id/362332
 -- <elem key="Boot line">lanswitchCmm:</elem>
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe", "version", "discovery", "vuln"}
 
 
@@ -171,7 +171,7 @@ action = function(host, port)
     --return stdnse.format_output(false, "Failed to read data")
     return nil
   end
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local pos, header = comm:DecodeHeader(data, 1)
   if not header then
@@ -193,7 +193,7 @@ action = function(host, port)
   if port.version.ostype ~= nil then
     port.version.ostype = "VxWorks " .. stripnull(info["rt_vers"])
   end
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   -- Clean up (some agents will continue to send data until we disconnect)
   packet = request(comm, WDB_Procedure["WDB_TARGET_DISCONNECT"], (">I4I4I4"):pack(2, 0, 0))
   if not comm:SendPacket(packet) then

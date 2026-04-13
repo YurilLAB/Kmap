@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
@@ -12,7 +12,7 @@ Performs brute force password auditing against Subversion source code control se
 
 ---
 -- @usage
--- nmap --script svn-brute --script-args svn-brute.repo=/svn/ -p 3690 <host>
+-- kmap --script svn-brute --script-args svn-brute.repo=/svn/ -p 3690 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -40,14 +40,14 @@ Performs brute force password auditing against Subversion source code control se
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(3690, "svnserve", "tcp", "open")
 
 svn =
 {
-  svn_client = "nmap-brute v0.1",
+  svn_client = "kmap-brute v0.1",
 
   new = function(self, host, port, repo)
     local o = {}

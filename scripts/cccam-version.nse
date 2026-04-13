@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local formulas = require "formulas"
 
@@ -23,7 +23,7 @@ local NUM_TRIALS = 2
 local function trial(host, port)
   local status, data, s
 
-  s = nmap.new_socket()
+  s = kmap.new_socket()
   status, data = s:connect(host, port)
   if not status then
     return
@@ -59,5 +59,5 @@ function action(host, port)
 
   port.version.name = "cccam"
   port.version.version = "CCcam DVR card sharing system"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 end

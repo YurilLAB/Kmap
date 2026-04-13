@@ -1,5 +1,5 @@
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rpcap = require "rpcap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -12,8 +12,8 @@ setup to require authentication or not and also supports IP restrictions.
 
 ---
 -- @usage
--- nmap -p 2002 <ip> --script rpcap-info
--- nmap -p 2002 <ip> --script rpcap-info --script-args="creds.rpcap='administrator:foobar'"
+-- kmap -p 2002 <ip> --script rpcap-info
+-- kmap -p 2002 <ip> --script rpcap-info --script-args="creds.rpcap='administrator:foobar'"
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -34,7 +34,7 @@ setup to require authentication or not and also supports IP restrictions.
 -- @see rpcap-brute.nse
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"rpcap-brute"}
 
@@ -64,7 +64,7 @@ local function getInfo(host, port, username, password)
 
   port.version.name = "rpcap"
   port.version.product = "WinPcap remote packet capture daemon"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   return true, resp
 end
@@ -72,7 +72,7 @@ end
 action = function(host, port)
 
   -- patch-up the service name, so creds.rpcap will work, ugly but needed as
-  -- tcp 2002 is registered to the globe service in nmap-services ...
+  -- tcp 2002 is registered to the globe service in kmap-services ...
   port.service = "rpcap"
 
   local c = creds.Credentials:new(creds.ALL_DATA, host, port)

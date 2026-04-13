@@ -1,6 +1,6 @@
 #include "nsock.h"
-#include "nmap_error.h"
-#include "NmapOps.h"
+#include "kmap_error.h"
+#include "KmapOps.h"
 #include "tcpip.h"
 #include "libnetutil/netutil.h"
 
@@ -13,7 +13,7 @@
 
 #include <assert.h>
 
-extern NmapOps o;
+extern KmapOps o;
 
 enum {
   DNET_METATABLE = lua_upvalueindex(1),
@@ -310,7 +310,7 @@ static int ip_send (lua_State *L)
     u8 dstmac[6];
     eth_nfo eth = {0};
 
-    if (!nmap_route_dst(&dst, &route))
+    if (!kmap_route_dst(&dst, &route))
       return nseU_safeerror(L, "Can't find route to %s", addr);
 
     /* above we fallback to using the raw socket if we can't find an (ethernet)

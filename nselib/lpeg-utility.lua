@@ -1,7 +1,7 @@
 ---
 -- Utility functions for LPeg.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @class module
 -- @name lpeg-utility
 

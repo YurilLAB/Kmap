@@ -7,11 +7,11 @@ The provided payload can be used for all RouterOs versions until 6.49.17. Though
 ]]
 
 author = {"deauther890", "Daniel Miller"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "version", "discovery", "safe"}
 
 ---@usage
--- nmap -p 8291 --script mikrotik-routeros-version <target>
+-- kmap -p 8291 --script mikrotik-routeros-version <target>
 
 ---@output
 --| mikrotik-routeros-version:
@@ -125,7 +125,7 @@ categories = {"default", "version", "discovery", "safe"}
 --</table>
 
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local match = require "match"
@@ -143,13 +143,13 @@ Driver = {
   end,
 
   connect = function(self)
-    self.s = nmap.new_socket()
+    self.s = kmap.new_socket()
     self.s:set_timeout(stdnse.get_timeout(self.host))
     return self.s:connect(self.host, self.port, "tcp")
   end,
 
   send_payload = function(self, payload)
-    local try = nmap.new_try(function() return false end)
+    local try = kmap.new_try(function() return false end)
     try(self.s:send(payload))
     local head = try(self.s:receive_buf(match.numbytes(20), true))
     stdnse.debug1("header: %s", stdnse.tohex(head))
@@ -233,6 +233,6 @@ action = function(host, port)
   port.version.ostype = ("RouterOS %s"):format(version)
   table.insert(port.version.cpe, ("cpe:/o:mikrotik:routeros:%s"):format(version))
   table.insert(port.version.cpe, "cpe:/a:mikrotik:winbox")
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   return output
 end

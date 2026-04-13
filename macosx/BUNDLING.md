@@ -10,7 +10,7 @@
 
 ## <a name="jhbuild"></a>Jhbuild
 
-In order to set up Jhbuild properly before building Nmap suite, follow the tutorial at https://gitlab.gnome.org/GNOME/gtk-osx/-/wikis/home , but keep reading this file if you encounter any error...
+In order to set up Jhbuild properly before building Kmap suite, follow the tutorial at https://gitlab.gnome.org/GNOME/gtk-osx/-/wikis/home , but keep reading this file if you encounter any error...
 
 If you had any error, just type the following command to delete jhbuild,
 

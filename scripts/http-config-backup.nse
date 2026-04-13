@@ -45,7 +45,7 @@ http://www.feross.org/cmsploit/.
 
 ---
 -- @usage
--- nmap --script=http-config-backup <target>
+-- kmap --script=http-config-backup <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -59,7 +59,7 @@ http://www.feross.org/cmsploit/.
 --
 
 author = "Riccardo Cecolin";
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html";
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html";
 categories = { "auth", "intrusive" };
 
 

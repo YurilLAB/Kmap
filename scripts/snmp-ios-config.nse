@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -13,7 +13,7 @@ Attempts to downloads Cisco router IOS configuration files using SNMP RW (v1) an
 
 ---
 -- @usage
--- nmap -sU -p 161 --script snmp-ios-config --script-args creds.snmp=:<community> <target>
+-- kmap -sU -p 161 --script snmp-ios-config --script-args creds.snmp=:<community> <target>
 --
 -- @output
 -- | snmp-ios-config:
@@ -38,7 +38,7 @@ Attempts to downloads Cisco router IOS configuration files using SNMP RW (v1) an
 
 author = {"Vikas Singhal", "Patrik Karlsson"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive"}
 
@@ -75,7 +75,7 @@ action = function(host, port)
   if ( not(request) ) then return  end
 
   -- since we got something back, the port is definitely open
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   -------------------------------------------------
   -- build a SNMP v1 packet

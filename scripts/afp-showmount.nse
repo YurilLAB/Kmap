@@ -1,5 +1,5 @@
 local afp = require "afp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -35,7 +35,7 @@ Shows AFP shares and ACLs.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -48,8 +48,8 @@ action = function(host, port)
   local status, response, shares
   local result = {}
   local afpHelper = afp.Helper:new()
-  local args = nmap.registry.args
-  local users = nmap.registry.afp or { ['nil'] = 'nil' }
+  local args = kmap.registry.args
+  local users = kmap.registry.afp or { ['nil'] = 'nil' }
 
   if ( args['afp.username'] ) then
     users = {}

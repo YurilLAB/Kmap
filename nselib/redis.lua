@@ -3,7 +3,7 @@
 -- @author Patrik Karlsson <patrik@cqure.net>
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local comm = require "comm"

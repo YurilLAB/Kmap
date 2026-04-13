@@ -3,26 +3,26 @@
 GSoC 2011 TASKS:
 
 o Work on my GSoC vulnerability and exploitation script ideas:
-  https://secwiki.org/w/Nmap/Script_Ideas#Djalal_Harouni
+  https://secwiki.org/w/Kmap/Script_Ideas#Djalal_Harouni
 
 o Review all the "Improve NSE HTTP architecture" proposal suggetions
   and comments, and try to include them and update the proposal.
-  http://seclists.org/nmap-dev/2011/q2/967
+  http://seclists.org/kmap-dev/2011/q2/967
 
-o Start a thread on Nmap-dev about users favorite Nmap and NSE commands,
+o Start a thread on Kmap-dev about users favorite Kmap and NSE commands,
   and create a special page for it in the secwiki.org site.
-  This will also let us to create more scan profiles for Zenmap.
+  This will also let us to create more scan profiles for Zekmap.
 
 ==
 
-1) Nmap Scripting Engine Infrastructure:
+1) Kmap Scripting Engine Infrastructure:
 
 o [High priority]
   Take a look at Dan's NSE XML output patch and try to commit it.
-  http://seclists.org/nmap-dev/2011/q2/1230
+  http://seclists.org/kmap-dev/2011/q2/1230
 
 o NSE Version Numbering.
-  http://seclists.org/nmap-dev/2010/q4/693
+  http://seclists.org/kmap-dev/2010/q4/693
 
 [Other tasks]
 o Propose a better duplicate scanned IPs filtering engine.
@@ -50,7 +50,7 @@ MAYBE:
 
 o Create a new rule "versionrule" which will be used by version
   category scripts.
-  http://seclists.org/nmap-dev/2010/q3/551
+  http://seclists.org/kmap-dev/2010/q3/551
 
 o NSE debugger.
 
@@ -62,29 +62,29 @@ really useful for big networks. Another option will be a generic NSE
 filters selection to let us change NSE arguments according to previous
 results.
 Note: this option will be useful on big networks. however for the moment
-this is a simple idea and it needs further discussion on the nmap-dev.
+this is a simple idea and it needs further discussion on the kmap-dev.
 
-o Privileges dropping for NSE scripts [nmap TODO list].
+o Privileges dropping for NSE scripts [kmap TODO list].
 
-o NSE security review [nmap TODO list].
+o NSE security review [kmap TODO list].
 
 
 o Fixing bugs.
 - NSE not honoring the source port flag when doing version scan.
-  http://seclists.org/nmap-dev/2010/q2/576
+  http://seclists.org/kmap-dev/2010/q2/576
   
   David said that it will not be easy to support setting the source port
-  http://seclists.org/nmap-dev/2010/q3/331
+  http://seclists.org/kmap-dev/2010/q3/331
 
 
 ==
 
 DONE:
 
-1) Nmap Scripting Engine Infrastructure:
+1) Kmap Scripting Engine Infrastructure:
 
 o Submitted the "Improve NSE HTTP architecture" proposal
-  http://seclists.org/nmap-dev/2011/q2/967
+  http://seclists.org/kmap-dev/2011/q2/967
 
 o Make NSE scripts able to retrieve the interface network
   information.
@@ -98,14 +98,14 @@ o New class of scripts which use two new script rules:
  - Update scripts to use these new rules:
    dns-zone-transfer now uses "prerule" and "portrule".
 
-o Update other parts of Nmap book to show the new Script scan phases.
+o Update other parts of Kmap book to show the new Script scan phases.
 
 o Fixing bugs:
  - NSE not honoring the Exclude directive bug fixed and committed 
    as r18467.
 
 o Let NSE "prerule", "portrule" and "hostrule" scripts to add new
-discoverd targets to Nmap.
+discoverd targets to Kmap.
 
 o Update scripting.xml to show the new script scan phases.
 

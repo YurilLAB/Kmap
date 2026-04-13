@@ -19,7 +19,7 @@ peers as targets.
 
 ---
 -- @usage
--- nmap --script bittorrent-discovery --script-args newtargets,bittorrent-discovery.torrent=<torrent_file>
+-- kmap --script bittorrent-discovery --script-args newtargets,bittorrent-discovery.torrent=<torrent_file>
 --
 -- @args bittorrent-discovery.torrent a string containing the filename of the torrent file
 -- @args bittorrent-discovery.magnet a string containing the magnet link of the torrent
@@ -43,7 +43,7 @@ peers as targets.
 --
 
 author = "Gorjan Petrovski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","safe"}
 
 

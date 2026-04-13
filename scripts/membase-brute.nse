@@ -10,7 +10,7 @@ Performs brute force password auditing against Couchbase Membase servers.
 
 ---
 -- @usage
--- nmap -p 11211 --script membase-brute
+-- kmap -p 11211 --script membase-brute
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -26,7 +26,7 @@ Performs brute force password auditing against Couchbase Membase servers.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

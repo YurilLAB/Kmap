@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 
 -- NSE x11-access v1.3
@@ -24,7 +24,7 @@ the <code>xhost +</code> list. In this case, script will display the message:
 -- true
 
 author = "vladz"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe", "auth"}
 
 portrule = function(host, port)
@@ -38,12 +38,12 @@ end
 action = function(host, port)
 
   local result, socket, try, catch
-  socket = nmap.new_socket()
+  socket = kmap.new_socket()
   catch = function()
     socket:close()
   end
 
-  try = nmap.new_try(catch)
+  try = kmap.new_try(catch)
   try(socket:connect(host, port))
 
   -- Sending the network dump of a x11 connection request (captured

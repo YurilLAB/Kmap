@@ -18,8 +18,8 @@ Wordpress default uri and form names:
 
 ---
 -- @usage
--- nmap -sV --script http-wordpress-brute <target>
--- nmap -sV --script http-wordpress-brute
+-- kmap -sV --script http-wordpress-brute <target>
+-- kmap -sV --script http-wordpress-brute
 --   --script-args 'userdb=users.txt,passdb=passwds.txt,http-wordpress-brute.hostname=domain.com,
 --                  http-wordpress-brute.threads=3,brute.firstonly=true' <target>
 --
@@ -51,7 +51,7 @@ Wordpress default uri and form names:
 -- @see http-form-brute.nse
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

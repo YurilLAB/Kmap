@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stun = require "stun"
 local stdnse = require "stdnse"
@@ -10,14 +10,14 @@ information from the response, if the server attribute is present.
 
 ---
 -- @usage
--- nmap -sU -sV -p 3478 <target>
+-- kmap -sU -sV -p 3478 <target>
 -- @output
 -- PORT     STATE SERVICE VERSION
 -- 3478/udp open  stun    Vovida.org 0.96
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version"}
 
 
@@ -39,6 +39,6 @@ action = function(host, port)
 
   port.version.name = "stun"
   port.version.product = result
-  nmap.set_port_state(host, port, "open")
-  nmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
 end

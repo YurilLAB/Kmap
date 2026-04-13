@@ -47,7 +47,7 @@
 -- Revised 07/25/2012 - added Printer Spooler Service (spoolss) RPC functions and
 --                      constants [Aleksandar Nikolic]
 --@author Ron Bowes <ron@skullsecurity.net>
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -----------------------------------------------------------------------
 
 local datetime = require "datetime"
@@ -1075,7 +1075,7 @@ end
 --@param filename         Name of the file to print to
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a print job id.
 function spoolss_start_doc_printer(smbstate,printer_handle,filename)
-  local document_name = msrpctypes.marshall_unicode_ptr("nmap_test",true)
+  local document_name = msrpctypes.marshall_unicode_ptr("kmap_test",true)
   local fname = msrpctypes.marshall_unicode_ptr(filename,true)
   local dtype = msrpctypes.marshall_int32(0)
 

@@ -14,7 +14,7 @@ back-end Java application server containers.
 
 ---
 -- @usage
--- nmap -p 8009 <ip> --script ajp-brute
+-- kmap -p 8009 <ip> --script ajp-brute
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -28,7 +28,7 @@ back-end Java application server containers.
 -- @args ajp-brute.path URL path to request. Default: /
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

@@ -6,7 +6,7 @@
 --
 -- @author Dennis Rösch
 -- @author Max Helbig
--- @license Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @license Same as Kmap--See https://kmap.org/book/man-legal.html
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"

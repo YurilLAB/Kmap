@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -16,7 +16,7 @@ http://mobilemouse.com/
 
 ---
 -- @usage
--- nmap --script mmouse-brute -p 51010 <host>
+-- kmap --script mmouse-brute -p 51010 <host>
 --
 -- @output
 -- PORT      STATE SERVICE
@@ -30,7 +30,7 @@ http://mobilemouse.com/
 -- @args mmouse-brute.timeout socket timeout for connecting to Mobile Mouse (default 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -91,7 +91,7 @@ local function hasPassword(host, port)
   if ( not(driver:connect()) ) then
     error("Failed to connect to server")
   end
-  local status = driver:login(nil, "nmap")
+  local status = driver:login(nil, "kmap")
   driver:disconnect()
 
   return not(status)

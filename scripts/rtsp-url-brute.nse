@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rtsp = require "rtsp"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -18,7 +18,7 @@ on which it determines whether the URL is valid or not.
 
 ---
 -- @usage
--- nmap --script rtsp-url-brute -p 554 <ip>
+-- kmap --script rtsp-url-brute -p 554 <ip>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -48,7 +48,7 @@ on which it determines whether the URL is valid or not.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
@@ -98,7 +98,7 @@ end
 -- @param url_iter function containing the url iterator
 -- @param result table containing the urls that were successfully retrieved
 local function processURL(host, port, url_iter, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local name = stdnse.get_hostname(host)
   for u in url_iter do
     local url = ("rtsp://%s%s"):format(name, u)
@@ -117,10 +117,10 @@ action = function(host, port)
 
   local response
   local result = {}
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local threadcount = stdnse.get_script_args('rtsp-url-brute.threads') or 10
   local filename = stdnse.get_script_args('rtsp-url-brute.urlfile') or
-    nmap.fetchfile("nselib/data/rtsp-urls.txt")
+    kmap.fetchfile("nselib/data/rtsp-urls.txt")
 
   threadcount = tonumber(threadcount)
 

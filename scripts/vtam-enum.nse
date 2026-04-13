@@ -5,7 +5,7 @@ local brute     = require "brute"
 local creds     = require "creds"
 local unpwdb    = require "unpwdb"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -36,9 +36,9 @@ found for application IDs.
 --  with 'logon applid()'. Default is <code>false</code>.
 --
 --@usage
--- nmap --script vtam-enum -p 23 <targets>
+-- kmap --script vtam-enum -p 23 <targets>
 --
--- nmap --script vtam-enum --script-args idlist=defaults.txt,
+-- kmap --script vtam-enum --script-args idlist=defaults.txt,
 -- vtam-enum.command="exit;logon applid(logos)",vtam-enum.macros=true
 -- vtam-enum.path="/home/dade/screenshots/" -p 23 -sV <targets>
 --
@@ -60,7 +60,7 @@ found for application IDs.
 -- 2019-02-01 - v0.5 - Disabling Enhanced mode
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992}, "tn3270")
@@ -250,8 +250,8 @@ action = function(host, port)
   local macros = stdnse.get_script_args(SCRIPT_NAME .. '.macros') or false -- if set to true, doesn't prepend the commands with 'logon applid'
   local commands = stdnse.get_script_args(SCRIPT_NAME .. '.commands') -- Commands to send to get to VTAM
   local vtam_ids = {"tso", "CICS", "IMS", "NETVIEW", "TPX"} -- these are defaults usually seen
-  vtam_id_file = ( (vtam_id_file and nmap.fetchfile(vtam_id_file)) or vtam_id_file ) or
-  nmap.fetchfile("nselib/data/vhosts-default.lst")
+  vtam_id_file = ( (vtam_id_file and kmap.fetchfile(vtam_id_file)) or vtam_id_file ) or
+  kmap.fetchfile("nselib/data/vhosts-default.lst")
 
   for l in io.lines(vtam_id_file) do
     local cleaned_line = string.gsub(l,"[\r\n]","")

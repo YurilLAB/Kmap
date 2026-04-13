@@ -19,7 +19,7 @@
 -- and <code>unmarshall_unicode</code> can be used to marshall/unmarshall strings.
 --
 -- Pointers also have interesting properties. A pointer is preceded by a 4-byte value called (at least by Wireshark)
--- the "referent id". For a valid pointer, this can be anything except 0 (I use 'NMAP' for it). If it's '0', then
+-- the "referent id". For a valid pointer, this can be anything except 0 (I use 'KMAP' for it). If it's '0', then
 -- it's a null pointer and the data doesn't actually follow. To help clarify, a pointer to the integer '4' could be
 -- marshalled as the hex string <code>78 56 34 12 04 00 00 00</code> (the referent_id is 0x12345678 and the integer
 -- itself is 0x00000004). If the integer is nil, then it's marshalled as <code>00 00 00 00</code>, which is simply

@@ -16,7 +16,7 @@
 -- helper:close()
 -- </code>
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Brandon Enright
 -- @author Patrik Karlsson
 

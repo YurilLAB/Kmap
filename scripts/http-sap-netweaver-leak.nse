@@ -19,8 +19,8 @@ References:
 ]]
 
 ---
--- @usage nmap -p 80 --script http-sap-netweaver-leak <target>
--- @usage nmap -sV --script http-sap-netweaver-leak <target>
+-- @usage kmap -p 80 --script http-sap-netweaver-leak <target>
+-- @usage kmap -sV --script http-sap-netweaver-leak <target>
 --
 -- @output 
 -- PORT    STATE SERVICE REASON
@@ -46,7 +46,7 @@ References:
 -- |_      https://help.sap.com/saphelp_nw73ehp1/helpdata/en/4a/5c004250995a6ae10000000a42189b/frameset.htm
 --
 -- @xmloutput
--- <table key="NMAP-1">
+-- <table key="KMAP-1">
 -- <elem key="title">Anonymous access to SAP Netweaver Portal</elem>
 -- <elem key="state">VULNERABLE (Exploitable)</elem>
 -- <table key="description">
@@ -75,7 +75,7 @@ References:
 ---
 
 author = "Francisco Leon <@arphanetx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 local evil_path = "/irj/go/km/navigation?Uri=/"

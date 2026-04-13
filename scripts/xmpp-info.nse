@@ -1,5 +1,5 @@
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -70,7 +70,7 @@ server capabilities.  If possible, studies server vendor.
 
 
 author = "Vasiliy Kulikov"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe", "discovery", "version"}
 
 
@@ -240,7 +240,7 @@ end
 
 local scan = function(host, port, server_name, tls)
   local data, status
-  local client = nmap.new_socket()
+  local client = kmap.new_socket()
   local tls_text
   local stream_id
 
@@ -399,7 +399,7 @@ local scan = function(host, port, server_name, tls)
           port.state = "open"
           port.version.product = hint
           port.version.name_confidence = 10
-          nmap.set_port_version(host, port)
+          kmap.set_port_version(host, port)
         end
 
         -- Funny situation: we have a hash of server capabilities list,
@@ -465,7 +465,7 @@ local server_info = function(host, port, id1, id2)
         port.version.product = v.name
         stdnse.debug1("  " .. v.name)
         port.version.name_confidence = 6
-        nmap.set_port_version(host, port)
+        kmap.set_port_version(host, port)
         break
       end
     end

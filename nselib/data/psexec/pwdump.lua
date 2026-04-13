@@ -1,7 +1,7 @@
 ---This config file is designed for running password-dumping scripts. So far,
 -- it supports pwdump6 2.0.0 and fgdump.
 --
--- Note that none of these modules are included with Nmap by default.
+-- Note that none of these modules are included with Kmap by default.
 
 -- Any variable in the 'config' table in smb-psexec.nse can be overriden in the
 -- 'overrides' table. Most of them are not really recommended, such as the host,

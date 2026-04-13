@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -7,13 +7,13 @@ local tableaux = require "tableaux"
 
 description = [[
 Creates a reverse index at the end of scan output showing which hosts run a
-particular service.  This is in addition to Nmap's normal output listing the
+particular service.  This is in addition to Kmap's normal output listing the
 services on each host.
 ]]
 
 ---
 -- @usage
--- nmap --script reverse-index <hosts/networks>
+-- kmap --script reverse-index <hosts/networks>
 --
 -- @output
 -- Post-scan script results:
@@ -54,7 +54,7 @@ services on each host.
 -- Version 0.1
 -- Created 11/22/2011 - v0.1 - created by Patrik Karlsson
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "safe" }
 
 -- the postrule displays the reverse-index once all hosts are scanned
@@ -66,13 +66,13 @@ hostrule = function() return true end
 hostaction = function(host)
   local names = stdnse.get_script_args(SCRIPT_NAME .. ".names")
   stdnse.debug1("names = %s", names)
-  nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {tcp={}, udp={}}
-  local db = nmap.registry[SCRIPT_NAME]
+  kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {tcp={}, udp={}}
+  local db = kmap.registry[SCRIPT_NAME]
   for _, s in ipairs({"open", "open|filtered"}) do
     for _, p in ipairs({"tcp","udp"}) do
       local port = nil
       while( true ) do
-        port = nmap.get_ports(host, port, p, s)
+        port = kmap.get_ports(host, port, p, s)
         if ( not(port) ) then break  end
         local key = names and port.service or port.number
         if key == "unknown" then
@@ -87,7 +87,7 @@ hostaction = function(host)
 end
 
 postaction = function()
-  local db = nmap.registry[SCRIPT_NAME]
+  local db = kmap.registry[SCRIPT_NAME]
   if ( db == nil ) then
     return nil
   end

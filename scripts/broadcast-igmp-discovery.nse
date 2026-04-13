@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local packet = require "packet"
@@ -36,9 +36,9 @@ interfaces.
 -- @args broadcast-igmp-discovery.mgroupnamesdb Database with multicast group names
 --
 --@usage
--- nmap --script broadcast-igmp-discovery
--- nmap --script broadcast-igmp-discovery -e wlan0
--- nmap --script broadcast-igmp-discovery
+-- kmap --script broadcast-igmp-discovery
+-- kmap --script broadcast-igmp-discovery -e wlan0
+-- kmap --script broadcast-igmp-discovery
 -- --script-args 'broadcast-igmp-discovery.version=all, broadcast-igmp-discovery.timeout=3s'
 --
 --@output
@@ -88,11 +88,11 @@ interfaces.
 
 
 prerule = function()
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
   end
-  if ( not(nmap.is_privileged()) ) then
+  if ( not(kmap.is_privileged()) ) then
     stdnse.verbose1("not running due to lack of privileges.")
     return false
   end
@@ -101,7 +101,7 @@ end
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "broadcast"}
 
@@ -152,15 +152,15 @@ end
 -- @param timeout Amount of time to listen for.
 -- @param responses table to put valid responses into.
 local igmpListener = function(interface, timeout, responses)
-  local condvar = nmap.condvar(responses)
-  local start = nmap.clock_ms()
-  local listener = nmap.new_socket()
+  local condvar = kmap.condvar(responses)
+  local start = kmap.clock_ms()
+  local listener = kmap.new_socket()
   local p, igmp_raw, status, l3data, response, _
   local devices = {}
   listener:set_timeout(100)
   listener:pcap_open(interface.device, 1024, true, 'ip proto 2')
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, _, _, l3data = listener:pcap_receive()
     if status then
       p = packet.Packet:new(l3data, #l3data)
@@ -251,7 +251,7 @@ igmpQuery = function(interface, version)
     igmp_packet:ip_set_len(#igmp_packet.buf)
     igmp_packet:ip_count_checksum()
 
-    local sock = nmap.new_dnet()
+    local sock = kmap.new_dnet()
     sock:ethernet_open(interface.device)
 
     -- Ethernet IPv4 multicast, our ethernet address and type IP
@@ -311,7 +311,7 @@ action = function(host, port)
   local result, grouptable, sourcetable
 
   local group_names_fname = stdnse.get_script_args(SCRIPT_NAME .. ".mgroupnamesdb") or
-  nmap.fetchfile("nselib/data/mgroupnames.db")
+  kmap.fetchfile("nselib/data/mgroupnames.db")
   local mg_names_db = group_names_fname and mgroup_names_fetch(group_names_fname)
 
   local collect_interfaces = function (if_table)
@@ -329,7 +329,7 @@ action = function(host, port)
     lthreads[co] = true
   end
 
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   -- Wait for the listening threads to finish
   repeat
     for thread in pairs(lthreads) do

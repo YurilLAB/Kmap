@@ -12,7 +12,7 @@ Attempts to discover valid IBM Lotus Domino users and download their ID files by
 
 ---
 -- @usage
--- nmap --script domino-enum-users -p 1352 <host>
+-- kmap --script domino-enum-users -p 1352 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -42,7 +42,7 @@ Attempts to discover valid IBM Lotus Domino users and download their ID files by
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 
 

@@ -2,7 +2,7 @@ local io = require "io"
 local string = require "string"
 local stringaux = require "stringaux"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local shortport = require "shortport"
 local brute = require "brute"
@@ -51,8 +51,8 @@ Since most systems will only have one OHOST name, it is recommended to use the
 
 ---
 -- @usage
--- nmap -sV --script=nje-node-brute <target>
--- nmap --script=nje-node-brute --script-args=hostlist=nje_names.txt -p 175 <target>
+-- kmap -sV --script=nje-node-brute <target>
+-- kmap --script=nje-node-brute --script-args=hostlist=nje_names.txt -p 175 <target>
 --
 -- @args nje-node-brute.hostlist The filename of a list of node names to try.
 --                               Defaults to "nselib/data/vhosts-default.lst"
@@ -72,7 +72,7 @@ Since most systems will only have one OHOST name, it is recommended to use the
 -- 2016-03-22 - v0.2 - Added RHOST Brute forcing.
 
 author = "Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({175,2252}, "nje")
@@ -156,8 +156,8 @@ action = function( host, port )
     host.targetname:gsub("[^.]+", function(n) table.insert(names, n) end)
   end
   local filename = stdnse.get_script_args('nje-node-brute.hostlist')
-  filename = (filename and nmap.fetchfile(filename) or filename) or
-    nmap.fetchfile("nselib/data/vhosts-default.lst")
+  filename = (filename and kmap.fetchfile(filename) or filename) or
+    kmap.fetchfile("nselib/data/vhosts-default.lst")
   for l in io.lines(filename) do
     if not l:match("#!comment:") then
       table.insert(names, l)

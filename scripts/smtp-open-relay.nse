@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local smtp = require "smtp"
 local stdnse = require "stdnse"
@@ -15,7 +15,7 @@ be able to send email originating from any third-party email address that they w
 
 The checks are done based in combinations of MAIL FROM and RCPT TO commands. The list is
 hardcoded in the source file. The script will output all the working combinations that the
-server allows if nmap is in verbose mode otherwise the script will print the number of
+server allows if kmap is in verbose mode otherwise the script will print the number of
 successful tests. The script will not output if the server requires authentication.
 
 If debug is enabled and an error occurs while testing the target host, the error will be
@@ -24,7 +24,7 @@ printed with the list of any combinations that were found prior to the error.
 
 ---
 -- @usage
--- nmap --script smtp-open-relay.nse [--script-args smtp-open-relay.domain=<domain>,smtp-open-relay.ip=<address>,...] -p 25,465,587 <host>
+-- kmap --script smtp-open-relay.nse [--script-args smtp-open-relay.domain=<domain>,smtp-open-relay.ip=<address>,...] -p 25,465,587 <host>
 --
 -- @output
 -- Host script results:
@@ -32,7 +32,7 @@ printed with the list of any combinations that were found prior to the error.
 -- |_MAIL FROM:<antispam@insecure.org> -> RCPT TO:<relaytest@insecure.org>
 --
 -- @args smtp.domain or smtp-open-relay.domain Define the domain to be used in the anti-spam tests and EHLO command (default
--- is nmap.scanme.org)
+-- is kmap.scanme.org)
 -- @args smtp-open-relay.ip Use this to change the IP address to be used (default is the target IP address)
 -- @args smtp-open-relay.from Define the source email address to be used (without the domain, default is
 -- antispam)
@@ -45,7 +45,7 @@ printed with the list of any combinations that were found prior to the error.
 --   * Changed "HELO www.[ourdomain]" to "EHLO [ourdomain]"
 --   * Fixed some API differences
 --   * The "ourdomain" variable's contents are used instead of hardcoded "insecure.org". Settable by the user.
---   * Fixed tags -> categories (reported by Jasey DePriest to nmap-dev)
+--   * Fixed tags -> categories (reported by Jasey DePriest to kmap-dev)
 -- 2009-09-20 Duarte Silva <duarte.silva@serializing.me>
 --   * Rewrote the script
 --   + Added documentation and some more comments
@@ -74,7 +74,7 @@ printed with the list of any combinations that were found prior to the error.
 --   * Rewrite the script to use the smtp.lua library.
 
 author = "Arturo 'Buanzo' Busleiman"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive","external"}
 
 
@@ -87,7 +87,7 @@ portrule = shortport.port_or_service({ 25, 465, 587 },
 --@return Domain, from, to and ip to be used in the tests
 function get_parameters(host)
   -- call smtp.get_domain() without the host table to use the
-  -- 'nmap.scanme.org' host name, we are scanning for open relays.
+  -- 'kmap.scanme.org' host name, we are scanning for open relays.
   local domain = stdnse.get_script_args('smtp-open-relay.domain') or
   smtp.get_domain()
 
@@ -274,7 +274,7 @@ action = function(host, port)
         string.format("Server is an open relay (%i/16 tests)",
         (#result)))
 
-      if nmap.verbosity() > 1 then
+      if kmap.verbosity() > 1 then
         for index, test in ipairs(result) do
           table.insert(final, test)
         end

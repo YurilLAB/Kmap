@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -20,7 +20,7 @@ prompts in the "Impress Remote" menu.
 ]]
 
 ---
--- @usage nmap -p 1599 --script impress-remote-discover <host>
+-- @usage kmap -p 1599 --script impress-remote-discover <host>
 --
 -- @output
 -- PORT     STATE SERVICE        Version
@@ -40,7 +40,7 @@ prompts in the "Impress Remote" menu.
 --       <code>0000</code>).
 
 author = "Jer Hiebert"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(1599, "impress-remote", "tcp")
@@ -85,7 +85,7 @@ local function parse_args()
 end
 
 local remote_connect = function(host, port, client_name, pin)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, err = socket:connect(host, port)
   if not status then
     stdnse.debug("Can't connect: %s", err)
@@ -206,7 +206,7 @@ action = function(host, port)
     port.version.product = port.version.product or "LibreOffice Impress remote"
     port.version.version = result["Impress Version"]
     table.insert(port.version.cpe, ("cpe:/a:libreoffice:libreoffice:%s"):format(result["Impress Version"]))
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   end
 
   return result

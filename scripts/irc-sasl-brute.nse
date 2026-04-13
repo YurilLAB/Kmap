@@ -20,7 +20,7 @@ Performs brute force password auditing against IRC (Internet Relay Chat) servers
 
 ---
 -- @usage
--- nmap --script irc-sasl-brute -p 6667 <ip>
+-- kmap --script irc-sasl-brute -p 6667 <ip>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -37,7 +37,7 @@ Performs brute force password auditing against IRC (Internet Relay Chat) servers
 
 
 author = "Piotr Olma"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories={"brute","intrusive"}
 
 portrule = irc.portrule

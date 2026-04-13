@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -51,8 +51,8 @@ license = "BSD-2-Clause Plus Patent License. For further details, please refer h
 categories = {"discovery","info", "safe", "broadcast"}
 
 prerule = function()
-  if not nmap.is_privileged() then
-    stdnse.debug(1, "Nmap is NOT running as privileged.")
+  if not kmap.is_privileged() then
+    stdnse.debug(1, "Kmap is NOT running as privileged.")
     return false
   end
 
@@ -236,9 +236,9 @@ end
 --@param devices table for results
 --@return devices, table with devices which answered to the dcp identify all call
 discoverThread = function(iface, to_ms, pn_dcp, devices)
-  local condvar = nmap.condvar(devices)
-  local dnet = nmap.new_dnet()
-  local pcap_s = nmap.new_socket()
+  local condvar = kmap.condvar(devices)
+  local dnet = kmap.new_dnet()
+  local pcap_s = kmap.new_socket()
   pcap_s:set_timeout(100)
   dnet:ethernet_open(iface.device)
   pcap_s:pcap_open(iface.device, 256, false, ("ether proto 0x%04x"):format(packet.ETHER_TYPE_PROFINET))
@@ -246,8 +246,8 @@ discoverThread = function(iface, to_ms, pn_dcp, devices)
   dnet:ethernet_send(pn_dcp)	-- send the frame
   dnet:ethernet_close();	-- close the sender
 
-  local start = nmap.clock_ms()
-  while (nmap.clock_ms() - start) < to_ms do
+  local start = kmap.clock_ms()
+  while (kmap.clock_ms() - start) < to_ms do
     local status, length, ethData, pn_data = pcap_s:pcap_receive()
 
     if(status) then
@@ -283,7 +283,7 @@ discoverThread = function(iface, to_ms, pn_dcp, devices)
 end
 
 -- main fuction
---@return output_tab table for nmap to show the gathered information
+--@return output_tab table for kmap to show the gathered information
 action = function()
 
   local output_tab = stdnse.output_table()
@@ -311,7 +311,7 @@ action = function()
 
   local threads = {}
 
-  local condvar = nmap.condvar(output_tab)
+  local condvar = kmap.condvar(output_tab)
 
 
   for _, iface in ipairs(interfaces) do

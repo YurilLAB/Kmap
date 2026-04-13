@@ -4,7 +4,7 @@ local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Retrieves disk space statistics and information from a remote NFS share.
@@ -16,8 +16,8 @@ the version used is NFSv3.
 
 ---
 -- @usage
--- nmap -p 111 --script=nfs-statfs <target>
--- nmap -sV --script=nfs-statfs <target>
+-- kmap -p 111 --script=nfs-statfs <target>
+-- kmap -sV --script=nfs-statfs <target>
 -- @output
 -- PORT    STATE SERVICE
 -- | nfs-statfs:
@@ -38,7 +38,7 @@ the version used is NFSv3.
 
 
 author = {"Patrik Karlsson", "Djalal Harouni"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"rpc-grind"}
 
@@ -54,7 +54,7 @@ hostrule = function(host)
     host.registry.nfs = {}
   end
   for _,proto in ipairs({"tcp","udp"}) do
-    local port = nmap.get_ports(host, nil, proto, "open")
+    local port = kmap.get_ports(host, nil, proto, "open")
     while port do
       if port.version then
         if port.service == "mountd" then
@@ -64,7 +64,7 @@ hostrule = function(host)
         end
       end
       if mountport and nfsport then break end
-      port = nmap.get_ports(host, port, proto, "open")
+      port = kmap.get_ports(host, port, proto, "open")
     end
     if mountport and nfsport then break end
   end

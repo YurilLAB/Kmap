@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -15,12 +15,12 @@ message and changes it to the message given.
 -- 9100/tcp open  jetdirect
 -- |_ pjl-ready-message: "READY" changed to "p0wn3d pr1nt3r"
 -- @usage
--- nmap --script=pjl-ready-message.nse \
+-- kmap --script=pjl-ready-message.nse \
 --   --script-args='pjl_ready_message="your message here"'
 
 author = "Aaron Leininger"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive"}
 
@@ -50,16 +50,16 @@ action = function(host, port)
   local rdymsg=""  --string containing text to send to the printer.
   local rdymsgarg=""  --will contain the argument from the command line if one exists
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(15000)
-  local try = nmap.new_try(function() socket:close() end)
+  local try = kmap.new_try(function() socket:close() end)
   try(socket:connect(host, port))
   try(socket:send(statusmsg))  --this block gets the current display status
   local data
   response,data=socket:receive()
   if not response then  --send an initial probe. If no response, send nothing further.
     socket:close()
-    if nmap.verbosity() > 0 then
+    if kmap.verbosity() > 0 then
       return "No response from printer: "..data
     else
       return nil
@@ -68,14 +68,14 @@ action = function(host, port)
 
   status = parse_response(data)
   if not status then
-    if nmap.verbosity() > 0 then
+    if kmap.verbosity() > 0 then
       return "Error reading printer response: "..data
     else
       return nil
     end
   end
 
-  rdymsgarg = nmap.registry.args.pjl_ready_message
+  rdymsgarg = kmap.registry.args.pjl_ready_message
   if not rdymsgarg then
     if status then
       return "\""..status.."\""

@@ -1,6 +1,6 @@
 local datafiles = require "datafiles"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -26,7 +26,7 @@ a <code><link></code> favicon points to a different host or port, it is ignored.
 -- @args favicon.root Web server path to search for favicon.
 --
 -- @usage
--- nmap --script=http-favicon.nse \
+-- kmap --script=http-favicon.nse \
 --    --script-args favicon.root=<root>,favicon.uri=<uri>
 -- @output
 -- |_ http-favicon: Socialtext
@@ -38,7 +38,7 @@ a <code><link></code> favicon points to a different host or port, it is ignored.
 
 author = "Vlatko Kosturjak"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
@@ -107,7 +107,7 @@ action = function(host, port)
     if match then
       result = match
     else
-      if nmap.verbosity() > 0 then
+      if kmap.verbosity() > 0 then
         result = "Unknown favicon MD5: " .. md5sum
       end
     end

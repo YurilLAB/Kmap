@@ -22,13 +22,13 @@
 -- </code>
 --
 -- @author Henri Doreau
--- @copyright Same as Nmap -- See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap -- See https://kmap.org/book/man-legal.html
 --
 -- @args omp2.username The username to use for authentication.
 -- @args omp2.password The password to use for authentication.
 --
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 _ENV = stdnse.module("omp2", stdnse.seeall)
@@ -49,9 +49,9 @@ Session = {
     setmetatable(o, self)
     self.__index = self
 
-    o.username = nmap.registry.args["omp2.username"]
-    o.password = nmap.registry.args["omp2.password"]
-    o.socket = socket or nmap.new_socket()
+    o.username = kmap.registry.args["omp2.username"]
+    o.password = kmap.registry.args["omp2.password"]
+    o.socket = socket or kmap.new_socket()
 
     return o
   end,
@@ -142,15 +142,15 @@ Session = {
 
 --- Registers OMP2 credentials for a given host
 function add_account(host, username, password)
-  if not nmap.registry[host.ip] then
-    nmap.registry[host.ip] = {}
+  if not kmap.registry[host.ip] then
+    kmap.registry[host.ip] = {}
   end
 
-  if not nmap.registry[host.ip]["omp2accounts"] then
-    nmap.registry[host.ip]["omp2accounts"] = {}
+  if not kmap.registry[host.ip]["omp2accounts"] then
+    kmap.registry[host.ip]["omp2accounts"] = {}
   end
 
-  table.insert(nmap.registry[host.ip]["omp2accounts"], {["username"] = username, ["password"] = password})
+  table.insert(kmap.registry[host.ip]["omp2accounts"], {["username"] = username, ["password"] = password})
 end
 
 --- Retrieves the list of accounts for a given host
@@ -158,15 +158,15 @@ function get_accounts(host)
   local accounts = {}
   local username, password
 
-  username = nmap.registry.args["omp2.username"]
-  password = nmap.registry.args["omp2.password"]
+  username = kmap.registry.args["omp2.username"]
+  password = kmap.registry.args["omp2.password"]
 
   if username and password then
     table.insert(accounts, {["username"] = username, ["password"] = password})
   end
 
-  if nmap.registry[host.ip] and nmap.registry[host.ip]["omp2accounts"] then
-    for _, account in pairs(nmap.registry[host.ip]["omp2accounts"]) do
+  if kmap.registry[host.ip] and kmap.registry[host.ip]["omp2accounts"] then
+    for _, account in pairs(kmap.registry[host.ip]["omp2accounts"]) do
       table.insert(accounts, account)
     end
   end

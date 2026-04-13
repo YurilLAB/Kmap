@@ -5,14 +5,14 @@ local stdnse = require "stdnse"
 local table = require "table"
 
 description = [[
-This script queries the Nmap registry for the GPS coordinates of targets stored
+This script queries the Kmap registry for the GPS coordinates of targets stored
 by previous geolocation scripts and produces a KML file of points representing
 the targets.
 ]]
 
 ---
 -- @usage
--- nmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-kml --script-args ip-geolocation-map-kml.map_path=map.kml <target>
+-- kmap -sn -Pn --script ip-geolocation-geoplugin,ip-geolocation-map-kml --script-args ip-geolocation-map-kml.map_path=map.kml <target>
 --
 -- @output
 -- | ip-geolocation-map-kml:
@@ -27,7 +27,7 @@ the targets.
 -- @see ip-geolocation-maxmind.nse
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe"}
 
 local render = function(path)

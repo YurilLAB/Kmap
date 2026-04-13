@@ -3,14 +3,14 @@ Decodes the VSNNUM version number from an Oracle TNS listener.
 ]]
 
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local comm = require "comm"
 local stdnse = require "stdnse"
 local string = require "string"
 local U = require "lpeg-utility"
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"version", "safe"}
 
 portrule = function (host, port)
@@ -22,7 +22,7 @@ portrule = function (host, port)
     )
 end
 
--- Lifted from nmap-service-probes
+-- Lifted from kmap-service-probes
 -- TODO: Figure out if we can send a better probe than this. We might need to
 --       send ADDRESS, CID, etc.
 local oracle_tns_probe = "\0Z\0\0\x01\0\0\0\x016\x01,\0\0\x08\0\x7F\xFF\x7F\x08\0\0\0\x01\0 \0:\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x004\xE6\0\0\0\x01\0\0\0\0\0\0\0\0(CONNECT_DATA=(COMMAND=version))"
@@ -99,6 +99,6 @@ action = function (host, port)
   end
 
   if vsnnum or errno then
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   end
 end

@@ -1,7 +1,7 @@
 Ndiff
 
-Ndiff is a tool to aid in the comparison of Nmap scans. Specifically, it
-takes two Nmap XML output files and prints the differences between them.
+Ndiff is a tool to aid in the comparison of Kmap scans. Specifically, it
+takes two Kmap XML output files and prints the differences between them.
 It is capable of showing changes in host states (up or down), port
 states (open, closed, etc.), script results, and changes in service and
 OS detection.
@@ -16,8 +16,8 @@ Use "ndiff --help" for usage instructions.
 Here is a sample of the output:
 
 $ ./ndiff test-scans/random-1.xml test-scans/random-2.xml
--Nmap 4.85BETA4 at 2009-03-24 17:34
-+Nmap 4.85BETA4 at 2009-03-25 16:35
+-Kmap 4.85BETA4 at 2009-03-24 17:34
++Kmap 4.85BETA4 at 2009-03-25 16:35
 
  10.137.81.38:
  OS details:
@@ -60,4 +60,4 @@ decided to rewrite the program in Python for the sake of Windows
 compatibility. This Python version is written by David Fifield
 <david@bamsoftware.com>.
 
-Ndiff web site: https://nmap.org/ndiff/
+Ndiff web site: https://kmap.org/ndiff/

@@ -1,5 +1,5 @@
-#ifndef NMAP_LUA_NSOCK_H
-#define NMAP_LUA_NSOCK_H
+#ifndef KMAP_LUA_NSOCK_H
+#define KMAP_LUA_NSOCK_H
 
 #include "nse_lua.h"
 

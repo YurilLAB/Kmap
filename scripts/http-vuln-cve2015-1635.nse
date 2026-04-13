@@ -17,9 +17,9 @@ References:
 ]]
 
 ---
--- @usage nmap -sV --script vuln <target>
--- @usage nmap -p80 --script http-vuln-cve2015-1635.nse <target>
--- @usage nmap -sV --script http-vuln-cve2015-1635 --script-args uri='/anotheruri/' <target>
+-- @usage kmap -sV --script vuln <target>
+-- @usage kmap -p80 --script http-vuln-cve2015-1635.nse <target>
+-- @usage kmap -sV --script http-vuln-cve2015-1635 --script-args uri='/anotheruri/' <target>
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 80/tcp open  http    syn-ack
@@ -40,7 +40,7 @@ References:
 ---
 
 author = {"Kl0nEz", "Paulino <calderon()websec.mx>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 portrule = shortport.http

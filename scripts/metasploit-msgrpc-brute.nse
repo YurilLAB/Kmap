@@ -13,7 +13,7 @@ Metasploit msgrpc interface.
 
 ---
 -- @usage
--- nmap --script metasploit-msgrpc-brute -p 55553 <host>
+-- kmap --script metasploit-msgrpc-brute -p 55553 <host>
 --
 -- This script uses brute library to perform password
 -- guessing against Metasploit's msgrpc interface.
@@ -31,7 +31,7 @@ Metasploit msgrpc interface.
 
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(55553,"metasploit-msgrpc")

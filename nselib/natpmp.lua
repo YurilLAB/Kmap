@@ -8,7 +8,7 @@
 --
 local datetime = require "datetime"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 _ENV = stdnse.module("natpmp", stdnse.seeall)
@@ -155,7 +155,7 @@ Helper = {
   end,
 
   exchPacket = function(self, data)
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
     socket:set_timeout(5000)
 
     local status = socket:sendto(self.host, self.port, data)
@@ -209,11 +209,11 @@ Helper = {
     return true, response
   end,
 
-  unmapPort = function(self, pubport, privport)
+  ukmapPort = function(self, pubport, privport)
     return self:mapPort(pubport, privport, 0)
   end,
 
-  unmapAllPorts = function(self)
+  ukmapAllPorts = function(self)
     return self.mapPort(0, 0, 0)
   end,
 

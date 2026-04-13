@@ -1,6 +1,6 @@
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -12,7 +12,7 @@ The script works by sending DNS TXT queries to a DNS server which in
 turn queries a third-party service provided by Team Cymru
 (https://www.team-cymru.org/Services/ip-to-asn.html) using an in-addr.arpa
 style zone set up especially for
-use by Nmap. The responses to these queries contain both Origin and Peer
+use by Kmap. The responses to these queries contain both Origin and Peer
 ASNs and their descriptions, displayed along with the BGP Prefix and
 Country Code. The script caches results to reduce the number of queries
 and should perform a single query for all scanned targets in a BGP
@@ -27,7 +27,7 @@ server (your default DNS server, or whichever one you specified with the
 
 ---
 -- @usage
--- nmap --script asn-query [--script-args dns=<DNS server>] <target>
+-- kmap --script asn-query [--script-args dns=<DNS server>] <target>
 -- @args dns The address of a recursive nameserver to use (optional).
 -- @output
 -- Host script results:
@@ -40,17 +40,17 @@ server (your default DNS server, or whichever one you specified with the
 -- |_     Peer AS: 174 2914 6461
 
 author = {"jah", "Michael Pattrick"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
 
 
 
-local mutex = nmap.mutex( "ASN" )
-if not nmap.registry.asn then
-  nmap.registry.asn = {}
-  nmap.registry.asn.cache = {}
-  nmap.registry.asn.descr = {}
+local mutex = kmap.mutex( "ASN" )
+if not kmap.registry.asn then
+  kmap.registry.asn = {}
+  kmap.registry.asn.cache = {}
+  kmap.registry.asn.descr = {}
 end
 
 
@@ -96,13 +96,13 @@ action = function( host )
 
     ---
     -- Team Cymru zones for rDNS-like queries.  The zones are as follows:
-    -- * nmap.asn.cymru.com for IPv4 to Origin AS lookup.
-    -- * peer-nmap.asn.cymru.com for IPv4 to Peer AS lookup.
-    -- * nmap6.asn.cymru.com for IPv6 to Origin AS lookup.
+    -- * kmap.asn.cymru.com for IPv4 to Origin AS lookup.
+    -- * peer-kmap.asn.cymru.com for IPv4 to Peer AS lookup.
+    -- * kmap6.asn.cymru.com for IPv6 to Origin AS lookup.
     -- @class table
     -- @name cymru
-    local cymru = { [4] = { ".nmap.asn.cymru.com", ".peer-nmap.asn.cymru.com" },
-                    [6] = { ".nmap6.asn.cymru.com" }
+    local cymru = { [4] = { ".kmap.asn.cymru.com", ".peer-kmap.asn.cymru.com" },
+                    [6] = { ".kmap6.asn.cymru.com" }
     }
 
     -- perform queries for each applicable zone
@@ -155,7 +155,7 @@ function check_cache( ip )
   local ret = {}
 
   -- collect any applicable answers
-  for _, cache_entry in ipairs( nmap.registry.asn.cache ) do
+  for _, cache_entry in ipairs( kmap.registry.asn.cache ) do
     if ipOps.ip_in_range( ip, cache_entry.cache_bgp ) then
       ret[#ret+1] = cache_entry
     end
@@ -204,8 +204,8 @@ function ip_to_asn( query )
   options.dtype = "TXT"
   options.retAll = true
   options.sendCount = 1
-  if type( nmap.registry.args.dns ) == "string" and nmap.registry.args.dns ~= "" then
-    options.host = nmap.registry.args.dns
+  if type( kmap.registry.args.dns ) == "string" and kmap.registry.args.dns ~= "" then
+    options.host = kmap.registry.args.dns
     options.port = 53
   end
 
@@ -251,7 +251,7 @@ function result_recog( answers, asn_type, recs, discoverer_ip )
     recs[#recs+1] = t
 
     -- lookup AS descriptions for Origin AS numbers
-    local asn_descr = nmap.registry.asn.descr
+    local asn_descr = kmap.registry.asn.descr
     local u = {}
     if asn_type == "Origin" then
       for num in fields[1]:gmatch( "%d+" ) do
@@ -284,8 +284,8 @@ function asn_description( asn )
   local options = {}
   options.dtype = "TXT"
   options.sendCount = 1
-  if type( nmap.registry.args.dns ) == "string" and nmap.registry.args.dns ~= "" then
-    options.host = nmap.registry.args.dns
+  if type( kmap.registry.args.dns ) == "string" and kmap.registry.args.dns ~= "" then
+    options.host = kmap.registry.args.dns
     options.port = 53
   end
 
@@ -316,12 +316,12 @@ function process_answers( records, output, ip )
 
   -- if records empty and no error message (output) then assume catastrophic dns failure and have all threads fail without trying.
   if #records == 0 and type( output ) ~= "string" then
-    nmap.registry.asn.cache = { {["cache_bgp"] = "0/0"}, {["cache_bgp"] = "::/0"} }
+    kmap.registry.asn.cache = { {["cache_bgp"] = "0/0"}, {["cache_bgp"] = "::/0"} }
     return {}
   end
 
   if #records == 0 and type( output ) == "string" then
-    table.insert( nmap.registry.asn.cache, { ["pointer"] = ip, ["cache_bgp"] = get_assignment( ip, ( ip:match(":") and 48 ) or 29 ) } )
+    table.insert( kmap.registry.asn.cache, { ["pointer"] = ip, ["cache_bgp"] = get_assignment( ip, ( ip:match(":") and 48 ) or 29 ) } )
     return {}
   end
 
@@ -346,7 +346,7 @@ function process_answers( records, output, ip )
 
   -- cache combined records
   for _, rec in pairs( combined_records ) do
-    table.insert( nmap.registry.asn.cache, rec )
+    table.insert( kmap.registry.asn.cache, rec )
   end
 
   return combined_records

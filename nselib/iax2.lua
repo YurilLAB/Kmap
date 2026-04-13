@@ -6,7 +6,7 @@
 --
 
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -241,7 +241,7 @@ Helper = {
   -- @return status true on success, false on failure
   -- @return err message containing error if status is false
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or 5000)
     return self.socket:connect(self.host, self.port)
   end,

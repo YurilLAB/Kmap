@@ -11,8 +11,8 @@ local table = require "table"
 -- o Robert Rowley for the awesome open source cms and README checks
 --   http://www.irvineunderground.org
 --
--- This file is released under the Nmap license; see:
---  https://nmap.org/book/man-legal.html
+-- This file is released under the Kmap license; see:
+--  https://kmap.org/book/man-legal.html
 --
 -- @args http-fingerprints.nikto-db-path Looks at the given path for nikto database.
 --       The database is expected to be a CSV file structured as nikto "db_tests".
@@ -25,7 +25,7 @@ local table = require "table"
 --          * It doesn't support sending additional headers for a probe.
 --       That means, if a nikto fingerprint needs one of the above features, it
 --       won't be loaded. At the time of writing this, 6546 out of the 6573 Nikto
---       fingerprints are being loaded successfully.  This runtime Nikto fingerprint integration was suggested by Nikto co-author Chris Sullo as described at http://seclists.org/nmap-dev/2013/q4/292
+--       fingerprints are being loaded successfully.  This runtime Nikto fingerprint integration was suggested by Nikto co-author Chris Sullo as described at http://seclists.org/kmap-dev/2013/q4/292
 --
 -- Although this format was originally modeled after the Nikto format, that ended
 -- up being too restrictive. The current format is a simple Lua table. There are many
@@ -86,7 +86,7 @@ local table = require "table"
 -- The text to output if this match happens. If the 'match' field contains captures, these
 -- captures can be used with \1, \2, etc.
 --
--- If you have any questions, feel free to email dev@nmap.org or contact Ron Bowes!
+-- If you have any questions, feel free to email dev@kmap.org or contact Ron Bowes!
 --
 -- CHANGELOG:
 -- Added 120 new signatures taken from exploit-db.com archives from July 2009 to July 2011 [Paulino Calderon]
@@ -12761,10 +12761,10 @@ table.insert(fingerprints, {
   });
 
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 nikto_db_path = stdnse.get_script_args("http-fingerprints.nikto-db-path") or "db_tests"
-nikto_db_path = nmap.fetchfile(nikto_db_path) or nikto_db_path
+nikto_db_path = kmap.fetchfile(nikto_db_path) or nikto_db_path
 local f = io.open(nikto_db_path, "r")
 
 if f then

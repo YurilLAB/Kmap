@@ -4,7 +4,7 @@
 -- be sufficient for most purposes.
 --
 -- @author Daniel Miller
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @class module
 -- @name rand
 
@@ -29,7 +29,7 @@ local get_random_bytes
 if have_openssl then
   get_random_bytes = openssl.rand_pseudo_bytes
 else
-  get_random_bytes = require "nmap".get_random_bytes
+  get_random_bytes = require "kmap".get_random_bytes
 end
 
 --- Generate a random string.

@@ -1,5 +1,5 @@
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,7 +10,7 @@ Discovers PC-DUO remote control hosts and gateways running on a LAN by sending a
 
 ---
 -- @usage
--- nmap --script broadcast-pc-duo
+-- kmap --script broadcast-pc-duo
 --
 -- @output
 -- Pre-scan script results:
@@ -24,20 +24,20 @@ Discovers PC-DUO remote control hosts and gateways running on a LAN by sending a
 --       the network interface. (default varies according to timing. -T3 = 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "broadcast", "safe" }
 
 local TIMEOUT = stdnse.parse_timespec(stdnse.get_script_args("broadcast-pc-duo.timeout"))
 
-prerule = function() return ( nmap.address_family() == "inet") end
+prerule = function() return ( kmap.address_family() == "inet") end
 
 -- Sends a UDP probe to the server and processes the response
 -- @param probe table containing a pc-duo probe
 -- @param responses table containing the responses
 local function udpProbe(probe, responses)
 
-  local condvar = nmap.condvar(responses)
-  local socket = nmap.new_socket("udp")
+  local condvar = kmap.condvar(responses)
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(500)
 
   for i=1,2 do
@@ -47,7 +47,7 @@ local function udpProbe(probe, responses)
     end
   end
 
-  local timeout = TIMEOUT or ( 20 / ( nmap.timing_level() + 1 ) )
+  local timeout = TIMEOUT or ( 20 / ( kmap.timing_level() + 1 ) )
   local stime = os.time()
   local hosts = {}
 
@@ -104,7 +104,7 @@ action = function()
   }
 
   local threads, responses = {}, {}
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
 
   -- start a thread for each probe
   for _, p in ipairs(probes) do

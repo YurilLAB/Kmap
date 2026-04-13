@@ -58,7 +58,7 @@
   when combined.</para>
 
   <para>
-  Ncat is our modern reinvention of the venerable Netcat (nc) tool released by Hobbit in 1996.  While Ncat is similar to Netcat in spirit, they don't share any source code.  Instead, Ncat makes use of Nmap's well optimized and tested networking
+  Ncat is our modern reinvention of the venerable Netcat (nc) tool released by Hobbit in 1996.  While Ncat is similar to Netcat in spirit, they don't share any source code.  Instead, Ncat makes use of Kmap's well optimized and tested networking
   libraries.  Compatibility with the original Netcat and some well known variants is maintained
   where it doesn't conflict with Ncat's enhancements or cause
   usability problems.  Ncat adds many capabilities not found in
@@ -177,7 +177,7 @@ the tool? Many of these examples suppose a Unix environment. -->
       <indexterm><primary>GET HTTP method</primary></indexterm>
       <indexterm><primary><option>-C</option> (Ncat option)</primary><secondary>example of</secondary></indexterm>
 <screen>
-$ <userinput>ncat -C scanme.nmap.org 80</userinput>
+$ <userinput>ncat -C scanme.kmap.org 80</userinput>
 <userinput>GET / HTTP/1.0
 
 </userinput>HTTP/1.1 200 OK
@@ -199,7 +199,7 @@ Content-Type: text/html; charset=UTF-8
 
     <para>
     Here we have instructed Ncat to connect to the host
-    scanme.nmap.org<indexterm><primary>scanme.nmap.org</primary></indexterm>
+    scanme.kmap.org<indexterm><primary>scanme.kmap.org</primary></indexterm>
     on port 80, the port for HTTP. The <option>-C</option> option turns
     on CRLF<indexterm><primary>CRLF</primary></indexterm> replacement,
     which replaces any line endings you type with CRLF. CRLF line
@@ -209,7 +209,7 @@ Content-Type: text/html; charset=UTF-8
     <para>
     <userinput>GET / HTTP/1.0</userinput> requests the root document of
     the server; we are retrieving the same document named by the URL
-    http://scanme.nmap.org:80/. The web server responds with a status code
+    http://scanme.kmap.org:80/. The web server responds with a status code
     (<computeroutput>HTTP/1.1 200 OK</computeroutput>), followed by the
     HTTP header and the text of the web page. If you try this with other
     web servers, note that many of them are actually virtual hosts and you
@@ -467,7 +467,7 @@ Content-Type: text/html; charset=UTF-8
     <indexterm><primary><option>--ssl</option> (Ncat option)</primary><secondary>example of</secondary></indexterm>
 <screen>
 $ <userinput>ncat -v --listen --ssl</userinput>
-Ncat ( https://nmap.org/ncat )
+Ncat ( https://kmap.org/ncat )
 Generating a temporary 2048-bit RSA key. Use --ssl-key and --ssl-cert to use a <continuation/>permanent one.
 SHA-1 fingerprint: F0:13:BF:FB:2D:AA:76:88:22:60:3E:17:93:29:3E:0E:6B:92:C0:2F
 </screen>
@@ -609,10 +609,10 @@ SHA-1 fingerprint: F0:13:BF:FB:2D:AA:76:88:22:60:3E:17:93:29:3E:0E:6B:92:C0:2F
   <xref linkend="ncat-ex-lua-exec" xrefstyle="select: label nopage"/>
   shows how to run a program stored in a file called
   <filename>hello-luaexec.lua</filename>. You can find this script - and
-  some other ones - in Nmap's source code package, in
+  some other ones - in Kmap's source code package, in
   <literal>ncat/scripts</literal> directory - the latest versions of the
   scripts can be found in the
-  <ulink role="hidepdf" url="https://svn.nmap.org/nmap/ncat/scripts/">Nmap project public SVN repository</ulink>.
+  <ulink role="hidepdf" url="https://svn.kmap.org/kmap/ncat/scripts/">Kmap project public SVN repository</ulink>.
   Here are the contents of the hello-luaexec.lua file, if you would prefer
   to create the file yourself:
   </para>
@@ -632,7 +632,7 @@ print("Hello, world!")
   <para>
   Now, anyone that connects to our server will see the "Hello, world"
   message. For a script with a bit more capabilities, have a look at
-<ulink role="hidepdf" url="https://svn.nmap.org/nmap/ncat/scripts/conditional.lua">conditional.lua</ulink>.
+<ulink role="hidepdf" url="https://svn.kmap.org/kmap/ncat/scripts/conditional.lua">conditional.lua</ulink>.
   It shows how to create a simple menu, receive some data from the user
   repeatedly and react according to her decisions. You might want to start
   off your experiments with Lua by making changes to this script. Also see
@@ -810,7 +810,7 @@ NCAT_PROTO "TCP"
   <option>-x</option>.<indexterm><primary><option>-x</option> (Ncat option)</primary><see><option>--hex-dump</option></see></indexterm>
   Let's see what happens if we accidentally speak SMTP to an SSH server:
 <screen>
-$ <userinput>ncat -C --hex-dump ssh-hex.log scanme.nmap.org 22</userinput>
+$ <userinput>ncat -C --hex-dump ssh-hex.log scanme.kmap.org 22</userinput>
 SSH-2.0-OpenSSH_4.3
 <userinput>HELO example.com</userinput>
 Protocol mismatch.
@@ -839,12 +839,12 @@ Protocol mismatch.
   and
   <option>--deny</option><indexterm><primary><option>--deny</option> (Ncat option)</primary></indexterm>
   options. Each of these takes a comma-separated list of host
-  specifications. The syntax is almost identical to that recognized by Nmap for
+  specifications. The syntax is almost identical to that recognized by Kmap for
   targets
-  (see <ulink url="https://nmap.org/book/man-target-specification.html">the section called <quote>Target Specification</quote></ulink>).
+  (see <ulink url="https://kmap.org/book/man-target-specification.html">the section called <quote>Target Specification</quote></ulink>).
   <!-- (see <xref linkend="host-discovery-specify-targets"/>). -->
   This includes IPv4 and IPv6 addresses, hostnames, IPv4 octet ranges,
-  and CIDR netmasks. In Ncat (unlike Nmap), CIDR netmasks are supported for IPv6
+  and CIDR netmasks. In Ncat (unlike Kmap), CIDR netmasks are supported for IPv6
   addresses.
   </para>
 
@@ -863,7 +863,7 @@ Protocol mismatch.
   <option>--denyfile</option><indexterm><primary><option>--denyfile</option> (Ncat option)</primary></indexterm>
   to allow or deny a list of host/network specifiers stored in a file. Each line of the
   file contains a specification in one of the forms listed above. Any
-  file acceptable to Nmap's
+  file acceptable to Kmap's
   <option>-iL</option><indexterm><primary><option>-iL</option></primary></indexterm>
   and
   <option>--excludefile</option><indexterm><primary><option>--excludefile</option></primary></indexterm>
@@ -1081,7 +1081,7 @@ Protocol mismatch.
     <option>--source-port</option><indexterm><primary><option>--source-port</option> (Ncat option)</primary></indexterm>
     (<option>-p</option>).<indexterm><primary><option>-p</option> (Ncat option)</primary><see><option>--source-port</option></see></indexterm>
     The <option>-s</option> option only works for locally configured
-    addresses; it doesn't work like Nmap's
+    addresses; it doesn't work like Kmap's
     <option>-S</option><indexterm><primary><option>-S</option></primary></indexterm>
     option. The value of <option>-p</option> is that sometimes firewalls
     will allow traffic that comes from certain source ports (such as 20 or 53).
@@ -1111,7 +1111,7 @@ Protocol mismatch.
     argument that is assumed to be in seconds, unless followed by
     <quote>ms</quote> for milliseconds,
     <quote>s</quote> for seconds, <quote>m</quote> for minutes, or
-    <quote>h</quote> for hours. <quote>30s</quote> means 30 seconds.  This format should already be familiar to Nmap users.
+    <quote>h</quote> for hours. <quote>30s</quote> means 30 seconds.  This format should already be familiar to Kmap users.
     </para>
 
     <para>
@@ -1590,7 +1590,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
     <title>Unwrap SSL</title>
 
     <!-- This trick was suggested by Brandon Enright.
-         https://seclists.org/nmap-dev/2009/q1/379 -->
+         https://seclists.org/kmap-dev/2009/q1/379 -->
     <para>
     Suppose you need to connect to an
     IMAP<indexterm><primary>IMAP</primary></indexterm> server that
@@ -1621,7 +1621,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
     <title>Use SSH Through an Ncat Tunnel</title>
 
     <!-- This trick was suggested by Greg Darke.
-         https://seclists.org/nmap-dev/2009/q1/403 -->
+         https://seclists.org/kmap-dev/2009/q1/403 -->
     <para>
     With Ncat and OpenSSH<indexterm><primary>OpenSSH</primary></indexterm>
     you can SSH to a host behind a NAT<indexterm><primary>network address translation</primary></indexterm>
@@ -1668,14 +1668,14 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
 
   </sect2>
 
-  <sect2 id="ncat-nmap-version">
-    <title>Watch What Nmap's Version Detection is Doing</title>
+  <sect2 id="ncat-kmap-version">
+    <title>Watch What Kmap's Version Detection is Doing</title>
 
     <para>
-    <!-- <xref linkend="vscan"/> tells all about Nmap's version detection
-    system. --> Ncat can show you at a low level what's going on when Nmap
+    <!-- <xref linkend="vscan"/> tells all about Kmap's version detection
+    system. --> Ncat can show you at a low level what's going on when Kmap
     version-scans a service. We'll make a service that only listens and
-    instruct Nmap to use every version probe in the book. Set up Ncat to
+    instruct Kmap to use every version probe in the book. Set up Ncat to
     listen and record a hex dump log. The
     <option>--keep-open</option><indexterm><primary><option>--keep-open</option> (Ncat option)</primary></indexterm>
     option will make Ncat keep listening and accepting more connections
@@ -1695,15 +1695,15 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
     <informalexample>
 <indexterm><primary><option>--version-all</option></primary><secondary>example of</secondary></indexterm>
 <literallayout>
-<command>nmap -d -sV --version-all localhost -p 5200</command>
+<command>kmap -d -sV --version-all localhost -p 5200</command>
 </literallayout>
     </informalexample>
     An except of the hex dump is shown in
-    <xref linkend="ncat-ex-nmap-version" xrefstyle="select: label nopage"/>.
+    <xref linkend="ncat-ex-kmap-version" xrefstyle="select: label nopage"/>.
     </para>
 
-    <example id="ncat-ex-nmap-version">
-      <title>Hex dump of Nmap version detection</title>
+    <example id="ncat-ex-kmap-version">
+      <title>Hex dump of Kmap version detection</title>
 <screen><![CDATA[[0000]   0D 0A 0D 0A                                         ....
 [0000]   47 45 54 20 2F 20 48 54   54 50 2F 31 2E 30 0D 0A   GET / HT TP/1.0..
 [0010]   0D 0A                                               ..
@@ -1722,7 +1722,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
     </example>
 
     <para>
-    At the beginning, Nmap would have sent its
+    At the beginning, Kmap would have sent its
     NULL probe<indexterm><primary>NULL probe</primary></indexterm>,
     which isn't shown in the log file because the NULL probe doesn't
     send anything<!-- (see <xref linkend="vscan-technique"/>)-->. At the top of
@@ -1731,7 +1731,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
     <computeroutput>\r\n\r\n</computeroutput>). After that is our old
     friend the HTTP GET<indexterm><primary>GET HTTP method</primary></indexterm>
     request. Then come all the other probes in the
-    <filename>nmap-service-probes</filename><indexterm><primary><filename>nmap-service-probes</filename></primary></indexterm>
+    <filename>kmap-service-probes</filename><indexterm><primary><filename>kmap-service-probes</filename></primary></indexterm>
     file. In this excerpt are shown probes designed to get a response
     from RPC, DNS, and SMTP.
     </para>
@@ -1860,7 +1860,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
   </variablelist>
 
   <para>
-  Nmap comes with a
+  Kmap comes with a
   <filename>daytime.nse</filename><indexterm><primary><filename>daytime.nse</filename> script</primary></indexterm>
   script that works with the daytime service. Here is its output running
   against Ncat daytime servers on TCP and UDP.
@@ -1870,17 +1870,17 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
   <title><filename>daytime.nse</filename> against an Ncat daytime server</title>
   <indexterm><primary><option>--script</option></primary><secondary>example of</secondary></indexterm>
 <screen>
-# <userinput>nmap -sSU -p 13 --script=daytime localhost</userinput>
-Starting Nmap ( https://nmap.org )
+# <userinput>kmap -sSU -p 13 --script=daytime localhost</userinput>
+Starting Kmap ( https://kmap.org )
 
-Nmap scan report for localhost (127.0.0.1)
+Kmap scan report for localhost (127.0.0.1)
 PORT   STATE SERVICE
 13/tcp open  daytime
 |_daytime: Mon Jan 19 17:43:18 MST 2009
 13/udp open  daytime
 |_daytime: Mon Jan 19 17:43:18 MST 2009
 
-Nmap done: 1 IP address (1 host up) scanned in 0.31 seconds
+Kmap done: 1 IP address (1 host up) scanned in 0.31 seconds
 </screen>
   </example>
 

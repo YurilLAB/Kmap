@@ -55,7 +55,7 @@ I'd need testing equipment, or some :S implementation.
 Completed:
 
 * broadcast-ping
-* nmap lib: get_ttl() and get_payload_info()
+* kmap lib: get_ttl() and get_payload_info()
 * ip-geolocation scripts
 * snmp-interfaces patch related to mac-geolocation
 * mac-geolocation

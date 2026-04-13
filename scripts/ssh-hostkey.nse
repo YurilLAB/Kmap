@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local ssh1 = require "ssh1"
 local ssh2 = require "ssh2"
@@ -18,7 +18,7 @@ Shows SSH hostkeys.
 
 Shows the target SSH server's key fingerprint and (with high enough
 verbosity level) the public key itself.  It records the discovered host keys
-in <code>nmap.registry</code> for use by other scripts.  Output can be
+in <code>kmap.registry</code> for use by other scripts.  Output can be
 controlled with the <code>ssh_hostkey</code> script argument.
 
 You may also compare the retrieved key with the keys in your known-hosts
@@ -30,9 +30,9 @@ gathered keys.
 
 ---
 --@usage
--- nmap host --script ssh-hostkey --script-args ssh_hostkey=full
--- nmap host --script ssh-hostkey --script-args ssh_hostkey=all
--- nmap host --script ssh-hostkey --script-args ssh_hostkey='visual bubble'
+-- kmap host --script ssh-hostkey --script-args ssh_hostkey=full
+-- kmap host --script ssh-hostkey --script-args ssh_hostkey=all
+-- kmap host --script ssh-hostkey --script-args ssh_hostkey='visual bubble'
 --
 --@args ssh_hostkey Controls the output format of keys. Multiple values may be
 -- given, separated by spaces. Possible values are
@@ -135,21 +135,21 @@ gathered keys.
 -- </table>
 
 author = {"Sven Klemm", "Piotr Olma", "George Chatzisofroniou"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe","default","discovery"}
 
 
 portrule = shortport.ssh
 
-postrule = function() return (nmap.registry.sshhostkey ~= nil) end
+postrule = function() return (kmap.registry.sshhostkey ~= nil) end
 
---- put hostkey in the nmap registry for usage by other scripts
---@param host nmap host table
+--- put hostkey in the kmap registry for usage by other scripts
+--@param host kmap host table
 --@param key host key table
 local add_key_to_registry = function( host, key )
-  nmap.registry.sshhostkey = nmap.registry.sshhostkey or {}
-  nmap.registry.sshhostkey[host.ip] = nmap.registry.sshhostkey[host.ip] or {}
-  table.insert( nmap.registry.sshhostkey[host.ip], key )
+  kmap.registry.sshhostkey = kmap.registry.sshhostkey or {}
+  kmap.registry.sshhostkey[host.ip] = kmap.registry.sshhostkey[host.ip] or {}
+  table.insert( kmap.registry.sshhostkey[host.ip], key )
 end
 
 --- check if there is a key in known_hosts file for the host that's being scanned
@@ -266,8 +266,8 @@ local function check_keys(host, keys, f)
 end
 
 --- gather host keys
---@param host nmap host table
---@param port nmap port table of the currently probed port
+--@param host kmap host table
+--@param port kmap port table of the currently probed port
 local function portaction(host, port)
   if port.version.name_confidence < 8 or port.version.name ~= "ssh" then
     -- additional check if version scan was not done or if it doesn't think it's SSH.
@@ -285,7 +285,7 @@ local function portaction(host, port)
   local output_tab = {}
   local keys = {}
   local key
-  local format = nmap.registry.args.ssh_hostkey or "md5"
+  local format = kmap.registry.args.ssh_hostkey or "md5"
   local format_bits = {
     md5 = 1,
     hex = 1, -- compatibility alias for md5
@@ -346,7 +346,7 @@ local function portaction(host, port)
     if format_mask & format_bits.visual ~= 0 then
       table.insert( output, ssh1.fingerprint_visual( key.fingerprint, key.algorithm, key.bits ) )
     end
-    if nmap.verbosity() > 1 or format_mask & format_bits.full ~= 0 then
+    if kmap.verbosity() > 1 or format_mask & format_bits.full ~= 0 then
       table.insert( output, key.full_key )
     end
     setmetatable(out, {
@@ -376,7 +376,7 @@ local function postaction()
   local revmap = {}
 
   -- create a reverse mapping key_fingerprint -> host(s)
-  for ip, keys in pairs(nmap.registry.sshhostkey) do
+  for ip, keys in pairs(kmap.registry.sshhostkey) do
     for _, key in ipairs(keys) do
       local fp = ssh1.fingerprint_hex(key.fingerprint, key.algorithm, key.bits)
       if not hostkeys[fp] then

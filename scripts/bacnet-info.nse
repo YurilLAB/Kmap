@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -20,7 +20,7 @@ http://digitalbond.com
 
 ---
 -- @usage
--- nmap --script bacnet-info -sU -p 47808 <host>
+-- kmap --script bacnet-info -sU -p 47808 <host>
 --
 -- @output
 --47808/udp open  bacnet
@@ -49,12 +49,12 @@ http://digitalbond.com
 
 
 author = {"Stephen Hilt", "Michael Toecker"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version"}
 
 
 --
--- Function to define the portrule as per nmap standards
+-- Function to define the portrule as per kmap standards
 --
 --
 --
@@ -1315,20 +1315,20 @@ function field_size(packet)
 end
 
 ---
---  Function to set the nmap output for the host, if a valid BACNet packet
+--  Function to set the kmap output for the host, if a valid BACNet packet
 --  is received then the output will show that the port is open instead of
 --  <code>open|filtered</code>
 --
--- @param host Host that was passed in via nmap
+-- @param host Host that was passed in via kmap
 -- @param port port that BACNet is running on (Default UDP/47808)
-function set_nmap(host, port)
+function set_kmap(host, port)
 
   --set port Open
   port.state = "open"
   -- set version name to BACNet
   port.version.name = "bacnet"
-  nmap.set_port_version(host, port)
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
 
 end
 
@@ -1469,11 +1469,11 @@ end
 
 ---
 --  Action Function that is used to run the NSE. This function will send the initial query to the
---  host and port that were passed in via nmap. The initial response is parsed to determine if host
+--  host and port that were passed in via kmap. The initial response is parsed to determine if host
 --  is a BACNet device. If it is then more actions are taken to gather extra information.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host, port)
   --set the first query data for sending
   local orig_query = query_codes.object_id
@@ -1481,7 +1481,7 @@ action = function(host, port)
   local to_return = nil
 
   -- create new socket
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   -- Bind to port for niceness with BACNet this may need to be commented out if
   -- scanning more than one host at a time, may fix some issues seen on Windows
   --
@@ -1515,16 +1515,16 @@ action = function(host, port)
     --if the first query resulted in an error
     --
     if( value == 0x50) then
-      -- set the nmap output for the port and version
-      set_nmap(host, port)
+      -- set the kmap output for the port and version
+      set_kmap(host, port)
       -- return that BACNet Error was received
       to_return = "\nBACNet ADPU Type: Error (5) \n\t" .. stdnse.tohex(response)
       --else pull the InstanceNumber and move onto the pulling more information
       --
     else
       to_return = stdnse.output_table()
-      -- set the nmap output for the port and version
-      set_nmap(host, port)
+      -- set the kmap output for the port and version
+      set_kmap(host, port)
 
       -- Vendor Number to Name lookup
       to_return["Vendor ID"] = vendornum_query(sock)

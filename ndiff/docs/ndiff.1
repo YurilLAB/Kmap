@@ -28,13 +28,13 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndiff \- Utility to compare the results of Nmap scans
+ndiff \- Utility to compare the results of Kmap scans
 .SH "SYNOPSIS"
 .HP \w'\fBndiff\fR\ 'u
 \fBndiff\fR [\fIoptions\fR] {\fIa\&.xml\fR} {\fIb\&.xml\fR}
 .SH "DESCRIPTION"
 .PP
-Ndiff is a tool to aid in the comparison of Nmap scans\&. It takes two Nmap XML output files and prints the differences between them\&. The differences observed are:
+Ndiff is a tool to aid in the comparison of Kmap scans\&. It takes two Kmap XML output files and prints the differences between them\&. The differences observed are:
 .sp
 .RS 4
 .ie n \{\
@@ -120,22 +120,22 @@ ndiff\&.dtd
 included in the distribution\&.
 .RE
 .PP
-Any other arguments are taken to be the names of Nmap XML output files\&. There must be exactly two\&.
+Any other arguments are taken to be the names of Kmap XML output files\&. There must be exactly two\&.
 .SH "EXAMPLE"
 .PP
-Let\*(Aqs use Ndiff to compare the output of two Nmap scans that use different options\&. In the first, we\*(Aqll do a fast scan (\fB\-F\fR), which scans fewer ports for speed\&. In the second, we\*(Aqll scan the larger default set of ports, and run an NSE script\&.
+Let\*(Aqs use Ndiff to compare the output of two Kmap scans that use different options\&. In the first, we\*(Aqll do a fast scan (\fB\-F\fR), which scans fewer ports for speed\&. In the second, we\*(Aqll scan the larger default set of ports, and run an NSE script\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-# \fBnmap \-F scanme\&.nmap\&.org \-oX scanme\-1\&.xml\fR
-# \fBnmap \-\-script=html\-title scanme\&.nmap\&.org \-oX scanme\-2\&.xml\fR
+# \fBkmap \-F scanme\&.kmap\&.org \-oX scanme\-1\&.xml\fR
+# \fBkmap \-\-script=html\-title scanme\&.kmap\&.org \-oX scanme\-2\&.xml\fR
 $ \fBndiff \-v scanme\-1\&.xml scanme\-2\&.xml\fR
-\-Nmap 5\&.35DC1 at 2010\-07\-16 12:09
-+Nmap 5\&.35DC1 at 2010\-07\-16 12:13
+\-Kmap 5\&.35DC1 at 2010\-07\-16 12:09
++Kmap 5\&.35DC1 at 2010\-07\-16 12:13
 
- scanme\&.nmap\&.org (64\&.13\&.134\&.52):
+ scanme\&.kmap\&.org (64\&.13\&.134\&.52):
  Host is up\&.
 \-Not shown: 95 filtered ports
 +Not shown: 993 filtered ports
@@ -172,7 +172,7 @@ The
 .PP
 There are two output modes: text and XML\&. Text output is the default, and can also be selected with the
 \fB\-\-text\fR
-option\&. Text output resembles a unified diff of Nmap\*(Aqs normal terminal output\&. Each line is preceded by a character indicating whether and how it changed\&.
+option\&. Text output resembles a unified diff of Kmap\*(Aqs normal terminal output\&. Each line is preceded by a character indicating whether and how it changed\&.
 \-
 means that the line was in the first scan but not in the second;
 +
@@ -191,8 +191,8 @@ is an example of text output\&. Here, port 80 on the host photos\-cache\-snc1\&.
 .RS 4
 .\}
 .nf
-\-Nmap 4\&.85BETA3 at 2009\-03\-15 11:00
-+Nmap 4\&.85BETA4 at 2009\-03\-18 11:00
+\-Kmap 4\&.85BETA3 at 2009\-03\-15 11:00
++Kmap 4\&.85BETA4 at 2009\-03\-18 11:00
 
  photos\-cache\-snc1\&.facebook\&.com (69\&.63\&.178\&.41):
  Host is up\&.
@@ -219,8 +219,8 @@ is an example of text output\&. Here, port 80 on the host photos\-cache\-snc1\&.
 .PP
 XML output, intended to be processed by other programs, is selected with the
 \fB\-\-xml\fR
-option\&. It is based on Nmap\*(Aqs XML output, with a few additional elements to indicate differences\&. The XML document is enclosed in
-\fInmapdiff\fR
+option\&. It is based on Kmap\*(Aqs XML output, with a few additional elements to indicate differences\&. The XML document is enclosed in
+\fIkmapdiff\fR
 and
 \fIscandiff\fR
 elements\&. Host differences are enclosed in
@@ -257,7 +257,7 @@ without a corresponding
 .\}
 .nf
 <?xml version="1\&.0" encoding="UTF\-8"?>
-<nmapdiff version="1">
+<kmapdiff version="1">
   <scandiff>
     <hostdiff>
       <host>
@@ -321,14 +321,14 @@ without a corresponding
       </b>
     </hostdiff>
   </scandiff>
-</nmapdiff>
+</kmapdiff>
 .fi
 .if n \{\
 .RE
 .\}
 .SH "PERIODIC DIFFS"
 .PP
-Using Nmap, Ndiff, cron, and a shell script, it\*(Aqs possible to scan a network daily and get email reports of the state of the network and changes since the previous scan\&.
+Using Kmap, Ndiff, cron, and a shell script, it\*(Aqs possible to scan a network daily and get email reports of the state of the network and changes since the previous scan\&.
 Example\ \&3
 shows the script that ties it together\&.
 .PP
@@ -343,15 +343,15 @@ TARGETS="\fItargets\fR"
 OPTIONS="\-v \-T4 \-F \-sV"
 date=`date +%F`
 cd /root/scans
-nmap $OPTIONS $TARGETS \-oA scan\-$date > /dev/null
+kmap $OPTIONS $TARGETS \-oA scan\-$date > /dev/null
 if [ \-e scan\-prev\&.xml ]; then
         ndiff scan\-prev\&.xml scan\-$date\&.xml > diff\-$date
         echo "*** NDIFF RESULTS ***"
         cat diff\-$date
         echo
 fi
-echo "*** NMAP RESULTS ***"
-cat scan\-$date\&.nmap
+echo "*** KMAP RESULTS ***"
+cat scan\-$date\&.kmap
 ln \-sf scan\-$date\&.xml scan\-prev\&.xml
 .fi
 .if n \{\
@@ -411,12 +411,12 @@ The exit code indicates whether the scans are equal\&.
 .SH "BUGS"
 .PP
 Report bugs to the
-nmap\-dev
+kmap\-dev
 mailing list at
-<dev@nmap\&.org>\&.
+<dev@kmap\&.org>\&.
 .SH "HISTORY"
 .PP
-Ndiff started as a project by Michael Pattrick during the 2008 Google Summer of Code\&. Michael designed the program and led the discussion of its output formats\&. He wrote versions of the program in Perl and C++, but the summer ended shortly after it was decided to rewrite the program in Python for the sake of Windows (and Zenmap) compatibility\&. This Python version was written by David Fifield\&. James Levine
+Ndiff started as a project by Michael Pattrick during the 2008 Google Summer of Code\&. Michael designed the program and led the discussion of its output formats\&. He wrote versions of the program in Perl and C++, but the summer ended shortly after it was decided to rewrite the program in Python for the sake of Windows (and Zekmap) compatibility\&. This Python version was written by David Fifield\&. James Levine
 \m[blue]\fBreleased\fR\m[]\&\s-2\u[1]\d\s+2
 a Perl script named Ndiff with similar functionality in 2000\&.
 .SH "AUTHORS"
@@ -428,10 +428,10 @@ Michael Pattrick
 <mpattrick@rhinovirus\&.org>
 .SH "WEB SITE"
 .PP
-\m[blue]\fB\%https://nmap.org/ndiff/\fR\m[]
+\m[blue]\fB\%https://kmap.org/ndiff/\fR\m[]
 .SH "NOTES"
 .IP " 1." 4
 released
 .RS 4
-\%https://seclists.org/nmap-hackers/2000/315
+\%https://seclists.org/kmap-hackers/2000/315
 .RE

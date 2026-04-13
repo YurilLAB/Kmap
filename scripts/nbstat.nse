@@ -1,6 +1,6 @@
 local datafiles = require "datafiles"
 local netbios = require "netbios"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -15,7 +15,7 @@ owns.
 
 ---
 -- @usage
--- sudo nmap -sU --script nbstat.nse -p137 <host>
+-- sudo kmap -sU --script nbstat.nse -p137 <host>
 --
 -- @output
 -- Host script results:
@@ -79,7 +79,7 @@ owns.
 
 
 author = {"Brandon Enright", "Ron Bowes"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 -- Current version of this script was based entirely on Implementing CIFS, by
 -- Christopher R. Hertel.
@@ -94,13 +94,13 @@ hostrule = function(host)
   -- big deal and that it should be done for every host.  In that case
   -- simply change this rule to always return true.
 
-  local port_t135 = nmap.get_port_state(host,
+  local port_t135 = kmap.get_port_state(host,
     {number=135, protocol="tcp"})
-  local port_t139 = nmap.get_port_state(host,
+  local port_t139 = kmap.get_port_state(host,
     {number=139, protocol="tcp"})
-  local port_t445 = nmap.get_port_state(host,
+  local port_t445 = kmap.get_port_state(host,
     {number=445, protocol="tcp"})
-  local port_u137 = nmap.get_port_state(host,
+  local port_u137 = kmap.get_port_state(host,
     {number=137, protocol="udp"})
 
   return (port_t135 ~= nil and port_t135.state == "open") or
@@ -163,7 +163,7 @@ action = function(host)
       workstation_name = workstation_name,
       mac = mac.address
     }
-    -- Samba doesn't set the Mac address, and nmap-mac-prefixes shows that as Xerox
+    -- Samba doesn't set the Mac address, and kmap-mac-prefixes shows that as Xerox
     if(mac.address == "00:00:00:00:00:00") then
       mac.address = "<unknown>"
       mac.manuf = "unknown"
@@ -227,10 +227,10 @@ action = function(host)
       -- Normal single-line result
       local ret = {string.format("NetBIOS name: %s, NetBIOS user: %s, NetBIOS MAC: %s", t.server_name or t.workstation_name, t.user, t.mac)}
       -- If verbosity is set, dump the whole list of names
-      if nmap.verbosity() >= 1 then
+      if kmap.verbosity() >= 1 then
         table.insert(ret, string.format("Names:\n%s",t.names))
         -- If super verbosity is set, print out the full statistics
-        if nmap.verbosity() >= 2 then
+        if kmap.verbosity() >= 2 then
           -- Indent Statistics table by 2 spaces
           table.insert(ret, string.format("Statistics:\n  %s",table.concat(t.statistics,"\n  ")))
         end

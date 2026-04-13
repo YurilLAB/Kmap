@@ -1,5 +1,5 @@
 local datafiles = require "datafiles"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -26,7 +26,7 @@ http://code.google.com/p/tftptheft/.
 ]]
 
 ---
--- @usage nmap -sU -p 69 --script tftp-enum.nse --script-args tftp-enum.filelist=customlist.txt <host>
+-- @usage kmap -sU -p 69 --script tftp-enum.nse --script-args tftp-enum.filelist=customlist.txt <host>
 --
 -- @args filelist - file name with list of filenames to enumerate at tftp server
 --
@@ -37,7 +37,7 @@ http://code.google.com/p/tftptheft/.
 -- |_  bootrom.ld
 
 author = "Alexander Rudakov"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "discovery", "intrusive" }
 
 
@@ -123,7 +123,7 @@ local check_file_present = function(host, port, filename)
   local file_request = create_tftp_file_request(filename)
 
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:connect(host, port)
   local status, lhost, lport, rhost, rport = socket:get_info()
   stdnse.debug1("lhost: %s, lport: %s", lhost, lport);
@@ -136,7 +136,7 @@ local check_file_present = function(host, port, filename)
   end
 
 
-  local bind_socket = nmap.new_socket("udp")
+  local bind_socket = kmap.new_socket("udp")
   stdnse.debug1("local port = %d", lport)
 
   socket:send(file_request)
@@ -196,7 +196,7 @@ action = function(host, port)
   stdnse.debug1("tftp detected")
 
   port.service = "tftp"
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local results = {}
   local filenames = generate_filenames(host)

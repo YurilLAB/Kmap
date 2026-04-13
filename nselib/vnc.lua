@@ -18,7 +18,7 @@
 --     - This class contains the core functions needed to communicate with VNC
 --
 
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 
 -- Version 0.1
@@ -26,7 +26,7 @@
 
 local bits = require "bits"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -148,7 +148,7 @@ VNC = {
     local o = {
       host = host,
       port = port,
-      socket = socket or nmap.new_socket(),
+      socket = socket or kmap.new_socket(),
     }
     o.socket:set_timeout(5000)
     setmetatable(o, self)

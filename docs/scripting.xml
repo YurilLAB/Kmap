@@ -1,17 +1,17 @@
-<chapter id="nse"><title>Nmap Scripting Engine</title>
-<indexterm class="startofrange" id="nse-indexterm"><primary>Nmap Scripting Engine (NSE)</primary></indexterm>
-<indexterm><primary>scripting</primary><see>Nmap Scripting Engine</see></indexterm>
-<indexterm><primary>NSE</primary><see>Nmap Scripting Engine</see></indexterm>
+<chapter id="nse"><title>Kmap Scripting Engine</title>
+<indexterm class="startofrange" id="nse-indexterm"><primary>Kmap Scripting Engine (NSE)</primary></indexterm>
+<indexterm><primary>scripting</primary><see>Kmap Scripting Engine</see></indexterm>
+<indexterm><primary>NSE</primary><see>Kmap Scripting Engine</see></indexterm>
 
 <sect1 id="nse-intro">
     <title>Introduction</title>
 
-    <para>The Nmap Scripting Engine (NSE) is one of Nmap's most
+    <para>The Kmap Scripting Engine (NSE) is one of Kmap's most
     powerful and flexible features.  It allows users to write (and
     share) simple scripts to automate a wide variety of networking
     tasks.  Those scripts are then executed in parallel with the speed
-    and efficiency you expect from Nmap.  Users can rely on the
-    growing and diverse set of scripts distributed with Nmap, or write
+    and efficiency you expect from Kmap.  Users can rely on the
+    growing and diverse set of scripts distributed with Kmap, or write
     their own to meet custom needs.</para>
 
     <para>We designed NSE to be versatile, with the following tasks in mind:</para>
@@ -20,7 +20,7 @@
       <varlistentry>
         <term>Network discovery</term>
         <listitem>
-          <para>This is Nmap's bread and butter. Examples include
+          <para>This is Kmap's bread and butter. Examples include
            looking up whois data based on the target domain,
            querying ARIN, RIPE, or APNIC for the target IP to determine ownership,
            performing identd lookups on open ports, SNMP queries, and
@@ -33,14 +33,14 @@
         <indexterm><primary>version detection</primary><secondary>using NSE</secondary></indexterm>
         More sophisticated version detection</term>
         <listitem>
-          <para>The Nmap version detection system (<xref linkend="vscan"/>)
+          <para>The Kmap version detection system (<xref linkend="vscan"/>)
        is able to recognize thousands of different services through
        its probe and regular expression signature based matching system, but it
        cannot recognize everything.  For example, identifying the Skype v2 service requires two
-       independent probes, which version detection isn't flexible enough to handle.  Nmap could also recognize more SNMP services
+       independent probes, which version detection isn't flexible enough to handle.  Kmap could also recognize more SNMP services
        if it tried a few hundred different community names by brute
        force.  Neither of these tasks are well suited to traditional
-       Nmap version detection, but both are easily accomplished with
+       Kmap version detection, but both are easily accomplished with
        NSE.  For these reasons, version detection now calls NSE by
        default to handle some tricky services.  This is described in
        <xref linkend="nse-vscan"/>.</para>
@@ -55,11 +55,11 @@
 
           <para>When a new vulnerability is discovered, you often want
        to scan your networks quickly to identify vulnerable systems
-       before the bad guys do.  While Nmap isn't a
+       before the bad guys do.  While Kmap isn't a
        comprehensive <ulink role="hidepdf" url="https://sectools.org/vuln-scanners.html">vulnerability scanner</ulink>,
        NSE is powerful enough to handle even demanding vulnerability
        checks. When the Heartbleed bug affected hundreds of thousands of
-       systems worldwide, Nmap's developers responded with the
+       systems worldwide, Kmap's developers responded with the
        <literal>ssl-heartbleed</literal> detection script within 2 days.
        Many vulnerability detection scripts are already available and we plan to distribute more as they are written.
        </para>
@@ -72,7 +72,7 @@
           <para>
 	   Many attackers and some automated worms leave backdoors to
 	   enable later reentry.  Some of these can be detected by
-     Nmap's regular expression based version detection, but more complex worms
+     Kmap's regular expression based version detection, but more complex worms
      and backdoors require NSE's advanced capabilities to reliably detect.
      NSE has been used to detect the Double Pulsar NSA backdoor in SMB and
      backdoored versions of UnrealIRCd, vsftpd, and ProFTPd.
@@ -90,21 +90,21 @@
 	   for some people (particularly
 	   penetration testers),<indexterm><primary>penetration testing</primary></indexterm>
            though we aren't
-	   planning to turn Nmap into an exploitation framework such as
+	   planning to turn Kmap into an exploitation framework such as
 	   <ulink url="http://www.metasploit.com">Metasploit</ulink>.<indexterm><primary><application>Metasploit</application></primary></indexterm>
        </para>
         </listitem>
       </varlistentry>
     </variablelist>
     <para>
-      These listed items were our initial goals, and we expect Nmap
+      These listed items were our initial goals, and we expect Kmap
       users to come up with even more inventive uses for NSE.
     </para>
 
     <para>
       Scripts are written in the
       embedded
-      <ulink url="https://lua.org/">Lua programming language</ulink>, version 5.4.<indexterm><primary>Lua programming language</primary><seealso>Nmap Scripting Engine</seealso></indexterm>
+      <ulink url="https://lua.org/">Lua programming language</ulink>, version 5.4.<indexterm><primary>Lua programming language</primary><seealso>Kmap Scripting Engine</seealso></indexterm>
       The language itself is well documented in the books
 <web>
       <citetitle><ulink url="http://www.amazon.com/dp/8590379868?tag=secbks-20">Programming
@@ -123,13 +123,13 @@ The reference manual, updated for Lua 5.4, is also
       <ulink url="https://lua.org/pil/">first edition of <citetitle>Programming in
   Lua</citetitle></ulink>. Given the availability of these excellent general
       Lua programming references, this document only covers aspects and
-      extensions specific to Nmap's scripting engine.
+      extensions specific to Kmap's scripting engine.
     </para>
     <para>
 
       NSE is activated with the <option>-sC</option> option (or
       <option>--script</option> if you wish to specify a custom set of
-      scripts) and results are integrated into Nmap
+      scripts) and results are integrated into Kmap
       normal<indexterm><primary>normal output</primary></indexterm>
       and XML output.<indexterm><primary>XML output</primary></indexterm>
     </para>
@@ -143,14 +143,14 @@ The reference manual, updated for Lua 5.4, is also
       script producing output in this example
       is <literal>smb-os-discovery</literal>, which collects a variety of
       information from SMB servers.<indexterm><primary>script names, examples
-      of</primary></indexterm>  Nmap discovered all of this information in a third of a second.</para>
+      of</primary></indexterm>  Kmap discovered all of this information in a third of a second.</para>
 
 <example id="nse-ex1"><title>Typical NSE output</title><indexterm><primary><option>-sC</option></primary><secondary>example of</secondary></indexterm>
 <screen>
-# <userinput>nmap -sC -p22,111,139 -T4 localhost</userinput>
+# <userinput>kmap -sC -p22,111,139 -T4 localhost</userinput>
 
-Starting Nmap ( https://nmap.org )
-Nmap scan report for flog (127.0.0.1)
+Starting Kmap ( https://kmap.org )
+Kmap scan report for flog (127.0.0.1)
 PORT     STATE SERVICE
 22/tcp   open  ssh
 | ssh-hostkey: 1024 b1:36:0d:3f:50:dc:13:96:b2:6e:34:39:0d:9b:1a:38 (DSA)
@@ -167,12 +167,12 @@ Host script results:
 | LAN Manager: Samba 3.0.31-0.fc8
 |_Name: WORKGROUP
 
-Nmap done: 1 IP address (1 host up) scanned in 0.33 seconds
+Kmap done: 1 IP address (1 host up) scanned in 0.33 seconds
 </screen>
 </example>
 
 <para>A 38-minute video introduction to NSE is available at
-<ulink url="https://nmap.org/presentations/BHDC10/"/>.  This
+<ulink url="https://kmap.org/presentations/BHDC10/"/>.  This
 presentation was given by Fyodor and David Fifield at Defcon and the
 Black Hat Briefings in 2010.</para>
 
@@ -268,7 +268,7 @@ Black Hat Briefings in 2010.</para>
             Use the
             <varname>newtargets</varname><indexterm><primary><varname>newtargets</varname> script argument</primary></indexterm>
             script argument to allow these scripts to automatically add the
-            hosts they discover to the Nmap scanning queue.</para>
+            hosts they discover to the Kmap scanning queue.</para>
           </listitem>
         </varlistentry>
 
@@ -278,7 +278,7 @@ Black Hat Briefings in 2010.</para>
             <option>brute</option>
           </term>
           <listitem>
-            <para>These scripts use brute force attacks to guess authentication credentials of a remote server.  Nmap contains scripts for brute forcing dozens of protocols, including <literal>http-brute</literal>, <literal>oracle-brute</literal>, <literal>snmp-brute</literal>, etc.</para>
+            <para>These scripts use brute force attacks to guess authentication credentials of a remote server.  Kmap contains scripts for brute forcing dozens of protocols, including <literal>http-brute</literal>, <literal>oracle-brute</literal>, <literal>snmp-brute</literal>, etc.</para>
           </listitem>
         </varlistentry>
 
@@ -316,7 +316,7 @@ Black Hat Briefings in 2010.</para>
 
         <varlistentry>
         <term>Verbosity</term>
-        <listitem><para>Nmap output is used for a wide variety of
+        <listitem><para>Kmap output is used for a wide variety of
         purposes and needs to be readable and concise.  A script which
         frequently produces pages full of output should not be added
         to the <literal>default</literal> category.  When there is no
@@ -465,7 +465,7 @@ Black Hat Briefings in 2010.</para>
 	      which weren't designed to crash services, use large
 	      amounts of network bandwidth or other resources, or
 	      exploit security holes are categorized as <literal>safe</literal>. These are less likely to offend
-	      remote administrators, though (as with all other Nmap
+	      remote administrators, though (as with all other Kmap
 	      features) we cannot guarantee that they won't ever cause
 	      adverse reactions.  Most of these perform general
               network discovery. Examples are
@@ -521,18 +521,18 @@ Black Hat Briefings in 2010.</para>
       <varlistentry>
         <term>Prerule scripts</term>
         <listitem>
-          <para>These scripts run before any of Nmap's scan phases, so
-          Nmap has not collected any information about its targets
+          <para>These scripts run before any of Kmap's scan phases, so
+          Kmap has not collected any information about its targets
           yet.  They can be useful for tasks which don't depend on
           specific scan targets, such as performing network broadcast
           requests to query DHCP and DNS SD servers.  Some of these
-          scripts can generate new targets for Nmap to scan (only if
+          scripts can generate new targets for Kmap to scan (only if
           you specify
-          the <ulink url="https://nmap.org/nsedoc/lib/target.html">newtargets</ulink>
+          the <ulink url="https://kmap.org/nsedoc/lib/target.html">newtargets</ulink>
           NSE argument).  For example, <ulink role="hidepdf"
-          url="https://nmap.org/nsedoc/scripts/dns-zone-transfer.html">dns-zone-transfer</ulink>
+          url="https://kmap.org/nsedoc/scripts/dns-zone-transfer.html">dns-zone-transfer</ulink>
           can obtain a list of IPs in a domain using a zone transfer
-          request and then automatically add them to Nmap's scan
+          request and then automatically add them to Kmap's scan
           target list.  Prerule scripts can be identified by containing a <literal>prerule</literal> function (see <xref linkend="nse-format-rules"/>).
           </para>
         </listitem>
@@ -542,17 +542,17 @@ Black Hat Briefings in 2010.</para>
       <varlistentry>
         <term>Host scripts</term>
         <listitem>
-          <para>Scripts in this phase run during Nmap's normal
-          scanning process after Nmap has performed host discovery,
+          <para>Scripts in this phase run during Kmap's normal
+          scanning process after Kmap has performed host discovery,
           port scanning, version detection, and OS detection against
           the target host.  This type of script is invoked once
           against each target host which matches
           its <literal>hostrule</literal> function.  Examples
           are <ulink role="hidepdf"
-          url="https://nmap.org/nsedoc/scripts/whois-ip.html">whois-ip</ulink>,
+          url="https://kmap.org/nsedoc/scripts/whois-ip.html">whois-ip</ulink>,
           which looks up ownership information for a target IP,
           and <ulink role="hidepdf"
-          url="https://nmap.org/nsedoc/scripts/path-mtu.html">path-mtu</ulink>
+          url="https://kmap.org/nsedoc/scripts/path-mtu.html">path-mtu</ulink>
           which tries to determine the maximum IP packet size which
           can reach the target without requiring fragmentation.
           </para>
@@ -563,11 +563,11 @@ Black Hat Briefings in 2010.</para>
         <term>Service scripts</term>
         <listitem>
           <para>These scripts run against specific services listening
-          on a target host.  For example, Nmap includes more than 15
+          on a target host.  For example, Kmap includes more than 15
           http service scripts to run against web servers.  If a host
           has web servers running on multiple ports, those scripts may
           run multiple times (one for each port).  These are the most
-          commong Nmap script type, and they are distinguished by
+          commong Kmap script type, and they are distinguished by
           containing a <literal>portrule</literal> function for
           deciding which detected services a script should run
           against.
@@ -579,16 +579,16 @@ Black Hat Briefings in 2010.</para>
         <term>Postrule scripts</term>
         <listitem>
 
-          <para>These scripts run after Nmap has scanned all of its
+          <para>These scripts run after Kmap has scanned all of its
           targets.  They can be useful for formatting and presenting
-          Nmap output.  For example, <ulink role="hidepdf"
-          url="https://nmap.org/nsedoc/scripts/ssh-hostkey.html">ssh-hostkey</ulink>
+          Kmap output.  For example, <ulink role="hidepdf"
+          url="https://kmap.org/nsedoc/scripts/ssh-hostkey.html">ssh-hostkey</ulink>
           is best known for its service (portrule) script which
           connects to SSH servers, discovers their public keys, and
           prints them.  But it also includes a postrule which checks
           for duplicate keys amongst all of the hosts scanned, then
           prints any that are found.  Another potential use for a
-          postrule script is printing a reverse-index of the Nmap
+          postrule script is printing a reverse-index of the Kmap
           output&mdash;showing which hosts run a particular service
           rather than just listing the services on each host.
           Postrule scripts are identified by containing a
@@ -637,7 +637,7 @@ categories, and directories. Each element in the list may also be a
 Boolean expression describing a more complex set of scripts. Each
 element is interpreted first as an expression, then as a category, and
 finally as a file or directory name. The special argument
-<literal>all</literal> makes every script in Nmap's script database
+<literal>all</literal> makes every script in Kmap's script database
 eligible to run.  The <literal>all</literal> argument should be used with caution as NSE may contain dangerous scripts including exploits, brute force authentication crackers, and denial of service attacks.
 </para>
 
@@ -648,9 +648,9 @@ regardless of the conditions in their <literal>portrule</literal> or
 <literal>hostrule</literal> functions.  This is generally only done by
 advanced users in special cases.  For example, you might want to do a
 configuration review on a bunch of MS SQL servers, some of which are
-running on nonstandard ports.  Rather than slow the Nmap scan by
+running on nonstandard ports.  Rather than slow the Kmap scan by
 running extensive version detection (<option>-sV
---version-all</option>) so that Nmap will recognize the <literal>ms-sql</literal>
+--version-all</option>) so that Kmap will recognize the <literal>ms-sql</literal>
 service, you can force the <literal>ms-sql-config</literal> script to run against all the
 targeted hosts and ports by specifying <option>--script
 +ms-sql-config</option>.</para>
@@ -663,20 +663,20 @@ found:
 <indexterm><primary>data files</primary><secondary>directory search order</secondary></indexterm><indexterm><primary>scripts, location of</primary></indexterm>
 <simplelist>
 <member><option>--datadir</option></member>
-<member><envar>$NMAPDIR</envar><indexterm><primary><envar>NMAPDIR</envar> environment variable</primary></indexterm></member>
-<member><filename>~/.nmap</filename> (not searched on Windows)<indexterm><primary sortas="nmap directory"><filename>.nmap</filename> directory</primary></indexterm></member>
-<member><filename><replaceable>APPDATA</replaceable>\nmap</filename> (only on Windows)<indexterm><primary sortas="nmap directory"><filename>.nmap</filename> directory</primary></indexterm></member>
-<member>the directory containing the <filename>nmap</filename>
+<member><envar>$KMAPDIR</envar><indexterm><primary><envar>KMAPDIR</envar> environment variable</primary></indexterm></member>
+<member><filename>~/.kmap</filename> (not searched on Windows)<indexterm><primary sortas="kmap directory"><filename>.kmap</filename> directory</primary></indexterm></member>
+<member><filename><replaceable>APPDATA</replaceable>\kmap</filename> (only on Windows)<indexterm><primary sortas="kmap directory"><filename>.kmap</filename> directory</primary></indexterm></member>
+<member>the directory containing the <filename>kmap</filename>
 executable</member>
-<member>the directory containing the <filename>nmap</filename>
-executable, followed by <filename>../share/nmap</filename> (not searched on Windows)</member>
-<member><varname>NMAPDATADIR</varname><indexterm><primary><varname>NMAPDATADIR</varname></primary></indexterm> (not searched on Windows)</member>
+<member>the directory containing the <filename>kmap</filename>
+executable, followed by <filename>../share/kmap</filename> (not searched on Windows)</member>
+<member><varname>KMAPDATADIR</varname><indexterm><primary><varname>KMAPDATADIR</varname></primary></indexterm> (not searched on Windows)</member>
 <member>the current directory.</member>
 </simplelist>
 </para>
 
 <para>
-When a directory name ending in <literal>/</literal> is given, Nmap loads every file in the directory
+When a directory name ending in <literal>/</literal> is given, Kmap loads every file in the directory
 whose name ends with <filename>.nse</filename>. All other files are
 ignored and directories are not searched recursively. When a filename is
 given, it does not have to have the <filename>.nse</filename> extension;
@@ -689,14 +689,14 @@ explanation of the <option>--script</option> option.
 </para>
 
 <indexterm><primary>script database</primary><see><filename>script.db</filename></see></indexterm>
-<para>Nmap scripts are stored in a <filename>scripts</filename>
-subdirectory of the Nmap data directory by default (see
+<para>Kmap scripts are stored in a <filename>scripts</filename>
+subdirectory of the Kmap data directory by default (see
 <xref linkend="data-files"/>). For efficiency, scripts are indexed in
 a database stored
 in <filename>scripts/script.db</filename>,<indexterm><primary><filename>script.db</filename></primary></indexterm>
 which lists the category or categories in which each script belongs.
 The argument <literal>all</literal> will execute all scripts in the
-Nmap script database, but should be used cautiously since Nmap may contain exploits, denial of service attacks, and other dangerous scripts.</para>
+Kmap script database, but should be used cautiously since Kmap may contain exploits, denial of service attacks, and other dangerous scripts.</para>
           </listitem>
         </varlistentry>
 
@@ -733,37 +733,37 @@ Nmap script database, but should be used cautiously since Nmap may contain explo
           <listitem>
             <para>
             Shows help about scripts. For each script matching the given
-            specification, Nmap prints the script name, its categories, and its
+            specification, Kmap prints the script name, its categories, and its
             description. The specifications are the same as those accepted by
             <option>--script</option>; so for example if you want help about
             the <literal>ssl-enum-ciphers</literal> script, you would run
-            <command>nmap --script-help ssl-enum-ciphers</command>. A sample of script
+            <command>kmap --script-help ssl-enum-ciphers</command>. A sample of script
             help is shown in <xref linkend="nse-script-help"/>.
             </para>
             <example id="nse-script-help">
               <indexterm><primary><option>--script-help</option></primary><secondary>example of</secondary></indexterm>
               <title>Script help</title>
 <screen>
-$ nmap --script-help "afp-* and discovery"
+$ kmap --script-help "afp-* and discovery"
 
-Starting Nmap 7.40 ( https://nmap.org ) at 2017-04-21 14:15 UTC
+Starting Kmap 7.40 ( https://kmap.org ) at 2017-04-21 14:15 UTC
 
 afp-ls
 Categories: discovery safe
-https://nmap.org/nsedoc/scripts/afp-ls.html
+https://kmap.org/nsedoc/scripts/afp-ls.html
   Attempts to get useful information about files from AFP volumes.
   The output is intended to resemble the output of <code>ls</code>.
 
 afp-serverinfo
 Categories: default discovery safe
-https://nmap.org/nsedoc/scripts/afp-serverinfo.html
+https://kmap.org/nsedoc/scripts/afp-serverinfo.html
   Shows AFP server information. This information includes the server's
   hostname, IPv4 and IPv6 addresses, and hardware type (for example
   <code>Macmini</code> or <code>MacBookPro</code>).
 
 afp-showmount
 Categories: discovery safe
-https://nmap.org/nsedoc/scripts/afp-showmount.html
+https://kmap.org/nsedoc/scripts/afp-showmount.html
   Shows AFP shares and ACLs.
 </screen>
             </example>
@@ -808,20 +808,20 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
 
             <para>This option updates the script database found
             in <filename>scripts/script.db</filename> which is used by
-            Nmap to determine the available default scripts and
+            Kmap to determine the available default scripts and
             categories. It is only necessary to update the database if
             you have added or removed NSE scripts from the
             default <filename>scripts</filename> directory or if you
             have changed the categories of any script.  This option is
             used by
-            itself without arguments: <command>nmap --script-updatedb</command>.</para>
+            itself without arguments: <command>kmap --script-updatedb</command>.</para>
 
           </listitem>
         </varlistentry>
       </variablelist>
 
       <para>
-        Some other Nmap options have effects on script scans. The most
+        Some other Kmap options have effects on script scans. The most
         prominent of these is
 	<option>-sV</option>.<indexterm><primary><option>-sV</option></primary></indexterm>
         A version scan automatically executes
@@ -838,7 +838,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
       <para>
         Another option which affects the scripting engine is
 	<option>-A</option>.<indexterm><primary><option>-A</option></primary><secondary>features enabled by</secondary></indexterm>
-        The aggressive Nmap mode implies
+        The aggressive Kmap mode implies
 	the <option>-sC</option> option.
       </para>
 
@@ -859,14 +859,14 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
 
       <variablelist>
         <varlistentry>
-          <term><command>nmap --script default,safe</command></term>
+          <term><command>kmap --script default,safe</command></term>
           <listitem>
           <para>Loads all scripts in the <literal>default</literal> and
           <literal>safe</literal> categories.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script smb-os-discovery</command></term>
+          <term><command>kmap --script smb-os-discovery</command></term>
           <listitem>
           <para>Loads only the <filename>smb-os-discovery</filename>
           script. Note that the <filename>.nse</filename> extension is
@@ -874,7 +874,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script default,banner,/home/user/customscripts</command></term>
+          <term><command>kmap --script default,banner,/home/user/customscripts</command></term>
           <listitem>
           <para>Loads the script in the <literal>default</literal>
           category, the <filename>banner</filename> script, and all
@@ -893,7 +893,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
 
       <variablelist>
         <varlistentry>
-          <term><command>nmap --script "http-*"</command></term>
+          <term><command>kmap --script "http-*"</command></term>
           <listitem>
           <para>Loads all scripts whose name starts with
           <filename>http-</filename>, such as
@@ -921,23 +921,23 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
 
       <variablelist>
         <varlistentry>
-          <term><command>nmap --script "not intrusive"</command></term>
+          <term><command>kmap --script "not intrusive"</command></term>
           <listitem>
           <para>Loads every script except for those in the
           <literal>intrusive</literal> category.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script "default or safe"</command></term>
+          <term><command>kmap --script "default or safe"</command></term>
           <listitem>
           <para>This is functionally equivalent to
-          <command>nmap --script "default,safe"</command>. It loads all
+          <command>kmap --script "default,safe"</command>. It loads all
           scripts that are in the <literal>default</literal> category or
           the <literal>safe</literal> category or both.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script "default and safe"</command></term>
+          <term><command>kmap --script "default and safe"</command></term>
           <listitem>
           <para>Loads those scripts that are in
           <emphasis>both</emphasis> the <literal>default</literal> and
@@ -945,7 +945,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script "(default or safe or intrusive) and not http-*"</command></term>
+          <term><command>kmap --script "(default or safe or intrusive) and not http-*"</command></term>
           <listitem>
           <para>Loads scripts in the <literal>default</literal>,
           <literal>safe</literal>, or <literal>intrusive</literal>
@@ -977,7 +977,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
       <option>--script-args</option> option. The arguments describe a table of
       key-value pairs and possibly array values. The arguments are provided to
       scripts as a table in the registry called
-      <varname>nmap.registry.args</varname>, though they are normally accessed through the <literal>stdnse.get_script_args</literal> function.
+      <varname>kmap.registry.args</varname>, though they are normally accessed through the <literal>stdnse.get_script_args</literal> function.
       </para>
 
       <para>
@@ -1028,15 +1028,15 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
       with <option>--script-args-file</option>.  Options specified
       with <option>--script-args</option> on the command-line take
       precedence over those given in a file.  The filename may be
-      given as an absolute path or relative to Nmap's usual
-      search path (NMAPDIR, etc.)
+      given as an absolute path or relative to Kmap's usual
+      search path (KMAPDIR, etc.)
       </para>
 
-      <para>Here is a typical Nmap invocation with script arguments:
+      <para>Here is a typical Kmap invocation with script arguments:
 <informalexample>
 <indexterm><primary><option>--script-args</option></primary><secondary>example of</secondary></indexterm>
 <literallayout>
-  <command>nmap -sC --script-args 'user=foo,pass=",{}=bar",paths={/admin,/cgi-bin},xmpp-info.server_name=localhost'</command>
+  <command>kmap -sC --script-args 'user=foo,pass=",{}=bar",paths={/admin,/cgi-bin},xmpp-info.server_name=localhost'</command>
 </literallayout>
 </informalexample>
       Notice that the script arguments are surrounded in single quotes. For the
@@ -1045,7 +1045,7 @@ https://nmap.org/nsedoc/scripts/afp-showmount.html
       require you to escape quotes or to use different quotes.  See your
       relevant manual. The command results in this Lua table:
 <programlisting>
-nmap.registry.args = {
+kmap.registry.args = {
   user = "foo",
   pass = ",{}=bar",
   paths = {
@@ -1055,14 +1055,14 @@ nmap.registry.args = {
   xmpp-info.server_name="localhost"
 }
 </programlisting>
-      While you could access the values directly from <literal>nmap.registry.args</literal>, it is normally better to use the <literal>stdnse.get_script_args</literal> function like this:
+      While you could access the values directly from <literal>kmap.registry.args</literal>, it is normally better to use the <literal>stdnse.get_script_args</literal> function like this:
 <programlisting>
 local server_name = stdnse.get_script_args("xmpp-info.server_name")
 </programlisting>
       </para>
       <para>
       All script arguments share a global namespace, the
-      <literal>nmap.registry.args</literal> table. For this reason, short or
+      <literal>kmap.registry.args</literal> table. For this reason, short or
       ambiguous names like <literal>user</literal> are not recommended. Some
       scripts prefix their arguments with their script name, like
       <literal>smtp-open-relay.domain</literal>.
@@ -1073,7 +1073,7 @@ local server_name = stdnse.get_script_args("xmpp-info.server_name")
       </para>
       <para>
       The online NSE Documentation Portal at <ulink
-      url="https://nmap.org/nsedoc/"/> lists the arguments that each script
+      url="https://kmap.org/nsedoc/"/> lists the arguments that each script
       accepts, including any library arguments that may influence the script.
       </para>
     </sect2>
@@ -1084,21 +1084,21 @@ local server_name = stdnse.get_script_args("xmpp-info.server_name")
 
       <variablelist>
         <varlistentry>
-          <term><command>nmap -sC example.com</command></term>
+          <term><command>kmap -sC example.com</command></term>
           <listitem>
           <para>A simple script scan using the default set of
           scripts.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap -sn -sC example.com</command></term>
+          <term><command>kmap -sn -sC example.com</command></term>
           <listitem>
           <para>A script scan without a port scan; only host scripts are
           eligible to run.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap -Pn -sn -sC example.com</command></term>
+          <term><command>kmap -Pn -sn -sC example.com</command></term>
           <listitem>
           <para>A script scan without host discovery or a port scan. All
           hosts are assumed up and only host scripts are eligible to
@@ -1108,7 +1108,7 @@ local server_name = stdnse.get_script_args("xmpp-info.server_name")
         <varlistentry>
           <term>
           <indexterm><primary><option>--script-trace</option></primary><secondary>example of</secondary></indexterm>
-          <command>nmap --script smb-os-discovery --script-trace example.com</command></term>
+          <command>kmap --script smb-os-discovery --script-trace example.com</command></term>
           <listitem>
           <para>Execute a specific script with script tracing.</para>
           </listitem>
@@ -1116,14 +1116,14 @@ local server_name = stdnse.get_script_args("xmpp-info.server_name")
         <varlistentry>
           <term>
           <indexterm><primary><option>--script-args</option></primary><secondary>example of</secondary></indexterm>
-          <command>nmap --script snmp-sysdescr --script-args creds.snmp=admin example.com</command></term>
+          <command>kmap --script snmp-sysdescr --script-args creds.snmp=admin example.com</command></term>
           <listitem>
           <para>Run an individual script that takes a script
           argument.</para>
           </listitem>
         </varlistentry>
         <varlistentry>
-          <term><command>nmap --script mycustomscripts,safe example.com</command></term>
+          <term><command>kmap --script mycustomscripts,safe example.com</command></term>
           <listitem>
           <para>Execute all scripts in the
           <filename>mycustomscripts</filename> directory as well as all
@@ -1173,25 +1173,25 @@ categories = {"default", "discovery", "safe"}
       <indexterm><primary sortas="license script variable">&ldquo;<varname>license</varname>&rdquo; script variable</primary></indexterm>
       <indexterm><primary>copyright</primary><secondary>of scripts</secondary></indexterm>
 
-      <para>Nmap is a community project and we welcome all sorts of
+      <para>Kmap is a community project and we welcome all sorts of
       code contributions, including NSE scripts.  So if you write a
       valuable script, don't keep it to yourself!
       The optional <literal>license</literal> field helps ensure that we have
-      legal permission to distribute all the scripts which come with Nmap. All of those scripts
-      currently use the standard Nmap license
-      (described in <xref linkend="nmap-copyright"/>).  They include
+      legal permission to distribute all the scripts which come with Kmap. All of those scripts
+      currently use the standard Kmap license
+      (described in <xref linkend="kmap-copyright"/>).  They include
       the following line:</para>
 
 <programlisting>
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 </programlisting>
 
-<para>The Nmap license is similar to the GNU GPL.  Script authors may
+<para>The Kmap license is similar to the GNU GPL.  Script authors may
 use a BSD-style license (no advertising clause) instead if they prefer
 that.  For a BSD-style license, please include this line:
 
 <programlisting>
-license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
 </programlisting>
 
 </para>
@@ -1225,7 +1225,7 @@ dependencies = {"smb-brute"}
        <para>
          Dependencies establish an internal ordering of scripts, assigning each
          one a number called a <quote>runlevel</quote><footnote><para>Up through
-         Nmap version 5.10BETA2, dependencies didn't exist and script authors
+         Kmap version 5.10BETA2, dependencies didn't exist and script authors
          had to set a <varname>runlevel</varname> field manually.</para></footnote>.<indexterm><primary>runlevel</primary></indexterm>
          When
          running your scripts you will see the runlevel (along with the total number of
@@ -1254,7 +1254,7 @@ NSE: Script Scanning completed.
       <indexterm><primary sortas="postrule script variable">&ldquo;<varname>postrule</varname>&rdquo; script variable</primary></indexterm>
       <indexterm><primary>rules in NSE</primary><see>&ldquo;<varname>prerule</varname>&rdquo;, &ldquo;<varname>portrule</varname>&rdquo;, &ldquo;<varname>hostrule</varname>&rdquo; and &ldquo;<varname>postrule</varname>&rdquo;</see></indexterm>
       <para>
-      Nmap uses the script rules to determine whether a script should be
+      Kmap uses the script rules to determine whether a script should be
       run against a target. A rule is a Lua function that returns either
       <literal>true</literal> or <literal>false</literal>. The script
       <literal>action</literal> function is only performed if the rule
@@ -1389,18 +1389,18 @@ details of how different return values are handled.
   </sect1>
   <sect1 id="nse-language">
     <title>Script Language</title>
-    <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>parts of</secondary></indexterm>
+    <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>parts of</secondary></indexterm>
 
     <para>
-      The core of the Nmap Scripting Engine is an embeddable Lua
+      The core of the Kmap Scripting Engine is an embeddable Lua
       interpreter. Lua is a lightweight language designed for
       extensibility.  It offers a powerful and well-documented API for
-      interfacing with other software such as Nmap.
+      interfacing with other software such as Kmap.
     </para>
-    <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>library</secondary></indexterm>
+    <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>library</secondary></indexterm>
     <para>
-      The second part of the Nmap Scripting Engine is the NSE Library, which
-      connects Lua and Nmap. This layer
+      The second part of the Kmap Scripting Engine is the NSE Library, which
+      connects Lua and Kmap. This layer
       handles issues such as initialization of the Lua interpreter, 
       scheduling of parallel script execution, script retrieval and
       more. It is also the heart of the NSE network I/O framework and the
@@ -1411,14 +1411,14 @@ details of how different return values are handled.
       <indexterm><primary>Lua programming language</primary></indexterm>
       <para>
 
-	The Nmap scripting language is an embedded <ulink
+	The Kmap scripting language is an embedded <ulink
 	url="https://lua.org/">Lua</ulink> interpreter which is
-	extended with libraries for interfacing with Nmap.  The Nmap
-	API is in the Lua namespace <literal>nmap</literal>.  This
-	means that all calls to resources provided by Nmap have an
-	<literal>nmap</literal> prefix.<indexterm><primary><varname>nmap</varname> NSE library</primary></indexterm>
-	<literal>nmap.new_socket()</literal>, for example, returns a
-	new socket wrapper object. The Nmap library layer also takes
+	extended with libraries for interfacing with Kmap.  The Kmap
+	API is in the Lua namespace <literal>kmap</literal>.  This
+	means that all calls to resources provided by Kmap have an
+	<literal>kmap</literal> prefix.<indexterm><primary><varname>kmap</varname> NSE library</primary></indexterm>
+	<literal>kmap.new_socket()</literal>, for example, returns a
+	new socket wrapper object. The Kmap library layer also takes
 	care of initializing the Lua context, scheduling parallel
 	scripts and collecting the output produced by completed
 	scripts.  
@@ -1426,17 +1426,17 @@ details of how different return values are handled.
       <para>
 
 	During the planning stages, we considered several programming
-	languages as the base for Nmap scripting. Another option was to
+	languages as the base for Kmap scripting. Another option was to
 	implement a completely new programming language. Our criteria
 	were strict: NSE had to be easy to
-	use, small in size, compatible with the Nmap license,
+	use, small in size, compatible with the Kmap license,
 	scalable, fast and parallelizable.  Several
 	previous efforts (by other projects) to design their own security auditing language from scratch
 	resulted in awkward solutions, so we decided early not to follow that
 	route. First the Guile Scheme interpreter was considered,
 	but the preference drifted towards the Elk interpreter due to its more
 	favorable license. But parallelizing Elk scripts would have been
-	difficult. In addition, we expect that most Nmap users prefer procedural programming over functional languages such as Scheme.  Larger interpreters such as Perl, Python, and
+	difficult. In addition, we expect that most Kmap users prefer procedural programming over functional languages such as Scheme.  Larger interpreters such as Perl, Python, and
 	Ruby are well-known and loved, but are difficult to embed
 	efficiently.  In the end, Lua excelled in all of our criteria.
 	It is small, distributed under the liberal MIT open source license, has
@@ -1452,12 +1452,12 @@ details of how different return values are handled.
 	</sect1>
 
   <sect1 id="nse-scripts">
-    <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>list of scripts</secondary></indexterm>
+    <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>list of scripts</secondary></indexterm>
     <title>NSE Scripts</title>
 
     <print>
     <para>This section lists (alphabetically) all NSE scripts packaged
-    with Nmap at the time of this writing.  It comes straight from the
+    with Kmap at the time of this writing.  It comes straight from the
     script source code thanks to the NSEDoc documentation system
     described in <xref linkend="nsedoc"/>. Because of space limitations,
     only script names, categories, and brief summaries of operation are
@@ -1465,7 +1465,7 @@ details of how different return values are handled.
     software developed as actively as NSE is.  For complete and
     up-to-date documentation, including script arguments and output
     samples, see the online NSE Documentation Portal at
-    <ulink url="https://nmap.org/nsedoc/"/>.
+    <ulink url="https://kmap.org/nsedoc/"/>.
     </para>
 
     &nse-scripts;
@@ -1475,19 +1475,19 @@ details of how different return values are handled.
     <para>This section (a long list of NSE scripts with brief
     summaries) is only provided in the printed edition of this book
     because we already provide a better online interface to the
-    information at the <ulink url="https://nmap.org/nsedoc/">NSE
+    information at the <ulink url="https://kmap.org/nsedoc/">NSE
     Documentation Portal</ulink>.</para>
     </web>
   </sect1>
 
     <sect1 id="nse-library">
-      <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>list of modules</secondary></indexterm>
+      <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>list of modules</secondary></indexterm>
       <title>NSE Libraries</title>
       <para>In addition to the significant built-in capabilities of
       Lua, we have written or integrated many extension libraries which make
       script writing more powerful and convenient. These libraries (sometimes called modules) are compiled if necessary and installed along with 
-	  Nmap. They have their own directory, <filename>nselib</filename>, which
-	  is installed in the configured Nmap data directory. Scripts need only 
+	  Kmap. They have their own directory, <filename>nselib</filename>, which
+	  is installed in the configured Kmap data directory. Scripts need only 
       <ulink url="https://lua.org/manual/5.4/manual.html#pdf-require"><literal>require</literal></ulink> the default libraries in order to use them.
 	  </para>
 
@@ -1496,7 +1496,7 @@ details of how different return values are handled.
       <para>
       This list is just an overview to give an idea of what libraries
       are available. Developers will want to consult the complete
-      documentation at <ulink url="https://nmap.org/nsedoc/"/>.
+      documentation at <ulink url="https://kmap.org/nsedoc/"/>.
       </para>
 
       &nse-modules;
@@ -1524,7 +1524,7 @@ details of how different return values are handled.
 
     <sect2 id="nse-library-c-modules">
       <title>Adding C Modules to Nselib</title>
-      <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>C modules</secondary></indexterm>
+      <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>C modules</secondary></indexterm>
 
       <para>
       A few of the modules included in nselib are written in C or C++
@@ -1612,7 +1612,7 @@ LUALIB_API int luaopen_openssl(lua_State *L) {
       <filename>Makefile.in</filename> in the appropriate places. For both these tasks you can
       simply follow the example of the other C modules. For the
       Windows build, the new source files must be added to the
-      <filename>mswin32/nmap.vcproj</filename> project file using MS Visual Studio (see <xref linkend="inst-win-source"/>).
+      <filename>mswin32/kmap.vcproj</filename> project file using MS Visual Studio (see <xref linkend="inst-win-source"/>).
       </para>
     </sect2>
 
@@ -1620,11 +1620,11 @@ LUALIB_API int luaopen_openssl(lua_State *L) {
 
 
   <sect1 id="nse-api">
-    <title>Nmap API</title>
-    <indexterm class="startofrange" id="nse-nmap-indexterm"><primary><varname>nmap</varname> NSE library</primary></indexterm>
-    <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>API</secondary></indexterm>
+    <title>Kmap API</title>
+    <indexterm class="startofrange" id="nse-kmap-indexterm"><primary><varname>kmap</varname> NSE library</primary></indexterm>
+    <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>API</secondary></indexterm>
     <para>
-      NSE scripts have access to several Nmap facilities for writing
+      NSE scripts have access to several Kmap facilities for writing
       flexible and elegant scripts. The API provides target host
       details such as port states and version detection results.  It
       also offers an interface to the Nsock<indexterm><primary>Nsock</primary><secondary>in NSE</secondary></indexterm>
@@ -1635,9 +1635,9 @@ LUALIB_API int luaopen_openssl(lua_State *L) {
     <sect2 id="nse-api-arguments">
       <title>Information Passed to a Script</title>
       <para>
-	An effective Nmap scripting engine requires more than just a
+	An effective Kmap scripting engine requires more than just a
 	Lua interpreter. Users need easy access to the information
-	Nmap has learned about the target hosts. This data is passed
+	Kmap has learned about the target hosts. This data is passed
 	as arguments to the NSE script's
 	<literal>action</literal> method.<indexterm><primary sortas="action script variable">&ldquo;<varname>action</varname>&rdquo; script variable</primary></indexterm>
         The arguments, <literal>host</literal> and
@@ -1705,7 +1705,7 @@ host.os = {
 
 	      <para>
 	        For example, an OS match on this
-	        <filename>nmap-os-db</filename><indexterm><primary><filename>nmap-os-db</filename></primary></indexterm>
+	        <filename>kmap-os-db</filename><indexterm><primary><filename>kmap-os-db</filename></primary></indexterm>
 	        entry:
 	      </para>
 
@@ -1747,7 +1747,7 @@ host.os = {
 
               <para>
                 Only entries corresponding to perfect OS matches are put
-                in the <varname>host.os</varname> table. If Nmap was run
+                in the <varname>host.os</varname> table. If Kmap was run
                 without the <option>-O</option> option, then
                 <literal>host.os</literal> is <literal>nil</literal>.
 	      </para>
@@ -1814,7 +1814,7 @@ host.os = {
 	      </term>
 	    <listitem>
 	      <para> A Boolean value indicating whether or not the target host is
-		  directly connected to (i.e. on the same network segment as) the host running Nmap.
+		  directly connected to (i.e. on the same network segment as) the host running Kmap.
 		  </para>
 	    </listitem>
 	  </varlistentry>
@@ -1824,7 +1824,7 @@ host.os = {
 	    <listitem>
 	      <para>MAC address<indexterm><primary>MAC address</primary></indexterm>
                   of the destination host (six-byte-long binary
-		  string) if available, otherwise <literal>nil</literal>.  The MAC address is generally only available for hosts directly connected on a LAN and only if Nmap is doing a raw packet scan such as SYN scan.
+		  string) if available, otherwise <literal>nil</literal>.  The MAC address is generally only available for hosts directly connected on a LAN and only if Kmap is doing a raw packet scan such as SYN scan.
 		  </para>
 	    </listitem>
 	  </varlistentry>
@@ -1881,7 +1881,7 @@ host.os = {
 	    <term><option>host.bin_ip_src</option>
 	      </term>
 	    <listitem>
-	      <para>Our host's (running Nmap) source IP address as a 4-byte (IPv4) or 16-byte (IPv6) string.
+	      <para>Our host's (running Kmap) source IP address as a 4-byte (IPv4) or 16-byte (IPv6) string.
 		  </para>
 	    </listitem>
 	  </varlistentry>
@@ -1890,7 +1890,7 @@ host.os = {
 	    <term><option>host.times</option>
 	      </term>
 	    <listitem>
-	      <para>This table contains Nmap's timing data for the host (see
+	      <para>This table contains Kmap's timing data for the host (see
 		<xref linkend="scan-methods-rtt"/>).  Its keys are <literal>srtt</literal> (smoothed
 		round trip time), <literal>rttvar</literal> (round trip time variance), and <literal>timeout</literal>
 		(the probe timeout), all given in floating-point seconds.
@@ -1931,8 +1931,8 @@ host.os = {
 	      <para>
 		The port table is passed to an NSE service script (i.e. only those with a portrule rather than a hostrule) in the same
 		fashion as the host table. It contains information about the port
-		against which the script is running.  While this table is not passed to host scripts, port states on the target can still be requested from Nmap
-		using the <literal>nmap.get_port_state()</literal> and <literal>nmap.get_ports()</literal> calls.
+		against which the script is running.  While this table is not passed to host scripts, port states on the target can still be requested from Kmap
+		using the <literal>kmap.get_port_state()</literal> and <literal>kmap.get_ports()</literal> calls.
 	      </para>
 	    </listitem>
 	  </varlistentry>
@@ -1966,9 +1966,9 @@ host.os = {
 	    <listitem>
 	      <para>
 		Contains a string representation of the service running on
-		<literal>port.number</literal> as detected by the Nmap service
+		<literal>port.number</literal> as detected by the Kmap service
 		detection. If the <literal>port.version.service_dtype</literal> field is
-		<literal>"table"</literal>, Nmap has guessed the service based
+		<literal>"table"</literal>, Kmap has guessed the service based
 		on the port number. Otherwise version detection was able to determine the listening service and this field is equal to
 		<literal>port.version.name</literal>.
 	      </para>
@@ -2007,10 +2007,10 @@ host.os = {
 	    <listitem>
 	      <para>
 		This entry is a table which contains information
-		retrieved by the Nmap version scanning engine.  Some
+		retrieved by the Kmap version scanning engine.  Some
 		of the values (such as service name, service type
 		confidence, and the RPC-related values) may be retrieved by
-		Nmap even if a version scan was not performed.  Values
+		Kmap even if a version scan was not performed.  Values
 		which were not determined default to
 		<literal>nil</literal>.  The meaning of each value is given in the following table:</para>
 
@@ -2026,12 +2026,12 @@ host.os = {
    <tbody>
    <row>
     <entry align="left"><literal>name</literal></entry>
-    <entry>Contains the service name Nmap decided on for the port.</entry>
+    <entry>Contains the service name Kmap decided on for the port.</entry>
    </row>
 
    <row>
     <entry align="left"><literal>name_confidence</literal></entry>
-    <entry>Evaluates how confident Nmap is about the accuracy of
+    <entry>Evaluates how confident Kmap is about the accuracy of
       <literal>name</literal>, from 1 (least confident) to 10. If
       <literal>port.version.service_dtype</literal> is
       <literal>"table"</literal>, this is 3.</entry>
@@ -2045,7 +2045,7 @@ host.os = {
 
    <row>
     <entry align="left"><literal>service_tunnel</literal></entry>
-    <entry>Contains the string <literal>"none"</literal> or <literal>"ssl"</literal> based on whether or not Nmap used SSL tunneling to detect the service.</entry>
+    <entry>Contains the string <literal>"none"</literal> or <literal>"ssl"</literal> based on whether or not Kmap used SSL tunneling to detect the service.</entry>
    </row>
 
    <row>
@@ -2058,9 +2058,9 @@ host.os = {
    <row>
     <entry align="left"><literal>service_dtype</literal></entry>
     <entry>Contains the string <literal>"table"</literal> or
-      <literal>"probed"</literal> based on whether or not Nmap deduced
+      <literal>"probed"</literal> based on whether or not Kmap deduced
       <literal>port.version.name</literal> from the
-      <filename>nmap-services</filename> file or from a service probe match.
+      <filename>kmap-services</filename> file or from a service probe match.
     </entry>
    </row>
 
@@ -2091,7 +2091,7 @@ host.os = {
 		table is a result of the
 		<literal>get_port_state</literal> or <literal>get_ports</literal>
 		functions.  You can adjust the port state using the
-		<literal>nmap.set_port_state()</literal> call.  This is
+		<literal>kmap.set_port_state()</literal> call.  This is
 		normally done when an <literal>open|filtered</literal>
 		port is determined to be <literal>open</literal>.
 	      </para>
@@ -2108,7 +2108,7 @@ host.os = {
       <title>Network I/O API</title>
       <para>
 	To allow for efficient and parallelizable network I/O, NSE
-	provides an interface to Nsock, the Nmap socket library. The
+	provides an interface to Nsock, the Kmap socket library. The
 	smart callback mechanism Nsock uses is fully transparent to
 	NSE scripts. The main benefit of NSE's sockets is that they
 	never block on I/O operations, allowing many scripts to be run in parallel.
@@ -2130,7 +2130,7 @@ host.os = {
         </para>
         <para>
           An NSE socket is created by calling
-          <function>nmap.new_socket</function>, which returns a socket object.
+          <function>kmap.new_socket</function>, which returns a socket object.
           The socket object supports the usual <function>connect</function>,
           <function>send</function>, <function>receive</function>, and
           <function>close</function> methods. Additionally the functions
@@ -2146,11 +2146,11 @@ host.os = {
         <example id="nse-api-networkio-connect-example">
           <title>Connect-style I/O</title>
 <programlisting>
-require("nmap")
+require("kmap")
 
-local socket = nmap.new_socket()
+local socket = kmap.new_socket()
 socket:set_timeout(1000)
-try = nmap.new_try(function() socket:close() end)
+try = kmap.new_try(function() socket:close() end)
 try(socket:connect(host.ip, port.number))
 try(socket:send("login"))
 response = try(socket:receive())
@@ -2200,14 +2200,14 @@ socket:close()
           kept, the more scripts may receive the packet and proceed with
           their execution. To handle packet capture inside your
           script you first have to create a socket with
-          <function>nmap.new_socket</function> and later close the socket
+          <function>kmap.new_socket</function> and later close the socket
           with <function>socket_object:close</function>&mdash;just like
           with the connection-based network I/O.</para>
 
           <para>While receiving packets is important, sending them is certainly
           a key feature as well.  To accomplish this, NSE provides access to
           sending at the IP and Ethernet layers.  Raw packet writes do not use
-          the same socket object as raw packet reads, so the <function>nmap.new_dnet</function>
+          the same socket object as raw packet reads, so the <function>kmap.new_dnet</function>
           function is called to create the required object for sending.  After
           this, a raw socket or Ethernet interface handle can be opened for use.</para>
 
@@ -2228,10 +2228,10 @@ socket:close()
           example.  The
           <filename>ipidseq</filename><indexterm><primary><filename>ipidseq</filename> script</primary></indexterm>
           script included with
-          Nmap uses raw IP packets to test hosts for suitability for Nmap's
+          Kmap uses raw IP packets to test hosts for suitability for Kmap's
           Idle Scan (<option>-sI</option>).  The
           <filename>sniffer-detect</filename><indexterm><primary><filename>sniffer-detect</filename> script</primary></indexterm>
-          script also included with Nmap uses raw Ethernet frames in an attempt
+          script also included with Kmap uses raw Ethernet frames in an attempt
           to detect promiscuous-mode machines on the network (those running
           sniffers).</para>
 
@@ -2423,7 +2423,7 @@ datetime.format_timestamp(os.time(), 0) --> "2012-09-07T23:37:42+00:00"
 	  the base Lua language. It is tailored
 	  specifically for network I/O operations, and
 	  follows a functional programming paradigm rather than an
-	  object-oriented one. The <function>nmap.new_try</function> API method is used to
+	  object-oriented one. The <function>kmap.new_try</function> API method is used to
           create an exception handler.  This method returns a function which takes a variable
           number of arguments that are assumed to be the return values of
           another function. If an exception is detected in the return
@@ -2457,11 +2457,11 @@ datetime.format_timestamp(os.time(), 0) --> "2012-09-07T23:37:42+00:00"
 local result, socket, try, catch
 
 result = ""
-socket = nmap.new_socket()
+socket = kmap.new_socket()
 catch = function() 
 socket:close() 
 end
-try = nmap.new_try(catch)
+try = kmap.new_try(catch)
 
 try(socket:connect(host.ip, port.number))
 result = try(socket:receive_lines(1))
@@ -2493,11 +2493,11 @@ try(socket:send(result))
 	<para>Scripts can share information by storing values in a
 	<firstterm>register</firstterm>, which is a special table that can be
 	accessed by all scripts. There is a global registry with the name
-	<varname>nmap.registry</varname>, shared by all scripts. Each host
+	<varname>kmap.registry</varname>, shared by all scripts. Each host
 	additionally has its own registry called
 	<varname>host.registry</varname>, where <varname>host</varname> is the
 	<link linkend="nse-api-arguments">host table</link> passed to a script.
-	Information in the registries is not stored between Nmap
+	Information in the registries is not stored between Kmap
 	executions.</para>
 
 	<para>The global registry persists throughout an entire scan session.
@@ -2514,7 +2514,7 @@ try(socket:send(result))
 	Here are examples of using both registries:
 	<simplelist>
 	<member>The portrule of the <filename>ssh-hostkey</filename> script collects SSH key fingerprints
-	and stores them in the global <varname>nmap.registry</varname> so they
+	and stores them in the global <varname>kmap.registry</varname> so they
 	can be printed later by the postrule.</member>
 	<member>The <filename>ssl-cert</filename> script collects SSL certificates and
 	stores them in the per-host registry so that the
@@ -2531,21 +2531,21 @@ try(socket:send(result))
 	the <literal>dependencies</literal> variable to make sure that the earlier
 	script runs first.</para>
     </sect2>
-    <indexterm class="endofrange" startref="nse-nmap-indexterm"/>
+    <indexterm class="endofrange" startref="nse-kmap-indexterm"/>
   </sect1>
 
   <sect1 id="nse-tutorial">
     <title>Script Writing Tutorial</title>
-    <indexterm class="startofrange" id="nse-tutorial-indexterm"><primary>Nmap Scripting Engine (NSE)</primary><secondary>tutorial</secondary></indexterm>
+    <indexterm class="startofrange" id="nse-tutorial-indexterm"><primary>Kmap Scripting Engine (NSE)</primary><secondary>tutorial</secondary></indexterm>
 
     <para>
       Suppose that you are convinced of the power of NSE. How do you
       go about writing your own script?  Let's say
       that you want to extract information from an identification
       server<indexterm><primary>auth service</primary></indexterm> to determine the owner of the process listening on a TCP port.
-      This is not really the purpose of identd (it is meant for querying the owner of outgoing connections, not listening daemons), but many identd servers allow it anyway.  Nmap used to have this functionality (called ident scan), but it was removed
+      This is not really the purpose of identd (it is meant for querying the owner of outgoing connections, not listening daemons), but many identd servers allow it anyway.  Kmap used to have this functionality (called ident scan), but it was removed
       while transitioning to a new scan engine architecture.  The protocol identd uses is pretty simple, but still too
-      complicated to handle with Nmap's version detection
+      complicated to handle with Kmap's version detection
       language. First, you connect to the identification server and
       send a query of the form <literal><replaceable>port-on-server</replaceable>,
       <replaceable>port-on-client</replaceable></literal> and
@@ -2556,7 +2556,7 @@ try(socket:send(result))
       in <ulink role="hidepdf"
       url="http://www.rfc-editor.org/rfc/rfc1413.txt">RFC
       1413</ulink>, but this description is sufficient for our
-      purposes.  The protocol cannot be modeled in Nmap's version
+      purposes.  The protocol cannot be modeled in Kmap's version
       detection language for two reasons. The first is that you need
       to know both the local and the remote port of a
       connection. Version detection does not provide this data.  The
@@ -2636,7 +2636,7 @@ NSEDoc <literal>@output</literal> tag:</para>
 <programlisting>
 author = "Diman Todorov"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 </programlisting>
@@ -2660,7 +2660,7 @@ categories = {"default", "safe"}
 	only gives us information about the currently scanned port.</para>
 
 	<para>To find out if port 113 is open, we use the
-	<function>nmap.get_port_state</function> function. If the auth
+	<function>kmap.get_port_state</function> function. If the auth
 	port was not scanned, the <literal>get_port_state</literal>
 	function returns <literal>nil</literal>. So we check that
 	the table is not <literal>nil</literal>. We also
@@ -2673,7 +2673,7 @@ categories = {"default", "safe"}
 <programlisting>
 portrule = function(host, port)
 	local auth_port = { number=113, protocol="tcp" }
-	local identd = nmap.get_port_state(host, auth_port)
+	local identd = kmap.get_port_state(host, auth_port)
 
 	return identd ~= nil
 		and identd.state == "open"
@@ -2691,7 +2691,7 @@ end
 	At last we implement the actual functionality! The script 
 	first connects to the port on which we expect to find the
 	identification server, then it will connect to the port we
-	want information about. Doing so involves first creating two socket options by calling <function>nmap.new_socket</function>.  Next we define an error-handling <function>catch</function> function which closes those sockets if failure is detected.  At this point we can safely use object methods such as <function>open</function>, 
+	want information about. Doing so involves first creating two socket options by calling <function>kmap.new_socket</function>.  Next we define an error-handling <function>catch</function> function which closes those sockets if failure is detected.  At this point we can safely use object methods such as <function>open</function>, 
 	<function>close</function>, 
 	<function>send</function> and
 	<function>receive</function> to operate on the network socket.  In this case we call <function>connect</function> to make the connections.  NSE's exception handling mechanism<indexterm><primary>exceptions in NSE</primary></indexterm>
@@ -2709,15 +2709,15 @@ end
 action = function(host, port)
         local owner = ""
 
-        local client_ident = nmap.new_socket()
-        local client_service = nmap.new_socket()
+        local client_ident = kmap.new_socket()
+        local client_service = kmap.new_socket()
 
         local catch = function()
                 client_ident:close()
                 client_service:close()
         end
 
-        local try = nmap.new_try(catch)
+        local try = kmap.new_try(catch)
 
         try(client_ident:connect(host.ip, 113))
         try(client_service:connect(host.ip, port.number))
@@ -2763,7 +2763,7 @@ local localip, localport = try(client_service:get_info())
 
   <sect1 id="nsedoc">
     <title>Writing Script Documentation (NSEDoc)</title>
-    <indexterm class="startofrange" id="nsedoc-indexterm"><primary>Nmap Scripting Engine (NSE)</primary><secondary>documentation in</secondary></indexterm>
+    <indexterm class="startofrange" id="nsedoc-indexterm"><primary>Kmap Scripting Engine (NSE)</primary><secondary>documentation in</secondary></indexterm>
     <indexterm class="startofrange" id="nse-nsedoc-indexterm"><primary>NSEDoc</primary></indexterm>
 
     <para>
@@ -2773,7 +2773,7 @@ local localip, localport = try(client_service:get_info())
     this section, aims to meet both these needs. While reading this
     section, you may want to browse NSE's online documentation, which is
     generated using this system. It is at
-    <ulink url="https://nmap.org/nsedoc/"/>.
+    <ulink url="https://kmap.org/nsedoc/"/>.
     </para>
 
     <para>
@@ -2799,7 +2799,7 @@ local localip, localport = try(client_service:get_info())
 -- than or equal to a given level.
 -- 
 -- This is a convenience wrapper around
--- &lt;code&gt;nmap.log_write&lt;/code&gt;. The first optional numeric
+-- &lt;code&gt;kmap.log_write&lt;/code&gt;. The first optional numeric
 -- argument, &lt;code&gt;level&lt;/code&gt;, is used as the debugging level necessary
 -- to print the message (it defaults to 1 if omitted). All remaining arguments
 -- are processed with Lua's &lt;code&gt;string.format&lt;/code&gt; function.
@@ -2862,7 +2862,7 @@ local localip, localport = try(client_service:get_info())
 -- for details). 
 --
 -- @author Kris Katterjohn 04/2008
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 </programlisting>
     </example>
 
@@ -2894,7 +2894,7 @@ Maps IP addresses to autonomous system (AS) numbers.
 The script works by sending DNS TXT queries to a DNS server which in
 turn queries a third-party service provided by Team Cymru
 (team-cymru.org) using an in-addr.arpa style zone set up especially for
-use by Nmap. The responses to these queries contain both Origin and Peer
+use by Kmap. The responses to these queries contain both Origin and Peer
 ASNs and their descriptions, displayed along with the BGP Prefix and
 Country Code. The script caches results to reduce the number of queries
 and should perform a single query for all scanned targets in a BGP
@@ -2909,7 +2909,7 @@ server (your default DNS server, or whichever one you specified with the
 
 ---
 -- @usage
--- nmap --script asn-query [--script-args dns=&lt;DNS server&gt;] &lt;target&gt;
+-- kmap --script asn-query [--script-args dns=&lt;DNS server&gt;] &lt;target&gt;
 -- @args dns The address of a recursive nameserver to use (optional).
 -- @output
 -- Host script results:
@@ -2922,7 +2922,7 @@ server (your default DNS server, or whichever one you specified with the
 -- |_     Peer AS: 174 2914 6461
 
 author = "jah, Michael"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 </programlisting>
     </example>
@@ -2940,7 +2940,7 @@ categories = {"discovery", "external", "safe"}
     <literal>@name</literal> and <literal>@class</literal> tags when
     documenting a table to assist the documentation parser in
     identifying it. There are several examples of this method of
-    documentation in the Nmap source distribution (including <literal>nmap.luadoc</literal>, <literal>lfs.luadoc</literal>, and <literal>pcre.luadoc</literal>).
+    documentation in the Kmap source distribution (including <literal>kmap.luadoc</literal>, <literal>lfs.luadoc</literal>, and <literal>pcre.luadoc</literal>).
     </para>
 
     <sect2 id="nsedoc-tags">
@@ -2984,7 +2984,7 @@ categories = {"discovery", "external", "safe"}
             <para>
               Provides a usage example of a function, script, or module. In
               the case of a function, the example is Lua code; for a
-              script it is an Nmap command line; and for a module it is usually
+              script it is an Kmap command line; and for a module it is usually
               a code sample.
               <literal>@usage</literal> may be given more than once. If it is
               omitted in a script, NSEDoc generates a default standardized
@@ -3105,7 +3105,7 @@ categories = {"discovery", "external", "safe"}
       Lua thread may be yielded at arbitrary locations to continue
       work on another script. Typically, these yield locations are blocking
       socket operations in the
-      <literal>nmap</literal><indexterm><primary><literal>nmap</literal> NSE library</primary></indexterm>
+      <literal>kmap</literal><indexterm><primary><literal>kmap</literal> NSE library</primary></indexterm>
       library. The yield back to the script is also transparent, a side effect
       of the socket operation.
     </para>
@@ -3177,7 +3177,7 @@ categories = {"discovery", "external", "safe"}
       </para>
       <para>
         Finally, when using worker threads you should always use condition
-        variables or mutexes to coordinate them. Nmap is single-threaded so
+        variables or mutexes to coordinate them. Kmap is single-threaded so
         there are no memory synchronization issues to worry about; but there
         <emphasis>is</emphasis> contention for resources.
         These resources include usually network bandwidth and sockets.
@@ -3194,7 +3194,7 @@ categories = {"discovery", "external", "safe"}
 local requests = {"/", "/index.html", --[[ long list of objects ]]}
 
 function thread_main (host, port, responses, ...)
-  local condvar = nmap.condvar(responses);
+  local condvar = kmap.condvar(responses);
   local what = {n = select("#", ...), ...};
   local allReqs = nil;
   for i = 1, what.n do
@@ -3208,7 +3208,7 @@ end
 function many_requests (host, port)
   local threads = {};
   local responses = {};
-  local condvar = nmap.condvar(responses);
+  local condvar = kmap.condvar(responses);
   local i = 1;
   repeat
     local j = math.min(i+10, #requests);
@@ -3287,10 +3287,10 @@ end
 
       <para>
         The first step in using a mutex is to create one with a call to
-        <literal>nmap.mutex</literal>.
+        <literal>kmap.mutex</literal>.
       </para>
 <programlisting>
-mutexfn = nmap.mutex(object)
+mutexfn = kmap.mutex(object)
 </programlisting>
 
       <para>
@@ -3355,10 +3355,10 @@ mutexfn = nmap.mutex(object)
 
       <para>
         NSE maintains a weak reference to the mutex so other calls to
-        <literal>nmap.mutex</literal> with the same object will return the same
+        <literal>kmap.mutex</literal> with the same object will return the same
         mutex function. However, if you discard your reference to the mutex
         then it may be collected and subsequent calls to
-        <literal>nmap.mutex</literal> with the object will return a different
+        <literal>kmap.mutex</literal> with the object will return a different
         function. Therefore save your mutex to a (local) variable
         that persists as long as you need it.
       </para>
@@ -3370,14 +3370,14 @@ mutexfn = nmap.mutex(object)
          <filename>asn-query</filename><indexterm><primary><filename>asn-query</filename> script</primary></indexterm>
          and
          <filename>whois</filename><indexterm><primary><filename>whois</filename> script</primary></indexterm>
-         scripts in the Nmap
+         scripts in the Kmap
          distribution.
        </para>
 
       <example id="nse-mutex-handling">
         <title>Mutex manipulation</title>
 <programlisting>
-local mutex = nmap.mutex("My Script's Unique ID");
+local mutex = kmap.mutex("My Script's Unique ID");
 function action(host, port)
   mutex "lock";
   -- Do critical section work - only one thread at a time executes this.
@@ -3413,10 +3413,10 @@ end
 
       <para>
         The first step in using a condition variable is to create one
-        with a call to <literal>nmap.condvar</literal>.
+        with a call to <literal>kmap.condvar</literal>.
       </para>
 
-      <para><literal>condvarfn = nmap.condvar(object)</literal></para>
+      <para><literal>condvarfn = kmap.condvar(object)</literal></para>
 
       <para>
         The semantics for condition variables are similar to those of mutexes.  The
@@ -3464,10 +3464,10 @@ end
 
       <para>
         Like with mutexes, NSE maintains a weak reference to the condition
-        variable so other calls to <literal>nmap.condvar</literal> with the
+        variable so other calls to <literal>kmap.condvar</literal> with the
         same object will return the same function. However, if you discard your reference to the condition variable then
         it may be collected and subsequent calls to
-        <literal>nmap.condvar</literal> with the object will return a different
+        <literal>kmap.condvar</literal> with the object will return a different
         function. Therefore save your condition
         variable to a (local) variable that persists as long as you need it.
       </para>
@@ -3623,11 +3623,11 @@ end
 
   <sect1 id="nse-vscan">
     <title>Version Detection Using NSE</title>
-    <indexterm class="startofrange" id="nse-sample-indexterm"><primary>Nmap Scripting Engine (NSE)</primary><secondary>sample scripts</secondary></indexterm>
+    <indexterm class="startofrange" id="nse-sample-indexterm"><primary>Kmap Scripting Engine (NSE)</primary><secondary>sample scripts</secondary></indexterm>
     <indexterm><primary>version detection</primary><secondary>using NSE</secondary></indexterm>
 
     <para>
-    The version detection system built into Nmap was designed to
+    The version detection system built into Kmap was designed to
     efficiently recognize the vast majority of protocols with a simple
     probe and pattern matching syntax.  Some protocols require more
     complex communication than version detection can handle.  A
@@ -3676,7 +3676,7 @@ Detects the Skype version 2 service.
 -- 80/tcp open  skype2  Skype
  
 author = "Brandon Enright"<indexterm><primary>Enright, Brandon</primary></indexterm><indexterm><primary sortas="author script variable">&ldquo;<varname>author</varname>&rdquo; script variable</primary></indexterm>
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"<indexterm><primary sortas="license script variable">&ldquo;<varname>license</varname>&rdquo; script variable</primary></indexterm>
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"<indexterm><primary sortas="license script variable">&ldquo;<varname>license</varname>&rdquo; script variable</primary></indexterm>
 categories = {"version"}
 
 require "comm"
@@ -3711,7 +3711,7 @@ action = function(host, port)
                 -- Detected
                 port.version.name = "skype2"
                 port.version.product = "Skype"
-                nmap.set_port_version(host, port)
+                kmap.set_port_version(host, port)
                 return  
         end
         return
@@ -3723,11 +3723,11 @@ end
     If the script detects Skype, it augments its <varname>port</varname>
     table with now-known <varname>name</varname> and
     <varname>product</varname> fields. It then sends this new
-    information to Nmap by calling
-    <function>nmap.set_port_version</function>. Several other version
+    information to Kmap by calling
+    <function>kmap.set_port_version</function>. Several other version
     fields are available to be set if they are known, but in this case
     we only have the name and product. For the full list of version
-    fields, refer to the <ulink role="hidepdf" url="https://nmap.org/nsedoc/modules/nmap.html"><function>nmap.set_port_version</function> documentation</ulink>.
+    fields, refer to the <ulink role="hidepdf" url="https://kmap.org/nsedoc/modules/kmap.html"><function>kmap.set_port_version</function> documentation</ulink>.
     </para>
 
     <para>
@@ -3756,7 +3756,7 @@ Attempts to get a list of usernames via the finger service.
 
 author = "Eddie Bell"<indexterm><primary>Bell, Eddie</primary></indexterm><indexterm><primary sortas="author script variable">&ldquo;<varname>author</varname>&rdquo; script variable</primary></indexterm>
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"<indexterm><primary sortas="license script variable">&ldquo;<varname>license</varname>&rdquo; script variable</primary></indexterm>
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"<indexterm><primary sortas="license script variable">&ldquo;<varname>license</varname>&rdquo; script variable</primary></indexterm>
 </programlisting>
 
 <para>The <literal>categories</literal> field is a table
@@ -3800,13 +3800,13 @@ require "shortport"
 test whether it is using the well-known finger port (<literal>79/tcp</literal>), or
 whether the service is named <quote>finger</quote> based on version
 detection results or in the port number's listing
-in <filename>nmap-services</filename>:</para>
+in <filename>kmap-services</filename>:</para>
 
 <programlisting>
 portrule = shortport.port_or_service(79, "finger")<indexterm><primary sortas="portrule script variable">&ldquo;<varname>portrule</varname>&rdquo; script variable</primary></indexterm>
 </programlisting>
 
-<para>First, the script uses <function>nmap.new_try</function> to
+<para>First, the script uses <function>kmap.new_try</function> to
 create an exception handler that will quit the script in case of an
 error. Next, it passes control to <function>comm.exchange</function>,
 which handles the network transaction. Here we have asked to wait in the communication exchange until we receive at least 100 lines, wait at least 5 seconds, or until the remote side closes the connection.  Any errors are handled by the
@@ -3815,7 +3815,7 @@ if the call to <literal>comm.exchange()</literal> was successful.</para>
 
 <programlisting>
 action = function(host, port)
-	local try = nmap.new_try()
+	local try = kmap.new_try()
 
 	return try(comm.exchange(host, port, "\r\n",
         	{lines=100, proto=port.protocol, timeout=5000}))
@@ -3825,7 +3825,7 @@ end
   </sect1>
   <sect1 id="nse-implementation">
     <title>Implementation Details</title>
-    <indexterm><primary>Nmap Scripting Engine (NSE)</primary><secondary>implementation</secondary></indexterm>
+    <indexterm><primary>Kmap Scripting Engine (NSE)</primary><secondary>implementation</secondary></indexterm>
 	<para>
 	Now it is time to explore the NSE implementation details in
 	depth.  Understanding how NSE works is useful for designing
@@ -3839,7 +3839,7 @@ end
     <sect2 id="nse-implementation-init">
       <title>Initialization Phase</title>
       <para>
-      NSE is initialized before any scanning when Nmap first starts, by the
+      NSE is initialized before any scanning when Kmap first starts, by the
       <literal>open_nse</literal> function. <literal>open_nse</literal>
       creates a fresh Lua state that will persist across
       host groups,<indexterm><primary>host groups</primary><secondary>persistence of NSE through</secondary></indexterm>
@@ -3858,7 +3858,7 @@ end
       <literal>table</literal>.
       Compiled NSE libraries are those that are defined in a C++ file instead
       of a Lua file. They include
-      <literal>nmap</literal>,
+      <literal>kmap</literal>,
       <literal>pcre</literal>,
       <literal>db</literal>,
       <literal>lpeg</literal>,
@@ -3898,7 +3898,7 @@ end
         <literal>nse_main.lua</literal> next defines classes and functions
         to be used during setup. The script arguments
         (<literal>--script-args</literal>) are loaded into
-        <literal>nmap.registry.args</literal>.
+        <literal>kmap.registry.args</literal>.
         A script database is created if one doesn't already exist or if this
         was requested with <option>--script-updatedb</option>.
       </para>

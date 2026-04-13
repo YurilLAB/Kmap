@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local sslcert = require "sslcert"
@@ -17,12 +17,12 @@ and the key used by CARBANAK malware
 (https://www.fireeye.com/blog/threat-research/2017/06/behind-the-carbanak-backdoor.html).
 However, any file of fingerprints will serve just as well. For example, this
 could be used to find weak Debian OpenSSL keys using the widely available (but
-too large to include with Nmap) list.
+too large to include with Kmap) list.
 ]]
 
 ---
 -- @usage
--- nmap --script ssl-known-key -p 443 <host>
+-- kmap --script ssl-known-key -p 443 <host>
 --
 -- @args ssl-known-key.fingerprintfile  Specify a different file to read
 --       fingerprints from.
@@ -39,7 +39,7 @@ too large to include with Nmap) list.
 -- </table>
 
 author = "Mak Kolybabi"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery", "vuln", "default"}
 dependencies = {"https-redirect"}
 
@@ -47,13 +47,13 @@ local FINGERPRINT_FILE = "ssl-fingerprints"
 
 local get_fingerprints = function(path)
   -- Check registry for cached fingerprints.
-  if nmap.registry.ssl_fingerprints then
+  if kmap.registry.ssl_fingerprints then
     stdnse.debug2("Using cached SSL fingerprints.")
-    return true, nmap.registry.ssl_fingerprints
+    return true, kmap.registry.ssl_fingerprints
   end
 
   -- Attempt to resolve path if it is relative.
-  local full_path = nmap.fetchfile("nselib/data/" .. path)
+  local full_path = kmap.fetchfile("nselib/data/" .. path)
   if not full_path then
     full_path = path
   end
@@ -98,7 +98,7 @@ local get_fingerprints = function(path)
   file:close()
 
   -- Cache fingerprints in registry for future runs.
-  nmap.registry.ssl_fingerprints = fingerprints
+  kmap.registry.ssl_fingerprints = fingerprints
 
   return true, fingerprints
 end

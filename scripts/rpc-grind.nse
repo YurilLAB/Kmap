@@ -1,6 +1,6 @@
 local stdnse = require "stdnse"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rpc = require "rpc"
 local math = require "math"
 local io = require "io"
@@ -12,7 +12,7 @@ Fingerprints the target RPC port to extract the target service, RPC number and v
 
 The script works by sending RPC Null call requests with a random high version
 unsupported number to the target service with iterated over RPC program numbers
-from the nmap-rpc file and check for replies from the target port.
+from the kmap-rpc file and check for replies from the target port.
 A reply with a RPC accept state 2 (Remote can't support version) means that we
 the request sent the matching program number, and we proceed to extract the
 supported versions. A reply with an accept state RPC accept state 1 (remote
@@ -24,9 +24,9 @@ Any other accept state is an incorrect behaviour.
 -- @args rpc-grind.threads Number of grinding threads. Defaults to <code>4</code>
 --
 -- @usage
--- nmap -sV <target>
--- nmap --script rpc-grind <target>
--- nmap --script rpc-grind --script-args 'rpc-grind.threads=8' -p <targetport>
+-- kmap -sV <target>
+-- kmap --script rpc-grind <target>
+-- kmap --script rpc-grind --script-args 'rpc-grind.threads=8' -p <targetport>
 -- <target>
 --
 --@output
@@ -38,7 +38,7 @@ Any other accept state is an incorrect behaviour.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"version"}
 
@@ -47,7 +47,7 @@ dependencies = {"rpcinfo"}
 
 portrule = function(host, port)
   -- Do not run for excluded ports
-  if (nmap.port_is_excluded(port.number, port.protocol)) then
+  if (kmap.port_is_excluded(port.number, port.protocol)) then
     return false
   end
   if port.service ~= nil and port.version.service_dtype ~= "table" and port.service ~= 'rpcbind' then
@@ -55,24 +55,24 @@ portrule = function(host, port)
     -- different than rpcbind.
     return false
   end
-  return nmap.version_intensity() >= 7
+  return kmap.version_intensity() >= 7
 end
 
 --- Function that determines if the target port of host uses RPC protocol.
---@param host Host table as commonly used in Nmap.
---@param port Port table as commonly used in Nmap.
+--@param host Host table as commonly used in Kmap.
+--@param port Port table as commonly used in Kmap.
 --@return status boolean True if target port uses RPC protocol, false else.
 local isRPC = function(host, port)
   -- If rpcbind is already set up by -sV
   -- which does practically the same check as in the "else" part.
-  -- The nmap-services-probe entry "rpcbind" is not correctly true, and should
+  -- The kmap-services-probe entry "rpcbind" is not correctly true, and should
   -- be changed to something like "sunrpc"
   if port.service == 'rpcbind' then
     return true
   else
     -- this check is important if we didn't run the scan with -sV.
     -- If we run the scan with -sV, this check shouldn't return true as it is pretty much similar
-    -- to the "rpcbind" service probe in nmap-service-probes.
+    -- to the "rpcbind" service probe in kmap-service-probes.
     local rpcConn, status, err, data, rxid, msgtype, _
 
     -- Create new socket
@@ -101,7 +101,7 @@ local isRPC = function(host, port)
       return
     else
       -- If we got response, set port to open
-      nmap.set_port_state(host, port, "open")
+      kmap.set_port_state(host, port, "open")
 
       if #data >= 8 then
         rxid, msgtype = string.unpack(">I4 I4", data)
@@ -117,28 +117,28 @@ local isRPC = function(host, port)
   stdnse.debug1("RPC checking function response data is not RPC.")
 end
 
--- Function that iterates over the nmap-rpc file and
+-- Function that iterates over the kmap-rpc file and
 -- returns program name and number pairs.
 -- @return name Name of the RPC service.
 -- @return number RPC number of the matching service name.
 local rpcIterator = function()
-  -- Check if nmap-rpc file is present.
-  local path = nmap.fetchfile("nmap-rpc")
+  -- Check if kmap-rpc file is present.
+  local path = kmap.fetchfile("kmap-rpc")
   if not path then
-    stdnse.debug1("Could not find nmap-rpc file.")
+    stdnse.debug1("Could not find kmap-rpc file.")
     return false
   end
 
   -- And is readable
-  local nmaprpc, _, _ = io.open( path, "r" )
-  if not nmaprpc then
-    stdnse.debug1("Could not open nmap-rpc for reading.")
+  local kmaprpc, _, _ = io.open( path, "r" )
+  if not kmaprpc then
+    stdnse.debug1("Could not open kmap-rpc for reading.")
     return false
   end
 
   return function()
     while true do
-      local line = nmaprpc:read()
+      local line = kmaprpc:read()
       if not line then
         break
       end
@@ -155,12 +155,12 @@ end
 --- Function that sends RPC null commands with a random version number and
 -- iterated over program numbers and checks the response for a sign that the
 -- sent program number is the matching one for the target service.
--- @param host Host table as commonly used in Nmap.
--- @param port Port table as commonly used in Nmap.
+-- @param host Host table as commonly used in Kmap.
+-- @param port Port table as commonly used in Kmap.
 -- @param iterator Iterator function that returns program name and number pairs.
 -- @param result table to put result into.
 local rpcGrinder = function(host, port, iterator, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local rpcConn, version, xid, status, response, packet, err, data, _
 
   xid = math.random(123456789)
@@ -242,7 +242,7 @@ action = function(host, port)
     lthreads[co] = true
   end
 
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   repeat
     for thread in pairs(lthreads) do
       if coroutine.status(thread) == "dead" then
@@ -263,9 +263,9 @@ action = function(host, port)
     else
       port.version.version = result.highver
     end
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   else
-    stdnse.debug1("Couldn't determine the target RPC service. Running a service not in nmap-rpc ?")
+    stdnse.debug1("Couldn't determine the target RPC service. Running a service not in kmap-rpc ?")
   end
   return nil
 end

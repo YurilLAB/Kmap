@@ -21,9 +21,9 @@ CICS User ID enumeration script for the CESL/CESN Login screen.
 --  logon transaction ID.
 --
 -- @usage
--- nmap --script=cics-user-enum -p 23 <targets>
+-- kmap --script=cics-user-enum -p 23 <targets>
 --
--- nmap --script=cics-user-enum --script-args userdb=users.txt,
+-- kmap --script=cics-user-enum --script-args userdb=users.txt,
 -- cics-user-enum.commands="exit;logon applid(cics42)" -p 23 <targets>
 --
 -- @output
@@ -40,11 +40,11 @@ CICS User ID enumeration script for the CESL/CESN Login screen.
 -- 2019-02-01 - v0.3 - Disabled TN3270E support
 --
 -- @author Philip Young
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 portrule = shortport.port_or_service({23,992}, "tn3270")
 

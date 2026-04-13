@@ -27,12 +27,12 @@
 --</code>
 --
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 
 local coroutine = require "coroutine"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -41,7 +41,7 @@ local base32 = require "base32"
 local unittest = require "unittest"
 _ENV = stdnse.module("dns", stdnse.seeall)
 
-get_servers = nmap.get_dns_servers
+get_servers = kmap.get_dns_servers
 
 ---
 -- Table of DNS resource types.
@@ -84,7 +84,7 @@ CLASS = {
 -- @return Status (true or false).
 -- @return Response (if status is true).
 local function sendPacketsUDP(data, host, port, timeout, cnt, multiple)
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   local responses = {}
 
   socket:set_timeout(timeout)
@@ -132,7 +132,7 @@ end
 -- @return Status (true or false).
 -- @return Response (if status is true).
 local function sendPacketsTCP(data, host, port, timeout)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local response
   local responses = {}
   socket:set_timeout(timeout)
@@ -286,7 +286,7 @@ end
 -- @param dname Desired domain name entry.
 -- @param options A table containing any of the following fields:
 -- * <code>dtype</code>: Desired DNS record type (default: <code>"A"</code>).
--- * <code>host</code>: DNS server to be queried (default: DNS servers known to Nmap).
+-- * <code>host</code>: DNS server to be queried (default: DNS servers known to Kmap).
 -- * <code>port</code>: Port of DNS server to connect to (default: <code>53</code>).
 -- * <code>tries</code>: How often should <code>query</code> try to contact another server (for non-recursive queries).
 -- * <code>retAll</code>: Return all answers, not just the first.
@@ -1140,7 +1140,7 @@ end
 
 get_default_timeout = function()
   local timeout = {[0] = 10000, 7000, 5000, 4000, 4000, 4000}
-  return timeout[nmap.timing_level()] or 4000
+  return timeout[kmap.timing_level()] or 4000
 end
 
 ---
@@ -1243,7 +1243,7 @@ end
 -- @param dname containing the hostname to add
 -- @param options A table containing any of the following fields:
 -- * <code>dtype</code>: Desired DNS record type (default: <code>"A"</code>).
--- * <code>host</code>: DNS server to be queried (default: DNS servers known to Nmap).
+-- * <code>host</code>: DNS server to be queried (default: DNS servers known to Kmap).
 -- * <code>timeout</code>: The time to wait for a response
 -- * <code>sendCount</code>: The number of send attempts to perform
 -- * <code>zone</code>: If not supplied deduced from hostname
@@ -1360,7 +1360,7 @@ local tests = { {
       0x06, -- Label length <-- [12]
       0x73, 0x63, 0x61, 0x6e, 0x6d, 0x65, -- "scanme"
       0x04, -- Label length
-      0x6e, 0x6d, 0x61, 0x70, -- "nmap"
+      0x6e, 0x6d, 0x61, 0x70, -- "kmap"
       0x03, -- Label length
       0x6f, 0x72, 0x67, -- "org"
       0x00, -- Name terminator
@@ -1372,7 +1372,7 @@ local tests = { {
       0x00, 0x00, 0x0e, 0x0f, -- TTL 3599
       0x00, 0x04, -- Record Length
       0x2d, 0x21, 0x20, 0x9c ), -- 45.33.32.156
-    qname = "scanme.nmap.org",
+    qname = "scanme.kmap.org",
     qtype = "A",
     ans = {"ip", "45.33.32.156"}
   },
@@ -1407,13 +1407,13 @@ local tests = { {
       0x06, -- Label length
       0x73, 0x63, 0x61, 0x6e, 0x6d, 0x65, -- "scanme"
       0x04, -- Label length
-      0x6e, 0x6d, 0x61, 0x70, -- "nmap"
+      0x6e, 0x6d, 0x61, 0x70, -- "kmap"
       0x03, -- Label length
       0x6f, 0x72, 0x67, -- "org"
       0x00),  -- Name terminator
     qname = "156.32.33.45.in-addr.arpa",
     qtype = "PTR",
-    ans = {"domain", "scanme.nmap.org"}
+    ans = {"domain", "scanme.kmap.org"}
   },
 }
 for _, t in ipairs(tests) do

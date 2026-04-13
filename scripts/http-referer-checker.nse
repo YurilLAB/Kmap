@@ -5,7 +5,7 @@ third-party entities.
 ]]
 
 ---
--- @usage nmap -p80 --script http-referer-checker.nse <host>
+-- @usage kmap -p80 --script http-referer-checker.nse <host>
 --
 -- This script informs about cross-domain include of scripts by
 -- finding src attributes that point to a different domain.
@@ -22,7 +22,7 @@ third-party entities.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local shortport = require "shortport"
 local stdnse = require "stdnse"

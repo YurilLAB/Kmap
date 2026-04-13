@@ -10,7 +10,7 @@ _ENV = stdnse.module("nbd", stdnse.seeall)
 -- https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 NBD = {
   magic = {

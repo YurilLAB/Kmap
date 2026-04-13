@@ -1,4 +1,4 @@
-local nmap = require('nmap')
+local kmap = require('kmap')
 local shortport = require('shortport')
 local sslcert = require('sslcert')
 local stdnse = require('stdnse')
@@ -39,7 +39,7 @@ the server is vulnerable.
 
 ---
 -- @usage
--- nmap -p 443 --script ssl-ccs-injection <target>
+-- kmap -p 443 --script ssl-ccs-injection <target>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -64,7 +64,7 @@ the server is vulnerable.
 -- |_      http://www.openssl.org/news/secadv_20140605.txt
 
 author = "Claudiu Perta <claudiu.perta@gmail.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln", "safe" }
 dependencies = {"https-redirect"}
 
@@ -163,7 +163,7 @@ local function test_ccs_injection(host, port, version)
       return false, Error.CONNECT
     end
   else
-    s = nmap.new_socket()
+    s = kmap.new_socket()
     status, err = s:connect(host, port)
     if not status then
       stdnse.debug3("Connection to server failed: %s", err)

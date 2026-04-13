@@ -56,7 +56,7 @@ message, and repository description.
 
 categories = { "default", "safe", "vuln" }
 author = "Alex Weber"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 portrule = shortport.http
 
 -- We consider 200 to mean "okay, file exists and we received its contents".

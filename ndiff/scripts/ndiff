@@ -2,13 +2,13 @@
 
 # Ndiff
 #
-# This programs reads two Nmap XML files and displays a list of their
+# This programs reads two Kmap XML files and displays a list of their
 # differences.
 #
-# Copyright 2021 Nmap Software LLC
-# Ndiff is distributed under the same license as Nmap. See the file
-# LICENSE in the Nmap source distribution or
-# https://nmap.org/book/man-legal.html for more details.
+# Copyright 2021 Kmap Software LLC
+# Ndiff is distributed under the same license as Kmap. See the file
+# LICENSE in the Kmap source distribution or
+# https://kmap.org/book/man-legal.html for more details.
 #
 # Original author was David Fifield based on a design by Michael Pattrick
 
@@ -18,7 +18,7 @@ import sys
 # writable only by our euid or by root. If symlinks are present, they are
 # recursively checked, up to a limit of SYMLINK_LIMIT.
 # https://www.securecoding.cert.org/confluence/display/seccode/FIO15-C.+Ensure+that+file+operations+are+performed+in+a+secure+directory
-# We use this code for Zenmap too
+# We use this code for Zekmap too
 SYMLINK_LIMIT = 5
 def is_secure_dir(path, num_symlinks=0):
     import os

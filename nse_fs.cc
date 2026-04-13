@@ -1,6 +1,6 @@
 /*
 ** Note: this is a port of LuaFileSystem for the
-** Nmap project (https://nmap.org).
+** Kmap project (https://kmap.org).
 ** Many functions have been removed, because we only really
 ** need: dir, mkdir, rmdir and possibly link.
  */
@@ -28,11 +28,11 @@
 
 #include "nse_lua.h"
 
-#include "nmap.h"
+#include "kmap.h"
 #include "nse_fs.h"
 #include "nse_utility.h"
-#include "nmap_error.h"
-#include "NmapOps.h"
+#include "kmap_error.h"
+#include "KmapOps.h"
 
 #ifdef _WIN32
 #include <direct.h>

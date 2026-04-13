@@ -1368,10 +1368,10 @@ Optional Packages:
   --with-openssl=DIR      Use optional openssl libs and includes from
                           [DIR]/lib/ and [DIR]/include/openssl/)
   --with-libpcap=DIR      Look for pcap in DIR/include and DIR/libs.
-  --with-libpcap=included Always use version included with Nmap
+  --with-libpcap=included Always use version included with Kmap
   --with-libdnet=DIR      Use an existing (compiled) dnet lib from DIR/include
                           and DIR/lib.
-  --with-libdnet=included Use the libdnet version included with Nmap (default)
+  --with-libdnet=included Use the libdnet version included with Kmap (default)
 
 Some influential environment variables:
   CC          C compiler command

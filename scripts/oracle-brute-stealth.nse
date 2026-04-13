@@ -2,7 +2,7 @@ local brute = require "brute"
 local coroutine = require "coroutine"
 local creds = require "creds"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -27,7 +27,7 @@ password.
 -- @see oracle-brute.nse
 --
 -- @usage
--- nmap --script oracle-brute-stealth -p 1521 --script-args oracle-brute-stealth.sid=ORCL <host>
+-- kmap --script oracle-brute-stealth -p 1521 --script-args oracle-brute-stealth.sid=ORCL <host>
 --
 -- @output
 -- PORT     STATE  SERVICE REASON
@@ -35,7 +35,7 @@ password.
 -- | oracle-brute-stealth:
 -- |   Accounts
 -- |     dummy:$o5logon$1245C95384E15E7F0C893FCD1893D8E19078170867E892CE86DF90880E09FAD3B4832CBCFDAC1A821D2EA8E3D2209DB6*4202433F49DE9AE72AE2 - Hashed valid or invalid credentials
--- |     nmap:$o5logon$D1B28967547DBA3917D7B129E339F96156C8E2FE5593D42540992118B3475214CA0F6580FD04C2625022054229CAAA8D*7BCF2ACF08F15F75B579 - Hashed valid or invalid credentials
+-- |     kmap:$o5logon$D1B28967547DBA3917D7B129E339F96156C8E2FE5593D42540992118B3475214CA0F6580FD04C2625022054229CAAA8D*7BCF2ACF08F15F75B579 - Hashed valid or invalid credentials
 -- |   Statistics
 -- |_    Performed 2 guesses in 1 seconds, average tps: 2
 --
@@ -54,7 +54,7 @@ password.
 --     library
 
 author = "Dhiru Kholia"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(1521, "oracle-tns", "tcp", "open")
@@ -179,7 +179,7 @@ action = function(host, port)
   end
 
   if ( mode == "default" ) then
-    local f = nmap.fetchfile(DEFAULT_ACCOUNTS)
+    local f = kmap.fetchfile(DEFAULT_ACCOUNTS)
     if ( not(f) ) then
       return fail(("Failed to find %s"):format(DEFAULT_ACCOUNTS))
     end

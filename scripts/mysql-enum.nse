@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -21,7 +21,7 @@ old authentication mechanism from versions 4.x and earlier.
 
 ---
 -- @usage
--- nmap --script=mysql-enum <target>
+-- kmap --script=mysql-enum <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -37,7 +37,7 @@ old authentication mechanism from versions 4.x and earlier.
 -- @args mysql-enum.timeout socket timeout for connecting to MySQL (default 5s)
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(3306, "mysql")
@@ -57,7 +57,7 @@ Driver = {
   end,
 
   connect = function( self )
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     local status, err = self.socket:connect(self.host, self.port)
     self.socket:set_timeout(arg_timeout)
     if(not(status)) then

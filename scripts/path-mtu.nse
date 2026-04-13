@@ -1,6 +1,6 @@
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -27,7 +27,7 @@ of that, this list is rarely traversed in whole because:
 
 ---
 -- @usage
--- nmap --script path-mtu target
+-- kmap --script path-mtu target
 --
 -- @output
 -- Host script results:
@@ -38,7 +38,7 @@ of that, this list is rarely traversed in whole because:
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -239,7 +239,7 @@ local getprobe = function(host)
   local combos = {
     { "tcp", "open" },
     { "tcp", "closed" },
-    -- udp/open probably only happens when Nmap sends proper
+    -- udp/open probably only happens when Kmap sends proper
     -- payloads, which doesn't happen in here
     { "udp", "closed" }
   }
@@ -247,7 +247,7 @@ local getprobe = function(host)
   local port = nil
 
   for _, c in ipairs(combos) do
-    port = nmap.get_ports(host, nil, c[1], c[2])
+    port = kmap.get_ports(host, nil, c[1], c[2])
     if port then
       proto = c[1]
       break
@@ -266,16 +266,16 @@ local setreg = function(host, proto, port)
 end
 
 hostrule = function(host)
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("not running for lack of privileges.")
     end
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
     return nil
   end
 
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -294,18 +294,18 @@ action = function(host)
   local m, r
   local gotit = false
   local mtuset
-  local sock = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local sock = kmap.new_dnet()
+  local pcap = kmap.new_socket()
   local proto = host.registry['pathmtuprobe']['proto']
   local port = host.registry['pathmtuprobe']['port']
   local saddr = ipOps.str_to_ip(host.bin_ip_src)
   local daddr = ipOps.str_to_ip(host.bin_ip)
-  local try = nmap.new_try()
+  local try = kmap.new_try()
   local status, pkt, ip
 
   try(sock:ip_open())
 
-  try = nmap.new_try(function() sock:ip_close() end)
+  try = kmap.new_try(function() sock:ip_close() end)
 
   pcap:pcap_open(host.interface, 104, false, "dst host " .. saddr .. " and (icmp or (" .. proto .. " and src host " .. daddr .. " and src port " .. port .. "))")
 
@@ -383,7 +383,7 @@ action = function(host)
   sock:ip_close()
 
   if not gotit then
-    if nmap.debugging() > 0 then
+    if kmap.debugging() > 0 then
       return "Error: Unable to determine PMTU (no replies)"
     end
     return

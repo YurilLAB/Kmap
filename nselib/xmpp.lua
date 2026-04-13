@@ -23,7 +23,7 @@
 -- status, err = helper:login(user, pass, "DIGEST-MD5")
 -- </code>
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 
 -- Version 0.2
@@ -33,7 +33,7 @@
 
 local base64 = require "base64"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local sasl = require "sasl"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -193,7 +193,7 @@ XMPP = {
 
     -- we may be reconnecting using SSL
     if ( not(self.socket) ) then
-      self.socket = socket or nmap.new_socket()
+      self.socket = socket or kmap.new_socket()
       self.socket:set_timeout(self.options.timeout * 1000)
       local status, err = self.socket:connect(self.host, self.port)
       if ( not(status) ) then

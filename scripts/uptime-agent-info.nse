@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local oops = require "oops"
 
 description = [[
@@ -8,7 +8,7 @@ Gets system information from an Idera Uptime Infrastructure Monitor agent.
 
 ---
 -- @usage
--- nmap --script uptime-agent-info -p 9998 <target>
+-- kmap --script uptime-agent-info -p 9998 <target>
 --
 -- @output
 -- 9998/tcp open  uptime-agent syn-ack
@@ -34,7 +34,7 @@ Gets system information from an Idera Uptime Infrastructure Monitor agent.
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "default"}
 
@@ -89,7 +89,7 @@ action = function(host, port)
   end
 
   if set_port_version then
-    nmap.set_port_version(host, port, "hardmatched")
+    kmap.set_port_version(host, port, "hardmatched")
   end
   return info
 end

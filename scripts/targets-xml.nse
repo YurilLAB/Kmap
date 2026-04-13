@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local slaxml = require "slaxml"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -7,18 +7,18 @@ local table = require "table"
 local target = require "target"
 
 description = [[
-Loads addresses from an Nmap XML output file for scanning.
+Loads addresses from an Kmap XML output file for scanning.
 
-Address type (IPv4 or IPv6) is determined according to whether -6 is specified to nmap.
+Address type (IPv4 or IPv6) is determined according to whether -6 is specified to kmap.
 ]]
 
 ---
---@args targets-xml.iX Filename of an Nmap XML file to import
+--@args targets-xml.iX Filename of an Kmap XML file to import
 --@args targets-xml.state Only hosts with this status will have their addresses
 --                        input. Default: "up"
 --
 --@usage
--- nmap --script targets-xml --script-args newtargets,iX=oldscan.xml
+-- kmap --script targets-xml --script-args newtargets,iX=oldscan.xml
 --
 --@output
 --Pre-scan script results:
@@ -31,7 +31,7 @@ Address type (IPv4 or IPv6) is determined according to whether -6 is specified t
 
 author = "Daniel Miller"
 categories = {"safe"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local filename = stdnse.get_script_args(SCRIPT_NAME .. ".iX")
 
@@ -102,7 +102,7 @@ action = function ()
     addrtype = "ipv4",
     added = 0,
   }
-  if nmap.address_family() == "inet6" then
+  if kmap.address_family() == "inet6" then
     state.addrtype = "ipv6"
   end
 

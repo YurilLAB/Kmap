@@ -1,6 +1,6 @@
 local stdnse = require "stdnse"
 local openssl = stdnse.silent_require "openssl"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local ssh2 = require "ssh2"
 local sslcert = require "sslcert"
@@ -19,7 +19,7 @@ References:
 
 ---
 -- @usage
--- nmap -p 22,443 --script rsa-vuln-roca <target>
+-- kmap -p 22,443 --script rsa-vuln-roca <target>
 --
 -- @output
 --
@@ -29,7 +29,7 @@ References:
 -- @see ssh-hostkey.nse
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 -- only run this script if the target host is NOT a private (RFC1918) IP address)
@@ -48,7 +48,7 @@ end
 local function is_vulnerable (modulus)
   local dec2bn = openssl.bignum_dec2bn
   -- Prime tests used under MIT license from https://github.com/crocs-muni/roca
-  local prime_tests = nmap.registry.roca_prime_tests or {
+  local prime_tests = kmap.registry.roca_prime_tests or {
     {dec2bn("3"), dec2bn("6")},
     {dec2bn("5"), dec2bn("30")},
     {dec2bn("7"), dec2bn("126")},
@@ -88,7 +88,7 @@ local function is_vulnerable (modulus)
     {dec2bn("163"), dec2bn("11692013098647223345629478661730264157247460343806")},
     {dec2bn("167"), dec2bn("187072209578355573530071658587684226515959365500926")},
   }
-  nmap.registry.roca_prime_tests = prime_tests
+  kmap.registry.roca_prime_tests = prime_tests
 
   --stdnse.debug1("Testing %s", openssl.bignum_bn2dec(modulus))
   for _, test in ipairs(prime_tests) do
@@ -126,7 +126,7 @@ local function ssl_get_modulus(host, port)
 
   local modulus = cert.pubkey.modulus
   if not modulus then
-    stdnse.debug1("No modulus available; upgrade Nmap?")
+    stdnse.debug1("No modulus available; upgrade Kmap?")
     return nil
   end
   return modulus

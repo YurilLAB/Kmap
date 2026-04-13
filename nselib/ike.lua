@@ -20,10 +20,10 @@
 --An a implementation resembling 'ike-scan' could be built.
 --
 --@author Jesper Kueckelhahn
---@license Same as Nmap--See https://nmap.org/book/man-legal.html
+--@license Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local _G = require "_G"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -99,14 +99,14 @@ local function load_fingerprints()
   local file, filename_full, fingerprints
 
   -- Check if fingerprints are cached
-  if(nmap.registry.ike_fingerprints ~= nil) then
+  if(kmap.registry.ike_fingerprints ~= nil) then
     stdnse.debug1("ike: Loading cached fingerprints")
-    return nmap.registry.ike_fingerprints
+    return kmap.registry.ike_fingerprints
   end
 
   -- Try and find the file
-  -- If it isn't in Nmap's directories, take it as a direct path
-  filename_full = nmap.fetchfile('nselib/data/ike-fingerprints.lua')
+  -- If it isn't in Kmap's directories, take it as a direct path
+  filename_full = kmap.fetchfile('nselib/data/ike-fingerprints.lua')
 
   -- Load the file
   stdnse.debug1("ike: Loading fingerprints: %s", filename_full)
@@ -337,10 +337,10 @@ end
 -- @return Parsed IKE response (output of <code>ike.response()</code>)
 function send_request( host, port, packet )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- lock resource (port 500/udp)
-  local mutex = nmap.mutex("ike_port_500");
+  local mutex = kmap.mutex("ike_port_500");
   mutex "lock";
 
   -- send the request packet

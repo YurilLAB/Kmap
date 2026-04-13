@@ -1,5 +1,5 @@
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -14,7 +14,7 @@ services (.NET 4.0 or later).
 
 ---
 -- @usage
--- sudo ./nmap --script wsdd-discover
+-- sudo ./kmap --script wsdd-discover
 --
 -- @output
 -- PORT     STATE         SERVICE
@@ -32,7 +32,7 @@ services (.NET 4.0 or later).
 -- Created 10/31/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery", "default"}
 
 
@@ -45,8 +45,8 @@ portrule = shortport.portnumber(3702, "udp", {"open", "open|filtered"})
 -- @param result table into which the results are stored
 discoverThread = function( funcname, host, port, results )
   -- calculates a timeout based on the timing template (default: 5s)
-  local timeout = ( 20000 / ( nmap.timing_level() + 1 ) )
-  local condvar = nmap.condvar( results )
+  local timeout = ( 20000 / ( kmap.timing_level() + 1 ) )
+  local condvar = kmap.condvar( results )
   local helper = wsdd.Helper:new(host, port)
   helper:setTimeout(timeout)
 
@@ -65,7 +65,7 @@ end
 action = function(host, port)
 
   local threads, results = {}, {}
-  local condvar = nmap.condvar( results )
+  local condvar = kmap.condvar( results )
 
   -- Attempt to discover both devices and WCF web services
   for _, f in ipairs( {"discoverDevices", "discoverWCFServices"} ) do

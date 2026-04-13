@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -40,7 +40,7 @@ http://www.tapjam.net/daap/.
 -- |_        Coconut
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -271,7 +271,7 @@ end
 
 action = function(host, port)
 
-  local limit = tonumber(nmap.registry.args.daap_item_limit) or 100
+  local limit = tonumber(kmap.registry.args.daap_item_limit) or 100
   local libname = getLibraryName( host, port )
 
   if libname == nil then

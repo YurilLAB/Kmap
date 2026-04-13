@@ -6,7 +6,7 @@ devices.
 
 ---
 -- @usage
--- sudo nmap -sU -p 8611,8612 --script bjnp-discover <ip>
+-- sudo kmap -sU -p 8611,8612 --script bjnp-discover <ip>
 --
 -- @output
 -- PORT     STATE SERVICE

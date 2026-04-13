@@ -129,8 +129,8 @@
 --  end
 --
 --  postrule = function()
---    if nmap.registry[SCRIPT_NAME] then
---      FID = nmap.registry[SCRIPT_NAME].FID
+--    if kmap.registry[SCRIPT_NAME] then
+--      FID = kmap.registry[SCRIPT_NAME].FID
 --      if vulns.get_ids(FID) then
 --        return true
 --      end
@@ -139,8 +139,8 @@
 --  end
 --
 --  prerule_action = function()
---    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
---    nmap.registry[SCRIPT_NAME].FID = FID
+--    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+--    kmap.registry[SCRIPT_NAME].FID = FID
 --    return nil
 --  end
 --
@@ -185,11 +185,11 @@
 --
 -- @author Djalal Harouni
 -- @author Henri Doreau
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -213,13 +213,13 @@ local compare_ip = ipOps.compare_ip
 _ENV = stdnse.module("vulns", stdnse.seeall)
 
 -- This is the vulnerability database
--- (it will reference a table in the registry: nmap.registry.VULNS
+-- (it will reference a table in the registry: kmap.registry.VULNS
 -- see the save_reports() function).
 local VULNS
 
 -- Vulnerability Database (registry) internal data representation
 --
--- -- VULNS = nmap.registry.VULNS
+-- -- VULNS = kmap.registry.VULNS
 -- VULNS = {
 --
 --  -- Vulnerability entries
@@ -343,7 +343,7 @@ local VULNS
 --      },
 --
 --      -- Entries without the vulnerability ID are stored here.
---      'NMAP_ID' = {
+--      'KMAP_ID' = {
 --        'XXXXX' = {
 --          ...
 --        },
@@ -371,7 +371,7 @@ local VULNS
 
 -- This value is used to reference vulnerability entries
 -- that lacks vulnerability IDs.
-local NMAP_ID_NUM = 0
+local KMAP_ID_NUM = 0
 
 -- SHOW_ALL: if set the format and make_output() functions will
 -- show the vulnerability entries with a state == NOT_VULN
@@ -553,11 +553,11 @@ local normalize_vuln_info = function(vuln_table)
   end
 
   if not next(vuln_table.IDS) then
-    -- Use the internal NMAP_ID if vulnerability IDs are missing.
-    NMAP_ID_NUM = NMAP_ID_NUM + 1
+    -- Use the internal KMAP_ID if vulnerability IDs are missing.
+    KMAP_ID_NUM = KMAP_ID_NUM + 1
     -- Push IDs as strings instead of numbers to avoid
     -- dealing with array holes.
-    vuln_table.IDS.NMAP_ID = string_format("NMAP-%d", NMAP_ID_NUM)
+    vuln_table.IDS.KMAP_ID = string_format("KMAP-%d", KMAP_ID_NUM)
   else
     for id_type, id in pairs(vuln_table.IDS) do
       -- Push IDs as strings instead of numbers to avoid
@@ -672,8 +672,8 @@ end
 --- Update the FILTER ID table references.
 --
 -- When a new vulnerability table is stored in the registry in the
--- <code>nmap.registry.VULNS.ENTRIES</code> database, we will also update
--- the <code>nmap.registry.VULNS.FILTERS_IDS[fid_table]</code> to
+-- <code>kmap.registry.VULNS.ENTRIES</code> database, we will also update
+-- the <code>kmap.registry.VULNS.FILTERS_IDS[fid_table]</code> to
 -- reference the new saved vulnerability.
 --
 -- @usage
@@ -684,7 +684,7 @@ end
 --        <code>'CVE'</code>, <code>'OSVDB'</code> ...
 -- @param id  String representing the vulnerability ID.
 -- @param vuln_table  The vulnerability table reference that was stored
---        in the registry <code>nmap.registry.VULNS.ENTRIES</code>.
+--        in the registry <code>kmap.registry.VULNS.ENTRIES</code>.
 -- @return Table  A reference to the vulnerability table that was just
 --        saved in the <code>FILTER ID</code> table.
 local l_update_id = function(fid_table, id_type, id, vuln_table)
@@ -1836,8 +1836,8 @@ local format_vuln_base = function(vuln_table, showall)
   if vuln_table.IDS and next(vuln_table.IDS) then
     local ids_t = {}
     for id_type, id in pairs(vuln_table.IDS) do
-      -- ignore internal NMAP IDs
-      if id_type ~= 'NMAP_ID' then
+      -- ignore internal KMAP IDs
+      if id_type ~= 'KMAP_ID' then
         table.insert(ids_t, string_format("%s:%s", id_type, id))
       end
     end
@@ -2108,8 +2108,8 @@ end
 --    to reference and identify the appropriate vulnerabilities.
 save_reports = function(filter_callback)
   if not VULNS then
-    nmap.registry.VULNS = nmap.registry.VULNS or {}
-    VULNS = nmap.registry.VULNS
+    kmap.registry.VULNS = kmap.registry.VULNS or {}
+    VULNS = kmap.registry.VULNS
     VULNS.ENTRIES = VULNS.ENTRIES or {}
     VULNS.ENTRIES.HOSTS = VULNS.ENTRIES.HOSTS or {}
     VULNS.ENTRIES.NETWORKS = VULNS.ENTRIES.NETWORKS or {}

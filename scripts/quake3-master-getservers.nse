@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -13,7 +13,7 @@ Queries Quake3-style master servers for game servers (many games other than Quak
 
 ---
 -- @usage
--- nmap -sU -p 27950 --script=quake3-master-getservers <target>
+-- kmap -sU -p 27950 --script=quake3-master-getservers <target>
 -- @output
 -- PORT      STATE SERVICE REASON
 -- 27950/udp open  quake3-master
@@ -28,12 +28,12 @@ Queries Quake3-style master servers for game servers (many games other than Quak
 --       less, all files are shown. The default value is 10.
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service ({20110, 20510, 27950, 30710}, "quake3-master", {"udp"})
 postrule = function()
-  return (nmap.registry.q3m_servers ~= nil)
+  return (kmap.registry.q3m_servers ~= nil)
 end
 
 -- There are various sources for this information. These include:
@@ -72,7 +72,7 @@ local KNOWN_PROTOCOLS = {
 }
 
 local function getservers(host, port, q3protocol)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(10000)
   local status, err = socket:connect(host, port)
   if not status then
@@ -86,7 +86,7 @@ local function getservers(host, port, q3protocol)
   if not status then
     return {}
   end
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local magic = "\xff\xff\xff\xffgetserversResponse"
   local tmp
@@ -101,7 +101,7 @@ local function getservers(host, port, q3protocol)
   end
 
   port.version.name = "quake3-master"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   local EOT = "EOT\0\0\0"
   local pieces = stringaux.strsplit("\\", data)
@@ -177,18 +177,18 @@ local function scan(host, port, protocols)
 end
 
 local function store(servers)
-  if not nmap.registry.q3m_servers then
-    nmap.registry.q3m_servers = {}
+  if not kmap.registry.q3m_servers then
+    kmap.registry.q3m_servers = {}
   end
   for _, server in ipairs(servers) do
-    table.insert(nmap.registry.q3m_servers, server)
+    table.insert(kmap.registry.q3m_servers, server)
   end
 end
 
 local function protocols()
   local filter = {}
   local count = {}
-  for _, advert in ipairs(nmap.registry.q3m_servers) do
+  for _, advert in ipairs(kmap.registry.q3m_servers) do
     local key = table.concat({advert.ip, advert.port, advert.protocol}, ":")
     if filter[key] == nil then
       if count[advert.protocol] == nil then
@@ -223,7 +223,7 @@ action = function(host, port)
   if SCRIPT_TYPE == "postrule" then
     return protocols()
   end
-  local outputlimit = nmap.registry.args[SCRIPT_NAME .. ".outputlimit"]
+  local outputlimit = kmap.registry.args[SCRIPT_NAME .. ".outputlimit"]
   if not outputlimit then
     outputlimit = 10
   else

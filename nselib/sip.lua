@@ -27,14 +27,14 @@
 --
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @args sip.timeout - specifies the session (socket) timeout in seconds
 
 -- Version 0.1
 -- Created 2011/03/30 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local openssl = stdnse.silent_require "openssl"
@@ -148,7 +148,7 @@ SessionData = {
   --- Retrieves the SIP users full name
   -- @name SessionData.getName
   -- @return name string containing the users full name
-  getName = function(self) return self.name or "Nmap NSE" end,
+  getName = function(self) return self.name or "Kmap NSE" end,
 }
 
 -- The session class holds the code necessary to register a SIP session
@@ -383,7 +383,7 @@ Connection = {
     self.__index = self
     o.host = host
     o.port = port
-    o.socket = nmap.new_socket()
+    o.socket = kmap.new_socket()
     return o
   end,
 
@@ -527,7 +527,7 @@ Request = {
     setmetatable(o, self)
     self.__index = self
 
-    o.ua = "Nmap NSE"
+    o.ua = "Kmap NSE"
     o.protocol = proto or "UDP"
     o.expires = 0
     o.allow = "PRACK, INVITE ,ACK, BYE, CANCEL, UPDATE, SUBSCRIBE"
@@ -607,7 +607,7 @@ Request = {
 
   --- Sets the User Agent being used to connect to the SIP server
   -- @name Request.setUA
-  -- @param ua string containing the User-Agent name (defaults to Nmap NSE)
+  -- @param ua string containing the User-Agent name (defaults to Kmap NSE)
   setUA = function(self, ua) self.ua = ua end,
 
   --- Sets the caller ID information of the SIP request

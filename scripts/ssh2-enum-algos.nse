@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -20,7 +20,7 @@ type.
 
 ---
 -- @usage
--- nmap --script ssh2-enum-algos target
+-- kmap --script ssh2-enum-algos target
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -98,7 +98,7 @@ type.
 
 author = "Kris Katterjohn"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
@@ -138,7 +138,7 @@ local output = function(parsed, lists)
   for _, l in ipairs(lists) do
     local v = parsed[l]
     local a = v:len() > 0 and stringaux.strsplit(",", v) or {}
-    if nmap.verbosity() > 0 then
+    if kmap.verbosity() > 0 then
       setmetatable(a, {
         __tostring = function(t)
           return string.format("(%d)\n      %s", #t, table.concat(t, "\n      "))
@@ -158,7 +158,7 @@ local output = function(parsed, lists)
 end
 
 action = function(host, port)
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status = sock:connect(host, port)
   if not status then
     return
@@ -166,7 +166,7 @@ action = function(host, port)
 
   -- send the client banner
   -- NB: The protocol does not prescribe which side sends the banner first
-  status = sock:send("SSH-2.0-Nmap_SSH2_Enum_Algos\r\n")
+  status = sock:send("SSH-2.0-Kmap_SSH2_Enum_Algos\r\n")
   if not status then
     sock:close()
     return

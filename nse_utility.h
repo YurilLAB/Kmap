@@ -1,14 +1,14 @@
-#ifndef NMAP_NSE_UTILITY_H
-#define NMAP_NSE_UTILITY_H
+#ifndef KMAP_NSE_UTILITY_H
+#define KMAP_NSE_UTILITY_H
 
 class Port;
 class Target;
 
 #ifdef HAVE_CONFIG_H
-#include "nmap_config.h"
+#include "kmap_config.h"
 #else
 #ifdef WIN32
-#include "nmap_winconfig.h"
+#include "kmap_winconfig.h"
 #endif /* WIN32 */
 #endif /* HAVE_CONFIG_H */
 

@@ -3,7 +3,7 @@
 --
 -- Large chunks of this code have been ripped right out from <code>snmp.lua</code>.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @author Patrik Karlsson
 -- @class module
@@ -507,7 +507,7 @@ do
     {unittest.equal, "\x02\x01\x01", 1, "decode integer"},
     {unittest.equal, "\x02\x02\xff\xff", -1, "decode negative integer"},
     {unittest.equal, "\x02\x03\x01\x00\x02", 65538, "decode integer"},
-    {unittest.equal, "\x04\x04nmap", "nmap", "decode octet string"},
+    {unittest.equal, "\x04\x04kmap", "kmap", "decode octet string"},
     {unittest.is_false, "\x05\x00", nil, "decode null as false"},
     {unittest.identical, "\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x09\x04\x31",
       {1, 2, 840, 113549, 1, 9, 4, _snmp="\x06"}, "decode OID"

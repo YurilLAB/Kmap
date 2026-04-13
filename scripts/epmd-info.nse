@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -9,7 +9,7 @@ Connects to Erlang Port Mapper Daemon (epmd) and retrieves a list of nodes with 
 
 ---
 -- @usage
--- nmap -p 4369 --script epmd-info <target>
+-- kmap -p 4369 --script epmd-info <target>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -27,15 +27,15 @@ Connects to Erlang Port Mapper Daemon (epmd) and retrieves a list of nodes with 
 -- </table>
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service (4369, "epmd")
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(stdnse.get_timeout(host))
-  local try = nmap.new_try(function () socket:close() end)
+  local try = kmap.new_try(function () socket:close() end)
   try(socket:connect(host, port))
 
   try(socket:send("\x00\x01n")) -- NAMESREQ = 110

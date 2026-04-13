@@ -12,7 +12,7 @@ Performs brute force password auditing against IRC (Internet Relay Chat) servers
 
 ---
 -- @usage
--- nmap --script irc-brute -p 6667 <ip>
+-- kmap --script irc-brute -p 6667 <ip>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -31,7 +31,7 @@ Performs brute force password auditing against IRC (Internet Relay Chat) servers
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories={"brute","intrusive"}
 
 portrule = irc.portrule
@@ -59,7 +59,7 @@ Driver = {
   end,
 
   login = function(self, _, password)
-    local msg = ("PASS %s\r\nNICK nmap_brute\r\nUSER anonymous 0 * :Nmap brute\r\n"):format(password)
+    local msg = ("PASS %s\r\nNICK kmap_brute\r\nUSER anonymous 0 * :Kmap brute\r\n"):format(password)
     local status, data = self.socket:send(msg)
     local success = false
 
@@ -89,7 +89,7 @@ Driver = {
 }
 
 local function needsPassword(host, port)
-  local msg = ("NICK %s\r\nUSER anonymous 0 * :Nmap brute\r\n"):format(rand.random_alpha(9))
+  local msg = ("NICK %s\r\nUSER anonymous 0 * :Kmap brute\r\n"):format(rand.random_alpha(9))
   local s, r, opts, _ = comm.tryssl(host, port, msg, { timeout = 15000 } )
   local err, code
 

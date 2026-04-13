@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local table = require "table"
 local tableaux = require "tableaux"
@@ -13,7 +13,7 @@ Determines whether the server supports SSLv2, what ciphers it supports and tests
 CVE-2015-3197, CVE-2016-0703 and CVE-2016-0800 (DROWN)
 ]]
 author = "Bertrand Bonnefoy-Claudet <bertrand@cryptosense.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 -- We can use the set of ciphers detected by sslv2.nse to avoid 1 handshake
 dependencies = {"sslv2"}
 categories = {"intrusive", "vuln"}
@@ -124,7 +124,7 @@ local function do_setup(host, port)
       return nil
     end
   else
-    socket = nmap.new_socket()
+    socket = kmap.new_socket()
     socket:set_timeout(timeout)
     status, err = socket:connect(host, port)
     if not status then

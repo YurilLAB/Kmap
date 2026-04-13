@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     } TEST_CASES[] = {
         {"ncat -l -k", {"ncat", "-l", "-k", NULL}},
         {"ncat localhost 793", {"ncat", "localhost", "793", NULL}},
-        {"./ncat scanme.nmap.org 80", {"./ncat", "scanme.nmap.org", "80",
+        {"./ncat scanme.kmap.org 80", {"./ncat", "scanme.kmap.org", "80",
                                        NULL}},
         {"t\\ p\\ s hello world how are you?", {"t p s", "hello", "world", "how", "are",
                                               "you?", NULL}},

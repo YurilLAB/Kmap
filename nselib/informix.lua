@@ -59,7 +59,7 @@
 -- x IBM Informix Dynamic Server Express Edition v11.50 32-bit on Ubuntu
 -- x IBM Informix Dynamic Server xxx 32-bit on Windows 2003
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- @args informix.instance specifies the Informix instance to connect to
@@ -71,7 +71,7 @@
 --                             queries
 --
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -1183,7 +1183,7 @@ Helper = {
     self.__index = self
     o.host = host
     o.port = port
-    o.instance = instance or "nmap_probe"
+    o.instance = instance or "kmap_probe"
     return o
   end,
 
@@ -1194,7 +1194,7 @@ Helper = {
   Connect = function( self, socket )
     local status, data
     local conn, packet
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
 
     -- Some Informix server seem to take a LOT of time to respond?!
     self.socket:set_timeout(20000)

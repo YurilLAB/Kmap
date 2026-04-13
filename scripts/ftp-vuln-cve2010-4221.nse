@@ -21,7 +21,7 @@ Reference:
 
 ---
 -- @usage
--- nmap --script ftp-vuln-cve2010-4221 -p 21 <host>
+-- kmap --script ftp-vuln-cve2010-4221 -p 21 <host>
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -46,7 +46,7 @@ Reference:
 --
 
 author = "Djalal Harouni"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
 
@@ -107,7 +107,7 @@ local function kill_proftpd(socket)
 
   stdnse.debug2("sending evil TELNET_IAC commands.")
   local st, ret = socket:send(string.rep(TELNET_KILL, 4069)..
-                        '\255'..string.rep("Nmap", 256).."\n")
+                        '\255'..string.rep("Kmap", 256).."\n")
   if not st then
     return st, ret
   end

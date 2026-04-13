@@ -5,7 +5,7 @@
 --
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -295,7 +295,7 @@ Comm = {
     local o = {
       host = host,
       port = port,
-      socket = nmap.new_socket(),
+      socket = kmap.new_socket(),
       seq = 0,
       in_queue = {},
     }

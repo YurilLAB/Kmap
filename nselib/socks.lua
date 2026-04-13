@@ -5,7 +5,7 @@
 --
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -196,7 +196,7 @@ Helper = {
   -- @return status true on success, false on failure
   -- @return response table containing the response or err string on failure
   connect = function(self, auth_method, socket)
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or 10000)
     local status, err = self.socket:connect(self.host, self.port)
     if ( not(status) ) then

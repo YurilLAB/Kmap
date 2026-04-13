@@ -1,5 +1,5 @@
 local afp = require "afp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -16,7 +16,7 @@ Performs password guessing against Apple Filing Protocol (AFP).
 
 ---
 -- @usage
--- nmap -p 548 --script afp-brute <host>
+-- kmap -p 548 --script afp-brute <host>
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -37,7 +37,7 @@ Performs password guessing against Apple Filing Protocol (AFP).
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 
@@ -89,10 +89,10 @@ action = function( host, port )
 
         if status then
           -- Add credentials for other afp scripts to use
-          if nmap.registry.afp == nil then
-            nmap.registry.afp = {}
+          if kmap.registry.afp == nil then
+            kmap.registry.afp = {}
           end
-          nmap.registry.afp[username]=password
+          kmap.registry.afp[username]=password
           found_users[username] = true
 
           table.insert( valid_accounts, string.format("%s:%s => Valid credentials", username, password:len()>0 and password or "<empty>" ) )

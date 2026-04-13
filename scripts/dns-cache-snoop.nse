@@ -1,6 +1,6 @@
 local dns = require "dns"
 local formulas = require "formulas"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -38,7 +38,7 @@ different list.
 -- the default list.
 --
 -- @usage
--- nmap -sU -p 53 --script dns-cache-snoop.nse --script-args 'dns-cache-snoop.mode=timed,dns-cache-snoop.domains={host1,host2,host3}' <target>
+-- kmap -sU -p 53 --script dns-cache-snoop.nse --script-args 'dns-cache-snoop.mode=timed,dns-cache-snoop.domains={host1,host2,host3}' <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -58,7 +58,7 @@ different list.
 
 author = "Eugene V. Alexeev"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "discovery"}
 
@@ -156,9 +156,9 @@ end
 local function timed_query(host, port, domain)
   local start, stop
 
-  start = nmap.clock_ms()
+  start = kmap.clock_ms()
   if dns.query(domain, {host = host.ip, port = port.number, tries = 0, norecurse = false}) then
-    stop = nmap.clock_ms()
+    stop = kmap.clock_ms()
     return (stop - start) / 1000
   else
     return nil
@@ -204,7 +204,7 @@ action = function(host, port)
   local domains = DOMAINS
   local mode = MODE
 
-  local args = nmap.registry.args
+  local args = kmap.registry.args
   if args then
     if args["dns-cache-snoop.mode"] then
       mode = args["dns-cache-snoop.mode"]
@@ -226,7 +226,7 @@ action = function(host, port)
   end
 
   if #cached > 0 then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
   end
 
   return string.format("%d of %d tested domains are cached.\n", #cached, #domains) ..  table.concat(cached, "\n")

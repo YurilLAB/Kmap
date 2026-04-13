@@ -1,9 +1,9 @@
 This directory contains a version of LibPCRE2 that has been stripped
 down to less than a third of its original uncompressed size.  So if you
 want docs, tests and such, you should go to the PCRE website at
-http://www.pcre.org .  Here are the changes for the Nmap version:
+http://www.pcre.org .  Here are the changes for the Kmap version:
 
-o Started this NMAP_MODIFICATIONS file
+o Started this KMAP_MODIFICATIONS file
 
 o Removed these directories:
 doc

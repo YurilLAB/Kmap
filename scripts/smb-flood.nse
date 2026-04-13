@@ -1,7 +1,7 @@
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local coroutine = require "coroutine"
 local datetime = require "datetime"
 
@@ -24,8 +24,8 @@ never ends (until timeout).
 
 ---
 -- @usage
--- nmap --script smb-flood.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-flood.nse -p U:137,T:139 <host>
+-- kmap --script smb-flood.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-flood.nse -p U:137,T:139 <host>
 --
 -- @args smb-flood.timelimit The amount of time the script should run.
 --                           Default: 30m
@@ -38,7 +38,7 @@ never ends (until timeout).
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","dos"}
 dependencies = {"smb-brute"}
 
@@ -54,7 +54,7 @@ end
 
 local State = {
   new = function (self, host)
-    local now = nmap.clock()
+    local now = kmap.clock()
     local o = {
       host = host,
       start_time = now,
@@ -67,14 +67,14 @@ local State = {
       avg = 0, -- average number of connections required to DoS
       terminate = false,
     }
-    o.condvar = nmap.condvar(o)
+    o.condvar = kmap.condvar(o)
     setmetatable(o, self)
     self.__index = self
     return o
   end,
 
   timedout = function (self)
-    return nmap.clock() >= self.end_time
+    return kmap.clock() >= self.end_time
   end,
 
   go = function(self)

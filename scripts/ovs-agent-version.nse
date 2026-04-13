@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -28,7 +28,7 @@ categories = {"version"}
 -- 8899/tcp open  ssl/ovs-agent syn-ack Oracle Virtual Server Agent 3.0 (BaseHTTP 0.3; Python SimpleXMLRPCServer; Python 2.5.2)
 
 author = "David Fifield"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 
 portrule = shortport.version_port_or_service({8899})
@@ -43,7 +43,7 @@ local function set_port_version(host, port, version, server)
       port.version.extrainfo = string.format("BaseHTTP %s; Python SimpleXMLRPCServer; Python %s", basehttp, python)
     end
   end
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 end
 
 function action(host, port)

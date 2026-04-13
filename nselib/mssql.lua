@@ -59,7 +59,7 @@
 -- * The library does database authentication only. No OS authentication or use of the integrated security model is supported.
 -- * Queries using SELECT, INSERT, DELETE and EXEC of procedures have been tested while developing scripts.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 -- @author Chris Woodbury
@@ -103,7 +103,7 @@
 --       Default: <code>30s</code>.
 --
 -- @args mssql.scanned-ports-only If set, the script will only connect
---       to ports that were included in the Nmap scan. This may result in
+--       to ports that were included in the Kmap scan. This may result in
 --       instances not being discovered, particularly if UDP port 1434 is not
 --       included. Additionally, instances that are found to be running on
 --       ports that were not scanned (e.g. if 1434/udp is in the scan and the
@@ -113,7 +113,7 @@
 
 local math = require "math"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local datetime = require "datetime"
 local outlib = require "outlib"
 local smb = require "smb"
@@ -821,12 +821,12 @@ SqlServerVersionInfo =
   end,
 
   --- Uses the information in this SqlServerVersionInformation object to
-  --  populate the version information in an Nmap port table for a SQL Server
+  --  populate the version information in an Kmap port table for a SQL Server
   --  TCP listener.
   --
   --  @param self A SqlServerVersionInformation object
-  --  @param port An Nmap port table corresponding to the instance
-  PopulateNmapPortVersion = function(self, port)
+  --  @param port An Kmap port table corresponding to the instance
+  PopulateKmapPortVersion = function(self, port)
 
     port.service = "ms-sql-s"
     port.version = port.version or {}
@@ -954,12 +954,12 @@ SSRP =
   DiscoverInstances = function( host, port )
     port = port or SSRP.PORT
 
-    if ( SCANNED_PORTS_ONLY and nmap.get_port_state( host, port ) == nil ) then
+    if ( SCANNED_PORTS_ONLY and kmap.get_port_state( host, port ) == nil ) then
       stdnse.debug2("%s: Discovery disallowed: scanned-ports-only is set and port %d was not scanned", SSRP.DEBUG_ID, port.number )
       return false, "Discovery disallowed: scanned-ports-only"
     end
 
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
     socket:set_timeout(5000)
 
     if ( port.number ~= SSRP.PORT.number ) then
@@ -995,7 +995,7 @@ SSRP =
   DiscoverInstances_Broadcast = function( host, port )
     port = port or SSRP.PORT
 
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
     socket:set_timeout(5000)
     local instances_all = {}
 
@@ -2017,10 +2017,10 @@ LoginPacket =
   collation = 0,
 
   -- Strings
-  client = "Nmap",
+  client = "Kmap",
   username = nil,
   password = nil,
-  app = "Nmap NSE",
+  app = "Kmap NSE",
   server = nil,
   library = "mssql.lua",
   locale = "",
@@ -2353,14 +2353,14 @@ TDSStream = {
   Connect = function( self, host, port )
     if ( self._pipe ) then return false, "Already connected via named pipes" end
 
-    if ( SCANNED_PORTS_ONLY and nmap.get_port_state( host, port ) == nil ) then
+    if ( SCANNED_PORTS_ONLY and kmap.get_port_state( host, port ) == nil ) then
       stdnse.debug2("%s: Connection disallowed: scanned-ports-only is set and port %d was not scanned", "MSSQL", port.number )
       return false, "Connection disallowed: scanned-ports-only"
     end
 
     local status, result, lport, _
 
-    self._socket = nmap.new_socket()
+    self._socket = kmap.new_socket()
 
     -- Set the timeout to something realistic for connects
     self._socket:set_timeout( 5000 )
@@ -2596,18 +2596,18 @@ Helper =
   --- Returns true if discovery has been performed to detect
   -- SQL Server instances on the given host
   WasDiscoveryPerformed = function( host )
-    local mutex = nmap.mutex( "discovery_performed for " .. host.ip )
+    local mutex = kmap.mutex( "discovery_performed for " .. host.ip )
     mutex( "lock" )
-    nmap.registry.mssql = nmap.registry.mssql or {}
-    nmap.registry.mssql.discovery_performed = nmap.registry.mssql.discovery_performed or {}
+    kmap.registry.mssql = kmap.registry.mssql or {}
+    kmap.registry.mssql.discovery_performed = kmap.registry.mssql.discovery_performed or {}
 
-    local wasPerformed = nmap.registry.mssql.discovery_performed[ host.ip ] or false
+    local wasPerformed = kmap.registry.mssql.discovery_performed[ host.ip ] or false
     mutex( "done" )
 
     return wasPerformed
   end,
 
-  --- Adds an instance to the list of instances kept in the Nmap registry for
+  --- Adds an instance to the list of instances kept in the Kmap registry for
   --  shared use by SQL Server scripts.
   --
   --  If the registry already contains the instance, any new information is
@@ -2618,11 +2618,11 @@ Helper =
   AddOrMergeInstance = function( newInstance )
     local instanceExists
 
-    nmap.registry.mssql = nmap.registry.mssql or {}
-    nmap.registry.mssql.instances = nmap.registry.mssql.instances or {}
-    nmap.registry.mssql.instances[ newInstance.host.ip ] = nmap.registry.mssql.instances[ newInstance.host.ip ] or {}
+    kmap.registry.mssql = kmap.registry.mssql or {}
+    kmap.registry.mssql.instances = kmap.registry.mssql.instances or {}
+    kmap.registry.mssql.instances[ newInstance.host.ip ] = kmap.registry.mssql.instances[ newInstance.host.ip ] or {}
 
-    for _, existingInstance in ipairs( nmap.registry.mssql.instances[ newInstance.host.ip ] ) do
+    for _, existingInstance in ipairs( kmap.registry.mssql.instances[ newInstance.host.ip ] ) do
       if existingInstance == newInstance then
         existingInstance:Merge( newInstance )
         instanceExists = true
@@ -2631,7 +2631,7 @@ Helper =
     end
 
     if not instanceExists then
-      table.insert( nmap.registry.mssql.instances[ newInstance.host.ip ], newInstance )
+      table.insert( kmap.registry.mssql.instances[ newInstance.host.ip ], newInstance )
     end
   end,
 
@@ -2646,11 +2646,11 @@ Helper =
   --    will be returned.
   --  @return A table containing SqlServerInstanceInfo objects, or nil
   GetDiscoveredInstances = function( host, port )
-    nmap.registry.mssql = nmap.registry.mssql or {}
-    nmap.registry.mssql.instances = nmap.registry.mssql.instances or {}
-    nmap.registry.mssql.instances[ host.ip ] = nmap.registry.mssql.instances[ host.ip ] or {}
+    kmap.registry.mssql = kmap.registry.mssql or {}
+    kmap.registry.mssql.instances = kmap.registry.mssql.instances or {}
+    kmap.registry.mssql.instances[ host.ip ] = kmap.registry.mssql.instances[ host.ip ] or {}
 
-    local instances = nmap.registry.mssql.instances[ host.ip ]
+    local instances = kmap.registry.mssql.instances[ host.ip ]
     if ( not port ) then
       if ( instances and #instances == 0 ) then instances = nil end
       return instances
@@ -2693,10 +2693,10 @@ Helper =
         for ipAddress, host in pairs( result ) do
           for _, instance in ipairs( host ) do
             Helper.AddOrMergeInstance( instance )
-            -- Give some version info back to Nmap
+            -- Give some version info back to Kmap
             if ( instance.port and instance.version ) then
-              instance.version:PopulateNmapPortVersion( instance.port )
-              --nmap.set_port_version( instance.host, instance.port)
+              instance.version:PopulateKmapPortVersion( instance.port )
+              --kmap.set_port_version( instance.host, instance.port)
             end
           end
         end
@@ -2711,10 +2711,10 @@ Helper =
       else
         for _, instance in ipairs( result ) do
           Helper.AddOrMergeInstance( instance )
-          -- Give some version info back to Nmap
+          -- Give some version info back to Kmap
           if ( instance.port and instance.version ) then
-            instance.version:PopulateNmapPortVersion( instance.port )
-            nmap.set_port_version( host, instance.port)
+            instance.version:PopulateKmapPortVersion( instance.port )
+            kmap.set_port_version( host, instance.port)
           end
         end
 
@@ -2759,10 +2759,10 @@ Helper =
     -- pre-login packet to determine whether there was a SQL Server on
     -- the port. However, since we have the version now, we'll store it.
     instance.version = version
-    -- Give some version info back to Nmap
+    -- Give some version info back to Kmap
     if ( instance.port and instance.version ) then
-      instance.version:PopulateNmapPortVersion( instance.port )
-      nmap.set_port_version( host, instance.port)
+      instance.version:PopulateKmapPortVersion( instance.port )
+      kmap.set_port_version( host, instance.port)
     end
 
     return true, { instance }
@@ -2816,38 +2816,38 @@ Helper =
   --
   --  @param host Host table as received by the script action function
   Discover = function( host )
-    local mutex = nmap.mutex( "discovery_performed for " .. host.ip )
+    local mutex = kmap.mutex( "discovery_performed for " .. host.ip )
     mutex( "lock" )
-    nmap.registry.mssql = nmap.registry.mssql or {}
-    nmap.registry.mssql.discovery_performed = nmap.registry.mssql.discovery_performed or {}
-    if nmap.registry.mssql.discovery_performed[ host.ip ] then
+    kmap.registry.mssql = kmap.registry.mssql or {}
+    kmap.registry.mssql.discovery_performed = kmap.registry.mssql.discovery_performed or {}
+    if kmap.registry.mssql.discovery_performed[ host.ip ] then
       mutex "done"
       return
     end
-    nmap.registry.mssql.discovery_performed[ host.ip ] = false
+    kmap.registry.mssql.discovery_performed[ host.ip ] = false
 
     -- First, do SSRP discovery. Check any open (got response) ports first:
-    local port = nmap.get_ports(host, nil, "udp", "open")
+    local port = kmap.get_ports(host, nil, "udp", "open")
     while port do
       if port.version and port.version.name == "ms-sql-m" then
         Helper.DiscoverBySsrp(host, port)
       end
-      port = nmap.get_ports(host, port, "udp", "open")
+      port = kmap.get_ports(host, port, "udp", "open")
     end
     -- Then check if default SSRP port hasn't been done yet.
-    port = nmap.get_port_state(host, SSRP.PORT)
+    port = kmap.get_port_state(host, SSRP.PORT)
     if not port or port.state == "open|filtered" then
       -- Either it wasn't scanned or it wasn't strictly "open" so we missed it above
         Helper.DiscoverBySsrp(host, port)
     end
 
     -- Next, do TCP discovery. Check any ports with an appropriate service name
-    port = nmap.get_ports(host, nil, "tcp", "open")
+    port = kmap.get_ports(host, nil, "tcp", "open")
     while port do
       if port.version and port.version.name == "ms-sql-s" then
         Helper.DiscoverByTcp(host, port)
       end
-      port = nmap.get_ports(host, port, "tcp", "open")
+      port = kmap.get_ports(host, port, "tcp", "open")
     end
 
     -- smb.get_port() will return nil if no SMB port was scanned OR if SMB ports were scanned but none was open
@@ -2863,7 +2863,7 @@ Helper =
       end
     end
 
-    nmap.registry.mssql.discovery_performed[ host.ip ] = true
+    kmap.registry.mssql.discovery_performed[ host.ip ] = true
     mutex( "done" )
   end,
 
@@ -3252,7 +3252,7 @@ Helper =
       for _, instance in ipairs( instanceList ) do
         repeat -- just so we can use break
           if instance.port then
-            local scanport = nmap.get_port_state(host, instance.port)
+            local scanport = kmap.get_port_state(host, instance.port)
             -- If scanned-ports-only and it's on a non-scanned port
             if (SCANNED_PORTS_ONLY and not scanport)
               -- or if a portrule script will run on it
@@ -3302,7 +3302,7 @@ Helper =
     if not instanceName then
       return nil
     end
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
     socket:set_timeout(5000)
 
     if ( not(socket:connect(instance.host, 1434, "udp")) ) then
@@ -3391,7 +3391,7 @@ Auth = {
   LmResponse = function( password, nonce )
 
     if ( not(HAVE_SSL) ) then
-      stdnse.debug1("ERROR: Nmap is missing OpenSSL")
+      stdnse.debug1("ERROR: Kmap is missing OpenSSL")
       return
     end
 

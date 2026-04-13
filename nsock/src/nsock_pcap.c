@@ -4,15 +4,15 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *
- * The nsock parallel socket event library is (C) 1999-2026 Nmap Software LLC
+ * The nsock parallel socket event library is (C) 1999-2026 Kmap Software LLC
  * This library is free software; you may redistribute and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation; Version 2. This guarantees your right to use, modify, and
  * redistribute this software under certain conditions. If this license is
- * unacceptable to you, Nmap Software LLC may be willing to sell alternative
- * licenses (contact sales@nmap.com ).
+ * unacceptable to you, Kmap Software LLC may be willing to sell alternative
+ * licenses (contact sales@kmap.com ).
  *
- * As a special exception to the GPL terms, Nmap Software LLC grants permission
+ * As a special exception to the GPL terms, Kmap Software LLC grants permission
  * to link the code of this program with any version of the OpenSSL library
  * which is distributed under a license identical to that listed in the included
  * docs/licenses/OpenSSL.txt file, and distribute linked combinations including
@@ -28,14 +28,14 @@
  * know exactly what a program is going to do before they run it. This also
  * allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and add
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and add
  * new features. You are highly encouraged to send your changes to the
- * dev@nmap.org mailing list for possible incorporation into the main
+ * dev@kmap.org mailing list for possible incorporation into the main
  * distribution. By sending these changes to Fyodor or one of the Insecure.Org
- * development mailing lists, or checking them into the Nmap source code
+ * development mailing lists, or checking them into the Kmap source code
  * repository, it is understood (unless you specify otherwise) that you are
- * offering the Nmap Project (Nmap Software LLC) the unlimited, non-exclusive
- * right to reuse, modify, and relicense the code. Nmap will always be available
+ * offering the Kmap Project (Kmap Software LLC) the unlimited, non-exclusive
+ * right to reuse, modify, and relicense the code. Kmap will always be available
  * Open Source, but this is important because the inability to relicense code
  * has caused devastating problems for other Free Software projects (such as KDE
  * and NASM). We also occasionally relicense the code to third parties as
@@ -91,7 +91,7 @@
     "your kernel with Berkeley Packet Filter support." \
     "If you are getting No such file or directory, try creating the device " \
     "(eg cd /dev; MAKEDEV <device>; or use mknod).\n" \
-    "*WINDOWS:  Nmap only supports ethernet interfaces on Windows for most " \
+    "*WINDOWS:  Kmap only supports ethernet interfaces on Windows for most " \
     "operations because Microsoft disabled raw sockets as of Windows XP SP2. " \
     "Depending on the reason for this error, it is possible that the " \
     "--unprivileged command-line argument will help.\n" \
@@ -253,7 +253,7 @@ int nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device,
 
 #ifdef __amigaos__
   // Amiga doesn't have pcap_create
-  // TODO: Does Nmap still work on Amiga?
+  // TODO: Does Kmap still work on Amiga?
   mp->pt = pcap_open_live(pcap_device, snaplen, promisc, to_ms, errbuf);
   if (!mp->pt) {
     nsock_log_error("pcap_open_live(%s, %d, %d, %d) failed with error: %s",

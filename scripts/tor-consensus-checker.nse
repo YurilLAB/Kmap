@@ -2,7 +2,7 @@ local http = require "http"
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Checks if a target is a known Tor node.
@@ -14,7 +14,7 @@ number of requests and make lookups quicker.
 
 ---
 -- @usage
--- nmap --script=tor-consensus-checker <host>
+-- kmap --script=tor-consensus-checker <host>
 --
 -- @output
 -- Host script results:
@@ -23,7 +23,7 @@ number of requests and make lookups quicker.
 ---
 
 author = "Jiayi Ye"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"external", "safe"}
 
 -- from Tor 0.2.9 auth_dirs.inc
@@ -41,7 +41,7 @@ local dir_authorities = {
 }
 
 hostrule = function(host)
-  if nmap.registry.tornode and not(nmap.registry.tornode.connect) then
+  if kmap.registry.tornode and not(kmap.registry.tornode.connect) then
     return false
   end
   return not ipOps.isPrivate(host.ip)
@@ -75,8 +75,8 @@ function script_init()
   -- @class table
   -- @field cache     A table for cached tor nodes
   -- @field connect   A flag which prevents threads from looking up when failed to connnect to directory authorities
-  nmap.registry.tornode = {}
-  nmap.registry.tornode.cache = {}
+  kmap.registry.tornode = {}
+  kmap.registry.tornode.cache = {}
 
   local isConnected = false
   local regexp = "r [%S]+ [%S]+ [%S]+ [%d-]+ [%d:]+ ([%d.]+) ([%d]+) [%d]*"
@@ -88,7 +88,7 @@ function script_init()
         local _, _, ip, port = string.find(line,regexp)
         if ip then
           isConnected = true
-          nmap.registry.tornode.cache[ip] = true
+          kmap.registry.tornode.cache[ip] = true
         end
       end
     end
@@ -99,26 +99,26 @@ function script_init()
   if not(isConnected) then
     stdnse.verbose1("failed to connect to directory authorities")
   end
-  nmap.registry.tornode.connect = isConnected
+  kmap.registry.tornode.connect = isConnected
 end
 
 function check_tornode_cache(ip)
-  if not next( nmap.registry.tornode.cache ) then return false end
+  if not next( kmap.registry.tornode.cache ) then return false end
   if type( ip ) ~= "string" or ip == "" then return false end
-  return nmap.registry.tornode.cache[ip]
+  return kmap.registry.tornode.cache[ip]
 end
 
 action = function(host)
-  local mutex = nmap.mutex("tornode")
+  local mutex = kmap.mutex("tornode")
   mutex "lock"
-  --initialize nmap.registry.tornode
-  if not nmap.registry.tornode then
+  --initialize kmap.registry.tornode
+  if not kmap.registry.tornode then
     script_init()
   end
   mutex "done"
 
-  if not(nmap.registry.tornode.connect) then
-    if nmap.verbosity() > 2 then
+  if not(kmap.registry.tornode.connect) then
+    if kmap.verbosity() > 2 then
       return "Couln't connect to Tor dir authorities"
     else
       return nil

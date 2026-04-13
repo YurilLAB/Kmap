@@ -7,7 +7,7 @@ Discovers Versant object databases using the broadcast srvloc protocol.
 
 ---
 -- @usage
--- nmap --script broadcast-versant-locate
+-- kmap --script broadcast-versant-locate
 --
 -- @output
 -- Pre-scan script results:
@@ -21,7 +21,7 @@ Discovers Versant object databases using the broadcast srvloc protocol.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 

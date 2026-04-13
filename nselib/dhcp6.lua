@@ -24,7 +24,7 @@
 local datetime = require "datetime"
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -582,14 +582,14 @@ Helper = {
     setmetatable(o, self)
     self.__index = self
 
-    local info, err = nmap.get_interface_info(iface)
+    local info, err = kmap.get_interface_info(iface)
     -- if we fail to get interface info, don't return a helper
     -- this is true on OS X for interfaces like: p2p0 and vboxnet0
     if ( not(info) and err ) then
       return
     end
     o.mac = info.mac
-    o.socket = nmap.new_socket("udp")
+    o.socket = kmap.new_socket("udp")
     o.socket:bind(nil, 546)
     o.socket:set_timeout(o.options.timeout or 5000)
     return o

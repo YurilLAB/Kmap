@@ -1,5 +1,5 @@
 local datafiles = require "datafiles"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -10,7 +10,7 @@ local target = require "target"
 description = [[
 Attempts to enumerate network interfaces through SNMP.
 
-This script can also be run during Nmap's pre-scanning phase and can
+This script can also be run during Kmap's pre-scanning phase and can
 attempt to add the SNMP server's interface addresses to the target
 list.  The script argument <code>snmp-interfaces.host</code> is
 required to know what host to probe.  To specify a port for the SNMP
@@ -21,7 +21,7 @@ successfully added.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script=snmp-interfaces <target>
+-- kmap -sU -p 161 --script=snmp-interfaces <target>
 -- @args snmp-interfaces.host  Specifies the SNMP server to probe when
 --       running in the "pre-scanning phase".
 -- @args snmp-interfaces.port  The optional port number corresponding
@@ -37,7 +37,7 @@ successfully added.
 --
 
 author = {"Thomas Buchanan", "Kris Katterjohn"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -45,8 +45,8 @@ dependencies = {"snmp-brute"}
 -- Created 03/03/2010 - v0.1 - created by Thomas Buchanan <tbuchanan@thecompassgrp.net>
 -- Revised 03/05/2010 - v0.2 - Reworked output slightly, moved iana_types to script scope. Suggested by David Fifield
 -- Revised 04/11/2010 - v0.2 - moved snmp_walk to snmp library <patrik@cqure.net>
--- Revised 08/10/2010 - v0.3 - prerule; add interface addresses to Nmap's target list (Kris Katterjohn)
--- Revised 05/27/2011 - v0.4 - action; add MAC addresses to nmap.registry[host.ip]["mac-geolocation"] (Gorjan Petrovski)
+-- Revised 08/10/2010 - v0.3 - prerule; add interface addresses to Kmap's target list (Kris Katterjohn)
+-- Revised 05/27/2011 - v0.4 - action; add MAC addresses to kmap.registry[host.ip]["mac-geolocation"] (Gorjan Petrovski)
 -- Revised 07/31/2012 - v0.5 - action; remove mac-geolocation changes (script removed from trunk)
 
 
@@ -444,7 +444,7 @@ end
 -- @return formatted string suitable for printing
 function get_mac_addr( mac )
   local catch = function() return end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local mac_prefixes = try(datafiles.parse_mac_prefixes())
 
   if mac:len() ~= 6 then
@@ -611,7 +611,7 @@ end
 -- @return table suitable for <code>stdnse.format_output</code>
 function build_results( tbl )
   local new_tbl = {}
-  local verbose = nmap.verbosity()
+  local verbose = kmap.verbosity()
 
   -- For each interface index previously discovered, format the relevant information for output
   for _, index in ipairs( tbl.index_list ) do
@@ -728,7 +728,7 @@ action = function(host, port)
       output = output .. "\nSuccessfully added " .. tostring(sum) .. " new targets"
     end
   elseif SCRIPT_TYPE == "portrule" then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
   end
 
   return output

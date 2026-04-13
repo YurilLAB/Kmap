@@ -1,6 +1,6 @@
 local creds = require "creds"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -20,7 +20,7 @@ and abort unless the OS is detected as Mac.
 
 ---
 -- @usage
--- nmap -p 51010 <host> --script mmouse-exec \
+-- kmap -p 51010 <host> --script mmouse-exec \
 --   --script-args application='/bin/sh',keys='ping -c 5 127.0.0.1'
 --
 -- @output
@@ -150,7 +150,7 @@ action = function(host, port)
     return fail(("No keys were specified (see %s.keys)"):format(SCRIPT_NAME))
   end
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(10000)
   local status, err = socket:connect(host, port)
   if ( not(status) ) then

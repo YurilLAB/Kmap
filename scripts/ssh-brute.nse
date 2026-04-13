@@ -12,7 +12,7 @@ Performs brute-force password guessing against ssh servers.
 
 ---
 -- @usage
---   nmap -p 22 --script ssh-brute --script-args userdb=users.lst,passdb=pass.lst,ssh-brute.timeout=4s <target>
+--   kmap -p 22 --script ssh-brute --script-args userdb=users.lst,passdb=pass.lst,ssh-brute.timeout=4s <target>
 --
 -- @output
 -- 22/ssh open  ssh
@@ -25,7 +25,7 @@ Performs brute-force password guessing against ssh servers.
 -- @args ssh-brute.timeout    Connection timeout (default: "5s")
 
 author = "Devin Bjelland"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {
   'brute',
   'intrusive',

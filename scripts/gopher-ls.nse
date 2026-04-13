@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -11,7 +11,7 @@ Lists files and directories at the root of a gopher service.
 
 ---
 -- @usage
--- nmap -p 70 --script gopher-ls --script-args gopher-ls.maxfiles=100 <target>
+-- kmap -p 70 --script gopher-ls --script-args gopher-ls.maxfiles=100 <target>
 --
 -- @output
 -- 70/tcp open  gopher
@@ -26,7 +26,7 @@ Lists files and directories at the root of a gopher service.
 
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -56,7 +56,7 @@ action = function( host, port )
     maxfiles = nil
   end
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, err = socket:connect(host, port)
   if not status then
     return

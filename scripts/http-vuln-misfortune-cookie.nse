@@ -1,14 +1,14 @@
 description = [[Detects the RomPager 4.07 Misfortune Cookie vulnerability by safely exploiting it.]]
 
 author = "Andrew Orr"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive"}
 
 ---
 -- @see http-vuln-cve2013-6786.nse
 --
 -- @usage
--- nmap <target> -p 7547 --script=http-vuln-misfortune-cookie
+-- kmap <target> -p 7547 --script=http-vuln-misfortune-cookie
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -40,7 +40,7 @@ portrule = shortport.port_or_service(7547, "http")
 local MAGIC_COOKIE = "C107373883"
 
 local function vuln_to_misfortune_cookie(host, port)
-  local request_path = "/nmap_test"
+  local request_path = "/kmap_test"
   local options = { cookies = MAGIC_COOKIE .. "=" .. request_path }
   local flag = request_path .. "' was not found on the RomPager server."
   local req = http.get(host, port, "/", options)

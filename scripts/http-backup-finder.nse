@@ -13,7 +13,7 @@ It does so by requesting a number of different combinations of the filename (eg.
 
 ---
 -- @usage
--- nmap --script=http-backup-finder <target>
+-- kmap --script=http-backup-finder <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -40,7 +40,7 @@ It does so by requesting a number of different combinations of the filename (eg.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

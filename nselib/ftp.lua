@@ -1,13 +1,13 @@
 ---
 -- FTP functions.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local comm = require "comm"
 local stdnse = require "stdnse"
 local string = require "string"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 _ENV = stdnse.module("ftp", stdnse.seeall)
 
 local ERROR_MESSAGES = {
@@ -266,7 +266,7 @@ function pasv(socket, buffer)
     pasv_port = high * 256 + low
   end
 
-  local list_socket = nmap.new_socket()
+  local list_socket = kmap.new_socket()
   status, err = list_socket:connect(rhost, pasv_port, "tcp")
   if not status then
     return status, err

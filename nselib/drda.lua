@@ -44,7 +44,7 @@
 -- There is some documentation at
 -- http://publib.boulder.ibm.com/infocenter/dzichelp/v2r2/topic/com.ibm.db29.doc.drda/db2z_drda.htm.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 
@@ -59,7 +59,7 @@
 --                             x IBM Informix Dynamic Server
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -660,7 +660,7 @@ Comm = {
     local o = {
       host = host,
       port = port,
-      socket = nmap.new_socket()
+      socket = kmap.new_socket()
     }
     setmetatable(o, self)
     self.__index = self

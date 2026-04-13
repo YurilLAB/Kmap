@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rand = require "rand"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -15,8 +15,8 @@ determined by matching the error message against a database of known software.
 ]]
 
 ---
--- @usage nmap -sU -p 69 --script tftp-version
--- @usage nmap -sV -p 69
+-- @usage kmap -sU -p 69 --script tftp-version
+-- @usage kmap -sV -p 69
 --
 -- @args tftp-version.socket Use a listening UDP socket to recieve error messages. This
 --                           method is frequently blocked by client firewalls and NAT
@@ -27,7 +27,7 @@ determined by matching the error message against a database of known software.
 -- 69/udp open  tftp
 -- | tftp-version:
 -- |   If you know the name or version of the software running on this port, please submit
--- it to dev@nmap.org along with the following information:
+-- it to dev@kmap.org along with the following information:
 -- |     opcode: 5
 -- |     errcode: 1
 -- |     length: 20
@@ -47,7 +47,7 @@ determined by matching the error message against a database of known software.
 --
 --@xmloutput
 --<table key="If you know the name or version of the software running on this port, please
---submit it to dev@nmap.org along with the following information">
+--submit it to dev@kmap.org along with the following information">
 --  <elem key="opcode">5</elem>
 --  <elem key="errcode">2</elem>
 --  <elem key="length">21</elem>
@@ -56,20 +56,20 @@ determined by matching the error message against a database of known software.
 --</table>
 --
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe", "version"}
 
 portrule = shortport.version_port_or_service(69, "tftp", "udp")
 
 local load_fingerprints = function()
   -- Check if fingerprints are cached.
-  if nmap.registry.tftp_fingerprints ~= nil then
+  if kmap.registry.tftp_fingerprints ~= nil then
     stdnse.debug1("Loading cached TFTP fingerprints...")
-    return nmap.registry.tftp_fingerprints
+    return kmap.registry.tftp_fingerprints
   end
 
   -- Load the fingerprints.
-  local path = nmap.fetchfile("nselib/data/tftp-fingerprints.lua")
+  local path = kmap.fetchfile("nselib/data/tftp-fingerprints.lua")
   stdnse.debug1("Loading TFTP fingerprint from files: %s", path)
   local file = loadfile(path, "t")
   if not file then
@@ -147,7 +147,7 @@ end
 -- established local:remote port pair. Better to use pcap, but we'll let users
 -- try it out if they really want to.
 local socket_listen = function (lhost, lport, host)
-  local bind_socket = nmap.new_socket("udp")
+  local bind_socket = kmap.new_socket("udp")
   bind_socket:set_timeout(stdnse.get_timeout(host))
   bind_socket:bind(lhost, lport)
 
@@ -168,7 +168,7 @@ local socket_listen = function (lhost, lport, host)
 end
 
 local pcap_listen = function (lhost, lport, host)
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
   pcap:pcap_open(host.interface, 256, false,
     ("udp and dst host %s and dst port %d"):format(lhost, lport))
   pcap:set_timeout(stdnse.get_timeout(host))
@@ -195,7 +195,7 @@ local get_listen_func = function (use_socket)
   if use_socket then
     return socket_listen
   else
-    if nmap.is_privileged() then
+    if kmap.is_privileged() then
       return pcap_listen
     else
       stdnse.verbose("Can't use pcap; will try listening with socket.")
@@ -215,7 +215,7 @@ action = function(host, port)
   local path = name .. "." .. extn
 
   -- Create and connect a socket.
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(stdnse.get_timeout(host))
   socket:connect(host, port)
   local status, lhost, lport, rhost, rport = socket:get_info()
@@ -250,7 +250,7 @@ action = function(host, port)
   end
 
   -- We're sure this is a TFTP server by this point..
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
   port.version = port.version or {}
   port.version.service = "tftp"
 
@@ -260,7 +260,7 @@ action = function(host, port)
   end
 
   -- Try to match the packet against our table of responses, falling back to
-  -- encouraging the user to submit a fingerprint to Nmap.
+  -- encouraging the user to submit a fingerprint to Kmap.
   local sw = nil
   for _, fp in ipairs(fingerprints[pkt.opcode]) do
     if pkt.errcode == fp.errcode and pkt.errmsg == fp.errmsg
@@ -271,13 +271,13 @@ action = function(host, port)
   end
 
   if not sw then
-    nmap.set_port_version(host, port, "hardmatched")
-    return {["If you know the name or version of the software running on this port, please submit it to dev@nmap.org along with the following information"]= pkt}
+    kmap.set_port_version(host, port, "hardmatched")
+    return {["If you know the name or version of the software running on this port, please submit it to dev@kmap.org along with the following information"]= pkt}
   end
 
   -- Our goal is to avoid printing output when run with -sV unless it differs.
   -- When selected by name, always print output
-  local emit_output = nmap.verbosity() > 0
+  local emit_output = kmap.verbosity() > 0
 
   for _, keypair in ipairs({
       {"product", "p"},
@@ -313,7 +313,7 @@ action = function(host, port)
     end
   end
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   if emit_output then
     return sw

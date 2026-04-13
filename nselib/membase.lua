@@ -11,7 +11,7 @@
 
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local sasl = require "sasl"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -260,7 +260,7 @@ Helper = {
   -- Connects the socket to the server
   -- @return true on success, false on failure
   connect = function(self, socket)
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or 10000)
     return self.socket:connect(self.host, self.port)
   end,

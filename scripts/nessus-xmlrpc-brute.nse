@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -24,7 +24,7 @@ Performs brute force password auditing against a Nessus vulnerability scanning d
 
 author = "Patrik Karlsson"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 
@@ -40,7 +40,7 @@ local function authenticate(host, port, username, password)
 
   local headers = {
     "POST /login HTTP/1.1",
-    "User-Agent: Nmap",
+    "User-Agent: Kmap",
     ("Host: %s:%d"):format(host.ip, port.number),
     "Accept: */*",
     ("Content-Length: %d"):format(#post_data),
@@ -100,7 +100,7 @@ local function fail(err) return stdnse.format_output(false, err) end
 
 action = function(host, port)
 
-  local status, response = authenticate(host, port, "nmap-ssl-test-probe", "nmap-ssl-test-probe")
+  local status, response = authenticate(host, port, "kmap-ssl-test-probe", "kmap-ssl-test-probe")
   if ( not(status) ) then
     return fail(response)
   end
@@ -109,7 +109,7 @@ action = function(host, port)
   -- the server should be connected to using https on the same port. ugly.
   if ( status and response:match("^HTTP/1.1 400 Bad request\r\n") ) then
     port.protocol = "ssl"
-    status, response = authenticate(host, port, "nmap-ssl-test-probe", "nmap-ssl-test-probe")
+    status, response = authenticate(host, port, "kmap-ssl-test-probe", "kmap-ssl-test-probe")
     if ( not(status) ) then
       return fail(response)
     end

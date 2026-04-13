@@ -1,5 +1,5 @@
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -20,7 +20,7 @@ Checks for MySQL servers with an empty password for <code>root</code> or
 -- |_  root account has empty password
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 
 
@@ -33,7 +33,7 @@ portrule = shortport.port_or_service(3306, "mysql")
 
 action = function( host, port )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local result = {}
   local users = {"", "root"}
 
@@ -54,10 +54,10 @@ action = function( host, port )
     status, response = mysql.loginRequest( socket, { authversion = "post41", charset = response.charset }, v, nil, response.salt )
     if response.errorcode == 0 then
       table.insert(result, string.format("%s account has empty password", ( v=="" and "anonymous" or v ) ) )
-      if nmap.registry.mysqlusers == nil then
-        nmap.registry.mysqlusers = {}
+      if kmap.registry.mysqlusers == nil then
+        kmap.registry.mysqlusers = {}
       end
-      nmap.registry.mysqlusers[v=="" and "anonymous" or v] = ""
+      kmap.registry.mysqlusers[v=="" and "anonymous" or v] = ""
     end
     socket:close()
   end

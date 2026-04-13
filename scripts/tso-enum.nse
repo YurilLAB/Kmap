@@ -4,7 +4,7 @@ local tn3270    = require "tn3270"
 local brute     = require "brute"
 local creds     = require "creds"
 local unpwdb    = require "unpwdb"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 local stringaux = require "stringaux"
 
@@ -24,7 +24,7 @@ The TSO logon process can work in two ways:
    it an invalid user ID you receive the error message above.
 
 This script relies on the NSE TN3270 library which emulates a
-TN3270 screen for NMAP.
+TN3270 screen for KMAP.
 
 TSO user IDs have the following rules:
  - it cannot begin with a number
@@ -37,10 +37,10 @@ TSO user IDs have the following rules:
 -- to access TSO. Defaults to <code>tso</code>.
 --
 -- @usage
--- nmap --script=tso-enum -p 23 <targets>
+-- kmap --script=tso-enum -p 23 <targets>
 --
 -- @usage
--- nmap -sV -p 9923 10.32.70.10 --script tso-enum --script-args userdb=tso_users.txt,tso-enum.commands="logon applid(tso)"
+-- kmap -sV -p 9923 10.32.70.10 --script tso-enum --script-args userdb=tso_users.txt,tso-enum.commands="logon applid(tso)"
 --
 -- @output
 -- PORT   STATE SERVICE VERSION
@@ -61,7 +61,7 @@ TSO user IDs have the following rules:
 
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992,623}, {"tn3270"})
@@ -282,7 +282,7 @@ action = function(host, port)
     engine.options:setTitle("TSO User ID")
     local status, result = engine:start()
     port.version.extrainfo = "Security: " .. secprod
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
     return result
   else
     return err

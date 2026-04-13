@@ -1,5 +1,5 @@
 local dnssd = require "dnssd"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -14,7 +14,7 @@ get more information.
 
 ---
 -- @usage
--- nmap --script=dns-service-discovery -p 5353 <target>
+-- kmap --script=dns-service-discovery -p 5353 <target>
 --
 -- @output
 -- PORT     STATE SERVICE  REASON
@@ -48,7 +48,7 @@ get more information.
 -- Revised 10/29/2010 - v0.7 - factored out most of the code to dnssd library
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -60,7 +60,7 @@ action = function(host, port)
 
   if ( status ) then
     -- set port to open
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
     return result
   end
 end

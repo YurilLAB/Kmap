@@ -4,9 +4,9 @@ about: Report some other issue or request a feature
 labels: ''
 assignees: ''
 ---
-**NOTE: Npcap issues have moved to [the Npcap repository](https://github.com/nmap/npcap/issues/)**
+**NOTE: Npcap issues have moved to [the Npcap repository](https://github.com/kmap/npcap/issues/)**
 
-**NOTE: Ncrack issues have moved to [the Ncrack repository](https://github.com/nmap/ncrack/issues/)**
+**NOTE: Ncrack issues have moved to [the Ncrack repository](https://github.com/kmap/ncrack/issues/)**
 
 **Describe the current behavior**
 A clear and concise description of what the bug or current behavior is.

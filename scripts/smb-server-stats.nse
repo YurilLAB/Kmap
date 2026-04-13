@@ -21,8 +21,8 @@ up to version 1.0.3 (and possibly higher).
 
 ---
 -- @usage
--- nmap --script smb-server-stats.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-server-stats.nse -p U:137,T:139 <host>
+-- kmap --script smb-server-stats.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-server-stats.nse -p U:137,T:139 <host>
 --
 -- @output
 -- Host script results:
@@ -34,7 +34,7 @@ up to version 1.0.3 (and possibly higher).
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 

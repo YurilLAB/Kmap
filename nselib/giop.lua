@@ -44,7 +44,7 @@
 -- This implementation is tested and known to work against:
 -- x Sun's JAVA orbd
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 
@@ -54,7 +54,7 @@
 --
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -551,7 +551,7 @@ Helper = {
     self.__index = self
     o.host = host
     o.port = port
-    o.socket = nmap.new_socket()
+    o.socket = kmap.new_socket()
     return o
   end,
 

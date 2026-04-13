@@ -20,7 +20,7 @@
 -- </code>
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 -- version 0.2
@@ -28,7 +28,7 @@
 -- 2011-01-22 - re-wrote library to use coroutines instead of new_thread code.
 
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -124,8 +124,8 @@ File = {
 local function dispatcher()
 
   local last = os.time()
-  local f_condvar = nmap.condvar(infiles)
-  local s_condvar = nmap.condvar(state)
+  local f_condvar = kmap.condvar(infiles)
+  local s_condvar = kmap.condvar(state)
 
   while(true) do
 
@@ -169,7 +169,7 @@ end
 -- @param data string containing the initial data passed to the server
 local function processConnection( host, port, data )
   local op, pos = string.unpack(">I2", data)
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
 
   socket:set_timeout(1000)
   local status, err = socket:connect(host, port)
@@ -256,14 +256,14 @@ local function processConnection( host, port, data )
   -- Add  anew file to the global infiles table
   table.insert( infiles, File:new(filename, table.concat(filecontent), host) )
 
-  local condvar = nmap.condvar(infiles)
+  local condvar = kmap.condvar(infiles)
   condvar "broadcast"
 end
 
 -- Waits for a connection from a client
 local function waitForConnection()
 
-  local srvsock = nmap.new_socket("udp")
+  local srvsock = kmap.new_socket("udp")
   local status = srvsock:bind(nil, 69)
   assert(status, "Failed to bind to TFTP server port")
 
@@ -286,7 +286,7 @@ end
 --- Starts the TFTP server and creates a new thread handing over to the dispatcher
 function start()
   local disp = nil
-  local mutex = nmap.mutex("srvsocket")
+  local mutex = kmap.mutex("srvsocket")
 
   -- register a running script
   running[coroutine.running()] = true
@@ -307,7 +307,7 @@ local function waitLast()
   -- of the scripts finish running. We know we are done once the state
   -- shifts to STOPPED and we get a signal from the condvar in the
   -- dispatcher
-  local s_condvar = nmap.condvar(state)
+  local s_condvar = kmap.condvar(state)
   while( srvthread == coroutine.running() and state ~= "STOPPED" ) do
     s_condvar "wait"
   end
@@ -325,7 +325,7 @@ end
 -- @return status true on success false on failure
 -- @return File instance on success, nil on failure
 function waitFile( filename, timeout )
-  local condvar = nmap.condvar(infiles)
+  local condvar = kmap.condvar(infiles)
   local t = os.time()
   while(os.time() - t < timeout) do
     for _, f in ipairs(infiles) do

@@ -1,6 +1,6 @@
 local smb = require "smb"
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 description = [[
 Attempts to list the supported protocols and dialects of a SMB server.
@@ -18,8 +18,8 @@ script is the successor to the (removed) smbv2-enabled script.
 ]]
 
 ---
--- @usage nmap -p445 --script smb-protocols <target>
--- @usage nmap -p139 --script smb-protocols <target>
+-- @usage kmap -p445 --script smb-protocols <target>
+-- @usage kmap -p139 --script smb-protocols <target>
 --
 -- @output
 -- | smb-protocols:
@@ -43,7 +43,7 @@ script is the successor to the (removed) smbv2-enabled script.
 ---
 
 author = "Paulino Calderon"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 hostrule = function(host)
@@ -65,7 +65,7 @@ action = function(host,port)
     end
   end
   stdnse.debug1("No dialects were accepted")
-  if nmap.verbosity()>1 then
+  if kmap.verbosity()>1 then
     return "No dialects accepted. Something may be blocking the responses"
   end
 end

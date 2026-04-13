@@ -14,8 +14,8 @@ This check was previously part of smb-check-vulns.
 ]]
 ---
 --@usage
--- nmap --script smb-vuln-regsvc-dos.nse -p445 <host>
--- nmap -sU --script smb-vuln-regsvc-dos.nse -p U:137,T:139 <host>
+-- kmap --script smb-vuln-regsvc-dos.nse -p445 <host>
+-- kmap -sU --script smb-vuln-regsvc-dos.nse -p U:137,T:139 <host>
 --
 --@output
 --| smb-vuln-regsvc-dos:
@@ -30,7 +30,7 @@ This check was previously part of smb-check-vulns.
 
 author = {"Ron Bowes", "Jiayi Ye", "Paulino Calderon <calderon()websec.mx>"}
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","exploit","dos","vuln"}
 -- run after all smb-* scripts (so if it DOES crash something, it doesn't kill
 -- other scans have had a chance to run)

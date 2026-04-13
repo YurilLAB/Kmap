@@ -1,6 +1,6 @@
 local comm = require "comm"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local target = require "target"
@@ -20,8 +20,8 @@ the documentation for NSE library <code>target</code> for details.)
 ]]
 
 ---
--- @usage nmap --script http-internal-ip-disclosure <target>
--- @usage nmap --script http-internal-ip-disclosure --script-args http-internal-ip-disclosure.path=/mypath <target>
+-- @usage kmap --script http-internal-ip-disclosure <target>
+-- @usage kmap --script http-internal-ip-disclosure --script-args http-internal-ip-disclosure.path=/mypath <target>
 --
 -- @args http-internal-ip-disclosure.path Path (or a table of paths) to probe
 --                                        Default: /
@@ -37,7 +37,7 @@ the documentation for NSE library <code>target</code> for details.)
 -- @see ssl-cert-intaddr.nse
 
 author = {"Josh Amishav-Zlatin", "nnposter"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln", "discovery", "safe" }
 
 portrule = shortport.http
@@ -55,7 +55,7 @@ action = function(host, port)
 
   local socket
   local bopt = nil
-  local try = nmap.new_try(function () socket:close() end)
+  local try = kmap.new_try(function () socket:close() end)
   for path in pairs(paths) do
     local req = "GET " .. path .. " HTTP/1.0\r\n\r\n"
     local resp = nil

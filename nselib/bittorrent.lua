@@ -20,7 +20,7 @@
 -- <code>torrent.nodes</code> tables respectively
 --
 -- @author Gorjan Petrovski
--- @license "Same as Nmap--See https://nmap.org/book/man-legal.html"
+-- @license "Same as Kmap--See https://kmap.org/book/man-legal.html"
 --
 
 -- The usage of the library would be first to initialize a new Torrent
@@ -92,7 +92,7 @@ local ipOps = require "ipOps"
 local coroutine = require "coroutine"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local openssl = require "openssl"
 local os = require "os"
 local stdnse = require "stdnse"
@@ -319,8 +319,8 @@ end
 -- order to be processed byt the find_node_thread(). This operation is done
 -- during the specified timeout which has a default value of about 30 seconds.
 local dht_ping_thread = function(pnt, timeout)
-  local condvar = nmap.condvar(pnt)
-  local socket = nmap.new_socket("udp")
+  local condvar = kmap.condvar(pnt)
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(3000)
   local status, data
 
@@ -415,8 +415,8 @@ end
 -- the pnt.nodes_find_node list. This action is done for a timeout with a
 -- default value of 30 seconds.
 local find_node_thread = function(pnt, timeout)
-  local condvar = nmap.condvar(pnt)
-  local socket = nmap.new_socket("udp")
+  local condvar = kmap.condvar(pnt)
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(3000)
   local status, data
 
@@ -492,8 +492,8 @@ end
 -- response is sent when the queried node has no peers, and contains more nodes
 -- which are added to the pnt.nodes_find_node list.
 local get_peers_thread = function(pnt, timeout)
-  local condvar = nmap.condvar(pnt)
-  local socket = nmap.new_socket("udp")
+  local condvar = kmap.condvar(pnt)
+  local socket = kmap.new_socket("udp")
   socket:set_timeout(3000)
   local status, data
 
@@ -723,7 +723,7 @@ Torrent =
     pnt.node_id = rand.random_string(20)
     pnt.info_hash = self.info_hash
 
-    local condvar = nmap.condvar(pnt)
+    local condvar = kmap.condvar(pnt)
 
     local dht_ping_co = stdnse.new_thread(dht_ping_thread, pnt, timeout)
     local find_node_co = stdnse.new_thread(find_node_thread, pnt, timeout)
@@ -964,7 +964,7 @@ Torrent =
       return false, "Could not parse tracker url"
     end
 
-    local socket = nmap.new_socket("udp")
+    local socket = kmap.new_socket("udp")
 
     -- The initial connection parameters' variables have hello_ prefixed names
     local hello_transaction_id = rand.random_string(4)

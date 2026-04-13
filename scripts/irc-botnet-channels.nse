@@ -30,15 +30,15 @@ script argument. The default list of channels is
 
 author = {"David Fifield", "Ange Gutek"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "vuln", "safe"}
 
 ---
 -- @usage
--- nmap -p 6667 --script=irc-botnet-channels <target>
+-- kmap -p 6667 --script=irc-botnet-channels <target>
 -- @usage
--- nmap -p 6667 --script=irc-botnet-channels --script-args 'irc-botnet-channels.channels={chan1,chan2,chan3}' <target>
+-- kmap -p 6667 --script=irc-botnet-channels --script-args 'irc-botnet-channels.channels={chan1,chan2,chan3}' <target>
 --
 -- @args irc-botnet-channels.channels a list of channel names to check for.
 --

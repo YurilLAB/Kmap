@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local vulns = require "vulns"
 local stdnse = require "stdnse"
@@ -21,12 +21,12 @@ References:
 * https://blogs.technet.microsoft.com/msrc/2017/05/12/customer-guidance-for-wannacrypt-attacks/
 * https://msdn.microsoft.com/en-us/library/ee441489.aspx
 * https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/smb/smb_ms17_010.rb
-* https://github.com/cldrn/nmap-nse-scripts/wiki/Notes-about-smb-vuln-ms17-010
+* https://github.com/cldrn/kmap-nse-scripts/wiki/Notes-about-smb-vuln-ms17-010
 ]]
 
 ---
--- @usage nmap -p445 --script smb-vuln-ms17-010 <target>
--- @usage nmap -p445 --script vuln <target>
+-- @usage kmap -p445 --script smb-vuln-ms17-010 <target>
+-- @usage kmap -p445 --script vuln <target>
 --
 -- @see smb-double-pulsar-backdoor.nse
 --
@@ -76,7 +76,7 @@ References:
 ---
 
 author = "Paulino Calderon <paulino()calderonpale.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 hostrule = function(host)

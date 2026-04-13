@@ -39,29 +39,29 @@ o Migrate web.insecure.org to a RHEL-6 derived distro (probably CENTOS
     will go on for many more years for critical/security patches.
   o Maybe start with svn server, since we've had reports of our
     current one giving people unexpected password prompts.  There is a
-    thread about that at http://seclists.org/nmap-dev/2012/q2/17
+    thread about that at http://seclists.org/kmap-dev/2012/q2/17
     o UPDATE on this - adding read-only rights (rather than no rights)
       to the root of the svn repo seems to have solved this problem.
 
-o Make Windows 8.1 VM with VS 2013 and do more testing of Nmap compilation/running
+o Make Windows 8.1 VM with VS 2013 and do more testing of Kmap compilation/running
 
 o Make and test build on a newer OS X than 10.6 (10.10 was recently released)
 
-o Adopt an issue tracking system for Nmap and related tools.  We
+o Adopt an issue tracking system for Kmap and related tools.  We
   should probably look at our needs and options and then decide on and
   either install it on our own infrastructure or use it hosted elsewhere.
   - David notes that Trac seems to work well for Tor -- see
   https://trac.torproject.org/projects/tor
   - One thing which can be nice is being able to interact with the
-    system through email.  Like for bugs people file on the Nmap package
+    system through email.  Like for bugs people file on the Kmap package
     in Debian, I can just reply to the mail and it gets added in the tracker.
-  - This is now live at http://issues.nmap.org/
+  - This is now live at http://issues.kmap.org/
 
 o Update OpenSSL library to 1.0.1j
 
 o Our "make uninstall" should uninstall ndiff if it was installed too.
   We should probably do it in pretty much the same way we handle
-  Zenmap (configure.ac, Makefile.in, and ndiff/setup.pl)
+  Zekmap (configure.ac, Makefile.in, and ndiff/setup.pl)
 
 o Web: We should probably distribute RapidSSL intermediate certificate
   on SecWiki so it is trusted even if browsers don't have that cert
@@ -71,12 +71,12 @@ o Web: We should probably distribute RapidSSL intermediate certificate
   SSLCertificateFile which looks something like:
   SSLCertificateChainFile /etc/apache2/rapidssl.pem
 
-o The XML version of Nmap lists and describes the six port states
-  recognized by Nmap near the top of the "Port Scanning Basics"
+o The XML version of Kmap lists and describes the six port states
+  recognized by Kmap near the top of the "Port Scanning Basics"
   section.  That can be seen in the HTML rendering at
-  https://nmap.org/book/man-port-scanning-basics.html.  But in the man
+  https://kmap.org/book/man-port-scanning-basics.html.  But in the man
   page (nroff) rendering, the list is missing and it just gives the
-  title: "The six port states recognized by Nmap".  UPDATE: Now the
+  title: "The six port states recognized by Kmap".  UPDATE: Now the
   descriptions for each state appear in the man page, but the headings
   ("open", etc.) are missing. We should figure out
   why, and fix it.
@@ -84,62 +84,62 @@ o The XML version of Nmap lists and describes the six port states
   element and it's followed by anything other than whitespace+CDATA
   (like "</indexterm> foo") then the remaining cdata or element until
   the next new element will be nroff-commented so this
-  <indexterm>blah</indexterm> is  ok, but this <indexterm>blah</indexterm>, is not ok because of the commaand this <indexterm>blah</indexterm>   <command>nmap -A</command> is bad no matter how much whitespace intervenes"
+  <indexterm>blah</indexterm> is  ok, but this <indexterm>blah</indexterm>, is not ok because of the commaand this <indexterm>blah</indexterm>   <command>kmap -A</command> is bad no matter how much whitespace intervenes"
 
 
 o Fix a segmentation fault in Ncat when scanned with the SSL NSE
   scripts.  I was able to reproduce this on 2013-09-27 with latest SVN
   by running:
     Ncat: ncat -v -k --ssl -l localhost
-    Nmap: ./nmap --script-trace --script '+ssl*' localhost -p 31337
+    Kmap: ./kmap --script-trace --script '+ssl*' localhost -p 31337
   This was initially reported by Timo Juhani Lindfors on the Debian
   bug tracker: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=724580
   Henri notes: "I traced the latter back to openssl  and opened a
   ticket there, which never got any reply... https://rt.openssl.org/Ticket/Display.html?id=2885&user=guest&pass=guest"
 
-o Investigate how we're ending up with OS fingerprints in nmap-os-db
+o Investigate how we're ending up with OS fingerprints in kmap-os-db
   with attribute names like W0 and W8 when according to the docs they
   are only supposed to be W1 - W6 (and plain W).
-  https://nmap.org/book/osdetect-methods.html#osdetect-w.  See also
-  http://seclists.org/nmap-dev/2013/q4/68.  Need to determine how
-  these are getting into the file (from Nmap itself or our
+  https://kmap.org/book/osdetect-methods.html#osdetect-w.  See also
+  http://seclists.org/kmap-dev/2013/q4/68.  Need to determine how
+  these are getting into the file (from Kmap itself or our
   integration/merge tools) and fix that then remove them from the
   file.
 
 o Integrate latest IPv4 OS detection submissions and corrections
 
 o We should improve the Windows build process for Ndiff, since it
-  works differently now that it is modularized.  To build the Nmap
+  works differently now that it is modularized.  To build the Kmap
   6.45 release, we (as a temporary hack, not in SVN):
-  - Added 'ndiff' to zenmap/setup.py 'packages' list in
+  - Added 'ndiff' to zekmap/setup.py 'packages' list in
     COMMON_SETUP_ARGS
-  - Created a zenmap/ndiff subdir (empty) and copy ndiff/ndiff.py into zenmap/ before build.
+  - Created a zekmap/ndiff subdir (empty) and copy ndiff/ndiff.py into zekmap/ before build.
     We should find a more elegant solution and check it into SVN.  The
     fundamental issue is that the ndiff.exe we generate needs to be
     able to access the new ndiff.py module.
-  Also, we need to make sure the -win32.zip Nmap distribution works
+  Also, we need to make sure the -win32.zip Kmap distribution works
   properly.
 
-o [Zenmap] Combine parallel timed-out hops into one node in the
-  topology view. http://seclists.org/nmap-dev/2012/q1/82 has a patch,
+o [Zekmap] Combine parallel timed-out hops into one node in the
+  topology view. http://seclists.org/kmap-dev/2012/q1/82 has a patch,
   however it doesn't handle the case of two or more consecutive
   timeouts.
 
-o If Nmap uses a "tcpwrapped" port to do fingerprinting on, OS detection
+o If Kmap uses a "tcpwrapped" port to do fingerprinting on, OS detection
   might give false matches/results. Since it doesn't really matter which
   open port gets chosen, we should move onto another open port if we 
   notice "tcpwrapped".
 
 o Implement an --exclude-ports option. See
-  http://seclists.org/nmap-dev/2012/q1/275
+  http://seclists.org/kmap-dev/2012/q1/275
 
-o In an ideal world, Zenmap would not run out of memory and crash.
-  And we already have an entry for improving Zenmap's memory
+o In an ideal world, Zekmap would not run out of memory and crash.
+  And we already have an entry for improving Zekmap's memory
   consumption.  But in the meantime, we should catch the error and
   present a more useful error message/explanation so the user
   understands the problem.  This should reduce the number of
   out-of-memory "crash reports" we get too.  See
-  http://seclists.org/nmap-dev/2014/q2/298
+  http://seclists.org/kmap-dev/2014/q2/298
 
 o Provide an option to send a comment in scan packet data for target
   network.  Examples: --data-string "Scan conducted by Marc Reis from
@@ -150,15 +150,15 @@ o We should probably update our included libpcap.  We currently
   include version 1.2.1 (we upgraded to that in April 2012) while the
   latest version on tcpdump.org is 1.5.3.  We make minor changes to
   libpcap that we ship, and instructions for upgrading are in
-  libpcap/NMAP_MODIFICATIONS.
+  libpcap/KMAP_MODIFICATIONS.
 
-o Investigate report of Nmap ARP discovery using the wrong target MAC
+o Investigate report of Kmap ARP discovery using the wrong target MAC
   address field in ARP requests (it is correct in the ethernet frame
-  itself).  See this thread: http://seclists.org/nmap-dev/2011/q3/547
+  itself).  See this thread: http://seclists.org/kmap-dev/2011/q3/547
 
 o Add randomizer to configure script so that a random ASCII art from
-  docs/leet-nmap-ascii-art*.txt is printed.  I think I'll start naming
-  them leet-nmap-ascii-art-submittername.txt.
+  docs/leet-kmap-ascii-art*.txt is printed.  I think I'll start naming
+  them leet-kmap-ascii-art-submittername.txt.
 
 o Add IPv6 subnet/pattern support like we offer for IPv4.
   o OK, we now have the subnet/pattern support, but not the two-stage
@@ -186,46 +186,46 @@ o Consider implementing RPC scan with ultra_scan or something else.
 o When Ncat is compiled without OpenSSL, we should still accept the
   --ssl argument and just give an error message noting that SSL was not
   compiled in.  This reduces confusion for users
-  (e.g. http://seclists.org/nmap-dev/2013/q3/579)
+  (e.g. http://seclists.org/kmap-dev/2013/q3/579)
 
 o We should update our OpenSSL Windows binaries from version 1.0.1c to
   something newer, like 1.01f
 
-o Web: figure out why autogeneration of nmap.org/nsedoc/ doesn't seem
+o Web: figure out why autogeneration of kmap.org/nsedoc/ doesn't seem
   to be working.  I think we had a cron job which was supposed to be
   doing it.
   - hb system was still running crontab files from old web vm in its
     rc.local.  Fixed.
 
-o Add a W3C XML Schema Definition (XSD) for Nmap XML output. Keeping the DTD
+o Add a W3C XML Schema Definition (XSD) for Kmap XML output. Keeping the DTD
   around is also helpful, but XSD is widely supported and could help improve
-  support for Nmap XML in other tools.
+  support for Kmap XML in other tools.
   o We're going to discuss this on mailing list before deciding
     whether to 1) switch from DTD to XSD, 2) stick with just a DTD, or
     3) try to support both.
 
-o Update copyright year to 2013 in the Nmap copyright header files
+o Update copyright year to 2013 in the Kmap copyright header files
 
 o Update CHANGELOG for new release
 
-o New Nmap Release
+o New Kmap Release
 
 o Nping in ICMP mode (default) must not be checking the icmp IDs or
   returned packets or something, because if I have two separate 'nping
-  scanme.nmap.org' running at the same time, each nping sees the replies
+  scanme.kmap.org' running at the same time, each nping sees the replies
   from the other nping (as well as its own) and it screws up the timing
   stats too.
 
-o Process Nmap OS service detection submissions
+o Process Kmap OS service detection submissions
  - New fingerprints + corrections
- - Last done November 2012: http://seclists.org/nmap-dev/2012/q4/222
+ - Last done November 2012: http://seclists.org/kmap-dev/2012/q4/222
 
-o Process Nmap IPv6 OS detection submissions
+o Process Kmap IPv6 OS detection submissions
  - New fingerprints + corrections
 
-o Process Nmap IPv4 OS detection submissions
+o Process Kmap IPv4 OS detection submissions
  - New fingerprints + corrections
- - Last done in November 2012: http://seclists.org/nmap-dev/2012/q4/221
+ - Last done in November 2012: http://seclists.org/kmap-dev/2012/q4/221
 
 o Make Ncat reset the signal handler for SIGPIPE to SIG_DFL before
   execing a program with --exec and friends. A "broken pipe" error in
@@ -243,7 +243,7 @@ o [Nping] Remove the lines starting with 'Tx time' and 'Rx time' by
   default (and of course quieter modes), but leave them for cases at
   least one level of -v.
 
-o Nping/Nmap should probably show ICMP ping sequence values by default
+o Nping/Kmap should probably show ICMP ping sequence values by default
   in packet trace mode.  This would be nice for Nping since that is
   the default ping it sends and is the main way to distinguish the
   packets since the IPIDs are the same.
@@ -255,24 +255,24 @@ o Complete migration away from Syn colocated machine
    - [Done] Install mailman software on web, including CGIs
    - Migrate mailing lists to web
 
-o Remove the -q/FAKE_ARGV stuff from Nmap, since I don't think people
+o Remove the -q/FAKE_ARGV stuff from Kmap, since I don't think people
   use that any more.
 
 o We should document Ron's sample script
-  (https://nmap.org/svn/docs/sample-script.nse) in docs/scripting.xml
+  (https://kmap.org/svn/docs/sample-script.nse) in docs/scripting.xml
   so that new script writers know about it.
   - Decided to remove it instead.  Justification: "It is a great idea,
     but nobody seems to use it (for example, there were no replies to
-    usage inquiry here: http://seclists.org/nmap-dev/2012/q4/379).  I
+    usage inquiry here: http://seclists.org/kmap-dev/2012/q4/379).  I
     think there are two main uses for this script, both of which are
     being served by other resources.  1) as a template for new
     scripts.  Users instead seem to pick a script that is most similar
     to the one they want to write and start with that.  2) As a way to
     learn more about the format of an NSE script.  Users instead seem
     to use our documentation
-    (https://nmap.org/book/nse-script-format.html).  So I'm deleting it
+    (https://kmap.org/book/nse-script-format.html).  So I'm deleting it
     for now.  But if folks miss it, they're welcome and encouraged to
-    say so on dev@nmap.org and we could consider putting it back
+    say so on dev@kmap.org and we could consider putting it back
     and/or improving it"
 
 o Upgrade Mac Mini to Mac OS X 10.8 (Mountain Lion) and test building
@@ -295,35 +295,35 @@ o [NSE] We may want to consider a better exception handling method --
     across C function calls.
 
 o Add IPv6 support to Nping, including raw packet mode (hopefully
-  sharing as much code with Nmap as possible, though Nping's packet code
+  sharing as much code with Kmap as possible, though Nping's packet code
   is a bit different), and also including echo mode server and client
   support.
 
 o Make sure we update everywhere relevant (e.g. refguide, etc.) to
-  note the addition in Nmap of the Liblinear library for large linear
+  note the addition in Kmap of the Liblinear library for large linear
   classification (http://www.csie.ntu.edu.tw/~cjlin/liblinear/). It
   uses a three-clause BSD license:
   http://www.csie.ntu.edu.tw/~cjlin/liblinear/COPYRIGHT
   - David has added it to 3rd-party-licenses.txt
   - Fyodor moved it into the refguide
 
-o Consider including OpenSSL in our Nmap tarball
+o Consider including OpenSSL in our Kmap tarball
  - Need to check the size, etc.
  - OK, we're counting this as done because we took all the Win
-   binaries out of the tarball and put them in an nmap-mswin32-aux svn
-   directory which users check out to compile Nmap on Windows, and
+   binaries out of the tarball and put them in an kmap-mswin32-aux svn
+   directory which users check out to compile Kmap on Windows, and
    OpenSSL is included in this.
 
-o Update the Nmap CHANGELOG for latest improvements
+o Update the Kmap CHANGELOG for latest improvements
 
-o Do an Nmap dev release.  Last release was Nmap 6.01 June 22.
-  o Update Nmap version number and auto-generated files for release.
+o Do an Kmap dev release.  Last release was Kmap 6.01 June 22.
+  o Update Kmap version number and auto-generated files for release.
 
-o Process latest Nmap OS submissions and corrections (IPv4 and IPv6).
+o Process latest Kmap OS submissions and corrections (IPv4 and IPv6).
   Last done (for IPv4 anyway) in February 2012.
 
 o Review and consider integrating Tomas Hozza's UNIX-domain socket
-  support patch for nsock/ncat: http://seclists.org/nmap-dev/2012/q4/24.
+  support patch for nsock/ncat: http://seclists.org/kmap-dev/2012/q4/24.
 
 o Improve CPE coverage in OS detection DB from 84% to 90% (see CPE
   entry a ways down for more on this).
@@ -337,20 +337,20 @@ o If it is trivial to add, it would be nice if the "New VA Module
   Alert Service" also gave the Author field for NSE scripts so everyone
   knows which hero(es) wrote it.
 
-o Clean up the Nmap repo to remove some bloat we've allowed to creep
+o Clean up the Kmap repo to remove some bloat we've allowed to creep
   in.  Should do a more thorough search, but for now here are two
   obvious candidates:
-  - Create publicly readable /nmap-mswin32-aux in svn
-  - Files not needed for compiling Nmap itself (e.g. only needed for
-    creating or including in Nmap packages), particularly including the
-    vcredist files, should be moved to new /nmap-mswin32-aux
-  - The /nmap-mswin32-aux files won't be included in Nmap tarballs
+  - Create publicly readable /kmap-mswin32-aux in svn
+  - Files not needed for compiling Kmap itself (e.g. only needed for
+    creating or including in Kmap packages), particularly including the
+    vcredist files, should be moved to new /kmap-mswin32-aux
+  - The /kmap-mswin32-aux files won't be included in Kmap tarballs
     either
-  - Add the gtk, glib, etc. Windows dependencies to /nmap-mswin32-aux
-    so users don't have to all install those in order to compile Zenmap
-    and make Nmap packages.
-  - move the nmap-private-dev/mswin32 stuff into /nmap-mswin32-aux
-  - Update nmap-install.xml for new changes.  Such as noting need to
+  - Add the gtk, glib, etc. Windows dependencies to /kmap-mswin32-aux
+    so users don't have to all install those in order to compile Zekmap
+    and make Kmap packages.
+  - move the kmap-private-dev/mswin32 stuff into /kmap-mswin32-aux
+  - Update kmap-install.xml for new changes.  Such as noting need to
     checkout this new directory for building packages, removing the
     need to install your own gtk, glib, etc.
   - [done] Remove the 5MB of XSL in nping/docs/xsl
@@ -358,20 +358,20 @@ o Clean up the Nmap repo to remove some bloat we've allowed to creep
 o Update our mswin32/OpenSSL to newest version (previous update was
   September 2010 to 1.0.0a).
 
-o Nmap should have a better way to handle XML script output.
- o done: https://nmap.org/book/nse-api.html#nse-structured-output
+o Kmap should have a better way to handle XML script output.
+ o done: https://kmap.org/book/nse-api.html#nse-structured-output
  o We currently just stick the current script output text into an XML tag.
  o Daniel Miller is working on an implementation:
-   https://secwiki.org/w/Nmap/Structured_Script_Output
+   https://secwiki.org/w/Kmap/Structured_Script_Output
 
 o Update more web content in real time (or near real-time, or at least
   on an automated basis rather than requiring manual checkin and
   update).  In particular:
   o NSEDoc generation
-  o [done] SVN dir (https://nmap.org/svn/) should be removed and a redirect
+  o [done] SVN dir (https://kmap.org/svn/) should be removed and a redirect
     added to https svn server.
-  o Maybe Nmap book building
-  o Maybe the generated files in nmap.org/data/
+  o Maybe Kmap book building
+  o Maybe the generated files in kmap.org/data/
 
 o Update web.insecure.org so that rather than requiring us to build
   nsedoc on other machines, check it into svn, and then update svn on
@@ -382,26 +382,26 @@ o Update web.insecure.org so that rather than requiring us to build
     such as book rebuilding when the XML files are changed.
 
 o Investigate/fix potential routing-related issue.  See emails from
-  Djalal and others: http://seclists.org/nmap-dev/2012/q3/116,
-  http://seclists.org/nmap-dev/2012/q3/4,
-  http://seclists.org/nmap-dev/2012/q2/449
+  Djalal and others: http://seclists.org/kmap-dev/2012/q3/116,
+  http://seclists.org/kmap-dev/2012/q3/4,
+  http://seclists.org/kmap-dev/2012/q2/449
 
-o Even without the --osscan-guess flag, Nmap should show the closest
+o Even without the --osscan-guess flag, Kmap should show the closest
   matches (if they pass our threshold) in the XML output.  We omit
   them from the normal output in large part to encourage people to
   submit fingerprints, but that argument doesn't apply so well to XML
-  output users.  Normal output users who really want to see the Nmap
+  output users.  Normal output users who really want to see the Kmap
   guesses could still use --osscan-guess as before.
 
-o Change the interface of nmap.ip_send to take an explicit
+o Change the interface of kmap.ip_send to take an explicit
   destination address. It currently extracts the destination from
   the packet buffer, which does not have enough information to
   reconstruct link-local addresses. See r26621 for a similar change
-  that was made to Nmap internals.
+  that was made to Kmap internals.
 
-o [Zenmap] Install higher-resolution icons (at least 64x64 and maybe
+o [Zekmap] Install higher-resolution icons (at least 64x64 and maybe
   up to 512x512). Here is a screenshot of the current 48x48 icon on
-  GNOME 3: http://seclists.org/nmap-dev/2012/q2/395.
+  GNOME 3: http://seclists.org/kmap-dev/2012/q2/395.
   o Sean did Windows and Linux icons, and David did the Mac
     one.
 
@@ -409,9 +409,9 @@ o [Zenmap] Install higher-resolution icons (at least 64x64 and maybe
 o [NPING] At least on my (Fyodor) system, I get errors like "READ-PCAP
   killed: Resource temporarily unavailable" with some commands.
   Example:
-  # nping --tcp -p80 -c1 scanme.nmap.org
+  # nping --tcp -p80 -c1 scanme.kmap.org
 
-  Starting Nping 0.5.61TEST4 ( https://nmap.org/nping ) at 2012-02-16 17:52 PST
+  Starting Nping 0.5.61TEST4 ( https://kmap.org/nping ) at 2012-02-16 17:52 PST
   SENT (0.3307s) TCP 192.168.0.5:42005 > 74.207.244.221:80 S ttl=64 id=23109 iplen=40  seq=1015357225 win=1480
   RCVD (0.3524s) TCP 74.207.244.221:80 > 192.168.0.5:42005 SA ttl=51 id=0 iplen=44  seq=3197025741 win=14600 <mss 1460>
   nping_event_handler(): READ-PCAP killed: Resource temporarily unavailable
@@ -431,7 +431,7 @@ o Investigate why http pipelining so often doesn't work in NSE
   buffers them, or pipelines them, or blocks the http.get call until
   there's more room.  It just seems to always degenerate to 1 request
   at a time.  For example:
-  sudo nmap --script=http-enum bamsoftware.com -p80 -d2
+  sudo kmap --script=http-enum bamsoftware.com -p80 -d2
   quickly (within a few seconds) gives:
     NSE: http-enum: Searching for entries under path '' (change with 'http-enum.basepath' argument)
     NSE: Total number of pipelined requests: 2081
@@ -449,9 +449,9 @@ o Investigate why http pipelining so often doesn't work in NSE
   is worth considering.  We did fix the underlying pipelining bug, but
   (just as with most browsers), it isn't enabled by default.  Also, it
   doesn't support caching. See
-  http://seclists.org/nmap-dev/2012/q3/616. ]
+  http://seclists.org/kmap-dev/2012/q3/616. ]
 
-o Make Nmap from a clean start (e.g. after make clean or whatever, so
+o Make Kmap from a clean start (e.g. after make clean or whatever, so
   it compiles everything) and research all the compile warnings to see
   which ones can be fixed/removed.  Of course caution is needed to
   make sure we don't cause problems.  For example, an unused variable
@@ -459,10 +459,10 @@ o Make Nmap from a clean start (e.g. after make clean or whatever, so
   remove it.  May have to surround it by ifdefs though.
 
 o Solve "spurious closed port detection" issue discovered by David:
-  http://seclists.org/nmap-dev/2012/q1/62 .  So we need to figure out
+  http://seclists.org/kmap-dev/2012/q1/62 .  So we need to figure out
   what is going on here and then how to fix it.  Note that this
   doesn't seem to happen when you do ICMP host discovery first (-PE),
-  so it probably relates to the ACK packet that Nmap sends to port 80
+  so it probably relates to the ACK packet that Kmap sends to port 80
   on the target by default.
 
 o Add real headers for more protocol types in -6 -sO scan. Dario
@@ -471,19 +471,19 @@ o Add real headers for more protocol types in -6 -sO scan. Dario
       0x2b: routing
       0x2c: fragment
       0x3c: destination
-  (http://seclists.org/nmap-dev/2011/q2/1003). We also have examples
+  (http://seclists.org/kmap-dev/2011/q2/1003). We also have examples
    of crafting some of these in FPEngine.cc. [Sean and David]
 
 
 o Investigate increasing FD_SETSIZE on Windows to allow us to
   multiplex more sockets.  See Henri's email:
-  http://seclists.org/nmap-dev/2012/q1/267 
+  http://seclists.org/kmap-dev/2012/q1/267 
   [James Rogers did some investigative work on this in July 2012, but
   we weren't able to find a great solution.  Maybe we should
   investigate this more in the future, and also investigate other
   Windows socket APIs such as completion ports. ]
 
-o Finish sv-tidy - a program to canonicalize and tidy nmap-service-probes.
+o Finish sv-tidy - a program to canonicalize and tidy kmap-service-probes.
     o Check for the same reference (like $1) being used in unrelated fields
       (where related fields are the pairs (p, cpe:), (v, cpe:), (i, cpe:),
       (o, cpe:)).
@@ -496,9 +496,9 @@ o Finish sv-tidy - a program to canonicalize and tidy nmap-service-probes.
     o [Done] Check for e.g. i/French/ without :fr in cpe:/a, and vice versa.
     [Sean and David?]
 
-o Remove Nmap's --log-errors feature and make its behavior the
+o Remove Kmap's --log-errors feature and make its behavior the
   default.  A few notes:
-  - Nmap should just ignore --log-errors if it sees it
+  - Kmap should just ignore --log-errors if it sees it
   - Remember to remove it from the documentation
 
 o We should probably sort script output (for port output and host
@@ -510,7 +510,7 @@ o We should probably sort script output (for port output and host
 
 o Add a function such as --disable-arp-ping which prevents hosts from
   being automatically detected as 'up' just because they responded to
-  ARP.  Instead, Nmap will actually send the requested host discovery
+  ARP.  Instead, Kmap will actually send the requested host discovery
   probes (ICMP ping packets, SYN packets, etc.) and only mark the host
   as up if it responds on an IP level.  This is how machines are
   already treated if they're not on the local network (e.g. if ARP
@@ -533,30 +533,30 @@ o We should add fields to the service submitter [James is working on this]
    to "Lucida Grande"?  Just a typo.  And fix "WIkipedai".  We should
    just spell-check all the output
 
-o Make Nmap 6.01 release containing (among possibly other little
+o Make Kmap 6.01 release containing (among possibly other little
 fixes)
  - Python upgrade 
- - [done] Zenmap 10.7 hang fix (done in trunk)
- - [done] Zenmap crash when filtering hosts (done in trunk)
+ - [done] Zekmap 10.7 hang fix (done in trunk)
+ - [done] Zekmap crash when filtering hosts (done in trunk)
  - [done] get_srcaddr fix (done in trunk)
 
 o Upgrade Python on build machines to try and resolve Python 2.7
   security warning (it doesn't affect us, but can worry users).  See
-  this thread: http://seclists.org/nmap-dev/2012/q2/621
+  this thread: http://seclists.org/kmap-dev/2012/q2/621
 
 o Fix get_srcaddr error happening on Windows XP
 
-o [Web] Add a page with the Nmap related videos we do have already
- - We have a page on Secwiki now: https://secwiki.org/w/Nmap/Presentations
+o [Web] Add a page with the Kmap related videos we do have already
+ - We have a page on Secwiki now: https://secwiki.org/w/Kmap/Presentations
 
-o Zenmap hang on OS X 10.7
+o Zekmap hang on OS X 10.7
 
-o For many years, the Nmap man page and online documentation has had
-  an "Inappropriate Usage" section which notes that "Nmap should never
+o For many years, the Kmap man page and online documentation has had
+  an "Inappropriate Usage" section which notes that "Kmap should never
   be installed with special privileges (e.g. suid root) for security
-  reasons".  And of course Nmap's official installer would never
-  install Nmap that way.  While one would thinks that would be enough,
-  we might want to go even further and have Nmap detect when it is run
+  reasons".  And of course Kmap's official installer would never
+  install Kmap that way.  While one would thinks that would be enough,
+  we might want to go even further and have Kmap detect when it is run
   suid and print a security warning.
 
 o Prepare release notes, web page, etc.
@@ -565,11 +565,11 @@ o Do private beta release
 
 o Make the release
 
-o In Nmap XML output, osclass (OS Classification) tags should be
+o In Kmap XML output, osclass (OS Classification) tags should be
   children of osmatch (the human readable OS name line) rather than
-  having Nmap deduplicate all the osclasses and put them in as
+  having Kmap deduplicate all the osclasses and put them in as
   siblings.  But this change might break some systems which utilize
-  Nmap XML output, so, along with this change, we need to introduce an
+  Kmap XML output, so, along with this change, we need to introduce an
   option such as --deprecated-osclass-xml to return the old behavior.
   That option only needs to be documented in the CHANGELOG entry
   referring to this change, and it should note that we're likely to
@@ -594,8 +594,8 @@ o Raw scans from Mac OS X seems not to retrieve the MAC address or do
   the normal four-probe combination to the other addresses. The "MAC
   address:" line appears in the output for .1 but not for the others.
 
-o To avoid Nmap memory usage bloat, find a way for NSE scripts to
-  store information about a host which expires after Nmap is done
+o To avoid Kmap memory usage bloat, find a way for NSE scripts to
+  store information about a host which expires after Kmap is done
   scanning that host (e.g. when the hostgroup containing that host is
   finished).  Right now scripts store such information in the registry
   and it persists forever.  For example, a web spidering
@@ -612,7 +612,7 @@ o To avoid Nmap memory usage bloat, find a way for NSE scripts to
 o Add CPE support to IPv6 OS detection
 
 o Use BPF libpcap logic on Solaris 11, otherwise packet capture doesn't
-  work at all. http://seclists.org/nmap-dev/2012/q1/613
+  work at all. http://seclists.org/kmap-dev/2012/q1/613
 
 o [NSE] host.os should not just be a list of strings which can contain
   human-readible strings and/or CPE info.  It should probably be list
@@ -627,21 +627,21 @@ o [NSE] host.os should not just be a list of strings which can contain
   classification of the first OS match for the target system.
   The host.os entry docs/scripting.xml would have to be updated too.
 
-o We should probably go through the nmap-os-db (and IPv6 version)
+o We should probably go through the kmap-os-db (and IPv6 version)
   entries and, where the fingerprint line specifies a service pack
   number (or even two of them), ensure that we have sp-qualified CPE
   entries like "cpe:/o:microsoft:windows_xp::sp2".  Right now we
   sometimes include the qualification, and sometimes not.
   o This is best done with cpeify-os.py, if possible.
 
-o Zenmap no longer ads the installed module directory to its module
+o Zekmap no longer ads the installed module directory to its module
   search path because some distributors first install in a world
   writeable directory (like /tmp) and then put those files into their
   packages which they distribute to users.  But this change can lead
-  to Zenmap not working for users who install in nonsystem areas like
+  to Zekmap not working for users who install in nonsystem areas like
   their home directory (e.g. --prefix /home/fyodor) unless they have
   their PYTHONPATH set to find them.  We should implement a solution,
-  such as making sure Zenmap catches the missing modules error and
+  such as making sure Zekmap catches the missing modules error and
   suggest that the user set their PYTHONPATH or something.
 
 o Scans from Mac OS X tend to use raw IP packets rather than ethernet
@@ -659,7 +659,7 @@ o ssl-google-cert-catalog should not require that the user specify
   to avoid having any scripts tell the user "this script only works if
   you specify this other script too".  If we really find we need that
   functionality, we should add a "strong dependencies" feature so that
-  scripts can tell Nmap what other scripts they require.
+  scripts can tell Kmap what other scripts they require.
   [Patrik did this by adding an ssl cert library]
 
 o Our targets-ipv6-multicast-slaac.nse should probably send the router
@@ -669,7 +669,7 @@ o Our targets-ipv6-multicast-slaac.nse should probably send the router
   - Actually, I think we already do this.  Marking as done.
 
 o Deal with the issue of timeouts happening too soon due to global
-  congestion control in some cases.  For example, if Nmap sends host
+  congestion control in some cases.  For example, if Kmap sends host
   discovery probes to two hosts, and one comes back extremely quickly,
   it can cause the global congestion control to use a very low timeout
   and cause the 2nd host (which doesn't have any host-based congestion
@@ -697,8 +697,8 @@ o Document the nsearg format changes made by Paulino (how you can
   preface an argument with a script to make it more specific, or make it
   general to apply to multiple scripts)
   o Rough drafts:
-  o nmap-exp/calderon/refguide.xml
-  o nmap-exp/calderon/scripting.xml
+  o kmap-exp/calderon/refguide.xml
+  o kmap-exp/calderon/scripting.xml
   o Relates to:
     o We should probably modify stdnse.get_script_args so that it first
      checks [scriptname].[argname] and then (if that fails) looks for
@@ -708,18 +708,18 @@ o Document the nsearg format changes made by Paulino (how you can
      an argument to only apply to a specific script can give
      [scriptname].[argname].
 
-o Make the nmap.header.tmpl wording a little more generic so it more
-  clearly applies to Ncat, Zenmap, Nping, etc. Then use
+o Make the kmap.header.tmpl wording a little more generic so it more
+  clearly applies to Ncat, Zekmap, Nping, etc. Then use
   templatereplace.pl to apply those changes to the code. [Fyodor]
 
-o Change Nmap copyright dates (in the file headers, etc.) from 2011 to
+o Change Kmap copyright dates (in the file headers, etc.) from 2011 to
   2012.
 
 o Get RPM staticly linking to libsvn (rather than dynamic linking) so
   that it isn't a requirement for installing the RPM.
-  - We decided to just make nmap-update its own separate RPM so that
+  - We decided to just make kmap-update its own separate RPM so that
     it can dynamically link to libsvn without forcing that dependency on
-    the whole nmap RPM package.
+    the whole kmap RPM package.
   - since the libsvn-devel package apparently only installs dynamic
     libs, we'll probably have to install it ourselves on the CentOS
     build machines.
@@ -738,16 +738,16 @@ o Integrate new OS detection submissions (1,893 since 6/22/11)
 o Add options in configure script for users to specify where to find
   subversion lib/include dirs (like we do with our other library
   dependencies).  See this mail:
-  http://seclists.org/nmap-dev/2012/q1/37
+  http://seclists.org/kmap-dev/2012/q1/37
   -- David added --with-apr and --with-subversion
 
-o We need to fix the svn server so that Nmap committers can make
-  branches from /nmap to /nmap-exp.  We may need to add some sort of
+o We need to fix the svn server so that Kmap committers can make
+  branches from /kmap to /kmap-exp.  We may need to add some sort of
   OPTIONS permission to the root directory or something, because
   they're getting errors like:
-  $ svn cp https://svn.nmap.org/nmap https://svn.nmap.org/nmap-exp/branchname
+  $ svn cp https://svn.kmap.org/kmap https://svn.kmap.org/kmap-exp/branchname
   svn: Server sent unexpected return value (403 Forbidden) in response
-  to OPTIONS request for 'https://svn.nmap.org'
+  to OPTIONS request for 'https://svn.kmap.org'
   - Patrick also reported some other funny business related to svn
     mv'ing directories in email to Fyodor and David.
 
@@ -766,14 +766,14 @@ o Do more thinking/researching/investigating the way our machine
   o Doing a better job about printing fingerprints for matches with
     aren't close enough
 
-o Improve the "run Zenmap as root" menu item to work on distributions
-  without su-to-root.  We might even want to improve Zenmap so that it
-  itself does not have to run as root, and just executes Nmap that
-  way.  Rather than not showing Zenmap as root on the Menu of
+o Improve the "run Zekmap as root" menu item to work on distributions
+  without su-to-root.  We might even want to improve Zekmap so that it
+  itself does not have to run as root, and just executes Kmap that
+  way.  Rather than not showing Zekmap as root on the Menu of
   non-working systems, it might be better to have it but let it give
   an error message (and then, perhaps, run as nonroot) so that users
   of those distributions are more likely to contribute a fix.  We also
-  might want to look at how the distributions themselves package Zenmap.
+  might want to look at how the distributions themselves package Zekmap.
 
 o Consider changing Nsock so that it is able to take advantage of more
   modern interfaces to dealing with large sockets, rather than just
@@ -795,9 +795,9 @@ o Consider changing Nsock so that it is able to take advantage of more
   linked list).]
   o Henri added nsock-engines
 
-o Consider an update feed system for Nmap which let's people obtain
-  the latest Nmap data files, such as NSE scripts/libs, nmap-os-db,
-  nmap-service-probes, etc.
+o Consider an update feed system for Kmap which let's people obtain
+  the latest Kmap data files, such as NSE scripts/libs, kmap-os-db,
+  kmap-service-probes, etc.
   o Note that some scripts require updated compiled libraries.  We
     will need some sort of compatability system.
   o One approach is "svn up".  Note that Metasploit uses that approach
@@ -809,14 +809,14 @@ o Consider an update feed system for Nmap which let's people obtain
     OpenVAS.  OpenVAS uses a script wrapper around rsync, or an HTTP
     download if that fails.
   o Colin's analysis of different methods:
-    http://seclists.org/nmap-dev/2011/q2/821
+    http://seclists.org/kmap-dev/2011/q2/821
 
 o [NSE] Consider using .idl files rather than manually coding all the
   MSRPC stuff.  The current idea, if we do this, is to have an
-  application in nmap-private-dev which converts .idl files to LUA
-  code for nmap/nselib. Consider adapting the pidl utility from Samba.
+  application in kmap-private-dev which converts .idl files to LUA
+  code for kmap/nselib. Consider adapting the pidl utility from Samba.
  o Drazen did some work on this during SoC.
-   https://svn.nmap.org/nmap-exp/drazen/nmap-msrpc could get someone
+   https://svn.kmap.org/kmap-exp/drazen/kmap-msrpc could get someone
    started.
  o We moved this out of the active section of the TODO because, while
    it is still a good idea and we'd welcome the change if someone wants
@@ -826,14 +826,14 @@ o [NSE] Consider using .idl files rather than manually coding all the
 o Implement a solution for people who want NIST CPE OS detection
   results (we'll save version detection for a 2nd phase).  Notes:
   David report on CPE for OS Detection: 
-    http://seclists.org/nmap-dev/2010/q3/278
+    http://seclists.org/kmap-dev/2010/q3/278
   David report on CPE for version detection: 
-    http://seclists.org/nmap-dev/2010/q3/303
+    http://seclists.org/kmap-dev/2010/q3/303
   Nessus has described their integration of CPE:
     http://blog.tenablesecurity.com/2010/05/common-platform-enumeration-cpe-with-nessus.html.
   Older messages about it:
-    http://seclists.org/nmap-dev/2008/q4/627
-    http://seclists.org/nmap-dev/2010/q2/788
+    http://seclists.org/kmap-dev/2008/q4/627
+    http://seclists.org/kmap-dev/2010/q2/788
 
 o [NSE] HTTP spidering library/script
 
@@ -848,38 +848,38 @@ o We should probably modify stdnse.get_script_args so that it first
 
 o Script review
  o Martin Swende patch to force script run
-   http://seclists.org/nmap-dev/2010/q4/567
+   http://seclists.org/kmap-dev/2010/q4/567
    o applied
- o irc-info patch. http://seclists.org/nmap-dev/2011/q2/289.
+ o irc-info patch. http://seclists.org/kmap-dev/2011/q2/289.
    o applied
- o http-slowloris. http://seclists.org/nmap-dev/2011/q1/916.
+ o http-slowloris. http://seclists.org/kmap-dev/2011/q1/916.
    o Had some issues--never got to a state ready for integration
  o http-phpself-xss
   - Would need to be rewritten to use newer spider.lua.  Added an item
-   to incoming section of Nmap Script Ideas secwiki page.
+   to incoming section of Kmap Script Ideas secwiki page.
 
 o Make new SecTools.Org site with the 2010 survey results.
 
 o Collect many more IPv6 OS detection training samples from users
- - Can start with nmap-dev, but will probably have to do an Nmap
+ - Can start with kmap-dev, but will probably have to do an Kmap
    release too.
 
 o Integrate more NSE scripts, I think our review queue is getting
   pretty long.
 
 o Decide what to do with Henri's nsock-engines branch
-  (/nmap-exp/henri/nsock-engines).
+  (/kmap-exp/henri/nsock-engines).
 
-o finish making nmap-update part of the nmap windows compile-time
+o finish making kmap-update part of the kmap windows compile-time
   infrastructure
   o See if we can build just one project within a solution, rather
-    than having special "with nmap-update" configuration.
+    than having special "with kmap-update" configuration.
 
-o Add homedir support to Nmap for the updater
+o Add homedir support to Kmap for the updater
 
-o Fix expiration date parsing on Nmap Windows for the updater
+o Fix expiration date parsing on Kmap Windows for the updater
 
-o Updater: Make a missing nmap-update.conf nonfatal (perhaps doesn't
+o Updater: Make a missing kmap-update.conf nonfatal (perhaps doesn't
   even need to mention it).
 
 o Updater: Clean up the output messages (e.g. only print what user needs to see
@@ -889,7 +889,7 @@ o [Nping] The --safe-payloads option should be default (though we
   should keep it for backward compatability).  We could then introduce
   --include-payloads for cases where they are desired.
 
-o A program to canonicalize and tidy nmap-service-probes.
+o A program to canonicalize and tidy kmap-service-probes.
   o Order of fields: m p v i d o h cpe:/a cpe:/h cpe:/o.
   o Check for duplicate templates (except cpe:).
   o Check for unknown templates.
@@ -897,31 +897,31 @@ o A program to canonicalize and tidy nmap-service-probes.
     | % = @ #).
   o Retain line breaks and comments.
 
-o Document IPv6 OS detection at https://nmap.org/book/osdetect.html
+o Document IPv6 OS detection at https://kmap.org/book/osdetect.html
 
 o Script review:
   - New scripts from Paulino: http-wordpress-brute and http-joomla-brute,
     http-majordomo2-dir-traversal.nse, http-trace, http-waf-detect
-  - http-methods patch. http://seclists.org/nmap-dev/2011/q1/936.
-  - quake3-info. http://seclists.org/nmap-dev/2011/q2/172.
+  - http-methods patch. http://seclists.org/kmap-dev/2011/q1/936.
+  - quake3-info. http://seclists.org/kmap-dev/2011/q2/172.
   - smb-os-discovery additional
-    information. http://seclists.org/nmap-dev/2011/q2/276.
+    information. http://seclists.org/kmap-dev/2011/q2/276.
   - Outlook web
-  address. http://seclists.org/nmap-dev/2011/q2/296. [probably not
-  going to merge to Nmap trunk at this point, though it is good that
+  address. http://seclists.org/kmap-dev/2011/q2/296. [probably not
+  going to merge to Kmap trunk at this point, though it is good that
   the script is available for d/l for those who need it. ]
 
-o Fix reported (by many people) crash when trying to launch Zenmap on
+o Fix reported (by many people) crash when trying to launch Zekmap on
   Mac OS X 10.7 (Lion).
 
 o Unless we get good arguments for keeping it, we should remove Mac OS
   X PowerPC support from our binaries.  Apple stopped selling PowerPC
   machines in 2006 and they stopped making new OS releases available
   for PowerPC as of Snow Leopard (10.6) in August 2009.  See this
-  thread: http://seclists.org/nmap-dev/2011/q3/430
+  thread: http://seclists.org/kmap-dev/2011/q3/430
 
-o Improvements to the Nmap multicast IPv6 host discovery scripts
- - Note that we hope to move them into core Nmap at some point, but
+o Improvements to the Kmap multicast IPv6 host discovery scripts
+ - Note that we hope to move them into core Kmap at some point, but
    would be good to improve them for now.
  - They should probably print the discovered IPv6 addresses, otherwise
    they don't actually give the user any information (despite doing
@@ -931,10 +931,10 @@ o Improvements to the Nmap multicast IPv6 host discovery scripts
    when printing the discovered IPv6 information too.  Daniel Miller
    wrote an initial patch for this (though we need to make sure it can
    handle (e.g. doesn't crash for) non-ethernet
-   devices:http://seclists.org/nmap-dev/2011/q3/862.  Our broadcast-ping script
+   devices:http://seclists.org/kmap-dev/2011/q3/862.  Our broadcast-ping script
    currently prints MAC addresses.
  - It is great that the scripts properly use a specific device when
-   given the Nmap -e option, but they shouldn't require this.  They
+   given the Kmap -e option, but they shouldn't require this.  They
    should do something smart if no specific device name is given.
    Examples include performing on all compatable devices or trying to
    pick the best device.  The all-devices appraoch may be the best,
@@ -959,13 +959,13 @@ o We should consider splitting a 'brute' category out of the 'auth'
   might still be nice.
 
 o IPv6 OS detection merge
- o [DONE] Initial branch working (nmap-exp/luis/nmap-os6)
+ o [DONE] Initial branch working (kmap-exp/luis/kmap-os6)
  o [DONE] Implement the 2 remaining probes
  o [DONE] Disable the printing of matches (except maybe with debug on).  We
    want more training examples first so that results are better.
- o [DONE] Merge to /nmap
+ o [DONE] Merge to /kmap
 
-o Document Nmap CPE support in appropriate places (candidates:
+o Document Kmap CPE support in appropriate places (candidates:
   refguide, os detection book chapter, version detection book chapter,
   output book chapter).
 
@@ -981,33 +981,33 @@ o Add advanced IPv6 host discovery features
 
 o Initial IPv6 OS detection system (may not make it into stable
   though, but we want to at least have it working in a branch first.)
-  - OK, it is working in nmap-exp/luis/nmap-os6
+  - OK, it is working in kmap-exp/luis/kmap-os6
 
 o Investigate a probe/response matching problem reported by QA Cafe
   Matthew Stickney and Joe McEachern of QA Cafe.  See this thread:
-  http://seclists.org/nmap-dev/2011/q3/227
+  http://seclists.org/kmap-dev/2011/q3/227
 
 o When our winpcap installer is run in silent mode
-  (e.g. "winpcap-nmap-4.12.exe /S"), it seems to execute nmap.exe if
+  (e.g. "winpcap-kmap-4.12.exe /S"), it seems to execute kmap.exe if
   that binary exists in the same directory.  This leads to a cmd.exe
-  window briefly poping up as Nmap displays its console help output.
+  window briefly poping up as Kmap displays its console help output.
   Moving the Winpcap installer into its own subdir and running it from
-  there seems to fix this (because it then can't find nmap.exe to
+  there seems to fix this (because it then can't find kmap.exe to
   run), but it would be better to determine why this is happening in
   the first place and fix it.
 
-o Obtain Nmap data directory information from nmaprc at runtime rather than
+o Obtain Kmap data directory information from kmaprc at runtime rather than
   compiled in -- among other advantages this is needed to make
   relocateable rpm. [actually we ended up doing this without needing
-  nmaprc for now]
+  kmaprc for now]
 
 o Summer of Code feature creeper:
-  o Ncat should probably have an --append-output option like Nmap does
+  o Ncat should probably have an --append-output option like Kmap does
     so that we can use -o without clobbering existing file.  This would
-    at least be useful for chat.nmap.org.
-  o Change Zenmap bug reporter so that instead of an automatic
+    at least be useful for chat.kmap.org.
+  o Change Zekmap bug reporter so that instead of an automatic
     submission system, we print a stack trace and request that the user
-    send a bug report to nmap-dev.
+    send a bug report to kmap-dev.
 
 o [Ncat] Solve a crash that only happens on Windows when connecting
   with --ssl-verify and -vvv, for example
@@ -1027,7 +1027,7 @@ o [Ncat] Solve a crash that only happens on Windows when connecting
 o Integrate new OS detection submissions (We have about 1,700
   submissions since 11/30/10)
 
-o Nmap should defer address parsing in arguments until it has read
+o Kmap should defer address parsing in arguments until it has read
   through all the args.  Otherwise you get an error if you use like -S
   with an IPv6 address before you put -6 in the command line.  You get
   a similar problem if you do "-A -6" (but "-6 -A works properly).
@@ -1035,26 +1035,26 @@ o Nmap should defer address parsing in arguments until it has read
 
 o Ncat chat (at least in ssl mode) no longer gives the banner greeting
   when I connect.  This worked in r23918, but not in r24185, which is
-  the one running on chat.nmap.org as of 6/20/11.  Verify by running
-  "ncat --ssl -v chat.nmap.org"
+  the one running on chat.kmap.org as of 6/20/11.  Verify by running
+  "ncat --ssl -v chat.kmap.org"
 
 o IPv6 Neighbor Discovery-based host discovery (analog to ARP scan).
 
 o Investigate and document how easy it is to drop Ncat.exe by itself
   on other systems and have it work.  We should also look into the
-  dependencies of Nmap and Zenmap.  It may be instructive to look at
+  dependencies of Kmap and Zekmap.  It may be instructive to look at
   "Portable Firefox"
   (http://portableapps.com/apps/internet/firefox_portable) which is
   built using open source technology from portableapps.com, or look at
   "The Network Toolkit" by Cace
-  (http://www.cacetech.com/products/network_toolkit.html).  For Nmap
+  (http://www.cacetech.com/products/network_toolkit.html).  For Kmap
   and Nping, we may want to improve our Winpcap to load as a DLL
   without requiring installation.  There is a separate TODO item for that.
 
 o The SCRIPT_NAME variable should not include the ".nse" in script
   names.  Currently, it omits that for scripts in the DB, but includes
   it for scripts you specify based on their filename.  See:
-  http://seclists.org/nmap-dev/2011/q2/481
+  http://seclists.org/kmap-dev/2011/q2/481
 
 o If possible, Ncat, in listen mode, should probably listen on the system's
   IPv6 interfaces as well as IPv4.  This is what servers like apache
@@ -1063,21 +1063,21 @@ o If possible, Ncat, in listen mode, should probably listen on the system's
   broker and chat modes because you want the IPv6 users to be able to
   talk to IPv4 and vice versa.
   - This was partially implemented, but still doesn't seem to work in
-    --chat mode.  Can test against chat.nmap.org
+    --chat mode.  Can test against chat.kmap.org
   - Done.  Tested on scanme with David & Fyodor on 7/18/11.
 
 o Right before the release, we could build Ncat portable and post it
-  on https://nmap.org/ncat/.
+  on https://kmap.org/ncat/.
   - Actually we did that for 5.59BETA1, which is good enough for now.
 
 o CHANGELOG updates [Fyodor]
 
 o [Ncat] Add new certificate bundle (ca-bundle.crt) since the current
-  one is out of date.  See http://seclists.org/nmap-dev/2011/q2/641.
+  one is out of date.  See http://seclists.org/kmap-dev/2011/q2/641.
 
 o Move these prerule/postrule script ideas to secwiki script idea page
    if appropriate (with a bit more details):
-   o AS Number to IP ranges: http://seclists.org/nmap-dev/2010/q2/101
+   o AS Number to IP ranges: http://seclists.org/kmap-dev/2010/q2/101
      In progress.
    o DNS service discovery (Bonjour): http://en.wikipedia.org/wiki/Bonjour_%28software%29
      Present as dns-service-discovery.nse.
@@ -1089,7 +1089,7 @@ o Move these prerule/postrule script ideas to secwiki script idea page
      other useful output.  Like a reverse-index, which shows all the open
      port numbers individually and the hosts which had that port open
      (e.g. so you can see all the ssh servers at once, etc.)
-     Admittedly you can do that pretty easy with Zenmap instead.
+     Admittedly you can do that pretty easy with Zekmap instead.
      Have a few of these: ssh-hostkey and upcoming creds-summary.
    o We could have a prerule sniffer script which uses pcap to sniff
      traffic for some short configurable amount of time and then adds the
@@ -1106,9 +1106,9 @@ o [NSE] Add these ideas to secwiki script ideas page if appropriate
     detect this MSRPC vulnerability:
     http://seclists.org/fulldisclosure/2010/Aug/122
   o BasicHTML/XML parser library?  For example, Sven Klemm wrote a script
-    which uses libxml2: http://seclists.org/nmap-dev/2008/q3/0462.html.
+    which uses libxml2: http://seclists.org/kmap-dev/2008/q3/0462.html.
     And here is one by Duart Silva using Expat:
-    http://seclists.org/nmap-dev/2009/q3/1093.
+    http://seclists.org/kmap-dev/2009/q3/1093.
   o Add detection of duplicate machines via IP.ID technique.
     Maybe I should use uptime timestamps too.  Oh, and MAC addresses
     too.  Our SSH host key script is useful for this as well.
@@ -1179,11 +1179,11 @@ o Further brainstorm and consider implementing more prerule/postrule
    o [Implemented, but a joke] http-california-plates
 
 o Investigate this interface-matching problem on Windows:
-  http://seclists.org/nmap-dev/2011/q1/52. It is related to the
+  http://seclists.org/kmap-dev/2011/q1/52. It is related to the
   libdnet changes we made to allow choosing the correct physical
   interface when teamed interfaces share the same MAC.
   I think this is solved with the rewritten libdnet code (that uses
-  GetAdaptersAddresses) in my nmap-ipv6 branch. --David
+  GetAdaptersAddresses) in my kmap-ipv6 branch. --David
 
 o [Ncat] When in connection brokering or chat mode with ssl support
   enabled, if one client connects and doesn't complete ssl negotiation,
@@ -1199,33 +1199,33 @@ o IPv6 todo.
   - Protocol scan (-sO).
 
 o [Ncat] Find out what RDP port forwarding apparently doesn't work on
-  Windows. http://seclists.org/nmap-dev/2011/q1/86
+  Windows. http://seclists.org/kmap-dev/2011/q1/86
 
 o Add raw packet IPv6 support, initially for SYN scan
  o After that can add UDP scan, and sometime OS detection (David did
    some research on what IPv6 OS detection might require).
 
-o When I (Fyodor) scan scanme.nmap.org with the command "nmap -sC -p80
--Pn -n scanme.nmap.org", I get a blank http-favicon line like:
+o When I (Fyodor) scan scanme.kmap.org with the command "kmap -sC -p80
+-Pn -n scanme.kmap.org", I get a blank http-favicon line like:
     80/tcp open  http
     |_http-title: Go ahead and ScanMe!
     |_http-favicon: 
   But if I use "--script http-favicon" instead of -sC, it works fine.
 
 o UDP scanning with IP options causes "Received short ICMP packet" on
-  receipt. http://seclists.org/nmap-dev/2011/q1/82
+  receipt. http://seclists.org/kmap-dev/2011/q1/82
 
 
-o [Zenmap] Make formerly open ports that are now closed or filtered
+o [Zekmap] Make formerly open ports that are now closed or filtered
   disappear from the "Ports / Hosts" tab. This appears to be related
   to ignored states; if in the second scan I use -d2 so all ports are
   included in the output, the interface is updated correctly.
-  http://seclists.org/nmap-dev/2010/q4/659
+  http://seclists.org/kmap-dev/2010/q4/659
 
-o [Zenmap] When a target is unresponsive (and its distance isn't
+o [Zekmap] When a target is unresponsive (and its distance isn't
   known), put it at the next furthest ring from the known traceroute
   hosts (with a dashed line), instead of putting it at the first ring.
-  See http://seclists.org/nmap-dev/2011/q1/834.
+  See http://seclists.org/kmap-dev/2011/q1/834.
 
 o Rewrite the portreasons code not to use parallel arrays
   (reason_text, reason_pl_text) and not to require special alignment
@@ -1237,49 +1237,49 @@ o Rewrite the portreasons code not to use parallel arrays
   current_reason = ping->code + ER_ICMPCODE_MOD;
 
 o Fix memory consumption problem in drda-info (see
-  http://seclists.org/nmap-dev/2011/q2/451)
+  http://seclists.org/kmap-dev/2011/q2/451)
   - Fixed (turned out to affect a lot of scripts)
 
 o Script dispensation
   - sip-enum-users and
-    sip-brute. http://seclists.org/nmap-dev/2011/q2/56.
+    sip-brute. http://seclists.org/kmap-dev/2011/q2/56.
     o Merged
-  - xmpp. http://seclists.org/nmap-dev/2011/q2/239.
+  - xmpp. http://seclists.org/kmap-dev/2011/q2/239.
     o Merged  
 
 o Script review/disposition:
-  - Merged: DNSSEC enumeration. http://seclists.org/nmap-dev/2011/q1/406.
-  - Merged: quake3-master-getservers patch. http://seclists.org/nmap-dev/2011/q1/925.
-  - Merged: backorifice-info. http://seclists.org/nmap-dev/2011/q2/185.
-  - Merged: omp2-brute and omp2-enum-targets. http://seclists.org/nmap-dev/2011/q2/231.
-  - Merged: http-wp-plugins. http://seclists.org/nmap-dev/2011/q1/806.
+  - Merged: DNSSEC enumeration. http://seclists.org/kmap-dev/2011/q1/406.
+  - Merged: quake3-master-getservers patch. http://seclists.org/kmap-dev/2011/q1/925.
+  - Merged: backorifice-info. http://seclists.org/kmap-dev/2011/q2/185.
+  - Merged: omp2-brute and omp2-enum-targets. http://seclists.org/kmap-dev/2011/q2/231.
+  - Merged: http-wp-plugins. http://seclists.org/kmap-dev/2011/q1/806.
 
 o Decide what to do about ms-sql-info slowing scans:
-  http://seclists.org/nmap-dev/2011/q1/913
- - patch applied: http://seclists.org/nmap-dev/2011/q1/1102
+  http://seclists.org/kmap-dev/2011/q1/913
+ - patch applied: http://seclists.org/kmap-dev/2011/q1/1102
  
 o Script disposition
   - Patch to get interfaces by Djalal.
-    http://seclists.org/nmap-dev/2011/q1/291
+    http://seclists.org/kmap-dev/2011/q1/291
     - Incorporated
-  - epmd-info. http://seclists.org/nmap-dev/2011/q1/931.
+  - epmd-info. http://seclists.org/kmap-dev/2011/q1/931.
     - Incorporated
-  - google-id. http://seclists.org/nmap-dev/2011/q1/952.
+  - google-id. http://seclists.org/kmap-dev/2011/q1/952.
     - Incorporated as http-affiliate-id
 
 o [Ndiff] should, in non-verbose mode, perhaps not print the changed
-  Nmap version and/or scan time if nothing else has changed between
-  two files. See http://seclists.org/nmap-dev/2011/q1/674.
+  Kmap version and/or scan time if nothing else has changed between
+  two files. See http://seclists.org/kmap-dev/2011/q1/674.
 
 o Script review disposition:
-  - ssl-known_key http://seclists.org/nmap-dev/2010/q4/733
-    Thread continues at http://seclists.org/nmap-dev/2011/q1/26.
+  - ssl-known_key http://seclists.org/kmap-dev/2010/q4/733
+    Thread continues at http://seclists.org/kmap-dev/2011/q1/26.
     - Merged
   - dns-nsec-enum
     - Merged
 
-o The file /nmap/mswin32/icon1.ico is used by the NSIS installer to
-  set the Nmap uninstall icon (I'm not sure if it is used for anything
+o The file /kmap/mswin32/icon1.ico is used by the NSIS installer to
+  set the Kmap uninstall icon (I'm not sure if it is used for anything
   else).  But this is a very old icon and doesn't match the blue eye
   we use now.  So we should probably update that with a modern "blue
   insecure eye" icon.  I (Fyodor) tried simply replacing icon1.ico
@@ -1289,61 +1289,61 @@ o The file /nmap/mswin32/icon1.ico is used by the NSIS installer to
 o Add some content to https://secwiki.org and announce it.
 
 o Removing -sR option (but keeping the functionality as part
-  of -sV).  See http://seclists.org/nmap-dev/2011/q1/688
-  - Update Nmap documentation/book to remove it there too
+  of -sV).  See http://seclists.org/kmap-dev/2011/q1/688
+  - Update Kmap documentation/book to remove it there too
 
 
 o Script disposition:
-  - dns-brute by cirrus. http://seclists.org/nmap-dev/2011/q1/351
+  - dns-brute by cirrus. http://seclists.org/kmap-dev/2011/q1/351
     Should share domain list with http-vhosts.
-    git://code.0x0lab.org/nmap-dns-brute.git
+    git://code.0x0lab.org/kmap-dns-brute.git
   - Added by David
 
 o Write and post 2010 SoC Successes writeup [Fyodor]
 
 o Script review
-  - quake3-master-getservers http://seclists.org/nmap-dev/2011/q1/64
+  - quake3-master-getservers http://seclists.org/kmap-dev/2011/q1/64
     [merged]
   - dpap-brute by Patrik Karlsson.
-    http://seclists.org/nmap-dev/2011/q1/252.
+    http://seclists.org/kmap-dev/2011/q1/252.
     [merged]
 
-o The -V option to Nmap, in addition to reporting the version number,
-  should give details on how Nmap was compiled and the environment it
+o The -V option to Kmap, in addition to reporting the version number,
+  should give details on how Kmap was compiled and the environment it
   is running on.  This includes things like whether SSL is enabled,
   the platform string, versions of libraries it is linked to, and
   other stuff which is often useful in debugging problems.
   o We want to list at least:
-    o Nmap version number (that line is fine as is)
+    o Kmap version number (that line is fine as is)
     o host platform string (for which it was compiled)
     o Whether OpenSSL and LibSSL, NLS, and IPv6 are enabled
       - Version number of OpenSSL and LibSSL if those are enabled
     o Version numbers of libdnet, libpcre, and libpcap
 
 o Script review:
-  - SCADA scripts http://seclists.org/nmap-dev/2010/q4/612
-    http://seclists.org/nmap-dev/2010/q4/613
-    http://seclists.org/nmap-dev/2010/q4/623
-    http://seclists.org/nmap-dev/2010/q4/639
+  - SCADA scripts http://seclists.org/kmap-dev/2010/q4/612
+    http://seclists.org/kmap-dev/2010/q4/613
+    http://seclists.org/kmap-dev/2010/q4/623
+    http://seclists.org/kmap-dev/2010/q4/639
     [on hold]
-  - servicetags http://seclists.org/nmap-dev/2010/q4/691
-    needs new testing on OpenSolaris: http://seclists.org/nmap-dev/2011/q1/91
+  - servicetags http://seclists.org/kmap-dev/2010/q4/691
+    needs new testing on OpenSolaris: http://seclists.org/kmap-dev/2011/q1/91
     [committed]
-  - firewalk-path http://seclists.org/nmap-dev/2011/q1/63
+  - firewalk-path http://seclists.org/kmap-dev/2011/q1/63
     [committed over previous firewalk script]
-  - snmp-ios-config http://seclists.org/nmap-dev/2011/q1/10
+  - snmp-ios-config http://seclists.org/kmap-dev/2011/q1/10
     Requires a TFTP server; decision was to build such server in Lua
     if possible. Patrik Karlsson's beginning TFTP implementation:
-    http://seclists.org/nmap-dev/2011/q1/169.
+    http://seclists.org/kmap-dev/2011/q1/169.
     [committed by Patrik]
 
 o Script merged: p2p-dropbox-listener
-  http://seclists.org/nmap-dev/2010/q4/689
+  http://seclists.org/kmap-dev/2010/q4/689
 
 o A trivial change: we currently print some lines about NSE
   pre-scanning and post-scanning in verbose mode even when no such
   scripts are being run.  We should not print those in that case.  For
-  example, nmap -A -v scanme.nmap.org gives me these superfluous lines:
+  example, kmap -A -v scanme.kmap.org gives me these superfluous lines:
   NSE: Script Pre-scanning.
   NSE: Starting runlevel 1 (of 2) scan.
   Initiating NSE at 12:23
@@ -1358,47 +1358,47 @@ o A trivial change: we currently print some lines about NSE
   NSE: Starting runlevel 1 (of 2) scan.
   NSE: Starting runlevel 2 (of 2) scan.
 
-o Do new Nmap release with the stuff merged from SoC students and
+o Do new Kmap release with the stuff merged from SoC students and
   other new developments.
 
-o Modify Zenmap to use the new --script-help system to enumerate
+o Modify Zekmap to use the new --script-help system to enumerate
   scripts and collect information such as their descriptions.  This
-  will resolve the problem of Nmap's broadcast prerule scripts running
+  will resolve the problem of Kmap's broadcast prerule scripts running
   when you open the profile editor.
 
 o Document --script-help in docs/refguide.xml and docs/scripting.xml.
 
-o [Zenmap] Brian Krebs found a problem (which Fyodor is able to
+o [Zekmap] Brian Krebs found a problem (which Fyodor is able to
   reproduce) in the target selector on the left pane.  When you select
   one of the scanned targets, it is supposed to jump to that target in
-  the "Nmap Output" tab on the right pane.  Instead, nothing seems to
+  the "Kmap Output" tab on the right pane.  Instead, nothing seems to
   happen.  One of our output format changes probably broke the
   feature.  It still works fine if you have the "Ports / Hosts" or
   "Host Details" tabs active in the right pane instead.
 
-o Include a --script-help system to Nmap, which provides user readable
+o Include a --script-help system to Kmap, which provides user readable
   text help and also machine parsable XML information for scripts
   which match a pattern (e.g. the same sort of arguments you could use
   for --script, like a category or http-* or whatever).  The
   --script-help ONLY provides help and quits, it does not run the
   script.  For some initial implementation work, see this thread:
-  http://seclists.org/nmap-dev/2011/q1/163
+  http://seclists.org/kmap-dev/2011/q1/163
 
 o [Nping] See whether --echo-client mode really requires root, and
   remove that restriction if not.
   Luis explanation for requiring root:
-    http://seclists.org/nmap-dev/2011/q1/248
+    http://seclists.org/kmap-dev/2011/q1/248
 
 o Script review:
-  - p2p-dropbox-listener http://seclists.org/nmap-dev/2010/q4/689
+  - p2p-dropbox-listener http://seclists.org/kmap-dev/2010/q4/689
 
 o Decide whether to include NSE console script help, decide on
-  implementation issues. http://seclists.org/nmap-dev/2011/q1/163
+  implementation issues. http://seclists.org/kmap-dev/2011/q1/163
 
-o [Zenmap] Use a more efficient algorithm to update the display of Nmap normal
+o [Zekmap] Use a more efficient algorithm to update the display of Kmap normal
   output in live scans.
-  zenmapGUI.NmapOutputViewer.NmapOutputViewer.refresh_output calls
-  zenmapCore.NmapCommand.NmapCommand.get_output, which re-reads the
+  zekmapGUI.KmapOutputViewer.KmapOutputViewer.refresh_output calls
+  zekmapCore.KmapCommand.KmapCommand.get_output, which re-reads the
   entire output file (into memory) and then puts it in the text buffer
   if it has changed. So already we're storing the whole output twice in
   memory. When the text field changes, update_output_colors
@@ -1417,13 +1417,13 @@ o If Nping is compiled w/o SSL support, and the user specifies an
 
 o [Ncat] Make --exec work in conjunction with --proxy. The --proxy
   code path skips the --exec code. See
-  http://seclists.org/nmap-dev/2010/q4/604 and the test "--exec
+  http://seclists.org/kmap-dev/2010/q4/604 and the test "--exec
   through proxy" in ncat-test.pl.
 
-o Decide what to do about Nmap static binaries failing to work on new
+o Decide what to do about Kmap static binaries failing to work on new
   Fedora releases (and others?).  See these threads:
-  http://seclists.org/nmap-dev/2011/q1/46 and
-  http://seclists.org/nmap-dev/2010/q1/308
+  http://seclists.org/kmap-dev/2011/q1/46 and
+  http://seclists.org/kmap-dev/2010/q1/308
   o We ended up dynamically linking system libs in the RPM rather than
     statically linking them.  We still statically link things like lua,
     pcre, ssl, etc.
@@ -1440,20 +1440,20 @@ o The latest IANA services file
   (http://www.iana.org/assignments/port-numbers) has many identified
   services which are still "unknown" in our files because ours is
   based on a much older version of that file.  We should probably take
-  that file and add names and comments to our nmap-services-all where
+  that file and add names and comments to our kmap-services-all where
   they are "unknown" in our file.  An example of such a port is 3872,
   oem-agent.
 
 o Script review:
   - patch for ftp-proftpd-backdoor
-    http://seclists.org/nmap-dev/2010/q4/678
-  - patch for hddtemp-info http://seclists.org/nmap-dev/2010/q4/676
+    http://seclists.org/kmap-dev/2010/q4/678
+  - patch for hddtemp-info http://seclists.org/kmap-dev/2010/q4/676
 
 o We should probably update our Windows build systems to use Python
   2.7.  As of 11/8, it looks like all our dependency libraries are
   available for 2.7:
   o David upgraded and it worked, though Rob found a potential problem
-  and added vcredist 2008.  Fyodor will test on the official Win7 Nmap
+  and added vcredist 2008.  Fyodor will test on the official Win7 Kmap
   build system.
   PyGTK: 2.22.0 IS available for 2.7
   PyCairo: 1.8.10 IS available for 2.7
@@ -1466,9 +1466,9 @@ o Do service/version detection submission integration (last done in
 o Do os detection submission integration (last done in April)
 
 o Script review:
-  - modbus-enum http://seclists.org/nmap-dev/2010/q4/489
+  - modbus-enum http://seclists.org/kmap-dev/2010/q4/489
 
-o Create Nmap wiki
+o Create Kmap wiki
  o Decide on domain name
  o Include insecure Chrome
  o Decide on wiki software, probably just use mediawiki
@@ -1478,7 +1478,7 @@ o [NSE] Web application fingerprinting script.  Would be great to be
   able to take a URL and determine things like "this is Joomla" or
   "this is Plone" or "Mediawiki" or whatever. Rather than hard code
   regular expressions or other tests in a script, it should use a
-  signature file like Nmap OS and version detection do.  Might work in
+  signature file like Kmap OS and version detection do.  Might work in
   combination with URL grinder to check for applications at
   default/common locations. See also a script that does favicon
   scanning TODO item.
@@ -1503,15 +1503,15 @@ o Dependency licensing issues (OpenSSL, Python, GTK+, etc.)
  o lua
  o OpenSSL
  o libpcap
- o GTK+/Glib/ATK/Pango/PyGTK (Win/Mac versions of Zenmap link to
+ o GTK+/Glib/ATK/Pango/PyGTK (Win/Mac versions of Zekmap link to
    PyGTK)
  o SQLite
- o Python (Win/Mac versions of Zenmap link to Python)
+ o Python (Win/Mac versions of Zekmap link to Python)
  o X.org libraries (Mac version links to them)
  o libdnet
 
 o Small NSEDoc bug:
-  https://nmap.org/nsedoc/scripts/dns-zone-transfer.html contains 'id
+  https://kmap.org/nsedoc/scripts/dns-zone-transfer.html contains 'id
   \222\173' near the bottom.  This is presumably due to misparsing this
   line from the script: local req_id = '\222\173'.  Given that we don't
   use IDs any more, maybe we can just get rid of the functionality.
@@ -1523,16 +1523,16 @@ o [NSE] We should probably enable broadcast scripts to work better by
   2) Change nsock to create real sockets at time of nsi_new so you can
      bind to them.
   See this thread (only some of the messages involve broadcast
-  support): http://seclists.org/nmap-dev/2010/q3/357
+  support): http://seclists.org/kmap-dev/2010/q3/357
 
 o [NSE] Review scripts:
-   o Hostmap (Ange Gutek) - http://seclists.org/nmap-dev/2010/q3/159
+   o Hostmap (Ange Gutek) - http://seclists.org/kmap-dev/2010/q3/159
 
-o Post BH/Defcon Nmap videos
+o Post BH/Defcon Kmap videos
 
 o Let Nsock log to stderr, so its messages don't get mixed up with the
   output stream when Ncat is run with -vvv.
-  http://seclists.org/nmap-dev/2010/q3/113
+  http://seclists.org/kmap-dev/2010/q3/113
 
 o [NSE] Our http-brute should probably support form POST method rather
   than just GET because some forms require that.
@@ -1540,9 +1540,9 @@ o [NSE] Our http-brute should probably support form POST method rather
 o Nping needs to call nsp_delete so that its socket descriptors are
   not left behind.
 
-o [Zenmap] Add a button to select script files from the filesystem. 
+o [Zekmap] Add a button to select script files from the filesystem. 
 
-o [Zenmap] Show help for individual script arguments in the Help pane,
+o [Zekmap] Show help for individual script arguments in the Help pane,
   not for all arguments at once.
 
 o Upgrade our Windows OpenSSL binaries from version 0.9.8j to the
@@ -1552,17 +1552,17 @@ o Since Libdnet files (such as ltmain.sh) are apparently only used by
   libdnet (they used to be used by shared library NSE C scripts), we
   should move them to the libdnet directory.
   o Turned out to be a pain.  See
-    http://seclists.org/nmap-dev/2010/q3/733
+    http://seclists.org/kmap-dev/2010/q3/733
 
-o [Zenmap] Consider a memory usage audit. This thread includes a claim
-  that a 4,094 host scan can take up 800MB+ of memory in Zenmap:
-  http://seclists.org/nmap-dev/2010/q1/1127
+o [Zekmap] Consider a memory usage audit. This thread includes a claim
+  that a 4,094 host scan can take up 800MB+ of memory in Zekmap:
+  http://seclists.org/kmap-dev/2010/q1/1127
   The reporter mentioned Guppy/Heapy to debug memory use:
   http://guppy-pe.sourceforge.net/
   http://www.pkgcore.org/trac/pkgcore/doc/dev-notes/heapy.rst.  Many
-  Nmap survey respondants complained about this too.
+  Kmap survey respondants complained about this too.
   Note: Fyodor has a 50MB scan log file named ms-vscan.xml which
-  demonstrates this problem.  When trying to load the file, Zenmap
+  demonstrates this problem.  When trying to load the file, Zekmap
   grows to 1150MB of RAM, pegs the CPU usage at 100% for many
   minutes or maybe hours (I forgot about it, but woke up the next day
   to find that it had started, was then using 2.4GB of RAM.  The
@@ -1573,7 +1573,7 @@ o [NSE] Maybe we should create a script which checks once a day
   whether similar tools (Metasploit, Nessus, OpenVAS, etc.) have any
   new modules, and then mails out a list of them with the description
   fields.  The mail could go to just interested parties, or maybe
-  nmap-dev.  This may help prevent important vulnerabilities from
+  kmap-dev.  This may help prevent important vulnerabilities from
   falling through the cracks.  Perhaps we would include new NSEs in
   there too, especially if we open it up as a public list.
 
@@ -1584,7 +1584,7 @@ o Now that NSE has more script phases (prerule, postrule, hostrule,
 o Consider implementing a nsock_pcap_close() function or making
   nsp_delete() call pcap_close() when pcap IODs are used. Currently valgrind
   warns about a socket descriptor left opened (at least in Nping).
-  See http://seclists.org/nmap-dev/2010/q3/305.
+  See http://seclists.org/kmap-dev/2010/q3/305.
   o It turns out that the pcap descriptors are being closed properly,
     but Nping isn't calling nsp_delete.
 
@@ -1594,11 +1594,11 @@ o [NSE] High speed brute force HTTP authentication.  Possibly POST and
 
 o [NSE] Review scripts:
    o New brute, vnc, and svn scripts by Patrik.  This guy is a coding
-     machine :).  http://seclists.org/nmap-dev/2010/q3/111
+     machine :).  http://seclists.org/kmap-dev/2010/q3/111
    o rmi-dumpregistry by Martin
-     Swende. http://seclists.org/nmap-dev/2010/q2/904
-   o path-mtu.nse - http://seclists.org/nmap-dev/2010/q3/222
-   o 15 more from Patrik :).  http://seclists.org/nmap-dev/2010/q3/284
+     Swende. http://seclists.org/kmap-dev/2010/q2/904
+   o path-mtu.nse - http://seclists.org/kmap-dev/2010/q3/222
+   o 15 more from Patrik :).  http://seclists.org/kmap-dev/2010/q3/284
 
 o [NSE] Consider modifying our brute force scripts to take advantage
   of the new NSE multiple-thread parallelism features.
@@ -1607,10 +1607,10 @@ o [NSE] Consider modifying our brute force scripts to take advantage
    modifying another script for this sort of parallel cracking.
 
 o Look into implementing security technologies such as DEP and ASLR on
-  Windows: http://seclists.org/nmap-dev/2010/q3/12.
+  Windows: http://seclists.org/kmap-dev/2010/q3/12.
 
-o Ncat and Nmap should probably support SSL Server Name Indication
-  (SNI). See this thread: http://seclists.org/nmap-dev/2010/q3/112.
+o Ncat and Kmap should probably support SSL Server Name Indication
+  (SNI). See this thread: http://seclists.org/kmap-dev/2010/q3/112.
   We need this to talk to web servers which share one SSL IP and port
   because we need to ask for the right SSL key.
 
@@ -1623,8 +1623,8 @@ o [NSE] In the same way as our -brute scripts limit their runtime by
   more intense qscanning.
 
 o [Web] We should see if we can easily put the Insecure chrome around
-  Apache directory listings and 404 pages (e.g. https://nmap.org/dist/
-  and https://nmap.org/404).  I think we may have had this working
+  Apache directory listings and 404 pages (e.g. https://kmap.org/dist/
+  and https://kmap.org/404).  I think we may have had this working
   before the move to Linode, so maybe check conf/httpd.conf.syn.
 
 o Do a serious analysis if and how we should use the NIST CPE standard
@@ -1633,9 +1633,9 @@ o Do a serious analysis if and how we should use the NIST CPE standard
   may not have entries for many vendors we have.  For example, one
   person told me they couldn't find SonicWall or D-Link in the CPE
   dictionary.  Here are some
-  discussions threads on adding CPE to Nmap:
-  http://seclists.org/nmap-dev/2008/q4/627 and
-  http://seclists.org/nmap-dev/2010/q2/788.
+  discussions threads on adding CPE to Kmap:
+  http://seclists.org/kmap-dev/2008/q4/627 and
+  http://seclists.org/kmap-dev/2010/q2/788.
   Nessus has described their integration of CPE at
   http://blog.tenablesecurity.com/2010/05/common-platform-enumeration-cpe-with-nessus.html.
 
@@ -1647,23 +1647,23 @@ o The -g (set source port) option doesn't seem to be working (at least
   in Fyodor's quick tests) for version detection or connect() scan,
   and apparently doesn't work for NSE either.  We should fix this
   where we can, and document the limitation in the refguide where it
-  is impractical. Also see http://seclists.org/nmap-dev/2010/q2/576.
+  is impractical. Also see http://seclists.org/kmap-dev/2010/q2/576.
 
-o [Zenmap] script selection interface for deciding which NSE scripts to
+o [Zekmap] script selection interface for deciding which NSE scripts to
   run.  Ideally it would have a great, intuitive UI, the smarts to
   know the scripts/categories available, display NSEdoc info, and even
   know what arguments each can take.
 
 o Review http-xst (Eduardo Garcia Melia) -
-  http://seclists.org/nmap-dev/2010/q3/159
+  http://seclists.org/kmap-dev/2010/q3/159
 
 o [NSE] Investigate sslv2.nse falsely reporting SSLv2 as being
   supported.
-  http://seclists.org/nmap-dev/2010/q2/754
+  http://seclists.org/kmap-dev/2010/q2/754
 
 o [NSE] The NSEDoc for some scripts includes large "Functions"
   sections which aren't really useful to script users.  For example,
-  see https://nmap.org/nsedoc/scripts/snmp-interfaces.html.  Perhaps we
+  see https://kmap.org/nsedoc/scripts/snmp-interfaces.html.  Perhaps we
   should hide these behind an expander like "Developer documentation
   (show)".  I don't think we need to do this for libraries, since
   developers are the primary audience for those documents.
@@ -1678,10 +1678,10 @@ o [NSE] Maybe we should create a class of scripts which only run one
   already have script classes which run once per port and once per
   host. For example, the once-per-scan ("network script"?) class might
   be useful for broadcast LAN scripts (Ron Bowes, who suggested this
-  (http://seclists.org/nmap-dev/2010/q1/883) offered to write a
+  (http://seclists.org/kmap-dev/2010/q1/883) offered to write a
   NetBIOS and DHCP broadcast script). Another idea would be an AS to
   IP ranges script, as discussed in this thread
-  http://seclists.org/nmap-dev/2010/q2/101 [Could be a good SoC
+  http://seclists.org/kmap-dev/2010/q2/101 [Could be a good SoC
   infrastructure project]
   o David notes: "I regret saying this before I say it, because I'm
     imagining implementation difficulties, we should think about
@@ -1689,92 +1689,92 @@ o [NSE] Maybe we should create a class of scripts which only run one
     discovery, and then let the following phases work on the list it
     discovers."
 
-o Analyze what sort of work would likely be required for Nmap to
+o Analyze what sort of work would likely be required for Kmap to
   support OS detection over IPv6 to a target.
   o Would probably start with a way to send raw IPv6 packets
     o There is a raw IPv6 patch here:
-      http://seclists.org/nmap-dev/2008/q1/458
+      http://seclists.org/kmap-dev/2008/q1/458
     o Also it looks like Nping may be doing this already.
   o Then we need to figure out if we can use our current DB and
     techniques, or if we'd likely thave to have an IPv6-specific
     DB. [David]
 
-o July Nmap releases (at least a beta version, and maybe a stable
+o July Kmap releases (at least a beta version, and maybe a stable
   too).  Last release was 5.30BETA1 on March 29
 
 o Add this patch for compilation on OpenSolaris.
-  http://blogs.sun.com/sdaven/entry/nmap_5_35dc1_compile_on
+  http://blogs.sun.com/sdaven/entry/kmap_5_35dc1_compile_on
 
 o Now that we've put the ndiff, ncat, and nping man pages under the
-  scope of the book (e.g. https://nmap.org/book/ncat-man.html), we need
+  scope of the book (e.g. https://kmap.org/book/ncat-man.html), we need
   to add a redirect from the old locations and also update our links.
 
 o Make sure the long output lines in Nping's man page are OK for the book.
   See r18829 and r18864.
 
-o Update "History and Future of Nmap"
-  (https://nmap.org/book/history-future.html) to include all the news
+o Update "History and Future of Kmap"
+  (https://kmap.org/book/history-future.html) to include all the news
   since September 2008. [Fyodor]
 
 o Fix Win7 networking issue reported by Luis which seems to have been
   triggered by r17542. See this thread:
-  http://seclists.org/nmap-dev/2010/q3/40
+  http://seclists.org/kmap-dev/2010/q3/40
 
 o Upgrade to WinPcap 4.1.2 - Rob has a patch - See this thread:
-  http://seclists.org/nmap-dev/2010/q3/18
+  http://seclists.org/kmap-dev/2010/q3/18
 
 o [NSE] Review UnrealIRCd backdoor detection script
-  http://seclists.org/nmap-dev/2010/q2/854
+  http://seclists.org/kmap-dev/2010/q2/854
 
-o [Zenmap] Investigate segfault on some installs of OS X 10.6.3:
-  http://seclists.org/nmap-dev/2010/q2/587
+o [Zekmap] Investigate segfault on some installs of OS X 10.6.3:
+  http://seclists.org/kmap-dev/2010/q2/587
   o David rebuilt with MacPorts 1.9.1 rather than 1.8.2 and the
     problem went away.
 
-o [Zenmap] Investigate failure to start on some installations of OS X
+o [Zekmap] Investigate failure to start on some installations of OS X
   10.6.3.
   [ We think one may just not have waited long enough as he said it
   started working, and another case (the 587) seems to be a
   segfault--we added a new task for that ]
-  http://seclists.org/nmap-dev/2010/q2/587
-  http://seclists.org/nmap-dev/2010/q2/859 (He responded to David
+  http://seclists.org/kmap-dev/2010/q2/587
+  http://seclists.org/kmap-dev/2010/q2/859 (He responded to David
   privately and said that it was not an I7 processor.)
-  Nmap seems to be having problems too:
-  http://seclists.org/nmap-dev/2010/q2/747
+  Kmap seems to be having problems too:
+  http://seclists.org/kmap-dev/2010/q2/747
 
 o [NSE] Review Gutek's PHP version disclosure script.
-  http://seclists.org/nmap-dev/2010/q2/569
+  http://seclists.org/kmap-dev/2010/q2/569
 
 o Fix the IPv6 name resolution problem described in this thread:
-  http://seclists.org/nmap-dev/2010/q2/787
+  http://seclists.org/kmap-dev/2010/q2/787
 
 o [NSE] Review Gutek's libopie detection/DOS script.
-  http://seclists.org/nmap-dev/2010/q2/635
+  http://seclists.org/kmap-dev/2010/q2/635
 
 o [NSE] Review Gutek's web server directory traversal script.
-  http://seclists.org/nmap-dev/2010/q2/595
+  http://seclists.org/kmap-dev/2010/q2/595
   - It became modifications to http-passwd
 
 o [NSE] Review dns-cache-snoop.nse from Eugene Alexeev.
-  http://seclists.org/nmap-dev/2010/q2/195
-  Better attachment at: http://seclists.org/nmap-dev/2010/q2/200
-  Need to decide on a domain list: http://seclists.org/nmap-dev/2010/q2/199
+  http://seclists.org/kmap-dev/2010/q2/195
+  Better attachment at: http://seclists.org/kmap-dev/2010/q2/200
+  Need to decide on a domain list: http://seclists.org/kmap-dev/2010/q2/199
 
 o Fix bug where multiple targets with the same IP can end up in a
   hostgroup and cause port scanning and probably OS detection to
-  misbehave.  An example is "nmap -F scanme2.nmap.org
-  scanme3.nmap.org". See this thread for details:
-  http://seclists.org/nmap-dev/2010/q2/322
+  misbehave.  An example is "kmap -F scanme2.kmap.org
+  scanme3.kmap.org". See this thread for details:
+  http://seclists.org/kmap-dev/2010/q2/322
 
 o Need to fix our current win32.zip distribution so that .svn files
   aren't included (currently they are in nselib/data).  Will probably
   be a simple adjustment to mswin32/Makefile.
 
-o Make Zenmap splash screen
+o Make Zekmap splash screen
 
 o [NSE] Add one of, or combine, ntp-peers and ntp-monlist.
-  http://seclists.org/nmap-dev/2010/q2/190
-  http://seclists.org/nmap-dev/2010/q2/191
+  http://seclists.org/kmap-dev/2010/q2/190
+  http://seclists.org/kmap-dev/2010/q2/191
   
 o [NSE] Reorganize nselib to allow libraries in subdirectories.
   Currently, to avoid expanding the number top-level libraries, code
@@ -1797,25 +1797,25 @@ o Add a configure option to our libpcap which enables an older Linux
   --disable-packet-ring]
 
 o Test Jay Fink's UDP payload prototype.
-  http://seclists.org/nmap-dev/2010/q1/168
+  http://seclists.org/kmap-dev/2010/q1/168
   [ tested, improved, merged by David]
 
 o Resolve Ncat broadcast support issue (see this thread:
-  http://seclists.org/nmap-dev/2010/q2/422).
+  http://seclists.org/kmap-dev/2010/q2/422).
 
 o [NSE] Review and test the DB2 library and
-  scripts. http://seclists.org/nmap-dev/2010/q2/395 (but updated
+  scripts. http://seclists.org/kmap-dev/2010/q2/395 (but updated
   versions may be available).
 
-o Move nmap/docs/TODO into its own todo directory (probably nmap/todo)
+o Move kmap/docs/TODO into its own todo directory (probably kmap/todo)
   and then encourage maintainers of /status/ TODOs and any other TODOs
-  to migrate theirs there.  Unlike the status directory, /nmap/todo
+  to migrate theirs there.  Unlike the status directory, /kmap/todo
   would be readible by anyone. [Fyodor]
 
-o Nmap should at least print (and maybe scan) all IP addresses for
+o Kmap should at least print (and maybe scan) all IP addresses for
   hostnames specified on the command line.  We will start with just
   printing all the addresses. Here is a thread on the topic:
-  http://seclists.org/nmap-dev/2010/q2/302
+  http://seclists.org/kmap-dev/2010/q2/302
   [David made it do the printing, adding a different task related to
   scanning them all]
 
@@ -1826,10 +1826,10 @@ o [Ncrack] Use our new password lists (now used by NSE) for Ncrack as
   well.  Ncrack can probably handle a larger list than NSE uses.
 
 o Consider MSRPC ideas from Ron--we might want to add some as TODO
-  tasks: http://seclists.org/nmap-dev/2010/q2/389
+  tasks: http://seclists.org/kmap-dev/2010/q2/389
 
 o Fix XML inconsistency described at
-  http://seclists.org/nmap-dev/2010/q2/326
+  http://seclists.org/kmap-dev/2010/q2/326
 
 o Integrate new OS fingerprints (we have more than 1,300 since
   November 10, 2009).
@@ -1841,26 +1841,26 @@ o Upgrade libpcap to the new 1.1.1 version.
 o Improve the NSI installer by adding command-line options for unsetting
    each of these GUI checkboxes individually (particularly useful for
    silent mode):
-   LangString DESC_SecCore ${LANG_ENGLISH} "Installs Nmap executable, NSE scripts and Visual C++ 2008 runtime components"
-   LangString DESC_SecRegisterPath ${LANG_ENGLISH} "Registers Nmap path to System path so you can execute it from any directory"
-   LangString DESC_SecWinPcap ${LANG_ENGLISH} "Installs WinPcap 4.1 (required for most Nmap scans unless it is already installed)"
+   LangString DESC_SecCore ${LANG_ENGLISH} "Installs Kmap executable, NSE scripts and Visual C++ 2008 runtime components"
+   LangString DESC_SecRegisterPath ${LANG_ENGLISH} "Registers Kmap path to System path so you can execute it from any directory"
+   LangString DESC_SecWinPcap ${LANG_ENGLISH} "Installs WinPcap 4.1 (required for most Kmap scans unless it is already installed)"
    LangString DESC_SecPerfRegistryMods ${LANG_ENGLISH} "Modifies Windows registry values to improve TCP connect scan performance.  Recommended."
-   LangString DESC_SecZenmap ${LANG_ENGLISH} "Installs Zenmap, the official Nmap graphical user interface.  Recommended."
-   LangString DESC_SecNcat ${LANG_ENGLISH} "Installs Ncat, Nmap's Netcat replacement."
-   LangString DESC_SecNdiff ${LANG_ENGLISH} "Installs Ndiff, a tool for comparing Nmap XML files."
+   LangString DESC_SecZekmap ${LANG_ENGLISH} "Installs Zekmap, the official Kmap graphical user interface.  Recommended."
+   LangString DESC_SecNcat ${LANG_ENGLISH} "Installs Ncat, Kmap's Netcat replacement."
+   LangString DESC_SecNdiff ${LANG_ENGLISH} "Installs Ndiff, a tool for comparing Kmap XML files."
    LangString DESC_SecNping ${LANG_ENGLISH} "Installs Nping, a packet generation tool."
 
 o We should have a standard function which takes time arguments in the
-  same format as Nmap does (e.g. 60s, 1m, etc.) and the scripts which
+  same format as Kmap does (e.g. 60s, 1m, etc.) and the scripts which
   take time arguments should be modified to use it. David suggests
-  this here: http://seclists.org/nmap-dev/2010/q2/35. We are also
-  going to update the normal Nmap timing functions to take seconds by
-  default, as described here: http://seclists.org/nmap-dev/2010/q2/159
+  this here: http://seclists.org/kmap-dev/2010/q2/35. We are also
+  going to update the normal Kmap timing functions to take seconds by
+  default, as described here: http://seclists.org/kmap-dev/2010/q2/159
 
-o Nmap should probably always produce a well-formed XML file, even if
+o Kmap should probably always produce a well-formed XML file, even if
   it exits with a fatal() error.  In that case, the error should be
   included in the XML.  Right now, for example, if the network is
-  down, the XML output will just stop (no closing tags) and Nmap will
+  down, the XML output will just stop (no closing tags) and Kmap will
   print something to STDERR like:
   nexthost: failed to determine route to 9.48.184.164
   QUITTING!
@@ -1878,11 +1878,11 @@ o Get @output sections for the last remaining scripts w/o them:
   [WARN] script pptp-version missing @output
   [WARN] script skypev2-version missing @output
 
-o [Zenmap] Maybe it should sort IPs in an octet-aware way. And maybe
+o [Zekmap] Maybe it should sort IPs in an octet-aware way. And maybe
   you should be able to sort by IP address (perhaps that should be the
   default).  Current plan is to just sort by IP by default, and maybe
   we'll offer other sort techniques later if desired.  See
-  http://seclists.org/nmap-dev/2010/q2/27 [possible SoC student task]
+  http://seclists.org/kmap-dev/2010/q2/27 [possible SoC student task]
 
 o Brainstorm for GSoC 2010 ideas and fill out the org application by
   Friday 3/12 4PM PST.
@@ -1895,20 +1895,20 @@ o Brainstorm for GSoC 2010 ideas and fill out the org application by
   o Ncrack
   o Nping
   o Mobile Devices? N900, iPhone, Android
-  o Zenmap developer 
+  o Zekmap developer 
     o Must have solid user interface design experience
-    o Zenmap script selector (subset of a Zenmap or NSE SoC role)
+    o Zekmap script selector (subset of a Zekmap or NSE SoC role)
   o Feature Creepers/Bug fixers
 
 o Review IDS detection scripts from Joao Correa.
-  http://seclists.org/nmap-dev/2010/q1/814
+  http://seclists.org/kmap-dev/2010/q1/814
 
 o Review mssql library and scripts from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/1000 (files)
-  http://seclists.org/nmap-dev/2010/q1/1014 (sample output)
+  http://seclists.org/kmap-dev/2010/q1/1000 (files)
+  http://seclists.org/kmap-dev/2010/q1/1014 (sample output)
 
 o Review DNS fuzzer script from Michael Pattrick.
-  http://seclists.org/nmap-dev/2010/q1/1005
+  http://seclists.org/kmap-dev/2010/q1/1005
 
 o Our nsedoc generator should probably give a warning if a script is
   missing any important fields. @output comes to mind.  @usage can be
@@ -1918,46 +1918,46 @@ o Our nsedoc generator should probably give a warning if a script is
 o [NSE] Consider pros and cons of splitting information retrieval
   scripts into a bunch of small single-purpose script vs. one larger
   argument-controlled script.  See
-  http://seclists.org/nmap-dev/2010/q1/1023
+  http://seclists.org/kmap-dev/2010/q1/1023
   [we ended up combining three of the ms-sql scripts. If we combine
   future scripts, we need to remember to add them to the deprecation
   list in the Makefile]
 
 o Remove --interactive.  It was broken for a long time and nobody
-  seemed to notice, and we put a call out on nmap-dev for
+  seemed to notice, and we put a call out on kmap-dev for
   --interactive users and didn't get any good reasons to keep it.  We
   should kill it to remove the code complexity it adds and to avoid
   the documentation complexity of people having to read and learn
   about a feature they are unlikely to ever use.
 
-o Zenmanp should perhaps be able to print Nmap output on a Printer (if
+o Zenmanp should perhaps be able to print Kmap output on a Printer (if
   not too much of a pain to implement.)
 
 o Review afp-serverinfo.nse from Andrew Orr.
-  http://seclists.org/nmap-dev/2010/q1/470 Just waiting on some bug fixes:
-  http://seclists.org/nmap-dev/2010/q1/665
+  http://seclists.org/kmap-dev/2010/q1/470 Just waiting on some bug fixes:
+  http://seclists.org/kmap-dev/2010/q1/665
 
 o Test 64-bit pcap installer (e.g. remove old version and install new)
   before next release, as we've applied a change from Rob which works on
-  his system (http://seclists.org/nmap-dev/2010/q1/796).
+  his system (http://seclists.org/kmap-dev/2010/q1/796).
 
 o [NSE] Improve username/password library (the database files
   themselves).  We don't have very good lists at the moment.  Maybe
   work in combination with Ncrack dev.
   o Now there are some even better lists available (f.e. RockYou)--see
-    this thread: http://seclists.org/nmap-dev/2010/q1/764
+    this thread: http://seclists.org/kmap-dev/2010/q1/764
   o We've improved the ncrack files--we should probably either use
     those for NSE or use a subset of them.
   o perhaps from Solar Designer. (he sent us permission)
   o perhaps add phpbb hack data (there is at least a list of 28,635
     passwords in phpbb_users.sql, and possibly more in other files.
 
-o [Nping] Should take the version number 0.[nmap version], such as
+o [Nping] Should take the version number 0.[kmap version], such as
   0.5.22TEST
 
 o Review rpc.lua, nfs-showmount.nse, nfs-get-stats.nse, and
   nfs-get-dirlist.nse from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/270
+  http://seclists.org/kmap-dev/2010/q1/270
 
 o [NSE] Look into moving packet module to C for better performance
   [Patrick]
@@ -1966,90 +1966,90 @@ o [NSE] Look into moving packet module to C for better performance
     if/when there is a desire to implement it.  A key is probably to
     measure current performance and see if it is a material problem.
 
-o Maybe the Nmap ASCII art should come after make rather than
+o Maybe the Kmap ASCII art should come after make rather than
   configure?
   - We decided it would probably be annoying for developers to see it
     every time they 'make'.
 
 o Review snmpenum.nse from William Njuguna.
-  http://seclists.org/nmap-dev/2009/q4/721
-  http://seclists.org/nmap-dev/2010/q1/656
+  http://seclists.org/kmap-dev/2009/q4/721
+  http://seclists.org/kmap-dev/2010/q1/656
   o Dropping for now unless original author or someone else picks it
   up and fixes the bugs.
 
 o Add smtp-enum-users from Duarte Silva if testing is favorable.
-  http://seclists.org/nmap-dev/2010/q1/699
+  http://seclists.org/kmap-dev/2010/q1/699
 
 o After the new -sn and -Pn options (added to SVN around 7/20, just
   after the 5.00 release) have been around long enough to be in most
-  people's copy of Nmap (e.g. in all the versions we distribute from
+  people's copy of Kmap (e.g. in all the versions we distribute from
   download page (stable+dev)) for at least a few months, we'll document
   these as the preferred version rather than -sP and -PN.  These match
   -n, and the main problem with -sP is that we now use it more for
   "disable portscan" than ping only.  For example, you can also use
   NSE, traceroute, etc. [David]
 
-o Nmap currently selects routes based on the first matching one it
+o Kmap currently selects routes based on the first matching one it
   finds.  But it should really take the most specific route instead.
   So it should:
   1) Keep searching the routing table for the most specific match, and
   2) Use a stable sort (not qsort) so that routes with identical
      netmasks aren't rearranged.
-  For more, see http://seclists.org/nmap-dev/2010/q1/685
+  For more, see http://seclists.org/kmap-dev/2010/q1/685
 
 o Review pgsql-brute.nse from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/455
+  http://seclists.org/kmap-dev/2010/q1/455
 
-o psexec missing (need to download yourself now) nmap_services.exe
+o psexec missing (need to download yourself now) kmap_services.exe
   output issue: "The function where this is detected returns a value
   that is passed to stdnse.format_output. format_output takes a
   parameter to decide whether it's displaying an error message, but it
   is hard-coded to only display error messages with debugging >= 1. So
   options are to change format_output and make it more flexible, or
-  somehow decouple the sensing of nmap_service.exe from the normal
+  somehow decouple the sensing of kmap_service.exe from the normal
   output channel of the script."
 
 o Website: Create shared directory in svn, which will contain
   directories shared between the Insecure.org network of sites
   (e.g. templates, error, css).  Then sites such as sectools,
-  nmap.org, insecure.org can just check that out via externals
+  kmap.org, insecure.org can just check that out via externals
   declaration (or, I suppose, symlink).  CSS directives will then use
   /shared/css/insecdb.css etc. ).
 
 o Add CouchDB and JSON scripts once the JSON library is finished.
-  http://seclists.org/nmap-dev/2010/q1/641
+  http://seclists.org/kmap-dev/2010/q1/641
 
 o Review NSE raw IP from Kris Katterjohn.
-  http://seclists.org/nmap-dev/2010/q1/559
+  http://seclists.org/kmap-dev/2010/q1/559
 
 o Review sslv3-enum.nse from Mak Kolybabi.
-  http://seclists.org/nmap-dev/2010/q1/563
+  http://seclists.org/kmap-dev/2010/q1/563
 
 o [NSE] Consider LDAP library and scripts from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/70 [all merged, except David is
+  http://seclists.org/kmap-dev/2010/q1/70 [all merged, except David is
   still reviewing ldap-search]
 
 o More potential improvements to http-methods:
-   http://seclists.org/nmap-dev/2010/q1/630 and
-   http://seclists.org/nmap-dev/2010/q1/640
+   http://seclists.org/kmap-dev/2010/q1/630 and
+   http://seclists.org/kmap-dev/2010/q1/640
 
 o Remove smtp-open-relay.nse sometime after 9/24/09 if nobody adopts it (see
-  http://seclists.org/nmap-dev/2009/q3/0986.html). [It got fixed up
+  http://seclists.org/kmap-dev/2009/q3/0986.html). [It got fixed up
   and we kept it.]
 
 o The -v and -d arguments should take the same syntax.  Right now you
   use -vvv vs. -d3. We should probably just make either approach work
   with either of them.
 
-o Zenmap should be able to export normal Nmap output
+o Zekmap should be able to export normal Kmap output
 
 o Integrate Nping.
 
 o [NSE] Consider the http-methods script from Bernd Stroessenreuther.
-  http://seclists.org/nmap-dev/2010/q1/76. [integrated, but David is
+  http://seclists.org/kmap-dev/2010/q1/76. [integrated, but David is
   making some improvements].
 
-o The Nmap web page is beginning to show its age.  Ah, who am I
+o The Kmap web page is beginning to show its age.  Ah, who am I
   kidding, it was showing its age 5 years ago :).  It could do with an
   upgrade to XHTML+CSS.  It could also do with a whole redesign, but I
   think that can be done as a second step after converting to
@@ -2059,7 +2059,7 @@ o The Nmap web page is beginning to show its age.  Ah, who am I
   Designing the new XHTML+CSS to look similar to the current HTML
   pages, but be extensible enough that it can be redesigned in the
   (near) future by mostly just changing the CSS and graphics.  
-    o Converting the existing Nmap pages to the new XHTML format.
+    o Converting the existing Kmap pages to the new XHTML format.
       This will likely include using open source programs and likely
       modifying them or creating your own scripts to help with the
       process.  To apply for this task, you need to have some web
@@ -2080,20 +2080,20 @@ o Seclists.org should maybe be fixed so that it doesn't strip quoted
   at the summaries at http://seclists.org/interesting-people/.
 
 o Web site HTML improvements
-  - Maybe start with nmap.org.
+  - Maybe start with kmap.org.
     - Find and fix HTML validation problems, bad links.  I'm not sure
       what tool is best for this.
   - Then do the same with seclists.org, insecure.org, sectools.org
   - The icon on the top-left of the screen should be for (and link
     to) the root URL of current site.  e.g. seclists.org,
-    sectools.org, nmap.org rather than always insecure.org.
+    sectools.org, kmap.org rather than always insecure.org.
 
 o [NSE] Consider SNMP scripts from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/162
-  http://seclists.org/nmap-dev/2010/q1/174
-  http://seclists.org/nmap-dev/2010/q1/178
+  http://seclists.org/kmap-dev/2010/q1/162
+  http://seclists.org/kmap-dev/2010/q1/174
+  http://seclists.org/kmap-dev/2010/q1/178
 
-o Deal with AV false positive issue RE nmap_services.exe:
+o Deal with AV false positive issue RE kmap_services.exe:
  - For now, David is going to apply Ron's patch which removes this,
    but David will make it print output in verbose mode rather than
    debug and maybe make it a little less verbose. LT plan is for Ron
@@ -2104,7 +2104,7 @@ o Web site improvements
       - Also, if it is easy to give the header bars rounded corners,
         we should probably do so.  But if it is hard, it isn't
         important enough to matter.
-    - The Nmap.Org navigation table should have a background and more
+    - The Kmap.Org navigation table should have a background and more
       subtle lines, like we use for our calendars now.
     - The first item (table) in featured news has slightly more
       left/right margin than the later ones on Firefox 3.5.6, and with
@@ -2118,39 +2118,39 @@ o Web site improvements
 
 o [Ncat] Test, review, and (if appropriate) merge Venkat's HTTP Digest
   proxy authentication patch.  See
-  http://seclists.org/nmap-dev/2009/q3/773. [David]
+  http://seclists.org/kmap-dev/2009/q3/773. [David]
 
 o [NSE] Look at new DB2 script by Tom
-  Sellers. http://seclists.org/nmap-dev/2009/q4/659
+  Sellers. http://seclists.org/kmap-dev/2009/q4/659
 
 o [NSE] Consider MongoDB scripts and libraries from Martin Holst Swende.
-  http://seclists.org/nmap-dev/2010/q1/177
+  http://seclists.org/kmap-dev/2010/q1/177
 
 o [NSE] Document Patrick's worker thread patch in scripting.xml (see
-  http://seclists.org/nmap-dev/2009/q4/294,
-  https://nmap.org/nsedoc/lib/stdnse.html#new_thread,
-  https://nmap.org/nsedoc/lib/nmap.html#condvar) [Patrick]
+  http://seclists.org/kmap-dev/2009/q4/294,
+  https://kmap.org/nsedoc/lib/stdnse.html#new_thread,
+  https://kmap.org/nsedoc/lib/kmap.html#condvar) [Patrick]
 
-o Make Nmap 5.21 bugfix-only release
+o Make Kmap 5.21 bugfix-only release
 
 o [NSE] Consider afp-showmount script from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/97
+  http://seclists.org/kmap-dev/2010/q1/97
   [merged to trunk]
 
 o [NSE] Review DNS-SD script from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/87
+  http://seclists.org/kmap-dev/2010/q1/87
   [merged to trunk]
 
 o [NSE] Consider MySQL scripts from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/163
+  http://seclists.org/kmap-dev/2010/q1/163
   [merged to trunk]
 
 o [NSE] Consider DAAP script from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2010/q1/164
+  http://seclists.org/kmap-dev/2010/q1/164
   [merged to trunk]
 
 o NSEDoc left sidebar should include a link to
-  https://nmap.org/book/nse.html below "Index".
+  https://kmap.org/book/nse.html below "Index".
 
 o Consider enhancing the new OS Assist system to handle version
   detection too. [We decided not to do this as David noted that Doug's
@@ -2165,11 +2165,11 @@ correctly. In other words you can extend them to any number of lines
 as long as each line after the first begins with whitespace. [David]
 
 o Investigate issue with our Pcap and Wireshark x64, as described in
-  this thread: http://seclists.org/nmap-dev/2009/q4/557 [Rob]
+  this thread: http://seclists.org/kmap-dev/2009/q4/557 [Rob]
   [Taking this off the list until/unless we get more reports]
 
 o Decide what to do about Windows 7/Vista and starting NPF.  See this
-  thread: http://seclists.org/nmap-dev/2010/q1/20
+  thread: http://seclists.org/kmap-dev/2010/q1/20
 
 o [NSE] We should do a favicon survey like the one Brandon did for
   /favicon.ico files but which uses the favicons specified by the HTML
@@ -2185,20 +2185,20 @@ o [NSE] We should do a favicon survey like the one Brandon did for
 
 o [Ncat] Add SSL support for --exec so you can use SSL to talk to your
   remote shell, etc.  See this thread:
-  http://seclists.org/nmap-dev/2009/q4/255, particularly the
-  implementation sketch at http://seclists.org/nmap-dev/2009/q4/268 [Venkat,David]
+  http://seclists.org/kmap-dev/2009/q4/255, particularly the
+  implementation sketch at http://seclists.org/kmap-dev/2009/q4/268 [Venkat,David]
 
 o Look at new Kerberos script from Patrik Karlsson.
-  http://seclists.org/nmap-dev/2009/q4/715 .  [We decided not to merge
+  http://seclists.org/kmap-dev/2009/q4/715 .  [We decided not to merge
   this one since its usefulness turned out to be limited on Windows and
   very limited on any other platform. ]
 
 o Add feature to http library to let user set the user agent to be
   used. The NSEDoc for this feature should probably tell what our
-  current default user agent is ("Mozilla/5.0 (compatible; Nmap
-  Scripting Engine; https://nmap.org/book/nse.html") [David]
+  current default user agent is ("Mozilla/5.0 (compatible; Kmap
+  Scripting Engine; https://kmap.org/book/nse.html") [David]
 
-o On our NSEDoc pages (e.g. https://nmap.org/nsedoc/), perhaps the link
+o On our NSEDoc pages (e.g. https://kmap.org/nsedoc/), perhaps the link
   text for scripts should not include the ".nse".  Basides saving
   horizontal space, this may improve the sorting so that the likes of
   "citrix-enum-apps" comes before "citrix-enum-apps-xml".  Also, we can
@@ -2206,7 +2206,7 @@ o On our NSEDoc pages (e.g. https://nmap.org/nsedoc/), perhaps the link
   especially if ".nse" is removed.
 
 o [NSE] Patrick's script dependency patch:
-  http://seclists.org/nmap-dev/2009/q4/295
+  http://seclists.org/kmap-dev/2009/q4/295
   o I'm not sure if he has gone through and actually set appropriate
     dependencies (and removed runlevels) yet
 
@@ -2220,17 +2220,17 @@ o Add --evil to set the RFC3514 evil bit.
   o We're not going to add this right now.
 
 o Talk to Libpcap folks about incorporating (at least some of) my
-  changes from libpcap/NMAP_MODIFICATIONS. [marking as done since the
+  changes from libpcap/KMAP_MODIFICATIONS. [marking as done since the
   upstream-appropriate changes are pretty minor now that we've
   upgraded to 1.0]
 
-o Nping -- like hping3 but uses Nmap infrastructure and to a
-  large degree the same command-line options as Nmap.
-  [We now have an alpha version at https://nmap.org/nping/]
+o Nping -- like hping3 but uses Kmap infrastructure and to a
+  large degree the same command-line options as Kmap.
+  [We now have an alpha version at https://kmap.org/nping/]
 
 o Further investigate SCTP functionality, as some people reported
   problems (see this thread:
-  http://seclists.org/nmap-dev/2009/q2/0669.html)
+  http://seclists.org/kmap-dev/2009/q2/0669.html)
 
 o [NSE] NFS query script for checking exports, etc.? [Patrik Karlsson]
 
@@ -2251,11 +2251,11 @@ o [NSE] Attempt to reproduce and fix a deadlock reported by Brandon
   at end of November meant to resolve this, and we haven't seen the
   problem since, so we're marking it as done for now].
 
-o Look into reducing Nmap memory consumption
+o Look into reducing Kmap memory consumption
   o UDP scans with -p- and large hostgroups are a particularly large
     offender.  See if there is a way to prevent them from eating up
     gigs of RAM. See the message "Port memory bloat" at
-    http://seclists.org/nmap-dev/2009/q3/0926.html for a patch that
+    http://seclists.org/kmap-dev/2009/q3/0926.html for a patch that
     reduces Port memory use by about 50%. 
   o One idea David has been considering is a way to represent filtered
     ports (or whatever the default state is) without creating a Port
@@ -2263,10 +2263,10 @@ o Look into reducing Nmap memory consumption
   [David]
 
 o Fix assertion failure with certain --exclude arguments (see
-  http://seclists.org/nmap-dev/2009/q4/276). [David]
+  http://seclists.org/kmap-dev/2009/q4/276). [David]
 
 o Many people may have stale (since removed/renamed) scripts in their
-  Nmap scripts directory because our 'make install' does not remove
+  Kmap scripts directory because our 'make install' does not remove
   them and so they remain and can cause problems (like running twice
   after being renamed).  We should probably add a line to our 'make
   install' which removes the scripts/lib names we have previously
@@ -2277,10 +2277,10 @@ o Many people may have stale (since removed/renamed) scripts in their
 o Update the CHANGELOG for new 5.10BETA1
   release. [Fyodor]
 
-o Make the new Nmap 5.10BETA1 release
+o Make the new Kmap 5.10BETA1 release
 
 o Ndiff man page should be built from XML source whenever a release is
-  done, as ncat/zenmap/nmap man pages are. [Fyodor]
+  done, as ncat/zekmap/kmap man pages are. [Fyodor]
 
 o We should package the rendered Nroff man page translations (e.g. all
   16 languages) in the tarball to make it easier for distributors to
@@ -2290,12 +2290,12 @@ o We should package the rendered Nroff man page translations (e.g. all
   uncompressed tarball and about 800KB to the (currently 9MB) bz2
   compressed tarball. [Fyodor]
 
-o The Nmap 5.00 tarball contains:
-  -rw-r--r-- fyodor/fyodor 122943 2009-06-24 14:35 nmap-5.00/docs/scripting.xml
-  -rw-r--r-- fyodor/fyodor    151 2009-06-24 14:35 nmap-5.00/docs/nmap-usage.xml
-  -rw-r--r-- fyodor/fyodor    604 2009-06-24 14:35 nmap-5.00/docs/nmap-man-enclosure.xml
-  -rw-r--r-- fyodor/fyodor  76918 2009-06-24 14:35 nmap-5.00/docs/nmap-install.xml
-  -rw-r--r-- fyodor/fyodor  10179 2009-06-24 14:35 nmap-5.00/docs/legal-notices.xml
+o The Kmap 5.00 tarball contains:
+  -rw-r--r-- fyodor/fyodor 122943 2009-06-24 14:35 kmap-5.00/docs/scripting.xml
+  -rw-r--r-- fyodor/fyodor    151 2009-06-24 14:35 kmap-5.00/docs/kmap-usage.xml
+  -rw-r--r-- fyodor/fyodor    604 2009-06-24 14:35 kmap-5.00/docs/kmap-man-enclosure.xml
+  -rw-r--r-- fyodor/fyodor  76918 2009-06-24 14:35 kmap-5.00/docs/kmap-install.xml
+  -rw-r--r-- fyodor/fyodor  10179 2009-06-24 14:35 kmap-5.00/docs/legal-notices.xml
   If we're going to include the XML source files, we should include
   refguide too.  But rather than add that, we should probably take
   these out.  After all, people can easily grab them from svn or our
@@ -2309,73 +2309,73 @@ o Consider converting this file to emacs org-mode
     users, etc.
   [Considered, but I don't think I'll change right now]
 
-o Windows 7 RTM Nmap testing (With particular attention to 64-bit and
+o Windows 7 RTM Kmap testing (With particular attention to 64-bit and
   our pcap installer). [Fyodor]
 
 o We should print host latency (when available) in the XML output, as
-  suggested at http://seclists.org/nmap-dev/2009/q4/215.
-  docs/nmap.dtd will have to be modified accordingly, and you might
-  even consider adding support to docs/nmap.xsl.
+  suggested at http://seclists.org/kmap-dev/2009/q4/215.
+  docs/kmap.dtd will have to be modified accordingly, and you might
+  even consider adding support to docs/kmap.xsl.
 
 o Integrate latest OS fingerprint submissions and corrections. This
   was last done based on submissions up to May 8, 2009.
 
 o Potential OS X 10.6 problems.  There are two issues reported by the
   same user which may be related:
-  http://seclists.org/nmap-dev/2009/q3/0936.html,
-  http://seclists.org/nmap-dev/2009/q3/0996.html.  One is that Nmap
+  http://seclists.org/kmap-dev/2009/q3/0936.html,
+  http://seclists.org/kmap-dev/2009/q3/0996.html.  One is that Kmap
   hangs doing nothing and needs to be killed with Ctrl-C, and the
   other is that it dies after printing "Initiating UDP Scan".  Another
   reported the same problem at
-  http://seclists.org/nmap-dev/2009/q3/0990.html, where it dies after
-  the first ARP request is sent.  But Brandon has run Nmap on 10.6
+  http://seclists.org/kmap-dev/2009/q3/0990.html, where it dies after
+  the first ARP request is sent.  But Brandon has run Kmap on 10.6
   without problems.  It is a bit of a mystery. [David] [Resolution:
   Apple fixed the problems in 10.6.2; For users who have 10.6 and
   10.6.1, the versions David builds on 10.5 will still work for them
   because they are 32-bit binaries rather than 64.  Users who build
-  Nmap on 10.6 or 10.6.1 should compile with -m32 or update to 10.6.2]
+  Kmap on 10.6 or 10.6.1 should compile with -m32 or update to 10.6.2]
 
 o [NSE] Patrick's worker thread patch:
-  http://seclists.org/nmap-dev/2009/q4/294
+  http://seclists.org/kmap-dev/2009/q4/294
 
 o Investigate get_rpc_results error (infinite loop) reported by Lionel
-  Cons. See these threads: http://seclists.org/nmap-dev/2009/q4/24,
-  http://seclists.org/nmap-dev/2009/q4/120
+  Cons. See these threads: http://seclists.org/kmap-dev/2009/q4/24,
+  http://seclists.org/kmap-dev/2009/q4/120
 
-o Upgrade to latest version of NSIS on Nmap Win build system [Fyodor].
+o Upgrade to latest version of NSIS on Kmap Win build system [Fyodor].
 
-o Standardize on a proper file header for the Zenmap source code. [David]
+o Standardize on a proper file header for the Zekmap source code. [David]
  o For now, David is going to augment the templatereplacement system
-   to insert the normal nmap.header.tmpl, but change the comment format
-   to work with Python, and then replace the current Zenmap headers
+   to insert the normal kmap.header.tmpl, but change the comment format
+   to work with Python, and then replace the current Zekmap headers
    with that.
 
 o We may want to look into if/how we support IPv6 nameservers.  Here
   is a bug report from someone having a problem with them:
   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=539244 [Ankur]
 
-o Once all the man page languages are in the Nmap tarball, we should
+o Once all the man page languages are in the Kmap tarball, we should
   update our install system to install them in the appropriate place.
   We'll want to integrate this with configure so users can decide which
-  languages they want.  See http://seclists.org/nmap-dev/2009/q4/249.
+  languages they want.  See http://seclists.org/kmap-dev/2009/q4/249.
 
 o Resolve allow_ipid_match issue which can cause some malformed
   replies to be ignored when we might be able to still use them.  See
-  this thread: http://seclists.org/nmap-dev/2009/q2/665 [David]
+  this thread: http://seclists.org/kmap-dev/2009/q2/665 [David]
 
-o Fix Zenmap 'make install' TypeError issue
-  (http://seclists.org/nmap-dev/2009/q4/225). [David]
+o Fix Zekmap 'make install' TypeError issue
+  (http://seclists.org/kmap-dev/2009/q4/225). [David]
 
-o Fix a bug in which Nmap can wrongly associate responses to SYN and
+o Fix a bug in which Kmap can wrongly associate responses to SYN and
   ACK host discovery probes.  [David]
   For example:
-  # nmap -sP -PS80 -PA80 australia.gov.au --packet-trace -d2
+  # kmap -sP -PS80 -PA80 australia.gov.au --packet-trace -d2
   SENT (0.0760s) TCP 192.168.0.21:60182 > 152.91.126.70:80 S ttl=43 id=13466 iplen=44  seq=4046449223 win=4096 <mss 1460>
   SENT (0.0770s) TCP 192.168.0.21:60182 > 152.91.126.70:80 A ttl=48 id=39976 iplen=40  seq=4046449223 win=1024 ack=921915001
   RCVD (0.3020s) TCP 152.91.126.70:80 > 192.168.0.21:60182 SA ttl=53 id=0 iplen=44  seq=3924706636 win=5840 ack=4046449224 <mss 1380>
   We got a TCP ping packet back from 152.91.126.70 port 80 (trynum = 0)
   ultrascan_host_probe_update called for machine 152.91.126.70 state UNKNOWN -> HOST_UP (trynum 0 time: 226875) Changing ping technique for 152.91.126.70 to tcp to port 80; flags: A
- In the example above, Nmap wrongly uses ACK as the preferred ping technique, when it should be SYN. [David]
+ In the example above, Kmap wrongly uses ACK as the preferred ping technique, when it should be SYN. [David]
  o we're thinking about ways to encode the information better.  Right
   now we have pingseq and tryno, but we may want to just move to a
   single probe ID and then we can look up any other information in
@@ -2385,18 +2385,18 @@ o Fix a bug in which Nmap can wrongly associate responses to SYN and
   is less than or equal to the tryno encoded in the reply.
    o However, "fixing" this problem has been shown in the past to
      cause accuracy problems.  See
-     http://seclists.org/nmap-dev/2009/q1/387.  We should figure out
+     http://seclists.org/kmap-dev/2009/q1/387.  We should figure out
      whether we can still reproduce that and, if so, what is going on
      before "fixing" this issue.
 
 o Add PJL (Printer Job Language) probes to
-  nmap-service-probes. Brandon wrote some in
-  http://seclists.org/nmap-dev/2009/q1/0560.html. Test them to see if
+  kmap-service-probes. Brandon wrote some in
+  http://seclists.org/kmap-dev/2009/q1/0560.html. Test them to see if
   they cause anything to be printed out (on paper) with printers that
   don't support PJL. If not, then remove the JetDirect ports from the
   default exclude list. The script pjl-ready-message.nse also uses
   PJL.  We have concerns about the safety of this probe given
-  http://seclists.org/nmap-dev/2009/q4/61, but it still is probably
+  http://seclists.org/kmap-dev/2009/q4/61, but it still is probably
   better to have the probe in there than not, as long as we continue
   blocking the ports by default with the Exclude directive.
   [We put in the probes, but are keeping the Exclude directives
@@ -2405,30 +2405,30 @@ o Add PJL (Printer Job Language) probes to
 o [NSE] in_chksum in packet.lua doesn't work with an odd number of
   bytes.  Also make it more efficient.
 
-o Add --confdir option to Zenmap. See
-  http://seclists.org/nmap-dev/2009/q1/92 [David]
+o Add --confdir option to Zekmap. See
+  http://seclists.org/kmap-dev/2009/q1/92 [David]
 
 o Update our Winpcap from 4.0.2 to 4.1.1
-  (http://seclists.org/nmap-dev/2009/q4/128).  This is a bit complex
+  (http://seclists.org/kmap-dev/2009/q4/128).  This is a bit complex
   because we have our own installer.  See
-  https://nmap.org/svn/mswin32/winpcap/Upgrading-Instructions.txt.
+  https://kmap.org/svn/mswin32/winpcap/Upgrading-Instructions.txt.
 
-o Change Nmap to not show the "Host not scanned" lines in list scan
+o Change Kmap to not show the "Host not scanned" lines in list scan
 
-o Change Nmap to show latency in "host is up" lines even w/o verbose
+o Change Kmap to show latency in "host is up" lines even w/o verbose
   mode.
 
 o Update our included Libpcap from 0.9.7 to 1.0.0
   (http://www.tcpdump.org/) [David]
 
-o Improve Nmap output to show the forward DNS name when specified on
+o Improve Kmap output to show the forward DNS name when specified on
   command line as well as rDNS where appropriate.  We're also going to
   reorganize output to enable some other improvements as well.  See
-  the proposal at http://seclists.org/nmap-dev/2009/q3/814, and that
+  the proposal at http://seclists.org/kmap-dev/2009/q3/814, and that
   whole thread which starts at
-  http://seclists.org/nmap-dev/2009/q3/805 [David].
+  http://seclists.org/kmap-dev/2009/q3/805 [David].
 
-o [Zenmap] Solve some unusual utf8 Zenmap crashes reported in the
+o [Zekmap] Solve some unusual utf8 Zekmap crashes reported in the
   crash reporter. David has fixed some of them so far, but there are a
   few more remaining that may be related. [David]
 
@@ -2476,41 +2476,41 @@ o Change Nsock to give an error if you try to FD_SET a fd larger than
      a time, no matter what their descriptor number happens to be.
 
 o Add a way in NSE to set socket source addresses and port numbers.
-  See this thread: http://seclists.org/nmap-dev/2009/q3/821.  Some
+  See this thread: http://seclists.org/kmap-dev/2009/q3/821.  Some
   potential solutions are discussed later in the thread.
 
 o [Ncat] Fix --max-conns on Windows so that it only counts concurrent
   connections and not long-dead ones.  See this thread
-  (http://seclists.org/nmap-dev/2009/q3/1017.html) and particularly this
-  message (http://seclists.org/nmap-dev/2009/q3/1032.html) for
+  (http://seclists.org/kmap-dev/2009/q3/1017.html) and particularly this
+  message (http://seclists.org/kmap-dev/2009/q3/1032.html) for
   details.  Venkat has a patch for David to review and potentially merge.
 
 o [Ncat] Fix 100% CPU usage with ncat -l --send-only.  See this
-  thread: http://seclists.org/nmap-dev/2009/q2/797 and continues
-  further at http://seclists.org/nmap-dev/2009/q3/99.  This message is
-  key: http://seclists.org/nmap-dev/2009/q3/308 [David]
+  thread: http://seclists.org/kmap-dev/2009/q2/797 and continues
+  further at http://seclists.org/kmap-dev/2009/q3/99.  This message is
+  key: http://seclists.org/kmap-dev/2009/q3/308 [David]
 
 o [Seclists] There is currently some extra vertical space after the
   first post of a thread in the thread index (example:
-  http://seclists.org/nmap-dev/2009/q4/index.html).
+  http://seclists.org/kmap-dev/2009/q4/index.html).
 
 o [NSE] Decide which scripts belong to the "safe" category (we now have 20
   which aren't either safe or intrusive), then remove the intrusive
   category since people can now specify "not safe".  See
-  http://seclists.org/nmap-dev/2009/q3/1091.html and that whole
+  http://seclists.org/kmap-dev/2009/q3/1091.html and that whole
   thread. [Fyodor]
-  [ OK, see http://seclists.org/nmap-dev/2009/q4/0002.html]
+  [ OK, see http://seclists.org/kmap-dev/2009/q4/0002.html]
 
 o [NSE] Fix http pipelining.  Responses are being split on anything
   that looks like HTTP/1.X which doesn't come at the beginning of a
   line, and doesn't work when a line like that happens to legitimately
-  come in a body.  Joao has an nmap-exp branch which resolves this
+  come in a body.  Joao has an kmap-exp branch which resolves this
   issue, though David found some bugs in that and sent some hard test
   cases. [Joao]
 
 o Fix traceroute performance/algorithms.  It is terribly bad in some
   cases.  For example, this traceroute scan took 36 minutes against a
-  single host(!): http://seclists.org/nmap-dev/2009/q3/0425.html .  We
+  single host(!): http://seclists.org/kmap-dev/2009/q3/0425.html .  We
   don't need to go up to hop 50 in such cases (maybe some heuristic
   like "at least go to hop 15, and stop after 5 unresolved in a row).
   And more importantly, there is no reason each hop should take 40s to
@@ -2525,41 +2525,41 @@ o Fix traceroute performance/algorithms.  It is terribly bad in some
   but we'll probably take it out until we can fix
   performance). [David]
 
-o Fix four Nmap bugs discovered by Ankur and analyzed a bit by
+o Fix four Kmap bugs discovered by Ankur and analyzed a bit by
   David. [Ankur]
 
 o [NSE] Consider HTTP request caching.
 
 o [NSE] Finish (or write new) favicon fingerprinting script. See
-  http://seclists.org/nmap-dev/2008/q4/0583.html .  May need to do
+  http://seclists.org/kmap-dev/2008/q4/0583.html .  May need to do
   some more scanning and increase the DB size a bit.  May or may not
   want to later combine this as part of a larger webapp fingerprinting
   script.
 
-o [Zenmap] When the inventory is changed, the current host/service selection is
+o [Zekmap] When the inventory is changed, the current host/service selection is
   forgotten and the Ports / Hosts tab is switched to hosts mode. It should
   remember your current selection and not change the view. [David/SoC]
 
 o Device categorization improvements
-  o Examine Nmap's device categorization in nmap-os-deb and
-    nmap-service-probes.  Decide if some small categories which have
+  o Examine Kmap's device categorization in kmap-os-deb and
+    kmap-service-probes.  Decide if some small categories which have
     never really took off should be consolidated, or whether others
     should be split off.  For example, maybe there are some groups in
     'specialized' or other misc. categories which are now large enough
     to split off.  Personally, I wouldn't give anything its own
     category unless there are at least half a dozen of them and no
     other category really fits them well.  We should use a combined
-    system for nmap-os-db and nmap-service-probes.
+    system for kmap-os-db and kmap-service-probes.
   o Add a classification sect1 to os-detection.xml
-    (https://nmap.org/book/osdetect.html) to cover how Nmap handles OS
+    (https://kmap.org/book/osdetect.html) to cover how Kmap handles OS
     classification.  It should include a list with descriptions of
-    each device type recognized by Nmap.  Version-detection.xml should
+    each device type recognized by Kmap.  Version-detection.xml should
     reference (link to) it in the approprate place.
     [Doug has done some initial work on this.  For example, see
-     nmap/docs/device-types.txt] [David]
+     kmap/docs/device-types.txt] [David]
 
 o Consider what new UDP payloads we might want to add.  David has many
-  ideas at: http://seclists.org/nmap-dev/2009/q3/0290.html
+  ideas at: http://seclists.org/kmap-dev/2009/q3/0290.html
 
 o For traceroute we should give some indication that the RTT is in ms.
   Changing the column header to maybe "RTT MS" or "RTT (MS)" would
@@ -2573,22 +2573,22 @@ o OS fingerprint should probably specify somewhow when DS=1 if it's
   case.
 
 o --traceroute should probably set currenths->distance because right
-  now, I do an -O scan against scanme.nmap.org, and it does not figure
+  now, I do an -O scan against scanme.kmap.org, and it does not figure
   out the distance.  So the fingerprint shows no distance element and
-  Nmap doesn't print "Network Distance" in the results line.  That may
-  be OK (Nmap probably isn't receiving the probe response needed for
+  Kmap doesn't print "Network Distance" in the results line.  That may
+  be OK (Kmap probably isn't receiving the probe response needed for
   this, and maybe doesn't want to print the TG), but even when I do
-  --traceroute I get no distance printed.  Yet Nmap clearly knows the
+  --traceroute I get no distance printed.  Yet Kmap clearly knows the
   distance since the traceroute shows all the hops up to and including
-  the target (scanme.nmap.org).
+  the target (scanme.kmap.org).
 
-o Figure out best favicon to use for Nmap and related web sites
+o Figure out best favicon to use for Kmap and related web sites
   [David]
 
 o [Ncat] David says: "After you get EOF on stdin with --send-only, the
   program hangs on until the idle timeout expires instead of terminating
   immediately.  I had a fix for it but it involved deleting events in
-  the Nsock queue and it caused an assertion failure in Nmap so I backed
+  the Nsock queue and it caused an assertion failure in Kmap so I backed
   it out. I have a less intrusive solution." [David]
 
 o We should update our config.{sub,guess} files.  This Debian bug
@@ -2610,7 +2610,7 @@ o [Ncat] Right now our -i (idle timeout) causes Ncat to quit if EITHER
 
 o Add scripting.xml documentation on strict.lua and the avoidance of
   global vars in libraries. See
-  http://seclists.org/nmap-dev/2009/q3/0169.html. Probably a new
+  http://seclists.org/kmap-dev/2009/q3/0169.html. Probably a new
   section just above "Adding C Modules to "Nselib", such as "Writing
   Your Own Library" or somesuch. [Patrick]
 
@@ -2619,7 +2619,7 @@ o Update nsedoc to refer to 'libraries' rather than 'modules'.  This
   and 'Modules' on the list of right, and affects the url (we should
   change /modules/ to /lib/ and then have Fyodor add a redirect for
   people still using old URLs) and the title of the module pages like
-  https://nmap.org/nsedoc/modules/base64.html. [Patrick]
+  https://kmap.org/nsedoc/modules/base64.html. [Patrick]
 
 o [Ncat] Prefix Ncat stderr messages with "Ncat: " to make it clear
   that they are coming from Ncat and not the remote server (or typed in
@@ -2635,12 +2635,12 @@ o Increase version scan concurrency based on Patrick's performance
   for 5.
 
 o [NSE] Consider POST/HEAD support. See
-  http://seclists.org/nmap-dev/2009/q1/0889.html.
-  o Implemented:  http://seclists.org/nmap-dev/2009/q3/0074.html
+  http://seclists.org/kmap-dev/2009/q1/0889.html.
+  o Implemented:  http://seclists.org/kmap-dev/2009/q3/0074.html
   o Joao going to check in very soon soon.
 
 o [NSE] Consider Rob Nicholls http-enum script for incorporation:
-  http://seclists.org/nmap-dev/2009/q1/0889.html
+  http://seclists.org/kmap-dev/2009/q1/0889.html
   [Joao tested w/his HEAD support, is going to check this in]
 
 o Consider the open proxy scripts more carefully
@@ -2650,15 +2650,15 @@ o Consider the open proxy scripts more carefully
    users specify their own pattern if they specify their own URL.
   [ Joao is going to check it in today (7/28)]
 
-o I should add code to Nmap to bail if sizeof(char) isn't 1.
+o I should add code to Kmap to bail if sizeof(char) isn't 1.
   Otherwise there could be security risks if it is not one on any
   platforms.  [ Actually, we think C standard requires this and we've
   not heard of any system where sizeof(char) isn't 1.  So removing
   this item.]
 
-o [Zenmap] More complete implementation of ZenmapCommandLine/profile
+o [Zekmap] More complete implementation of ZekmapCommandLine/profile
   editor improvement ideas. See
-  http://www.bamsoftware.com/wiki/Nmap/ZenmapCommandLine. [David]
+  http://www.bamsoftware.com/wiki/Kmap/ZekmapCommandLine. [David]
 
 o [Ncat] Think about whether we should offer "-q secs" (quit after EOF
   + delay of secs) and/or -k (set SO_KEEPALIVE on socket) (or maybe
@@ -2670,7 +2670,7 @@ o [Ncat] Think about whether we should offer "-q secs" (quit after EOF
 
 o [Ncat] In verbose mode, I'd like to see clock time (duration) and
   maybe in/out traffic stats when a client connection ends.  Maybe it
-  could use a format similar to what Nmap provides. [David/Venkat]
+  could use a format similar to what Kmap provides. [David/Venkat]
 
 o Seriously consider making --traceroute work even when we haven't
   found a probe which elicits a response from the target.  We'd just
@@ -2683,12 +2683,12 @@ o Seriously consider making --traceroute work even when we haven't
 
 o [NSE] Allow spaces in script arguments without the user having to
   manually quote them (beyond normal shell escape quoting).  See:
-  http://seclists.org/nmap-dev/2009/q3/0090.html
+  http://seclists.org/kmap-dev/2009/q3/0090.html
   [Patrick]
 
-o [Ncat] Support SCTP now that Nmap does. 
+o [Ncat] Support SCTP now that Kmap does. 
   - See client support patch by Daniel Roethlisberger: 
-    http://seclists.org/nmap-dev/2009/q2/0609.html
+    http://seclists.org/kmap-dev/2009/q2/0609.html
   - Server support?
   - Daniel has a patch, David looking to apply once an nsock thing is fixed.
 
@@ -2698,10 +2698,10 @@ o Look at etc/payloads.conf in unicornscan-0.4.7 and see if they have
   should look at too. [David]
 
 o Ncat should give it's ethernet cat ASCII logo after
-  configure--similar to the way that Nmap, Ncrack, and Nping
+  configure--similar to the way that Kmap, Ncrack, and Nping
   do. [David/SoC]
 
-o [Zenmap] The Search dialogue is helpful for finding a certain scan
+o [Zekmap] The Search dialogue is helpful for finding a certain scan
   you've performed recently, but we should probably also offer a similar
   function for searching for certain applications/hosts within a scan
   (e.g. find all the hosts running Apache).  This new functionality
@@ -2709,7 +2709,7 @@ o [Zenmap] The Search dialogue is helpful for finding a certain scan
   part of the Search dialogue proper.
 
 o Ncat SSLv2 issues.  See
-  http://seclists.org/nmap-dev/2009/q1/0319.html.  A big part of it is
+  http://seclists.org/kmap-dev/2009/q1/0319.html.  A big part of it is
   done, which was enhanced version detection probes to detect more SSL
   servers, The defect that remains is that Nsock can't connect to a
   small fraction of servers (including some of the ones detected by
@@ -2721,12 +2721,12 @@ o Ncat SSLv2 issues.  See
 
 o Deadlock identification and correction:
  o Plan of action: implement freeing of script mutexes when scripts
- exit without freeing them (done and in /nmap now). And then if it
+ exit without freeing them (done and in /kmap now). And then if it
  continues to be a problem we'll consider this other stuff:
   o Add detection for deadlocks and print which threads are involved.
   o use above results to make a strategy for automatic deadlock resolution.
   o Original entry: Figure out what to do about NSE mutexes:
-  http://seclists.org/nmap-dev/2008/q3/0276.html . In particular, they
+  http://seclists.org/kmap-dev/2008/q3/0276.html . In particular, they
   are not currently cleaned up if a thread dies or otherwise exits
   without unlocking them and can cause endless deadlocks which are
   annoying to users and can be difficult to debug :(.  Patrick has
@@ -2735,7 +2735,7 @@ o Deadlock identification and correction:
     similar to nsock_loop. There would be a registration system
     allowing C libraries to register a Lua function that will run
     periodically to check for irresolvable deadlock or simply dead
-    resources. For example, the nmap library would register a mutex
+    resources. For example, the kmap library would register a mutex
     cleanup handler which would inspect all mutexes looking for a dead
     thread or circular dependencies. The nsock library could register
     a handler that checks for unused sockets. The nsock may save a
@@ -2765,13 +2765,13 @@ o [NSE] We need to deal with libraries which improperly use global
   long history of bugs caused by non-local variables defined in NSE
   libraies and often causing deadlocks.
 
-o The Nmap refguide (https://nmap.org/book/man-performance.html) says
-  "The --max-parallelism option is sometimes set to one to prevent Nmap
+o The Kmap refguide (https://kmap.org/book/man-performance.html) says
+  "The --max-parallelism option is sometimes set to one to prevent Kmap
   from sending more than one probe at a time to hosts. This can be
   useful in combination with --scan-delay (discussed later), although
   the latter usually serves the purpose well enough by itself."  But
   when you actually try it:
-  # ./nmap --max-parallelism 1 --scan-delay 10 scanme.nmap.org
+  # ./kmap --max-parallelism 1 --scan-delay 10 scanme.kmap.org
   You can't use --max-parallelism with --scan-delay.
   QUITTING!
   We need to either make that work or adjust the documentation. [David/SoC]
@@ -2780,9 +2780,9 @@ o The Nmap refguide (https://nmap.org/book/man-performance.html) says
 
 o [NSE] Consider integrating HP Laserjet print PJL status-setting
   script.  See this thread for an example of such a script:
-  http://seclists.org/nmap-dev/2009/q3/0083.html (note that it is
+  http://seclists.org/kmap-dev/2009/q3/0083.html (note that it is
   updated during the thread).  Also, see this thread:
-  http://seclists.org/nmap-dev/2009/q3/0092.html
+  http://seclists.org/kmap-dev/2009/q3/0092.html
 
 o Ndiff man page should be expanded to include sample execution/output
   and more fully describe its functionality. [David]
@@ -2794,16 +2794,16 @@ o David is going to reexamine the old coverity-reported issues (the
 o Make -sP work with -PN to disable both port and ping scanning.  We
   need to make sure the various options still work (-O, --script,
   --traceroute, etc.) with this, as many currently don't as they don't
-  expect this behavior, which used to be unsupported and cause Nmap to
+  expect this behavior, which used to be unsupported and cause Kmap to
   quit with an error messaqge.  It may be OK to refuse -O since that
   will rarely give useful results.  OTOH, -O may work on some systems
-  with unique closed port signatures where Nmap guesses a closed
+  with unique closed port signatures where Kmap guesses a closed
   port. Users should then be able to do an NSE-only scan with "-sP -PN
   --script [scripts]" We should document this -sP -PN usage in
   refguide.  [David]
 
 o Add -sn and -Pn options which are aliases for -sP and -PN.  Once
-  they've been around long enough to be in most people's copy of Nmap,
+  they've been around long enough to be in most people's copy of Kmap,
   we plan to document those as the preferred version.  Those match -n,
   and the main problem with -sP is that we now use it more for
   "disable portscan" than ping only.  For example, you still might
@@ -2814,7 +2814,7 @@ o [NSE] Make sure all our HTTP scripts transparently support SSL
   make sure they don't break.]
 
 o Resolve "memcpy overlap in getinterfaces(int*) (tcpip.cc:2987)".
-  See this thread: http://seclists.org/nmap-dev/2009/q2/0713.html
+  See this thread: http://seclists.org/kmap-dev/2009/q2/0713.html
   [David/Brandon]
 
 o [Ncat] Print a message to stderr upon connection failure even if -v
@@ -2828,9 +2828,9 @@ o [Ncat] Maybe --chat should imply -l.  And Maybe --broker should too?
 o Consider making it easier to tell whether scripts were specified by
   name on the command-line (rather than default or by class) so they
   have the option of providing extra verbosity in that case.  For
-  example, see http://seclists.org/nmap-dev/2009/q2/0563.html.  We
+  example, see http://seclists.org/kmap-dev/2009/q2/0563.html.  We
   could either provide a special function for scripts to determine
-  that, or we could magically adjust nmap.verbosity() when called by
+  that, or we could magically adjust kmap.verbosity() when called by
   those scripts. [David]
 
 o [NSE] Figure out a way to support people who want to do script scan,
@@ -2840,7 +2840,7 @@ o [NSE] Figure out a way to support people who want to do script scan,
   -PN to disable ping scanning.  As an example of this need, David had
   to write special code to avoid ping/port scanning when doing a
   whois.nse survey for
-  http://www.bamsoftware.com/wiki/Nmap/EffectivenessOfPingProbes.  The
+  http://www.bamsoftware.com/wiki/Kmap/EffectivenessOfPingProbes.  The
   key for this task is to figure out how to do it from a user
   interface perspective and then implement and document it.  We've
   already been going in the direction of allowing script scanning in
@@ -2858,19 +2858,19 @@ o Get set up for Coverity scan of latest version to see if it catches
  
 o [nsock] Fix Makefile to handle dependencies correctly (if that turns
   out to be the problem).  See
-  http://seclists.org/nmap-dev/2009/q1/0629.html.  o Or it may be
+  http://seclists.org/kmap-dev/2009/q1/0629.html.  o Or it may be
   related to SVN timestampling.  See
-  http://seclists.org/nmap-dev/2009/q1/0632.html. Diagnosed by David:
-  http://seclists.org/nmap-dev/2009/q2/0728.html
+  http://seclists.org/kmap-dev/2009/q1/0632.html. Diagnosed by David:
+  http://seclists.org/kmap-dev/2009/q2/0728.html
 
-o For at least our UDP ping probes, Nmap should probably notice if it
+o For at least our UDP ping probes, Kmap should probably notice if it
   is a very well known service port such as 53, 161, or 137 and send
   an appropriate probe packet (server status for DNS, public community
   string query for SNMP, etc) rather than empty data in that case.
   This is similar to the way our IP protocol probes automatically
   include common headers such as TCP and UDP if that common protocol
   is given.  Good probes for these services are already available in
-  nmap-service-probes, though we might want to make a custom file for
+  kmap-service-probes, though we might want to make a custom file for
   this.  We should probably do this for port scanning as well. [David]
 
 o [NSE] Make NSE work better for SSL tunneled services in general by
@@ -2903,12 +2903,12 @@ o [NSE] Track active sockets in the nsock library binding and don't
   - Patrick has a patch and is waiting on dev branch to check it in.
 
 o [NSE] Resolve ssh2.lua buffering problems
-  (http://seclists.org/nmap-dev/2009/q2/0673.html) [Joao]
+  (http://seclists.org/kmap-dev/2009/q2/0673.html) [Joao]
 
 o Decide what to do about ncat source code headers -- maybe just use
-  the Nmap ones. [David added the Nmap headers]
+  the Kmap ones. [David added the Kmap headers]
 
-o Once we go into deep stability freeze mode, create an nmap-exp
+o Once we go into deep stability freeze mode, create an kmap-exp
   development branches for changes we plan to integrate after the
   stable release. [Fyodor]
 
@@ -2923,7 +2923,7 @@ o [NSE] Open proxy detection scripts
   types. [Joao, David]
   o Joao has written scripts, just need to finish up, evaluate, integrate.
 
-o Determine whether zenmap.spec.in can currently require
+o Determine whether zekmap.spec.in can currently require
   "python-sqlite" rather than "python-sqlite2", or if it at least can
   be easily made to do so. The former seems more compatible since
   RHEL/CentOS 5.3 has a "python-sqlite" package, but not
@@ -2933,20 +2933,20 @@ o Determine whether zenmap.spec.in can currently require
   python-sqlite2 package available.
 
 o [Ncat] Solve EOF issues which crop up when piping to an external
-  command. See http://seclists.org/nmap-dev/2009/q2/0528.html. It
+  command. See http://seclists.org/kmap-dev/2009/q2/0528.html. It
   sounds like we will go with Daniel's patch [Daniel, David]
 
 o Look into building RPMs with SSL support. Statically linking to
   OpenSSL on Linux for the RPMs didn't work for me last time I
   tried. [Fyodor]
-  o Static linking of Nmap to OpenSSL does not seem to work on Fedora
+  o Static linking of Kmap to OpenSSL does not seem to work on Fedora
     10 or CentOS 5.3.  The problem appears to relate to the OpenSSL
     krb5 support.
   o Could build my own OpenSSL libraries on the build system
     (w/o Kerberos support) and link to those.
   o At some point, we might want to consider including OpenSSL with
-    Nmap tarball.  The problem is that it is rather big.  Would
-    increase Nmap .tar.bz2 size from about 9 megs to about 12.  OTOH,
+    Kmap tarball.  The problem is that it is rather big.  Would
+    increase Kmap .tar.bz2 size from about 9 megs to about 12.  OTOH,
     OpenSSL is only going to get more and more important.  Maybe we
     can include a stripped down version?
   o If we don't integrate OpenSSL (or until we do), we might consider
@@ -2954,14 +2954,14 @@ o Look into building RPMs with SSL support. Statically linking to
     We could suggest that users run "yum install libopenssl-devel" or
     "apt-get install libssl-dev" commands or whatever is appropriate
     and then reconfigure.  Or we could point them to a page or
-    nmap-dev posting URL with instructions.
+    kmap-dev posting URL with instructions.
 
 o Figure out why I [Fyodor] get a bunch of "Operation not permitted" errors
 when I launch a scan on SYN such as: 
   - I'm going to ignore this for now unless it causes me trouble
   again, as this is an old machine that will be replaced soon anyway.
   And we haven't been hearing of the problems from others lately.
-   /home/fyodor/nmap-exp/fyodor-perf/nmap -nogcc -T4 -n -v -p- --portpingfreq 250 -oA /home/fyodor/nmap-misc/logs/WorldScan/portpingfreq/logs/portpingfreq-250-1%T-%D 67.15.236.34 67.15.236.36 81.174.236.66 81.174.236.119 170.140.20.160 170.140.20.174 202.138.180.9 202.138.180.17 202.138.180.132 209.20.64.112
+   /home/fyodor/kmap-exp/fyodor-perf/kmap -nogcc -T4 -n -v -p- --portpingfreq 250 -oA /home/fyodor/kmap-misc/logs/WorldScan/portpingfreq/logs/portpingfreq-250-1%T-%D 67.15.236.34 67.15.236.36 81.174.236.66 81.174.236.119 170.140.20.160 170.140.20.174 202.138.180.9 202.138.180.17 202.138.180.132 209.20.64.112
    The errors look like:
 sendto in send_ip_packet: sendto(7, packet, 44, 0, 170.140.20.174, 16) => Operation not permitted
 Offending packet: TCP 64.13.134.4:59820 > 170.140.20.174:59120 S ttl=39 id=19927 iplen=44  seq=2425535549 win=4096 <mss 1460>
@@ -2971,11 +2971,11 @@ Discovered open port 49394/tcp on 170.140.20.174
 sendto in send_ip_packet: sendto(7, packet, 44, 0, 170.140.20.174, 16) => Operation not permitted
 Offending packet: TCP 64.13.134.4:59819 > 170.140.20.174:8256 S ttl=48 id=38510 iplen=44  seq=2425601084 win=1024 <mss 1460>
    May be related to connection tracking and high scan rates. See
-   http://seclists.org/nmap-dev/2008/q4/0652.html
+   http://seclists.org/kmap-dev/2008/q4/0652.html
    http://www.shorewall.net/FAQ.htm#faq26
    Others have reported similar issues even without connection tracking.  See
-   http://seclists.org/nmap-dev/2006/q3/0277.html
-   http://seclists.org/nmap-dev/2007/q2/0292.html
+   http://seclists.org/kmap-dev/2006/q3/0277.html
+   http://seclists.org/kmap-dev/2007/q2/0292.html
 
 
 o -PO1 and "-sO -p1" seem to send ICMP ping packets with an ICMP ID
@@ -2984,40 +2984,40 @@ o -PO1 and "-sO -p1" seem to send ICMP ping packets with an ICMP ID
   well randomize them in these cases. [Josh Marlow]
 
 o Some of the -PS443 scans (and maybe other ones) we've been running
-  have been missing the Nmap line telling how many packets were
+  have been missing the Kmap line telling how many packets were
   sent/received, even though we had verbose mode. [David/Josh]
 
 o Deal with Ncat newline problem.  See this thread:
-  http://seclists.org/nmap-dev/2009/q2/0325.html [David,Jah]
+  http://seclists.org/kmap-dev/2009/q2/0325.html [David,Jah]
 
 o Integrate SCTP scanning support.  See Daniel Roethlisberger's branch
-  in nmap-exp/daniel/nmap-sctp.  As of 4/30/09, he is nearing
-  completion.  See http://seclists.org/nmap-dev/2009/q2/0270.html.
+  in kmap-exp/daniel/kmap-sctp.  As of 4/30/09, he is nearing
+  completion.  See http://seclists.org/kmap-dev/2009/q2/0270.html.
 
 o [NSE] Release mutexes upon script death to prevent certain deadlocks
   [Patrick, David]
 
-o Consider whether to let Zenmap Topology graph export the images to
+o Consider whether to let Zekmap Topology graph export the images to
   svg/png/etc.  Also think about printing.  Note that João Medeiros
   has written a Umit patch to do this: [Joao, David]
   http://trac.umitproject.org/ticket/316.
-  - Now he has Nmap patch:
-    http://seclists.org/nmap-dev/2009/q2/0409.html
+  - Now he has Kmap patch:
+    http://seclists.org/kmap-dev/2009/q2/0409.html
   - Consider integrating.
   - Integrated!
 
 o Ensure that when I build a distribution package on UNIX (e.g. make
-  distro), it builds what is in the Nmap directory I am calling it
+  distro), it builds what is in the Kmap directory I am calling it
   from rather than a particular SVN version.  I'm going to start
   building packages from a special "clean" directory which is
   different than the one I do development work in.  Also, I want to be
   sure that any changes in that dir are included in the release, even
   if they aren't check in yet. [Fyodor]
 
-o Nmap UNIX distro build script should regenerate script.db. [Fyodor]
+o Kmap UNIX distro build script should regenerate script.db. [Fyodor]
  o Now it is in make prerelease
 
-o Nmap build system should be split into [Fyodor]
+o Kmap build system should be split into [Fyodor]
  o prerelease -> generates version files, man pages, script.db
    etc. That has to be done on one system, and then results checked in
    before doing a make release.  It does this stuff based on the
@@ -3035,7 +3035,7 @@ o Build x86 and x86-64 VM instances for RPM building. [Fyodor]
 
 o [NSE] Script scanning does not seem to work on Fyodor's Linux
   machines after being installed from latest SVN (or 4.85BETA9) and run
-  as a non-root user (it works fine as root).  The command "nmap -sC
+  as a non-root user (it works fine as root).  The command "kmap -sC
   localhost" leads to NSE failure messages which differ based on the
   exact version run. [Was a relatively simple permissions problem in
   our Makefile.in -- I fixed it]
@@ -3043,7 +3043,7 @@ o [NSE] Script scanning does not seem to work on Fyodor's Linux
 o [NSE] Release socket locks on connection failure or
   timeout. [Patrick]
 
-o Update Nmap entry on Linux Online -
+o Update Kmap entry on Linux Online -
   http://www.linux.org/apps/AppId_1979.html
   - Screw it, the site does not seem to be maintained at all.  They
   aren't taking updates as of 6/2/09, and even Firefox shows latest
@@ -3074,7 +3074,7 @@ o --script-args should allow a wider range of characters, and should
   can't handle for some reason.  For an example, try
   "--script-args=smbuser=admin,smbpass=pass^word".  For more details,
   see Ron's report at
-  http://seclists.org/nmap-dev/2009/q2/0378.html.
+  http://seclists.org/kmap-dev/2009/q2/0378.html.
 
 o [Ncat] Have --ssl-cert and --ssl-key send a certificate in connect
   mode so that client certificate auth can be done. [David/Venkat]
@@ -3124,7 +3124,7 @@ o [NSE] Solve segfault issue which occurs when Nsock events call back
   whatever) and been garbage collected.  May want to just nsi_delete
   all nsock sockets immediately upon thread ending.  For an example of
   this type of segfault, see
-  http://seclists.org/nmap-dev/2009/q2/0289.html. David says " I think
+  http://seclists.org/kmap-dev/2009/q2/0289.html. David says " I think
   in the interests of getting this in a stable release, we should use
   that strategy of closing all a thread's sockets. That ought to fix
   all the problems above.  Not to rule out a more thoughtful redesign
@@ -3134,7 +3134,7 @@ o We added the SEQ.CI value in Feb 2009 with 0 matchpoints.  At some
   point (once we have some real-life values) we need to evaluate whether
   we want to give it points.  A good time to do that would be when we
   next do fingerprint integration, so we will actually have examples
-  of .CI in the nmap-os-db. [David]
+  of .CI in the kmap-os-db. [David]
 
 o [NSE] Make it a warning rather than error if a script in script.db
    can't be found. [Patrick]
@@ -3142,11 +3142,11 @@ o [NSE] Make it a warning rather than error if a script in script.db
 o Add version detection signature for Ncat chat once we finalize the
   announce format. [David]
 
-o Change Nmap signature files to use the .sig extension rather than
+o Change Kmap signature files to use the .sig extension rather than
   .gpg.txt, as that seems to be what gpg recommends.  In fact, gpg
   will automatically verify the right file if it exists after dropping
   the .sig (or .asc) extension.  I may need to configure .htaccess to
-  serve .sig files properly.  Update nmap-install.xml
+  serve .sig files properly.  Update kmap-install.xml
   accordingly. Suggested by tic at eternalrealm.net by email on
   7/13/08. [Fyodor]
   * Rename existing files, add symlink from the old .gpg.txt to .asc
@@ -3155,17 +3155,17 @@ o Change Nmap signature files to use the .sig extension rather than
    - not needed since I decided on .asc extension rather than .sig
   * Update the generation scripts
   * Update the book documentation -
-    https://nmap.org/book/install.html#inst-integrity
+    https://kmap.org/book/install.html#inst-integrity
 
-o Ask Coverity if they'll scan latest version of Nmap. [Fyodor asked
+o Ask Coverity if they'll scan latest version of Kmap. [Fyodor asked
   David Maxwell on 5/14/09 ]
 
 o Make 4.85BETA9 release [Fyodor]
 
-o [Zenmap] Make a way to start a scan from the profile editor without
+o [Zekmap] Make a way to start a scan from the profile editor without
   creating a profile, then remove the command wizard.  This is partial
   implementation of
-  http://www.bamsoftware.com/wiki/Nmap/ZenmapCommandLine. [David]
+  http://www.bamsoftware.com/wiki/Kmap/ZekmapCommandLine. [David]
 
 o [Ncat] Make proxy server mode work on Windows (this is the last
   remaining fork() dependency in Ncat).
@@ -3182,32 +3182,32 @@ o [Ncat] Maybe we should create an SSL cert with no passphrase during
   on.  But people who need that will have to buy a key from a
   certificate authority in any case.  We could create the key by using
   the "openssl" command line tool as shown in
-  https://nmap.org/ncat/guide/ncat-advanced.html#ncat-ssl, or maybe
+  https://kmap.org/ncat/guide/ncat-advanced.html#ncat-ssl, or maybe
   better to have a way for ncat to do it using openssl calls. [David]
 
-o [Zenmap] Should probably give some sort of widget indication that a
+o [Zekmap] Should probably give some sort of widget indication that a
   scan is running.  Now that we can start multiple scans at once, the
   "scan" button goes back to being unpressed while the scan is
   running.  As some scans take minutes or more to show output, it is
   not always clear whether they are still properly running.  We should
   probably have some sort of widget, such as the throbber used in web
-  browsers, to show that Nmap is still running.  It could be fore a
+  browsers, to show that Kmap is still running.  It could be fore a
   specific scan (kind of like how you have a separate throbber for
   each tab on a web browser), or a global one which means at least one
   scan is running.  Or maybe a different sort of indication is in
   order (like a timer). [David]
 
-o Further investigate Nmap Proxy patch by Zoltan Panczel and Ferenc
-  Spala.  See http://nmap-dev.fw.hu/ and
-  http://seclists.org/nmap-dev/2009/q1/0255.html . [Discussed it and
+o Further investigate Kmap Proxy patch by Zoltan Panczel and Ferenc
+  Spala.  See http://kmap-dev.fw.hu/ and
+  http://seclists.org/kmap-dev/2009/q1/0255.html . [Discussed it and
   then added new proxy feature item]
 
-o Wherever practical, fix compiler warnings when compiling Nmap with
+o Wherever practical, fix compiler warnings when compiling Kmap with
   VC++ 2008 Express SP1 (there aren't many). [David]
 
 o [NSE] Consider adding boolean expressions to --script arguments.  For
   example, see Patrick's implementation at
-  http://seclists.org/nmap-dev/2008/q3/0300.html .
+  http://seclists.org/kmap-dev/2008/q3/0300.html .
 
 o Generate a list of trusted SSL certificates to ship with Ncat (by
   extracting f rom Mozilla or similar), and install them with
@@ -3271,13 +3271,13 @@ o [Ndiff] Rethink the output format. David says: In particular, I
   would like to always have the old state on the left and the new
   state on the right: "was filtered, is open," not "is open, was
   filtered." I also like the context diff output of MadHat's
-  nmap-diff. [David]
+  kmap-diff. [David]
 
 
 o Canonicalize the "host up" messages for port scan and ping scan so
-  that instead of things like "Host scanme.nmap.org (64.13.134.52)
+  that instead of things like "Host scanme.kmap.org (64.13.134.52)
   appears to be up ... good." we standardize in both cases on
-  something like: "Host scanme.nmap.org (64.13.134.52) is up (.75s
+  something like: "Host scanme.kmap.org (64.13.134.52) is up (.75s
   latency)".  Note the addition of the latency value, which is our
   srtt value for the host.  This will only show in ping scan and
   verbose port scan because the line doesn't appear without verbose
@@ -3285,7 +3285,7 @@ o Canonicalize the "host up" messages for port scan and ping scan so
 
 o Ping scans always seem to say "0 [hosts] undergoing Ping Scan" when
   you request stats, rather than the proper number.  For an example,
-  try a command such as "nmap -iR 10000 -sP -n" and then press enter
+  try a command such as "kmap -iR 10000 -sP -n" and then press enter
   during the scan.  Here are some examples of the bad output: Stats:
   25:34:33 elapsed; 991232 hosts completed (72530 up), 0 undergoing
   Ping Scan Ping Scan Timing: About 53.69% done; ETC: 22:49 (0:00:09
@@ -3296,7 +3296,7 @@ o Ping scans always seem to say "0 [hosts] undergoing Ping Scan" when
   ETC: 22:44 (0:03:07 remaining) [David]
 
 
-o Remove obsolete tests from nmap-os-db itself. [David]
+o Remove obsolete tests from kmap-os-db itself. [David]
 
 o Prepare for Summer of Code
  * Brainstorm for ideas
@@ -3308,7 +3308,7 @@ o Prepare for Summer of Code
 o NSEDoc script/module documentation pages should probably provide a
   link to the script/module source code (except for C modules).  The
   link format should probably be of the form
-  https://nmap.org/data/scripts/[script].nse and
+  https://kmap.org/data/scripts/[script].nse and
   /data/nselib/[module].lua.  NSEdoc can assume they already exist
   there, as we'll probably put them there using the same system we use
   to copy other stuff to the data dir.
@@ -3318,21 +3318,21 @@ o [Ncat] Let people set up authenticated proxies using
   that). [David]
 
 o When you specify multiple comma-separated arguments to --script,
-  those arguments seem to get lost when the Nmap command is printed in
-  Nmap's output files.  For example, I run the command:
-  nmap -oN - --script=discovery,intrusive scanme.nmap.org
+  those arguments seem to get lost when the Kmap command is printed in
+  Kmap's output files.  For example, I run the command:
+  kmap -oN - --script=discovery,intrusive scanme.kmap.org
   The output includes:
-  # Nmap 4.85BETA4 scan initiated Thu Mar 26 15:40:05 2009 as: ./nmap
-    -oN - --script=discovery scanme.nmap.org
+  # Kmap 4.85BETA4 scan initiated Thu Mar 26 15:40:05 2009 as: ./kmap
+    -oN - --script=discovery scanme.kmap.org
   Note the missing ",intrusive" in the script argument. [David]
 
 o Merge patrick/nse-lua-merge for easier-to-maintain and simpler
   codebase once David and Patrick are happy with it. [David]
 
-o SVN check out /nmap as an external in a directory named svn or src
-  or nmapsvn or something under nmap.org web tree.  Then redirect the
-  individual nmap.org/data/ files, where needed, to the nmapsvn
-  instead.  and update nmap-dev Makefile not to copy them to the
+o SVN check out /kmap as an external in a directory named svn or src
+  or kmapsvn or something under kmap.org web tree.  Then redirect the
+  individual kmap.org/data/ files, where needed, to the kmapsvn
+  instead.  and update kmap-dev Makefile not to copy them to the
   /data/ dir anymore. Then update the nsedoc system to generate proper
   links to the new script/nselib locations. [Fyodor]
 
@@ -3354,7 +3354,7 @@ o Improvements to presentation of version detection
 
 o I need an output-autoflush option of some sort.  This could be
   useful to ensure I get all the --packet_trace and debug data before
-  Nmap crashes.  Actually, I'm not sure that is so critical.
+  Kmap crashes.  Actually, I'm not sure that is so critical.
   o Killing it for now, not sure that it even is needed.
 
 o Fix the directory function(s) in nse_fs.cc to be usable by scripts and
@@ -3373,7 +3373,7 @@ o [Ncat] The sys_wrap.c/.h code contains a whole bunch of capitalized
       outcome of an error.
    2) Some could be replaced by code in nbase, for example, Malloc
       basically does the same thing as our safe_malloc already used
-      throughout Nmap.
+      throughout Kmap.
   So we should probably consider simplifying/removing this code to the
   extent possible.  But we need to remember to add error detection to
   the callers where necessary rather than blindly switching from
@@ -3382,7 +3382,7 @@ o [Ncat] The sys_wrap.c/.h code contains a whole bunch of capitalized
 o With --version-trace (may be a problem with other uses of nsock
   tracing too), I often get dozens of "wait_for_events" reports in a
   row in a very short period, flooding the logs.  For example, with
-  the command "nmap -sV --version-trace www.google.com", I get:
+  the command "kmap -sV --version-trace www.google.com", I get:
   NSOCK (22.3570s) Callback: WRITE SUCCESS for EID 283 [74.125.19.147:443]
   NSOCK (22.3570s) msevent_delete (IOD #4) (EID #283)
   NSOCK (22.3570s) wait_for_events
@@ -3397,37 +3397,37 @@ o With --version-trace (may be a problem with other uses of nsock
   [Goes on for pages]
 
 o NSE memory issues (and gh_list assert failure) [David]
-  o See this thread: http://seclists.org/nmap-dev/2009/q1/0532.html
+  o See this thread: http://seclists.org/kmap-dev/2009/q1/0532.html
   o We're taking this out for now since the new nse-lua-merge
   tenatively looks like it fixes this.
 
 o [Ncat] Why does Ncat require enclosure in a while loop to answer
   repeated UDP queries, but not TCP?  For example, see the "Emulating
   Diagnostic Services" section of the Ncat user's guide.
-  o Note: http://seclists.org/nmap-dev/2009/q1/0133.html
+  o Note: http://seclists.org/kmap-dev/2009/q1/0133.html
 
 o Determine what we should do about the IE.DLI OS detection test [David]
-  o All of the 1656 results for this test in nmap-os-db are DLI=S.
+  o All of the 1656 results for this test in kmap-os-db are DLI=S.
     o Is the test not working right (producing the proper results
       against targets), or is it just a generally useless test for
       which virtually all targets respond the same way?
-  o Are there other "useless" tests in nmap-os-db?  It is worth
+  o Are there other "useless" tests in kmap-os-db?  It is worth
     checking, IMHO.
   o We're going to get rid of IE.DLI, IE.SI, U1.RUL, and maybe TOS and
     TOSI tests.
 
-o When you do ncat -h, Ncat should probably show the Nmap version
+o When you do ncat -h, Ncat should probably show the Kmap version
   number rather than (currently) 0.2.  Also ncat in -v mode should
   show that same header. [David]
 
 o Ncat verbose mode (-v) should probably only give important messages,
   such as perhaps a message once you connect successfully to a port,
   or a message if the connection attempt times out.  An Ncat version
-  banner (with URL) like Nmap has might be warranted (in verbose
+  banner (with URL) like Kmap has might be warranted (in verbose
   mode).  Currently, Ncat floods you with (mostly) useless debugging
   information like this with a single -v (this output, on the other
   hand, might be useful for a debugging option): [David]
-  # ncat -C -v scanme.nmap.org 80
+  # ncat -C -v scanme.kmap.org 80
   NSOCK (0.0000s) TCP connection requested to 64.13.134.52:80 (IOD #1) EID 8
   NSOCK (0.0200s) Callback: CONNECT SUCCESS for EID 8 [64.13.134.52:80]
   NSOCK (0.0200s) Read request from IOD #1 [64.13.134.52:80] (timeout: -1ms) EID 18
@@ -3440,20 +3440,20 @@ o Ncat verbose mode (-v) should probably only give important messages,
   For comparison, here is what Eric Jackson's nc (The nc available in
   Fedora 10's package repository) shows in verbose mode for the same
   connection:
-  # nc -v scanme.nmap.org 80
-  Connection to scanme.nmap.org 80 port [tcp/http] succeeded!
+  # nc -v scanme.kmap.org 80
+  Connection to scanme.kmap.org 80 port [tcp/http] succeeded!
   GET / HTTP/1.0 [David]
 
 o Final polishing of our GSoC pages. [Fyodor]
 
-o Advertise widely for Nmap GSoC applicants [Fyodor]
+o Advertise widely for Kmap GSoC applicants [Fyodor]
 
 o [Ncat] We should (maybe) consider a way for people to choose
   usernames in --chat.
   o Removing this for now.  We can add it back if we decide we really
     want this.
 
-o Deal with new Python 2.6 Zenmap build warnings:
+o Deal with new Python 2.6 Zekmap build warnings:
   C:\Python26\lib\site-packages\py2exe\build_exe.py:16: DeprecationWarning: the sets module is deprecated
   import sets
   http://sourceforge.net/tracker/index.php?func=detail&aid=2314799&group_id=15583&atid=115583
@@ -3485,14 +3485,14 @@ o [Ndiff] Maybe Ndiff should display changes to version detection and
  o Version detection done, now just needs OS detection.
 
 o When I start ncat chat with this tcsh command:
-  ncat -l --chat scanme.nmap.org < /dev/null >& /dev/null &
+  ncat -l --chat scanme.kmap.org < /dev/null >& /dev/null &
   The first client to connect to the chat becomes user0 and doesn't
   work quite right.  Messages user0 type get transmitted to other
   clients, but user0 does not see their messages.  Nore does user0 get
   the normal connection announcement upon connecting.  If I quit
   user0, the next client to connect becomes user0 again and has the
   same problem.  If I start ncat on the server with "ncat -l --chat
-  scanme.nmap.org" (no redirection), other clients can connect with no problems.
+  scanme.kmap.org" (no redirection), other clients can connect with no problems.
 
 o Ncat --chat should probably announce to everyone (including the new
   person) when someone connects.  This tells the new person their
@@ -3502,23 +3502,23 @@ o Ncat --chat should probably announce to everyone (including the new
 
 o SoC ideas page [Fyodor]
 
-o Nmap 4.85BETA4 release [Fyodor]
+o Kmap 4.85BETA4 release [Fyodor]
 
 o [Ncat] Wouldn't it be nice if we could support --exec (and maybe
   some sort of partial-emulated --sh-exec) on Windows? [David]
   o Almost working!  We found some problems with "ncat.exe -v -l
-  --sh-exec "ncat -v scanme.nmap.org"
+  --sh-exec "ncat -v scanme.kmap.org"
 
 o [Ncat] Can we use it as an IPv4 <-> IPv6 gateway?  If so (or if we
   can add it), it should be added to the ncat guide feature list.
   o Yes, David tried it with --sh-exec and it worked.
 
 o [Ncat] We should probably make it work without OpenSSL.  When I try
-  ./configure --without-openssl on latest svn Nmap, Ncat build fails
+  ./configure --without-openssl on latest svn Kmap, Ncat build fails
   with:
        gcc -MM -I../libpcap -DHAVE_CONFIG_H -D_FORTIFY_SOURCE=2 -I. -I.. -I../nsock/include/ -I../nbase ncat_main.c ncat_connect.c ncat_core.c ncat_listen.c ncat_proxy.c ncat_broker.c ncat_hostmatch.c ncat_ssl.c util.c sys_wrap.c > makefile.dep
-       make[2]: Leaving directory `/mondo/fyodor/nmap/ncat'
-       make[2]: Entering directory `/mondo/fyodor/nmap/ncat'
+       make[2]: Leaving directory `/mondo/fyodor/kmap/ncat'
+       make[2]: Entering directory `/mondo/fyodor/kmap/ncat'
        gcc -I../libpcap -DHAVE_CONFIG_H -D_FORTIFY_SOURCE=2 -I. -I.. -I../nsock/include/ -I../nbase  -c ncat_main.c -o ncat_main.o
        ncat_main.c: In function ‘main’:
        ncat_main.c:536: error: ‘struct options’ has no member named ‘ssl’
@@ -3527,9 +3527,9 @@ o [Ncat] We should probably make it work without OpenSSL.  When I try
        ncat_main.c:646: error: ‘struct options’ has no member named ‘sslcert’
        ncat_main.c:646: error: ‘struct options’ has no member named ‘sslkey’
        make[2]: *** [ncat_main.o] Error 1
-       make[2]: Leaving directory `/mondo/fyodor/nmap/ncat'
+       make[2]: Leaving directory `/mondo/fyodor/kmap/ncat'
        make[1]: *** [build-ncat] Error 2
-       make[1]: Leaving directory `/mondo/fyodor/nmap'
+       make[1]: Leaving directory `/mondo/fyodor/kmap'
        make: *** [static] Error 2
 
 o [Ncat] Defensive coding review of Ncat --chat (talk)
@@ -3544,9 +3544,9 @@ o [Ncat] As SSL server it should not crash when someone connects in
 o [Ncat] --chat should probably only allow reasonable chars, to avoid
   cntrl-chars, etc.
 
-o Nmap should treat ports named "unknown" in nmap-services the same
+o Kmap should treat ports named "unknown" in kmap-services the same
   way (from a naming perspective) as it treats ports which are not
-  listed at all.  See http://seclists.org/nmap-dev/2009/q1/0589.html.
+  listed at all.  See http://seclists.org/kmap-dev/2009/q1/0589.html.
 
 o Ncat user guide "Emulating Diagnostic Services" page has a very long
   UDP chargen server line which causes wrapping problems in web browsers
@@ -3587,7 +3587,7 @@ o Process the latest version detection submissions.  We now have more
 
 o Write Ncat users' guide, demonstrating all the neat stuff you can do
   with it.  This should probably be in DocBook XML so it can be an NNS
-  chapter.  You might want to query nmap-dev for list of neat things
+  chapter.  You might want to query kmap-dev for list of neat things
   people do with ncat (or look around for what people do with nc).
   Testing it out for examples might expose areas for improvement as
   well. [David]
@@ -3615,11 +3615,11 @@ o NSE should offer some way to sleep/yield for a given amount of
     yield, then perhaps this could help us implement such a mechanism.
     But maybe coroutine.yield already does the trick.
   o The mechanism needs to be documented, and ideally should be
-    implemented in at least one of the scripts shipped with Nmap.
+    implemented in at least one of the scripts shipped with Kmap.
 
 o Consider adding a way for requesting timing status updates at a
   given interval (such as every 5 seconds) to XML and/or normal
-  output.  This would be useful for people who run Nmap from scripts
+  output.  This would be useful for people who run Kmap from scripts
   or other higher level applications. [David]
 
 o Ncat --allow/--deny bug: "--allow and --deny only support host
@@ -3643,7 +3643,7 @@ o Ncat -- perhaps connection brokering should support UDP as well as
   Its obviously not like TCP where you have a list of open
   connections.  Ncat could build such a list, but, for example, would
   never know when to remove the host.  For now, David is just going to
-  adjust the error message to encourage people to email nmap-dev
+  adjust the error message to encourage people to email kmap-dev
   describing their usage scenario if they want this feature.
 
 o Ncat documentation should note that no SSL certificate verification
@@ -3652,16 +3652,16 @@ o Ncat documentation should note that no SSL certificate verification
   o Done in the new Ncat user's guide
 
 o Fix dns-zone-transfer infinite recursion bug described at
-  http://seclists.org/nmap-dev/2009/q1/0317.html.  It sounds like the
+  http://seclists.org/kmap-dev/2009/q1/0317.html.  It sounds like the
   best approach is to use our dns.lua library rather than having
   dns-zone-transfer do its own DNS packet parsing.
 
 o Fix XML escaping issue so that improper chars from NSE scripts or
   elsewhere can't cause corrupt XML files.  See
-  http://seclists.org/nmap-dev/2009/q1/0316.html for an example. [David]
+  http://seclists.org/kmap-dev/2009/q1/0316.html for an example. [David]
 
 o Look into whether we should increase the frequency of port scan
-  pings.  See http://seclists.org/nmap-dev/2008/q1/0096.html . Note
+  pings.  See http://seclists.org/kmap-dev/2008/q1/0096.html . Note
   that Fyodor already increased them a bit in 2008.  Might not need
   more.  [David did extensive testing of this one already]
 
@@ -3669,13 +3669,13 @@ o Find way to document NSE library script arguments and perhaps have
   them bubble up to scripts themselves.  For example, I had to read
   the SNMP library source code to determine the script argument to
   specify the SNMP community name for snmp-sysdescr
-  (https://nmap.org/nsedoc/scripts/snmp-sysdescr.html).  Maybe we could
+  (https://kmap.org/nsedoc/scripts/snmp-sysdescr.html).  Maybe we could
   just standardize on something like we do with SMB library and the
-  scripts which call it (https://nmap.org/nsedoc/modules/smb.html,
-  https://nmap.org/nsedoc/scripts/smb-check-vulns.html). [David]
+  scripts which call it (https://kmap.org/nsedoc/modules/smb.html,
+  https://kmap.org/nsedoc/scripts/smb-check-vulns.html). [David]
 
 o If it wouldn't bloat things too much, it would be nice to include
-  ndiff in the Nmap win32 zip distribution files.
+  ndiff in the Kmap win32 zip distribution files.
 
 o Reported NSE crash:
   "Assertion failed - file ..\nse_main.cc line 314
@@ -3688,24 +3688,24 @@ o Reported NSE crash:
   o Seems to be fixed.  He can no longer reproduce the problem with
     4.85BETA3.
 
-o Deal with GTK DLL problem with Nmap 4.85BETA1: [Fyodor]
+o Deal with GTK DLL problem with Kmap 4.85BETA1: [Fyodor]
   o David's installer seems to work--he's using a different GTK
     distribution.  I'll try that.  Works!  Done!
-  o Details on problem: http://seclists.org/nmap-dev/2009/q1/0207.html
+  o Details on problem: http://seclists.org/kmap-dev/2009/q1/0207.html
   o Quick workaround done for 4.85BETA2, but better solution needed.
 
 o "SCRIPT ENGINE (250.600s): ./scripts/rpcinfo.nse against
   a.b.c.d:<port> ended with error: ./nselib/datafiles.lua:114: attempt
   to index global 'arg' (a nil value)"
-  -- http://seclists.org/nmap-dev/2009/q1/0227.html [Patrick]
+  -- http://seclists.org/kmap-dev/2009/q1/0227.html [Patrick]
 
 o Consider making the TODO list public
-  o Done: http://seclists.org/nmap-dev/2009/q1/0175.html
+  o Done: http://seclists.org/kmap-dev/2009/q1/0175.html
   o Probably remove all of the "done" items since that is easier than
     reviewing them.
-  o Might as well add to insecure.org/nmap/data/
+  o Might as well add to insecure.org/kmap/data/
   o Maybe a bug tracker is a better approach.
 
 o [NPING] Fix compilation on Solaris.  See
-  http://seclists.org/nmap-dev/2010/q1/870.
+  http://seclists.org/kmap-dev/2010/q1/870.
 

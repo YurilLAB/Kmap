@@ -1,6 +1,6 @@
 local comm = require "comm"
 local shortport = require "shortport"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 
 description = [[
@@ -13,14 +13,14 @@ password set, the exact version, name, and OS type will also be reported on.
 
 ---
 -- @usage
--- nmap -sU -sV -p 8767 <target>
+-- kmap -sU -sV -p 8767 <target>
 -- @output
 -- PORT     STATE SERVICE    REASON     VERSION
 -- 8767/udp open  teamspeak2 script-set TeamSpeak 2.0.23.19 (name: COWCLANS; no password)
 -- Service Info: OS: Win32
 
 author = "Marin Maržić"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "version" }
 
 local payload = "\xf4\xbe\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\z
@@ -41,7 +41,7 @@ action = function(host, port)
   if not status then
     return
   end
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   local name, platform, version = string.match(result,
     "^\xf4\xbe\x04\0\0\0\0\0.............([^\0]*)%G+([^\0]*)\0*(........)")
@@ -65,7 +65,7 @@ action = function(host, port)
     end
   end
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   return
 end

@@ -1,9 +1,9 @@
 #!/bin/sh -e
 
-test -n "${NMAP_VERSION}" || exit 1
-export title="nmap-${NMAP_VERSION}"
+test -n "${KMAP_VERSION}" || exit 1
+export title="kmap-${KMAP_VERSION}"
 export disk="/Volumes/${title}"
-export backgroundPictureName="nmap.png"
+export backgroundPictureName="kmap.png"
 export finalDMGName="${title}.dmg"
 export applicationName="${title}.mpkg"
 RES="True"

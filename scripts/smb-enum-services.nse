@@ -18,8 +18,8 @@ References:
 
 ---
 -- @usage
--- nmap --script smb-enum-services.nse -p445 <host>
--- nmap --script smb-enum-services.nse --script-args smbusername=<username>,smbpass=<password> -p445 <host>
+-- kmap --script smb-enum-services.nse -p445 <host>
+-- kmap --script smb-enum-services.nse --script-args smbusername=<username>,smbpass=<password> -p445 <host>
 --
 -- @output
 -- | smb-enum-services:
@@ -849,7 +849,7 @@ References:
 -- </table>
 
 author = "Rewanth Cool"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery","intrusive","safe"}
 
 portrule = shortport.port_or_service({445, 139}, "microsoft-ds", "tcp", "open")

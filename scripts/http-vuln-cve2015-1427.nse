@@ -4,7 +4,7 @@ local stdnse = require "stdnse"
 local string = require "string"
 local vulns = require "vulns"
 local json = require "json"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local rand = require "rand"
 
 description = [[
@@ -22,7 +22,7 @@ This script attempts to detect a vulnerability, CVE-2015-1427, which  allows att
 -- @args invasive If set to true then it creates an index if there are no indices.
 --
 -- @usage
--- nmap --script=http-vuln-cve2015-1427 --script-args command= 'ls' <targets>
+-- kmap --script=http-vuln-cve2015-1427 --script-args command= 'ls' <targets>
 --
 --@output
 -- | http-vuln-cve2015-1427:
@@ -45,7 +45,7 @@ This script attempts to detect a vulnerability, CVE-2015-1427, which  allows att
 
 author = {"Gyanendra Mishra", "Daniel Miller"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"vuln", "intrusive"}
 
@@ -143,7 +143,7 @@ action = function(host, port)
             service_tunnel = 'none',
             cpe = {'cpe:/a:elasticsearch:elasticsearch:' .. tostring(parsed.version.number)}
           }
-          nmap.set_port_version(host,port,'hardmatched')
+          kmap.set_port_version(host,port,'hardmatched')
       else
         stdnse.debug1('Cant Be Elastic search as no version number present.')
         return nil

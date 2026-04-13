@@ -1,5 +1,5 @@
 local afp = require "afp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local ls = require "ls"
@@ -12,7 +12,7 @@ The output is intended to resemble the output of <code>ls</code>.
 ---
 --
 -- @usage
--- nmap -sS -sV -p 548 --script=afp-ls target
+-- kmap -sS -sV -p 548 --script=afp-ls target
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -102,7 +102,7 @@ The output is intended to resemble the output of <code>ls</code>.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"afp-brute"}
 
@@ -111,8 +111,8 @@ portrule = shortport.port_or_service(548, {"afp"})
 action = function(host, port)
 
   local afpHelper = afp.Helper:new()
-  local args = nmap.registry.args
-  local users = nmap.registry.afp or { ['nil'] = 'nil' }
+  local args = kmap.registry.args
+  local users = kmap.registry.afp or { ['nil'] = 'nil' }
   local maxfiles = ls.config("maxfiles")
   local output = ls.new_listing()
 

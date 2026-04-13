@@ -1,4 +1,4 @@
-local nmap = require("nmap")
+local kmap = require("kmap")
 local packet = require "packet"
 local shortport = require("shortport")
 local sslcert = require("sslcert")
@@ -20,7 +20,7 @@ For additional information:
 
 ---
 -- @usage
--- nmap -p 443 --script tls-ticketbleed <target>
+-- kmap -p 443 --script tls-ticketbleed <target>
 --
 -- @output
 -- | tls-ticketbleed:
@@ -46,24 +46,24 @@ For additional information:
 -- @args tls-ticketbleed.protocols (default tries all) TLSv1.0, TLSv1.1, or TLSv1.2
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 dependencies = {"https-redirect"}
 
 portrule = function(host, port)
   if not tls.handshake_parse.NewSessionTicket then
-    stdnse.verbose1("Not running: incompatible tls.lua. Get the latest from https://nmap.org/nsedoc/lib/tls.html")
+    stdnse.verbose1("Not running: incompatible tls.lua. Get the latest from https://kmap.org/nsedoc/lib/tls.html")
     return false
   end
   -- Ensure we have the privileges necessary to run the PCAP operations this
   -- script depends upon.
-  if not nmap.is_privileged() then
-    nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
-    if not nmap.registry[SCRIPT_NAME].rootfail then
+  if not kmap.is_privileged() then
+    kmap.registry[SCRIPT_NAME] = kmap.registry[SCRIPT_NAME] or {}
+    if not kmap.registry[SCRIPT_NAME].rootfail then
       stdnse.verbose1("Not running due to lack of privileges.")
     end
 
-    nmap.registry[SCRIPT_NAME].rootfail = true
+    kmap.registry[SCRIPT_NAME].rootfail = true
 
     return false
   end
@@ -72,7 +72,7 @@ portrule = function(host, port)
 end
 
 local function is_vuln(host, port, version)
-  -- Checking a host requires a valid TLS Session Ticket. The Nmap API
+  -- Checking a host requires a valid TLS Session Ticket. The Kmap API
   -- does not expose that information to us, but it is sent
   -- unencrypted near the end of the TLS handshake.
   --
@@ -91,7 +91,7 @@ local function is_vuln(host, port, version)
       return
     end
   else
-    socket = nmap.new_socket()
+    socket = kmap.new_socket()
     local status, err = socket:connect(host, port, "tcp")
     if not status then
       stdnse.debug3("Connection to server failed: %s", err)
@@ -112,7 +112,7 @@ local function is_vuln(host, port, version)
   -- server, not our traffic. We need to set the snaplen to be fairly
   -- large to accommodate packets with many or large certificates.
   local filter = ("src host %s and tcp and src port %d and dst port %d"):format(host.ip, port.number, lport)
-  local pcap = nmap.new_socket()
+  local pcap = kmap.new_socket()
   pcap:set_timeout(5)
   pcap:pcap_open(host.interface, 4096, false, filter)
 
@@ -177,7 +177,7 @@ local function is_vuln(host, port, version)
         if body.ticket then
           ticket = body.ticket
         else
-          -- If someone downloaded this script separately from Nmap,
+          -- If someone downloaded this script separately from Kmap,
           -- they are likely to be missing the parsing changes to the
           -- TLS library. Try parsing the body inline.
           if #body.data <= 4 then
@@ -232,7 +232,7 @@ local function is_vuln(host, port, version)
       return
     end
   else
-    socket = nmap.new_socket()
+    socket = kmap.new_socket()
     local status, err = socket:connect(host, port, "tcp")
     if not status then
       stdnse.debug3("Connection to server failed: %s", err)

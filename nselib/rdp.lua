@@ -4,10 +4,10 @@
 --
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
-local nmap = require("nmap")
+local kmap = require("kmap")
 local stdnse = require("stdnse")
 local string = require "string"
 local asn1 = require "asn1"
@@ -208,7 +208,7 @@ Request = {
     end,
 
     __tostring = function(self)
-      local cookie = "mstshash=nmap"
+      local cookie = "mstshash=kmap"
 
       local data = string.pack(">I2I2B",
         0x0000, -- dst reference
@@ -392,7 +392,7 @@ Comm = {
   -- @return status true on success, false on failure
   -- @return err string containing error message, if status is false
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(5000)
     if ( not(self.socket:connect(self.host, self.port)) ) then
       return false, "Failed connecting to server"

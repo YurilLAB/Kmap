@@ -7,14 +7,14 @@
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 -- @author Gioacchino Mazzurco <gmazzurco89@gmail.com>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- 2015-06-11 Gioacchino Mazzurco - Use creds library to handle SNMP community
 
 local asn1 = require "asn1"
 local creds = require "creds"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -201,7 +201,7 @@ end
 function buildGetRequest(options, ...)
   if not options then options = {} end
 
-  if not options.reqId then options.reqId = math.fmod(nmap.clock_ms(), 65000) end
+  if not options.reqId then options.reqId = math.fmod(kmap.clock_ms(), 65000) end
   if not options.err then options.err = 0 end
   if not options.errIdx then options.errIdx = 0 end
 
@@ -233,7 +233,7 @@ end
 -- @return Table representing PDU.
 function buildGetNextRequest(options, ...)
   options = options or {}
-  options.reqId = options.reqId or math.fmod(nmap.clock_ms(), 65000)
+  options.reqId = options.reqId or math.fmod(kmap.clock_ms(), 65000)
   options.err = options.err or 0
   options.errIdx = options.errIdx or 0
 
@@ -269,7 +269,7 @@ end
 function buildSetRequest(options, oid, value)
   if not options then options = {} end
 
-  if not options.reqId then options.reqId = math.fmod(nmap.clock_ms(), 65000) end
+  if not options.reqId then options.reqId = math.fmod(kmap.clock_ms(), 65000) end
   if not options.err then options.err = 0 end
   if not options.errIdx then options.errIdx = 0 end
 
@@ -336,7 +336,7 @@ function buildGetResponse(options, oid, value)
   if not options then options = {} end
 
   -- if really a response, should use reqId of request!
-  if not options.reqId then options.reqId = math.fmod(nmap.clock_ms(), 65000) end
+  if not options.reqId then options.reqId = math.fmod(kmap.clock_ms(), 65000) end
   if not options.err then options.err = 0 end
   if not options.errIdx then options.errIdx = 0 end
 
@@ -482,7 +482,7 @@ Helper = {
   -- socket and locks in the timeout.
   -- @return status true on success, false on failure
   connect = function( self )
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(self.options.timeout or stdnse.get_timeout(self.host, default_max_timeout))
     local status, err = self.socket:connect(self.host, self.port)
     if ( not(status) ) then return false, err end

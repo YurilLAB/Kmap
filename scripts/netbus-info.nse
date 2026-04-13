@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -26,7 +26,7 @@ and an smtp-server used for notification delivery.
 
 ---
 -- @usage
--- nmap -p 12345 --script netbus-info <target> --script-args netbus-info.password=<password>
+-- kmap -p 12345 --script netbus-info <target> --script-args netbus-info.password=<password>
 --
 -- @output
 -- 12345/tcp open  netbus
@@ -81,7 +81,7 @@ and an smtp-server used for notification delivery.
 -- @args netbus-info.password The password used for authentication
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 
@@ -152,15 +152,15 @@ local function format_volume(volume)
 end
 
 action = function( host, port )
-  local password = nmap.registry.args[SCRIPT_NAME .. ".password"]
-  if not password and nmap.registry.netbuspasswords then
+  local password = kmap.registry.args[SCRIPT_NAME .. ".password"]
+  if not password and kmap.registry.netbuspasswords then
     local key = string.format("%s:%d", host.ip, port.number)
-    password = nmap.registry.netbuspasswords[key]
+    password = kmap.registry.netbuspasswords[key]
   end
   if not password then
     password = ""
   end
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
   local status, err = socket:connect(host, port)
   local buffer, err = stdnse.make_buffer(socket, "\r")

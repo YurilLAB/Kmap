@@ -247,23 +247,23 @@ ff::00
 EOF
 
 # Name lookup.
-test_addrset "scanme.nmap.org" "scanme.nmap.org" <<EOF
+test_addrset "scanme.kmap.org" "scanme.kmap.org" <<EOF
 1:2::3:4
 1.2.3.4
-scanme.nmap.org
+scanme.kmap.org
 EOF
 
 # Name lookup combined with CIDR netmask.
-test_addrset "scanme.nmap.org/30" "scanme.nmap.org" <<EOF
+test_addrset "scanme.kmap.org/30" "scanme.kmap.org" <<EOF
 1:2::3:4
 1.2.3.4
-scanme.nmap.org
+scanme.kmap.org
 EOF
 
 # Name lookup combined with /0 CIDR netmask.
-test_addrset "scanme.nmap.org/0" "1.2.3.4 scanme.nmap.org" <<EOF
+test_addrset "scanme.kmap.org/0" "1.2.3.4 scanme.kmap.org" <<EOF
 1.2.3.4
-scanme.nmap.org
+scanme.kmap.org
 EOF
 
 expect_fail "."

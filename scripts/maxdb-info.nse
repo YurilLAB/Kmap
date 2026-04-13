@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -12,7 +12,7 @@ Retrieves version and database information from a SAP Max DB database.
 
 ---
 -- @usage
--- nmap -p 7210 --script maxdb-info <ip>
+-- kmap -p 7210 --script maxdb-info <ip>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -32,7 +32,7 @@ Retrieves version and database information from a SAP Max DB database.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "default", "version", "safe" }
 
 
@@ -135,7 +135,7 @@ action = function(host, port)
   local dbm_version = "28000000033f000001000000ac130000000004002800000064626d5f76657273696f6e2020202020"
   local db_enum     = "20000000033f000001000000ac130000000004002000000064625f656e756d20"
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(10000)
   local status, err = socket:connect(host, port)
   local data
@@ -173,7 +173,7 @@ action = function(host, port)
   port.version.product = "SAP MaxDB"
   port.version.version = version_info.VERSION
   port.version.ostype = version_info.SYSNAME
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   return stdnse.format_output(true, result)
 end

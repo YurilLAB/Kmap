@@ -13,7 +13,7 @@ saves the results to a KML file, plottable on Google earth and maps.
 
 ---
 -- @usage
--- nmap --traceroute --script traceroute-geolocation
+-- kmap --traceroute --script traceroute-geolocation
 --
 -- @output
 -- | traceroute-geolocation:
@@ -65,7 +65,7 @@ saves the results to a KML file, plottable on Google earth and maps.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "external", "discovery"}
 
 local arg_kmlfile = stdnse.get_script_args(SCRIPT_NAME .. ".kmlfile")

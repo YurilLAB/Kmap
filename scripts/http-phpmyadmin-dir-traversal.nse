@@ -16,8 +16,8 @@ Reference:
 
 ---
 -- @usage
--- nmap -p80 --script http-phpmyadmin-dir-traversal --script-args="dir='/pma/',file='../../../../../../../../etc/passwd',outfile='passwd.txt'" <host/ip>
--- nmap -p80 --script http-phpmyadmin-dir-traversal <host/ip>
+-- kmap -p80 --script http-phpmyadmin-dir-traversal --script-args="dir='/pma/',file='../../../../../../../../etc/passwd',outfile='passwd.txt'" <host/ip>
+-- kmap -p80 --script http-phpmyadmin-dir-traversal <host/ip>
 --
 -- @args http-phpmyadmin-dir-traversal.file Remote file to retrieve. Default: <code>../../../../../etc/passwd</code>
 -- @args http-phpmyadmin-dir-traversal.outfile Output file
@@ -68,7 +68,7 @@ Reference:
 -- |       http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2005-3299
 -- |_      http://www.exploit-db.com/exploits/1244/
 author = "Alexey Meshcheryakov"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "exploit"}
 
 portrule = shortport.http

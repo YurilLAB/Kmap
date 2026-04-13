@@ -11,7 +11,7 @@ Reads hard disk information (such as brand, model, and sometimes temperature) fr
 
 ---
 -- @usage
--- nmap -p 7634 -sV -sC <target>
+-- kmap -p 7634 -sV -sC <target>
 --
 -- @output
 -- 7634/tcp open  hddtemp
@@ -33,7 +33,7 @@ Reads hard disk information (such as brand, model, and sometimes temperature) fr
 -- </table>
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 

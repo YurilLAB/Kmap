@@ -20,7 +20,7 @@ For more information,see:
 -- @see http-vuln-cve2014-3704.nse
 --
 -- @usage
--- nmap --script=http-drupal-enum-users --script-args http-drupal-enum-users.root="/path/" <targets>
+-- kmap --script=http-drupal-enum-users --script-args http-drupal-enum-users.root="/path/" <targets>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -34,7 +34,7 @@ For more information,see:
 -- @args http-drupal-enum-users.root base path. Defaults to "/"
 
 author = "Hani Benhabiles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 

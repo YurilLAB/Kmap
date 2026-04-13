@@ -4,7 +4,7 @@ compiler:
   - clang
 # Change this to your needs
 sudo: false
-script: mkdir /tmp/n && ./configure $SSL_FLAG $LUA_FLAG --prefix=/tmp/n && make && make check && make install && /tmp/n/bin/nmap -A localhost
+script: mkdir /tmp/n && ./configure $SSL_FLAG $LUA_FLAG --prefix=/tmp/n && make && make check && make install && /tmp/n/bin/kmap -A localhost
 
 env:
   - SSL_FLAG="--without-openssl" LUA_FLAG="--without-liblua"
@@ -15,6 +15,6 @@ env:
 notifications:
   irc:
     channels:
-      - "chat.freenode.net#nmap"
+      - "chat.freenode.net#kmap"
     on_success: change
     on_failure: always

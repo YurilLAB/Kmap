@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -17,7 +17,7 @@ list of databases will not be shown.
 
 ---
 -- @usage
--- nmap -p 2628 <ip> --script dict-info
+-- kmap -p 2628 <ip> --script dict-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -32,7 +32,7 @@ list of databases will not be shown.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -41,7 +41,7 @@ portrule = shortport.port_or_service(2628, "dict", "tcp")
 local function fail(err) return stdnse.format_output(false, err) end
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   if ( not(socket:connect(host, port)) ) then
     return fail("Failed to connect to dictd server")
   end

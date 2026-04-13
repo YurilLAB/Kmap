@@ -41,7 +41,7 @@ Connects to rusersd RPC service and retrieves a list of logged-in users.
 --
 
 author = "Daniel Miller"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 dependencies = {"rpc-grind", "rpcinfo"}

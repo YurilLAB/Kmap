@@ -10,7 +10,7 @@
 
   <refnamediv>
     <refname>ndiff</refname>
-    <refpurpose>Utility to compare the results of Nmap scans</refpurpose>
+    <refpurpose>Utility to compare the results of Kmap scans</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -32,8 +32,8 @@
     <title>Description</title>
 
     <para>
-    Ndiff is a tool to aid in the comparison of Nmap scans. It takes two
-    Nmap XML output files and prints the differences between them. The
+    Ndiff is a tool to aid in the comparison of Kmap scans. It takes two
+    Kmap XML output files and prints the differences between them. The
     differences observed are:
     <itemizedlist>
       <listitem>
@@ -104,7 +104,7 @@
     </variablelist>
 
     <para>
-    Any other arguments are taken to be the names of Nmap XML output
+    Any other arguments are taken to be the names of Kmap XML output
     files. There must be exactly two.
     </para>
   </refsect1>
@@ -113,7 +113,7 @@
     <title>Example</title>
 
     <para>
-    Let's use Ndiff to compare the output of two Nmap scans that use
+    Let's use Ndiff to compare the output of two Kmap scans that use
     different options. In the first, we'll do a fast scan
     (<option>-F</option>), which scans fewer ports for speed. In the
     second, we'll scan the larger default set of ports, and run an NSE
@@ -121,13 +121,13 @@
     </para>
 
 <screen>
-# <userinput>nmap -F scanme.nmap.org -oX scanme-1.xml</userinput>
-# <userinput>nmap --script=html-title scanme.nmap.org -oX scanme-2.xml</userinput>
+# <userinput>kmap -F scanme.kmap.org -oX scanme-1.xml</userinput>
+# <userinput>kmap --script=html-title scanme.kmap.org -oX scanme-2.xml</userinput>
 $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
--Nmap 5.35DC1 at 2010-07-16 12:09
-+Nmap 5.35DC1 at 2010-07-16 12:13
+-Kmap 5.35DC1 at 2010-07-16 12:09
++Kmap 5.35DC1 at 2010-07-16 12:13
 
- scanme.nmap.org (64.13.134.52):
+ scanme.kmap.org (64.13.134.52):
  Host is up.
 -Not shown: 95 filtered ports
 +Not shown: 993 filtered ports
@@ -166,7 +166,7 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
     <para>
     There are two output modes: text and XML. Text output is the
     default, and can also be selected with the <option>--text</option>
-    option. Text output resembles a unified diff of Nmap's normal
+    option. Text output resembles a unified diff of Kmap's normal
     terminal output. Each line is preceded by a character indicating
     whether and how it changed. <literal>-</literal> means that the line
     was in the first scan but not in the second; <literal>+</literal>
@@ -189,8 +189,8 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
     <example id="ndiff-man-ex-text-output">
       <title>Ndiff text output</title>
 <screen>
--Nmap 4.85BETA3 at 2009-03-15 11:00
-+Nmap 4.85BETA4 at 2009-03-18 11:00
+-Kmap 4.85BETA3 at 2009-03-15 11:00
++Kmap 4.85BETA4 at 2009-03-18 11:00
 
  photos-cache-snc1.facebook.com (69.63.178.41):
  Host is up.
@@ -215,9 +215,9 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
 
     <para>
     XML output, intended to be processed by other programs, is selected
-    with the <option>--xml</option> option. It is based on Nmap's XML
+    with the <option>--xml</option> option. It is based on Kmap's XML
     output, with a few additional elements to indicate differences. The
-    XML document is enclosed in <varname>nmapdiff</varname> and
+    XML document is enclosed in <varname>kmapdiff</varname> and
     <varname>scandiff</varname> elements. Host differences are enclosed
     in <varname>hostdiff</varname> tags and port differences are
     enclosed in <varname>portdiff</varname> tags. Inside a
@@ -245,7 +245,7 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
       <title>Ndiff XML output</title>
 <screen>
 <![CDATA[<?xml version="1.0" encoding="UTF-8"?>
-<nmapdiff version="1">
+<kmapdiff version="1">
   <scandiff>
     <hostdiff>
       <host>
@@ -309,7 +309,7 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
       </b>
     </hostdiff>
   </scandiff>
-</nmapdiff>]]></screen>
+</kmapdiff>]]></screen>
     </example>
   </refsect1>
 
@@ -317,7 +317,7 @@ $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
     <title>Periodic Diffs</title>
 
     <para>
-    Using Nmap, Ndiff, cron, and a shell script, it's possible to scan a
+    Using Kmap, Ndiff, cron, and a shell script, it's possible to scan a
     network daily and get email reports of the state of the network and
     changes since the previous scan.
     <xref linkend="ndiff-man-ex-cron" xrefstyle="select: label nopage"/>
@@ -332,15 +332,15 @@ TARGETS="<replaceable>targets</replaceable>"
 OPTIONS="-v -T4 -F -sV"
 date=`date +%F`
 cd /root/scans
-nmap $OPTIONS $TARGETS -oA scan-$date &gt; /dev/null
+kmap $OPTIONS $TARGETS -oA scan-$date &gt; /dev/null
 if [ -e scan-prev.xml ]; then
         ndiff scan-prev.xml scan-$date.xml &gt; diff-$date
         echo "*** NDIFF RESULTS ***"
         cat diff-$date
         echo
 fi
-echo "*** NMAP RESULTS ***"
-cat scan-$date.nmap
+echo "*** KMAP RESULTS ***"
+cat scan-$date.kmap
 ln -sf scan-$date.xml scan-prev.xml
 </programlisting>
     </example>
@@ -372,8 +372,8 @@ ln -sf scan-$date.xml scan-prev.xml
   <refsect1 id="ndiff-man-bugs">
     <title>Bugs</title>
     <para>
-    Report bugs to the <citetitle>nmap-dev</citetitle> mailing list at
-    <email>dev@nmap.org</email>.
+    Report bugs to the <citetitle>kmap-dev</citetitle> mailing list at
+    <email>dev@kmap.org</email>.
     </para>
   </refsect1>
 
@@ -386,8 +386,8 @@ ln -sf scan-$date.xml scan-prev.xml
     discussion of its output formats. He wrote versions of the program
     in Perl and C++, but the summer ended shortly after it was decided
     to rewrite the program in Python for the sake of Windows (and
-    Zenmap) compatibility. This Python version was written by David
-    Fifield.  James Levine <ulink url="https://seclists.org/nmap-hackers/2000/315">released</ulink> a Perl script named Ndiff with
+    Zekmap) compatibility. This Python version was written by David
+    Fifield.  James Levine <ulink url="https://seclists.org/kmap-hackers/2000/315">released</ulink> a Perl script named Ndiff with
     similar functionality in 2000.
     </para>
   </refsect1>
@@ -407,7 +407,7 @@ ln -sf scan-$date.xml scan-prev.xml
     <title>Web site</title>
 
     <para>
-    <ulink url="https://nmap.org/ndiff/"/>
+    <ulink url="https://kmap.org/ndiff/"/>
     </para>
   </refsect1>
 </refentry>

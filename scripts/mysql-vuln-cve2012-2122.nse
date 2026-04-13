@@ -1,5 +1,5 @@
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -36,8 +36,8 @@ Interesting post about this vuln:
 ]]
 
 ---
--- @usage nmap -p3306 --script mysql-vuln-cve2012-2122 <target>
--- @usage nmap -sV --script mysql-vuln-cve2012-2122 <target>
+-- @usage kmap -p3306 --script mysql-vuln-cve2012-2122 <target>
+-- @usage kmap -sV --script mysql-vuln-cve2012-2122 <target>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -73,13 +73,13 @@ Interesting post about this vuln:
 -- |_      http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-2122
 --
 -- @args mysql-vuln-cve2012-2122.user MySQL username. Default: root.
--- @args mysql-vuln-cve2012-2122.pass MySQL password. Default: nmapFTW.
+-- @args mysql-vuln-cve2012-2122.pass MySQL password. Default: kmapFTW.
 -- @args mysql-vuln-cve2012-2122.iterations Connection retries. Default: 1500.
 -- @args mysql-vuln-cve2012-2122.socket_timeout Socket timeout. Default: 5s.
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive", "vuln"}
 
 portrule = shortport.port_or_service(3306, "mysql")
@@ -112,13 +112,13 @@ basically account password protection is as good as nonexistent.
     },
   }
   local vuln_report = vulns.Report:new(SCRIPT_NAME, host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local catch = function()  socket:close() end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local result, response = {}, nil
   local status
   local mysql_user = stdnse.get_script_args(SCRIPT_NAME..".user") or "root"
-  local mysql_pwd = stdnse.get_script_args(SCRIPT_NAME..".pass") or "nmapFTW"
+  local mysql_pwd = stdnse.get_script_args(SCRIPT_NAME..".pass") or "kmapFTW"
   local iterations = stdnse.get_script_args(SCRIPT_NAME..".iterations") or 1500
   local conn_timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME..".socket_timeout"))
   conn_timeout = (conn_timeout or 5) * 1000

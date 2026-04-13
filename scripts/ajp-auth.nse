@@ -10,7 +10,7 @@ Retrieves the authentication scheme and realm of an AJP service (Apache JServ Pr
 
 ---
 -- @usage
--- nmap -p 8009 <ip> --script ajp-auth [--script-args ajp-auth.path=/login]
+-- kmap -p 8009 <ip> --script ajp-auth [--script-args ajp-auth.path=/login]
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -22,7 +22,7 @@ Retrieves the authentication scheme and realm of an AJP service (Apache JServ Pr
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "auth", "safe"}
 
 

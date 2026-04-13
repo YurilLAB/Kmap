@@ -5,7 +5,7 @@ Attempts to retrieve information about the domain name of the target
 ---
 -- @see whois-ip.nse
 --
--- @usage nmap --script whois-domain.nse <target>
+-- @usage kmap --script whois-domain.nse <target>
 --
 -- This script starts by querying the whois.iana.org (which is the root of the
 -- whois servers). Using some patterns the script can determine if the response
@@ -78,11 +78,11 @@ Attempts to retrieve information about the domain name of the target
 ---
 
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -118,20 +118,20 @@ action = function( host )
     while referral do
 
       if not mutexes[referral] then
-        mutexes[referral] = nmap.mutex(referral)
+        mutexes[referral] = kmap.mutex(referral)
       end
 
       mutexes[referral] "lock"
 
       result = {}
-      local socket = nmap.new_socket()
+      local socket = kmap.new_socket()
       local catch = function()
         stdnse.debug1( "fail")
         socket:close()
       end
 
       local status, line = {}
-      local try = nmap.new_try( catch )
+      local try = kmap.new_try( catch )
 
       socket:set_timeout( 50000 )
 

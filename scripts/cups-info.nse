@@ -9,7 +9,7 @@ Lists printers managed by the CUPS printing service.
 
 ---
 -- @usage
--- nmap -p 631 <ip> --script cups-info
+-- kmap -p 631 <ip> --script cups-info
 --
 -- @output
 -- PORT    STATE SERVICE
@@ -36,7 +36,7 @@ Lists printers managed by the CUPS printing service.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 

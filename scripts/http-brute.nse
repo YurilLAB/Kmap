@@ -1,7 +1,7 @@
 local brute = require "brute"
 local creds = require "creds"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local stdnse = require "stdnse"
@@ -10,13 +10,13 @@ description = [[
 Performs brute force password auditing against http basic, digest and ntlm authentication.
 
 This script uses the unpwdb and brute libraries to perform password
-guessing. Any successful guesses are stored in the nmap registry, using
+guessing. Any successful guesses are stored in the kmap registry, using
 the creds library, for other scripts to use.
 ]]
 
 ---
 -- @usage
--- nmap --script http-brute -p 80 <host>
+-- kmap --script http-brute -p 80 <host>
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -52,7 +52,7 @@ the creds library, for other scripts to use.
 
 
 author = {"Patrik Karlsson", "Piotr Olma", "Gyanendra Mishra"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

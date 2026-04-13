@@ -10,7 +10,7 @@ Performs brute force password auditing against CVS pserver authentication.
 
 ---
 -- @usage
--- nmap -p 2401 --script cvs-brute <host>
+-- kmap -p 2401 --script cvs-brute <host>
 --
 -- @output
 -- 2401/tcp open  cvspserver syn-ack
@@ -32,7 +32,7 @@ Performs brute force password auditing against CVS pserver authentication.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 dependencies = {"cvs-brute-repository"}
 

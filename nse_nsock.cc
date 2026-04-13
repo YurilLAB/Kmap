@@ -1,6 +1,6 @@
 #include "nsock.h"
-#include "nmap_error.h"
-#include "NmapOps.h"
+#include "kmap_error.h"
+#include "KmapOps.h"
 #include "tcpip.h"
 #include "protocols.h"
 
@@ -44,7 +44,7 @@ enum {
 /* Special value for af to mean a pcap socket */
 #define NSE_AF_PCAP -1
 
-extern NmapOps o;
+extern KmapOps o;
 
 typedef struct nse_nsock_udata
 {
@@ -83,8 +83,8 @@ static nsock_pool new_pool (lua_State *L)
   nsock_pool *nspp;
 
   /* configure logging */
-  nmap_set_nsock_logger();
-  nmap_adjust_loglevel(o.scriptTrace());
+  kmap_set_nsock_logger();
+  kmap_adjust_loglevel(o.scriptTrace());
 
   if (*o.device)
     nsock_pool_set_device(nsp, o.device);
@@ -363,7 +363,7 @@ static void callback (nsock_pool nsp, nsock_event nse, void *ud)
     // Sometimes Nsock fails immediately and callback is called before
     // l_connect has a chance to yield. We'll use nu->action to signal
     // l_connect to return an error instead of yielding.
-    // http://seclists.org/nmap-dev/2016/q1/201
+    // http://seclists.org/kmap-dev/2016/q1/201
     trace(nse_iod(nse), nu->action, nu->direction);
     nu->action = NU_ACTION_IMMEDIATE;
     return;
@@ -452,7 +452,7 @@ static int l_loop (lua_State *L)
 
   socket_unlock(L); /* clean up old socket locks */
 
-  nmap_adjust_loglevel(o.scriptTrace());
+  kmap_adjust_loglevel(o.scriptTrace());
   if (nsock_loop(nsp, tout) == NSOCK_LOOP_ERROR)
     return luaL_error(L, "a fatal error occurred in nsock_loop");
   return 0;
@@ -1023,7 +1023,7 @@ static void dnet_to_pcap_device_name (lua_State *L, const char *device)
     // Packet32.h: #define ADAPTER_NAME_LENGTH 256 + 12
     // We'll use a little extra to be safe.
     char pcapdev[384];
-    /* Nmap normally uses device names obtained through dnet for interfaces,
+    /* Kmap normally uses device names obtained through dnet for interfaces,
        but Pcap has its own naming system.  So the conversion is done here */
     if (DnetName2PcapName(device, pcapdev, sizeof(pcapdev)))
       lua_pushstring(L, pcapdev);

@@ -3,7 +3,7 @@
 -- banner grabbing and data exchange.
 --
 -- The functions in this module return values appropriate for use with
--- exception handling via <code>nmap.new_try</code>.
+-- exception handling via <code>kmap.new_try</code>.
 --
 -- These functions may be passed a table of options, but it's not required. The
 -- keys for the options table are:
@@ -14,15 +14,15 @@
 -- * <code>connect_timeout</code> - socket timeout for connection. Default: same as <code>stdnse.get_timeout</code>
 -- * <code>request_timeout</code> - additional socket timeout for requests. This is added to the connect_timeout to get a total time for a request to receive a response. Default: 6000ms
 -- * <code>recv_before</code> - boolean, receive data before sending first payload
--- * <code>any_af</code> - boolean, allow connecting to any address family, inet or inet6. By default, these functions will only use the same AF as nmap.address_family to resolve names.
+-- * <code>any_af</code> - boolean, allow connecting to any address family, inet or inet6. By default, these functions will only use the same AF as kmap.address_family to resolve names.
 --
 -- If both <code>"bytes"</code> and <code>"lines"</code> are provided,
 -- <code>"lines"</code> takes precedence. If neither are given, the functions
 -- read as many bytes as possible.
 -- @author Kris Katterjohn 04/2008
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport
 local stdnse = require "stdnse"
 local tableaux = require "tableaux"
@@ -31,7 +31,7 @@ _ENV = stdnse.module("comm", stdnse.seeall)
 
 -- This timeout value (in ms) is added to the connect timeout and represents
 -- the amount of processing time allowed for the host before it sends a packet.
--- For justification of this value, see totalwaitms in nmap-service-probes
+-- For justification of this value, see totalwaitms in kmap-service-probes
 local REQUEST_TIMEOUT = 6000
 
 -- Function used to get a connect and request timeout based on specified options
@@ -61,7 +61,7 @@ end
 
 -- Sets up the socket and connects to host:port
 local setup_connect = function(host, port, opts)
-  local sock = nmap.new_socket(
+  local sock = kmap.new_socket(
     (opts.proto ~= "ssl" and opts.proto)
     or (type(port) == "table" and port.protocol)
     or nil)
@@ -71,7 +71,7 @@ local setup_connect = function(host, port, opts)
   sock:set_timeout(connect_timeout)
 
   if type(host) == "string" and opts.any_af then
-    local status, addrs = nmap.resolve(host)
+    local status, addrs = kmap.resolve(host)
     if status then
       host = {ip = addrs[1], targetname = host}
     end

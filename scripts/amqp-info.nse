@@ -1,5 +1,5 @@
 local amqp = require "amqp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -12,7 +12,7 @@ See http://www.rabbitmq.com/extensions.html for details on the
 
 ---
 -- @usage
--- nmap --script amqp-info -p5672 <target>
+-- kmap --script amqp-info -p5672 <target>
 ---
 -- @output
 -- 5672/tcp open  amqp
@@ -32,7 +32,7 @@ See http://www.rabbitmq.com/extensions.html for details on the
 
 author = "Sebastian Dragomir"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe", "version"}
 
@@ -54,7 +54,7 @@ action = function(host, port)
   port.version.product = cli:getServerProduct()
   port.version.extrainfo = cli:getProtocolVersion()
   port.version.version = cli:getServerVersion()
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   return stdnse.format_output(status, cli:getServerProperties())
 end

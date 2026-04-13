@@ -86,7 +86,7 @@
 -- Consult the documentation of each function to learn more about their respective return values.
 --
 --@author Patrik Karlsson <patrik@cqure.net>
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @args afp.username The username to use for authentication.
 -- @args afp.password The password to use for authentication.
@@ -113,7 +113,7 @@
 
 local datetime = require "datetime"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -1327,7 +1327,7 @@ Helper = {
   OpenSession = function( self, host, port )
     local status, response
 
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout( 5000 )
     status = self.socket:connect(host, port)
     if not status then

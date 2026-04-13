@@ -3,7 +3,7 @@ Extracts and outputs HTML and JavaScript comments from HTTP responses.
 ]]
 
 ---
--- @usage nmap -p80 --script http-comments-displayer.nse <host>
+-- @usage kmap -p80 --script http-comments-displayer.nse <host>
 --
 -- This scripts uses patterns to extract HTML comments from HTTP
 -- responses and writes these to the command line.
@@ -35,7 +35,7 @@ Extracts and outputs HTML and JavaScript comments from HTTP responses.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local shortport = require "shortport"

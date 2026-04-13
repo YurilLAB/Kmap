@@ -1,6 +1,6 @@
 local _G = require "_G"
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -14,7 +14,7 @@ audits by creating appropriate audit files).
 
 ---
 -- @usage
--- nmap -p 3306 --script mysql-audit --script-args "mysql-audit.username='root', \
+-- kmap -p 3306 --script mysql-audit --script-args "mysql-audit.username='root', \
 --   mysql-audit.password='foobar',mysql-audit.filename='nselib/data/mysql-cis.audit'"
 --
 -- @args mysql-audit.username the username with which to connect to the database
@@ -86,7 +86,7 @@ audits by creating appropriate audit files).
 -- Created 05/29/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -102,7 +102,7 @@ local function loadAuditRulebase( filename )
     test = function(t) table.insert(rules, t) end;
   }, {__index = _G})
 
-  filename = nmap.fetchfile("nselib/data/" .. filename) or filename
+  filename = kmap.fetchfile("nselib/data/" .. filename) or filename
   stdnse.debug(1, "Loading rules from: %s", filename)
   local file, err = loadfile(filename, "t", env)
 
@@ -130,7 +130,7 @@ action = function( host, port )
   local status, tests = loadAuditRulebase( filename )
   if( not(status) ) then return tests end
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   status = socket:connect(host, port)
 
   local response

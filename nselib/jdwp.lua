@@ -28,7 +28,7 @@
 -- References:
 -- * http://docs.oracle.com/javase/6/docs/technotes/guides/jpda/jdwp-spec.html
 --
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --@author Aleksandar Nikolic
 --
 -- Version 0.1
@@ -37,7 +37,7 @@
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 _ENV = stdnse.module("jdwp", stdnse.seeall)
 
@@ -179,7 +179,7 @@ JDWPReplyPacket = {
 -- a newly created socket with initial handshake finished.
 function connect(host,port)
   local status, result,err
-  local socket = nmap.new_socket("tcp")
+  local socket = kmap.new_socket("tcp")
   socket:set_timeout(10000)
   local status, err = socket:connect(host, port)
   if not status then

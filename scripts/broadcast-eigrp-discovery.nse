@@ -1,5 +1,5 @@
 local eigrp = require "eigrp"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local table = require "table"
 local packet = require "packet"
@@ -25,8 +25,8 @@ through all valid ethernet interfaces simultaneously.
 
 ---
 -- @usage
--- nmap --script=broadcast-eigrp-discovery <targets>
--- nmap --script=broadcast-eigrp-discovery <targets> -e wlan0
+-- kmap --script=broadcast-eigrp-discovery <targets>
+-- kmap --script=broadcast-eigrp-discovery <targets> -e wlan0
 --
 -- @args broadcast-eigrp-discovery.as Autonomous System value to announce on.
 -- If not set, the script will listen for announcements on 224.0.0.10 to grab
@@ -69,17 +69,17 @@ through all valid ethernet interfaces simultaneously.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "broadcast", "safe"}
 
 prerule = function()
   -- TODO: EIGRP for IPv6 uses ff02::10
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
   end
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -101,7 +101,7 @@ local eigrpSend = function(interface, eigrp_raw)
   eigrp_packet:ip_set_len(#eigrp_packet.buf)
   eigrp_packet:ip_count_checksum()
 
-  local sock = nmap.new_dnet()
+  local sock = kmap.new_dnet()
   sock:ethernet_open(interface.device)
   -- Ethernet IPv4 multicast, our ethernet address and packet type IP
   local eth_hdr = stdnse.fromhex("01 00 5e 00 00 0a") .. interface.mac .. stdnse.fromhex("08 00")
@@ -115,18 +115,18 @@ end
 --@param timeout Ammount of time to listen for.
 --@param responses Table to put valid responses into.
 local eigrpListener = function(interface, timeout, responses)
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   local routers = {}
   local status, l3data, response, p, eigrp_raw, _
-  local start = nmap.clock_ms()
+  local start = kmap.clock_ms()
   -- Filter for EIGRP packets that are sent either to us or to multicast
   local filter =  "ip proto 88 and (ip dst host " .. interface.address .. " or 224.0.0.10)"
-  local listener = nmap.new_socket()
+  local listener = kmap.new_socket()
   listener:set_timeout(500)
   listener:pcap_open(interface.device, 1024, true, filter)
 
   -- For each EIGRP packet captured until timeout
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     response = {}
     response.tlvs = {}
     status, _, _, l3data = listener:pcap_receive()
@@ -164,14 +164,14 @@ end
 --@param timeout Max amount of time to listen for.
 --@param astab Table to put result into.
 local asListener = function(interface, timeout, astab)
-  local condvar = nmap.condvar(astab)
+  local condvar = kmap.condvar(astab)
   local status, l3data, p, eigrp_raw, eigrp_hello, _
-  local start = nmap.clock_ms()
+  local start = kmap.clock_ms()
   local filter =  "ip proto 88 and ip dst host 224.0.0.10"
-  local listener = nmap.new_socket()
+  local listener = kmap.new_socket()
   listener:set_timeout(500)
   listener:pcap_open(interface.device, 1024, true, filter)
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     -- Check if another listener already found an A.S value.
     if #astab > 0 then break end
 
@@ -236,7 +236,7 @@ action = function()
       local co = stdnse.new_thread(asListener, interface, timeout, astab)
       lthreads[co] = true
     end
-    local condvar = nmap.condvar(astab)
+    local condvar = kmap.condvar(astab)
     -- Wait for the listening threads to finish
     repeat
       for thread in pairs(lthreads) do
@@ -273,7 +273,7 @@ action = function()
     eigrpSend(interface, tostring(eigrp_hello))
   end
 
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   -- Wait for the listening threads to finish
   repeat
     condvar("wait")

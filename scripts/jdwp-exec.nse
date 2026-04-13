@@ -2,7 +2,7 @@ local io = require "io"
 local jdwp = require "jdwp"
 local stdnse = require "stdnse"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -19,7 +19,7 @@ accepts a shell command as its argument.
 ]]
 
 ---
--- @usage nmap -sT <target> -p <port> --script=+jdwp-exec --script-args cmd="date"
+-- @usage kmap -sT <target> -p <port> --script=+jdwp-exec --script-args cmd="date"
 --
 -- @args jdwp-exec.cmd Command to execute on the remote system.
 --
@@ -32,7 +32,7 @@ accepts a shell command as its argument.
 -- |_
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","intrusive"}
 
 portrule = function(host, port)
@@ -52,7 +52,7 @@ action = function(host, port)
   end
 
   -- read .class file
-  local file = io.open(nmap.fetchfile("nselib/data/jdwp-class/JDWPExecCmd.class"), "rb")
+  local file = io.open(kmap.fetchfile("nselib/data/jdwp-class/JDWPExecCmd.class"), "rb")
   local class_bytes = file:read("a")
   file:close()
 

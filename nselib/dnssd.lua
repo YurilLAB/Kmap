@@ -34,13 +34,13 @@
 -- @args dnssd.services string or table containing services to query
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 local coroutine = require "coroutine"
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -189,7 +189,7 @@ Comm = {
   -- @param multiple true if responses from multiple hosts are expected
   -- @param svcresponse table to which results are stored
   queryService = function( host, port, svc, multiple, svcresponse )
-    local condvar = nmap.condvar(svcresponse)
+    local condvar = kmap.condvar(svcresponse)
     local status, response = dns.query( svc, { port = port, host = host, dtype="PTR", retPkt=true, retAll=true, multiple=multiple, sendCount=1, timeout=2000} )
     if not status then
       stdnse.debug1("Failed to query service: %s; Error: %s", svc, response)
@@ -331,7 +331,7 @@ Helper = {
     local status, response
     local mcast = self.mcast
     local port = self.port or 5353
-    local family = nmap.address_family()
+    local family = kmap.address_family()
     local host = mcast and (family=="inet6" and "ff02::fb" or "224.0.0.251") or self.host
     local service = service or stdnse.get_script_args('dnssd.services')
 
@@ -349,7 +349,7 @@ Helper = {
     response = Util.getUniqueServices(response)
 
     local svcresponse = {}
-    local condvar = nmap.condvar( svcresponse )
+    local condvar = kmap.condvar( svcresponse )
     local threads = {}
 
     for svc in pairs(response) do
@@ -363,7 +363,7 @@ Helper = {
     if ( mcast ) then
       -- Process all records that were returned
       local addr1, addr2
-      if nmap.address_family() == "inet" then
+      if kmap.address_family() == "inet" then
         addr1 = "ipv4"
         addr2 = "ipv6"
       else

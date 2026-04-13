@@ -8,9 +8,9 @@ to parse the iLO xml file and display the info.
 ]]
 
 ---
---@usage nmap --script hp-ilo-info -p 80 <target>
+--@usage kmap --script hp-ilo-info -p 80 <target>
 --
---@usage nmap --script hp-ilo-info -sV <target>
+--@usage kmap --script hp-ilo-info -sV <target>
 --
 --@output
 --PORT   STATE SERVICE
@@ -37,7 +37,7 @@ to parse the iLO xml file and display the info.
 --
 
 author = "Rajeev R Menon"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe","discovery"}
 
 local http = require "http"

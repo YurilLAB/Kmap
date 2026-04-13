@@ -5,7 +5,7 @@
 -- @author Patrik Karlsson <patrik@cqure.net>
 
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -307,7 +307,7 @@ Helper = {
   -- "Connects" to the server (ie. creates the socket)
   -- @return status, true on success, false on failure
   connect = function(self)
-    self.socket = nmap.new_socket("udp")
+    self.socket = kmap.new_socket("udp")
     self.socket:set_timeout(self.options.timeout or 10000)
     return true
   end,
@@ -319,7 +319,7 @@ Helper = {
   -- @return status true on success, false on failure
   -- @return response table or err string containing an error message
   createSession = function(self, auth_names, authr_names, disp_no)
-    local info  = nmap.get_interface_info(self.host.interface)
+    local info  = kmap.get_interface_info(self.host.interface)
     if ( not(info) ) then
       return false, ("Failed to get information for interface %s"):format(self.host.interface)
     end
@@ -334,7 +334,7 @@ Helper = {
 
     local REQ = Packet[OpCode.REQUEST]
     local iptype = REQ.Connection.IpType.IPv4
-    if ( nmap.address_family() == 'inet6' ) then
+    if ( kmap.address_family() == 'inet6' ) then
       iptype = REQ.Connection.IpType.IPv6
     end
 

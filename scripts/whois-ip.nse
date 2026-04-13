@@ -2,7 +2,7 @@ local http = require "http"
 local io = require "io"
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -14,7 +14,7 @@ Queries the WHOIS services of Regional Internet Registries (RIR) and attempts to
 Assignment which contains the Target IP Address.
 
 The fields displayed contain information about the assignment and the organisation responsible for managing the address
-space. When output verbosity is requested on the Nmap command line (<code>-v</code>) extra information about the assignment will
+space. When output verbosity is requested on the Kmap command line (<code>-v</code>) extra information about the assignment will
 be displayed.
 
 To determine which of the RIRs to query for a given Target IP Address this script utilises Assignments Data hosted by IANA.
@@ -50,32 +50,32 @@ the RIRs.
 -- * <code>whodb=[service-ids]</code> Redefine the default services to query.  Implies <code>nofile</code>.
 -- @usage
 -- # Basic usage:
--- nmap target --script whois-ip
+-- kmap target --script whois-ip
 --
 -- # To prevent the use of IANA assignments data supply the nofile value
 -- # to the whodb argument:
--- nmap target --script whois-ip --script-args whodb=nofile
--- nmap target --script whois-ip --script-args whois.whodb=nofile
+-- kmap target --script whois-ip --script-args whodb=nofile
+-- kmap target --script whois-ip --script-args whois.whodb=nofile
 --
 -- # Supplying a sequence of whois services will also prevent the use of
 -- # IANA assignments data and override the default sequence:
--- nmap target --script whois-ip --script-args whodb=arin+ripe+afrinic
--- nmap target --script whois-ip --script-args whois.whodb=apnic*lacnic
+-- kmap target --script whois-ip --script-args whodb=arin+ripe+afrinic
+-- kmap target --script whois-ip --script-args whois.whodb=apnic*lacnic
 -- # The order in which the services are supplied is the order in which
 -- # they will be queried. (N.B. commas or semi-colons should not be
 -- # used to delimit argument values.)
 --
 -- # To return the first record obtained even if it contains a referral
 -- # to another service, supply the nofollow value to whodb:
--- nmap target --script whois-ip --script-args whodb=nofollow
--- nmap target --script whois-ip --script-args whois.whodb=nofollow+ripe
+-- kmap target --script whois-ip --script-args whodb=nofollow
+-- kmap target --script whois-ip --script-args whois.whodb=nofollow+ripe
 -- # Note that only one service (the first one supplied) will be used in
 -- # conjunction with nofollow.
 --
 -- # To ensure discovery of smaller assignments even if larger ones
 -- # exist in the cache, supply the nocache value to whodb:
--- nmap target --script whois-ip --script-args whodb=nocache
--- nmap target --script whois-ip --script-args whois.whodb=nocache
+-- kmap target --script whois-ip --script-args whodb=nocache
+-- kmap target --script whois-ip --script-args whois.whodb=nocache
 -- @output
 -- Host script results:
 -- |  whois-ip: Record found at whois.arin.net
@@ -86,7 +86,7 @@ the RIRs.
 -- |_ country: US stateprov: CA
 
 author = "jah"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
 
@@ -123,7 +123,7 @@ end
 
 action = function( host )
 
-  if not nmap.registry.whois then
+  if not kmap.registry.whois then
     ---
     -- Data and flags shared between threads.
     -- @name whois
@@ -139,22 +139,22 @@ action = function( host )
     --                                      returned instead.  Set to true when whodb=nofollow
     --@field using_cache                    A flag which modifies the size of ranges in a cache entry.  Set to false when whodb=nocache
     --@field cache                          Storage for cached redirects, records and other data for output.
-    nmap.registry.whois = {}
-    nmap.registry.whois.whoisdb_default_order = {"arin","ripe","apnic"}
-    nmap.registry.whois.using_cache = true
-    nmap.registry.whois.using_local_assignments_file = {}
-    nmap.registry.whois.using_local_assignments_file.ipv4 = true
-    nmap.registry.whois.using_local_assignments_file.ipv6 = true
-    nmap.registry.whois.local_assignments_file_expiry = "16h"
-    nmap.registry.whois.nofollow = false
-    nmap.registry.whois.cache = {}
+    kmap.registry.whois = {}
+    kmap.registry.whois.whoisdb_default_order = {"arin","ripe","apnic"}
+    kmap.registry.whois.using_cache = true
+    kmap.registry.whois.using_local_assignments_file = {}
+    kmap.registry.whois.using_local_assignments_file.ipv4 = true
+    kmap.registry.whois.using_local_assignments_file.ipv6 = true
+    kmap.registry.whois.local_assignments_file_expiry = "16h"
+    kmap.registry.whois.nofollow = false
+    kmap.registry.whois.cache = {}
 
   end
 
   -- script initialisation - threads must wait until this has been completed before continuing
-  local mutex = nmap.mutex( "whois" )
+  local mutex = kmap.mutex( "whois" )
   mutex "lock"
-  if not nmap.registry.whois.init_done then
+  if not kmap.registry.whois.init_done then
     script_init()
   end
   mutex "done"
@@ -198,7 +198,7 @@ action = function( host )
     local status, retval
     tracking.this_db, tracking.next_db = tracking.next_db, nil
 
-    nmap.registry.whois.mutex[tracking.this_db] "lock"
+    kmap.registry.whois.mutex[tracking.this_db] "lock"
 
     status, retval = pcall( get_next_action, tracking, host.ip, addr_family )
     if not status then
@@ -224,7 +224,7 @@ action = function( host )
       else tracking = retval end
     end
 
-    nmap.registry.whois.mutex[tracking.last_db] "done"
+    kmap.registry.whois.mutex[tracking.last_db] "done"
     tracking.last_db = nil
 
   end
@@ -286,7 +286,7 @@ function get_next_action( tracking, ip, addr_fam )
     end
 
     -- kill redirect if the user specified "nofollow"
-    if nmap.registry.whois.nofollow then tracking.next_db = nil end
+    if kmap.registry.whois.nofollow then tracking.next_db = nil end
 
     return tracking
 
@@ -299,7 +299,7 @@ function get_next_action( tracking, ip, addr_fam )
 
 
   -- try to find a service to query in the assignments files, if allowed
-  if nmap.registry.whois.using_local_assignments_file[addr_fam] and not tracking.this_db and not tracking.last_db then
+  if kmap.registry.whois.using_local_assignments_file[addr_fam] and not tracking.this_db and not tracking.last_db then
 
     tracking.next_db = get_db_from_assignments( ip )
     if tracking.next_db and not table.concat( tracking.completed, " " ):match( tracking.next_db ) then
@@ -311,9 +311,9 @@ function get_next_action( tracking, ip, addr_fam )
 
 
   -- get the next untried service from whoisdb_default_order
-  if not tracking.this_db and nmap.registry.whois.whoisdb_default_order then
+  if not tracking.this_db and kmap.registry.whois.whoisdb_default_order then
 
-    for i, db in ipairs( nmap.registry.whois.whoisdb_default_order ) do
+    for i, db in ipairs( kmap.registry.whois.whoisdb_default_order ) do
       if not table.concat( tracking.completed, " " ):match( db ) then
         tracking.next_db = db
         break
@@ -338,13 +338,13 @@ end
 
 function check_response_cache( ip )
 
-  if not next( nmap.registry.whois.cache ) then return false, nil end
+  if not next( kmap.registry.whois.cache ) then return false, nil end
   if type( ip ) ~= "string" or ip == "" then return false, nil end
 
   local ip_key = get_cache_key( ip )
   if not ip_key then return false, nil end
 
-  local cache_data = nmap.registry.whois.cache[ip_key]
+  local cache_data = kmap.registry.whois.cache[ip_key]
 
   if cache_data.redirect then
     -- redirect found in cache
@@ -370,25 +370,25 @@ end
 function get_cache_key( ip )
 
   -- if this ip cached an entry, then we'll use it except when it represents a found record and we're not using_cache
-  if nmap.registry.whois.cache[ip] and ( nmap.registry.whois.using_cache or nmap.registry.whois.cache[ip].redirect ) then
+  if kmap.registry.whois.cache[ip] and ( kmap.registry.whois.using_cache or kmap.registry.whois.cache[ip].redirect ) then
     return ip
   end
 
   -- When not using_cache, we compare our record to any others in the cache to avoid printing out the same record repeatedly.
   local self_compare
-  if nmap.registry.whois.cache[ip] and nmap.registry.whois.cache[ip].data then
+  if kmap.registry.whois.cache[ip] and kmap.registry.whois.cache[ip].data then
     -- we should have a string which we can use to compare with other records
-    self_compare = nmap.registry.whois.cache[ip].data.comparison
+    self_compare = kmap.registry.whois.cache[ip].data.comparison
   end
 
   local cache_entries = {}
-  for ip_key, cache_data in pairs( nmap.registry.whois.cache ) do
+  for ip_key, cache_data in pairs( kmap.registry.whois.cache ) do
 
     if type( ip_key ) == "string" and ip_key ~= "" and type( cache_data ) == "table" then
 
       -- compare and return original pointer
       if self_compare and ip ~= ip_key and not cache_data.pointer and self_compare == cache_data.data.comparison then
-        nmap.registry.whois.cache[ip].pointer = ip_key
+        kmap.registry.whois.cache[ip].pointer = ip_key
         return ip_key
       end
 
@@ -468,13 +468,13 @@ function get_db_from_assignments( ip )
     af = "ipv4"
   end
 
-  if not nmap.registry.whois.local_assignments_data or not nmap.registry.whois.local_assignments_data[af] then
+  if not kmap.registry.whois.local_assignments_data or not kmap.registry.whois.local_assignments_data[af] then
     stdnse.debug1("Error in get_db_from_assignments: Missing assignments data in registry.")
     return nil
   end
 
-  if next( nmap.registry.whois.local_assignments_data[af] ) then
-    for _, assignment in ipairs( nmap.registry.whois.local_assignments_data[af] ) do
+  if next( kmap.registry.whois.local_assignments_data[af] ) then
+    for _, assignment in ipairs( kmap.registry.whois.local_assignments_data[af] ) do
       if ipOps.ip_in_range( ip, assignment.range.first .. "-" .. assignment.range.last ) then
         return assignment.service
       end
@@ -495,12 +495,12 @@ end
 
 function do_query(db, ip)
 
-  if type( db ) ~= "string" or not nmap.registry.whois.whoisdb[db] then
+  if type( db ) ~= "string" or not kmap.registry.whois.whoisdb[db] then
     stdnse.debug1("Error in do_query: %s is not a defined Whois service.", db)
     return nil
   end
 
-  local service = nmap.registry.whois.whoisdb[db]
+  local service = kmap.registry.whois.whoisdb[db]
 
   if type( service.hostname ) ~= "string" or service.hostname == "" then
     stdnse.debug1("Error in do_query: Invalid hostname for %s.", db)
@@ -517,15 +517,15 @@ function do_query(db, ip)
   end
   query_data = query_data .. "\n"
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local catch = function()
     stdnse.debug1("Connection to %s failed or was aborted! No Output for this Target.", db)
-    nmap.registry.whois.mutex[db] "done"
+    kmap.registry.whois.mutex[db] "done"
     socket:close()
   end
 
   local result, status, line = {}
-  local try = nmap.new_try( catch )
+  local try = kmap.new_try( catch )
 
   socket:set_timeout( 10000 )
   try( socket:connect( service.hostname, 43 ) )
@@ -576,7 +576,7 @@ function analyse_response( tracking, ip, response, data )
   data[this_db] = {}
 
   -- check for foreign resource
-  for _, db in pairs( nmap.registry.whois.whoisdb ) do
+  for _, db in pairs( kmap.registry.whois.whoisdb ) do
     if type( db ) == "table" and type( db.id ) == "string" and db.id ~= "iana" and db.id ~= this_db and type( db.hostname ) == "string" then
       local pattern = db.id:upper() .. ".*%s*resource:%s*" .. db.hostname
       if response:match( pattern ) then
@@ -588,7 +588,7 @@ function analyse_response( tracking, ip, response, data )
     end
   end
 
-  meta = meta or nmap.registry.whois.whoisdb[this_db]
+  meta = meta or kmap.registry.whois.whoisdb[this_db]
 
   -- do we recognize objects in the response?.
   local have_objects
@@ -604,7 +604,7 @@ function analyse_response( tracking, ip, response, data )
     stdnse.debug4("%s has not responded with the expected objects.", this_db)
     local tmp, msg
     -- may have found our record saying something similar to "No Record Found"
-    for _, pattern in ipairs( nmap.registry.whois.m_none ) do
+    for _, pattern in ipairs( kmap.registry.whois.m_none ) do
       local pattern_l = pattern:gsub( "$addr", ip:lower() )
       local pattern_u = pattern:gsub( "$addr", ip:upper() )
       msg = response:match( pattern_l ) or response:match( pattern_u )
@@ -615,7 +615,7 @@ function analyse_response( tracking, ip, response, data )
     end
     -- may have an error
     if not msg then
-      for _, pattern in ipairs( nmap.registry.whois.m_err ) do
+      for _, pattern in ipairs( kmap.registry.whois.m_err ) do
         msg = response:match( pattern )
         if msg then
           stdnse.debug4("%s responded with an ERROR message.", this_db)
@@ -625,7 +625,7 @@ function analyse_response( tracking, ip, response, data )
     end
     -- if we've recognized a non-object message,
     if msg then
-      add_to_cache( ip, nil, nil, "Message from " .. nmap.registry.whois.whoisdb[this_db].hostname .. "\n" .. msg )
+      add_to_cache( ip, nil, nil, "Message from " .. kmap.registry.whois.whoisdb[this_db].hostname .. "\n" .. msg )
       return data
     end
   end
@@ -634,25 +634,25 @@ function analyse_response( tracking, ip, response, data )
   -- it may contain a record mirrored (or found by recursion) from a different service
   if not have_objects then
     local foreign_obj
-    for setname, set in pairs( nmap.registry.whois.fields_meta ) do
-      if set ~= nmap.registry.whois.whoisdb[this_db].fieldreq and response:match(set.ob_exist) then
+    for setname, set in pairs( kmap.registry.whois.fields_meta ) do
+      if set ~= kmap.registry.whois.whoisdb[this_db].fieldreq and response:match(set.ob_exist) then
         foreign_obj = setname
         stdnse.debug4("%s seems to have responded using the set of objects named: %s.", this_db, foreign_obj)
         break
       end
     end
     if foreign_obj and foreign_obj == "rpsl" then
-      mirrored_db = nmap.registry.whois.whoisdb.ripe.id
-      meta = nmap.registry.whois.whoisdb.ripe
+      mirrored_db = kmap.registry.whois.whoisdb.ripe.id
+      meta = kmap.registry.whois.whoisdb.ripe
       meta.redirects = nil
       have_objects = true
       stdnse.debug4("%s will use the display properties of ripe.", this_db)
     elseif foreign_obj then
       -- find a display to match the objects.
-      for some_db, db_props in pairs( nmap.registry.whois.whoisdb ) do
-        if db_props.fieldreq and nmap.registry.whois.fields_meta[foreign_obj] and db_props.fieldreq == nmap.registry.whois.fields_meta[foreign_obj] then
-          mirrored_db = nmap.registry.whois.whoisdb[some_db].id
-          meta = nmap.registry.whois.whoisdb[some_db]
+      for some_db, db_props in pairs( kmap.registry.whois.whoisdb ) do
+        if db_props.fieldreq and kmap.registry.whois.fields_meta[foreign_obj] and db_props.fieldreq == kmap.registry.whois.fields_meta[foreign_obj] then
+          mirrored_db = kmap.registry.whois.whoisdb[some_db].id
+          meta = kmap.registry.whois.whoisdb[some_db]
           meta.redirects = nil
           have_objects = true
           stdnse.debug4("%s will use the display properties of %s.", this_db, some_db)
@@ -671,7 +671,7 @@ function analyse_response( tracking, ip, response, data )
   local response_chunk, found, nextdb
 
   -- do record/redirect discovery, cache found redirect
-  if not nmap.registry.whois.nofollow and have_objects and meta.redirects then
+  if not kmap.registry.whois.nofollow and have_objects and meta.redirects then
     stdnse.debug4("Testing response for redirection.")
     found, nextdb, data.iana = redirection_rules( this_db, data, meta )
   end
@@ -740,7 +740,7 @@ function analyse_response( tracking, ip, response, data )
   end -- have objects
 
   -- If we are accepting a record, only cache the data for that record
-  if (have_objects and not nextdb) or nmap.registry.whois.nofollow then
+  if (have_objects and not nextdb) or kmap.registry.whois.nofollow then
     -- no redirect - accept as result and clear any previous data
     data = data[this_db]
     data.id = this_db
@@ -749,13 +749,13 @@ function analyse_response( tracking, ip, response, data )
     data = data[nextdb]
     data.id = nextdb
     nextdb = nil
-  elseif have_objects and ( data.iana > 1 ) and not table.concat( tracking.completed, " " ):match( nmap.registry.whois.whoisdb.arin.id ) then
+  elseif have_objects and ( data.iana > 1 ) and not table.concat( tracking.completed, " " ):match( kmap.registry.whois.whoisdb.arin.id ) then
     -- two redirects to IANA - query ARIN next (which we should probably have done already!)
-    nextdb = nmap.registry.whois.whoisdb.arin.id
-  elseif have_objects and ( data.iana > 1 ) and table.concat( tracking.completed, " " ):match( nmap.registry.whois.whoisdb.arin.id ) then
+    nextdb = kmap.registry.whois.whoisdb.arin.id
+  elseif have_objects and ( data.iana > 1 ) and table.concat( tracking.completed, " " ):match( kmap.registry.whois.whoisdb.arin.id ) then
     -- two redirects to IANA - accept result from ARIN
-    data = data[nmap.registry.whois.whoisdb.arin.id]
-    data.id = nmap.registry.whois.whoisdb.arin.id
+    data = data[kmap.registry.whois.whoisdb.arin.id]
+    data.id = kmap.registry.whois.whoisdb.arin.id
     nextdb = nil
   elseif not have_objects then
     data = data[this_db]
@@ -770,14 +770,14 @@ function analyse_response( tracking, ip, response, data )
     if data[this_db] and data[this_db].ob_netnum then
       range = data[this_db].ob_netnum[meta.reg]
     elseif data.ob_netnum and data.mirror then
-      range = data.ob_netnum[nmap.registry.whois.whoisdb[data.mirror].reg]
+      range = data.ob_netnum[kmap.registry.whois.whoisdb[data.mirror].reg]
     elseif data.ob_netnum then
-      range = data.ob_netnum[nmap.registry.whois.whoisdb[data.id].reg]
+      range = data.ob_netnum[kmap.registry.whois.whoisdb[data.id].reg]
     end
 
     -- if nocache then enforce a smallest allowed prefix length
     -- (these values should match those in add_to_cache)
-    if not nmap.registry.whois.using_cache and not nextdb then
+    if not kmap.registry.whois.using_cache and not nextdb then
       local smallest_allowed_prefix = 29
       if range:match( ":" ) then
         smallest_allowed_prefix = 48
@@ -806,7 +806,7 @@ end
 -- If a fifth parameter specific_object is not supplied, all objects defined in fields_meta will be captured if they are present in the response.
 -- @param response_string  String obtained from a service in response to our query.
 -- @param db               String id of the whois service queried.
--- @param meta             Table, nmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
+-- @param meta             Table, kmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
 -- @param specific_object  Optional string index of a single object defined in fields_meta (e.g. "inetnum").
 -- @return                 Table indexed by object name containing the fields captured for each object found.
 
@@ -866,7 +866,7 @@ end -- function
 -- Checks for referrals in fields extracted from the whois query response.
 -- @param db    String id of the whois service queried.
 -- @param data  Table, indexed by whois service id, of extracted fields.
--- @param meta  Table, nmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
+-- @param meta  Table, kmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
 -- @return      Boolean "found". True if a referral is not found (i.e. No Referral means the desired record has been "found"), otherwise False.
 -- @return      String "redirect". Service id to which we are referred, or nil.
 -- @return      Number "iana_count". This is the total number of referral to IANA for this Target (for all queries) and is stored in data.iana.
@@ -905,8 +905,8 @@ function redirection_rules( db, data, meta )
 
   local redirection_validation = function( directed_to, directed_from, icnt )
 
-    local iana = nmap.registry.whois.whoisdb.iana.id
-    local arin = nmap.registry.whois.whoisdb.arin.id
+    local iana = kmap.registry.whois.whoisdb.iana.id
+    local arin = kmap.registry.whois.whoisdb.arin.id
 
     -- arin record points to iana so we won't follow and we assume we have our record
     if directed_to == iana and directed_from == arin then
@@ -921,7 +921,7 @@ function redirection_rules( db, data, meta )
     end
 
     -- a redirect, but not to iana or to self, so we follow it.
-    if directed_to ~= nmap.registry.whois.whoisdb[directed_from].id then
+    if directed_to ~= kmap.registry.whois.whoisdb[directed_from].id then
       stdnse.debug4("%s redirects us to %s.", directed_from, directed_to)
       return false, directed_to, icnt
     end
@@ -939,14 +939,14 @@ function redirection_rules( db, data, meta )
     if data[db][obj] and data[db][obj][fld] then
 
       stdnse.debug5("Seek redirect in object: %s.%s for %s.", obj, fld, pattern)
-      -- iterate over nmap.registry.whois.whoisdb to find pattern (from each service) in the designated field
-      for member, mem_properties in pairs( nmap.registry.whois.whoisdb ) do
+      -- iterate over kmap.registry.whois.whoisdb to find pattern (from each service) in the designated field
+      for member, mem_properties in pairs( kmap.registry.whois.whoisdb ) do
 
         -- if pattern if found in the field, we have a redirect to member
         if type( mem_properties[pattern] ) == "string" and string.lower( data[db][obj][fld] ):match( mem_properties[pattern] ) then
 
           stdnse.debug5("Matched %s in %s.%s.", pattern, obj, fld)
-          return redirection_validation( nmap.registry.whois.whoisdb[member].id, db, iana_count )
+          return redirection_validation( kmap.registry.whois.whoisdb[member].id, db, iana_count )
 
         elseif type( mem_properties[pattern] ) == "table" then
 
@@ -954,7 +954,7 @@ function redirection_rules( db, data, meta )
           for _, pattn in ipairs( mem_properties[pattern] ) do
             if type( pattn ) == "string" and string.lower( data[db][obj][fld] ):match( pattn ) then
               stdnse.debug5("Matched %s in %s.%s.", pattern, obj, fld)
-              return redirection_validation( nmap.registry.whois.whoisdb[member].id, db, iana_count )
+              return redirection_validation( kmap.registry.whois.whoisdb[member].id, db, iana_count )
             end
           end
 
@@ -982,7 +982,7 @@ end
 -- @param response  String obtained from a whois service in response to our query.
 -- @param db        String id of the service from which the response was obtained.
 -- @param ip        String representing the Target's IP address.
--- @param meta      Table, nmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
+-- @param meta      Table, kmap.registry.whois.whoisdb[db] where db is either the service queried or a mirrored service.
 -- @return          String containing the most specific part of the response (or the entire response if only one inetnum object is present).
 -- @return          Number position of the start of the most specific part of the response.
 -- @see             smallest_range
@@ -1121,10 +1121,10 @@ function add_to_cache( ip, range, redirect, data )
     stdnse.debug5("Caching an assumed Range: %s", range)
   end
 
-  nmap.registry.whois.cache[ip] = {} -- destroy any previous cache entry for this target.
-  nmap.registry.whois.cache[ip].data = data
-  nmap.registry.whois.cache[ip].range = range
-  nmap.registry.whois.cache[ip].redirect = redirect
+  kmap.registry.whois.cache[ip] = {} -- destroy any previous cache entry for this target.
+  kmap.registry.whois.cache[ip].data = data
+  kmap.registry.whois.cache[ip].range = range
+  kmap.registry.whois.cache[ip].redirect = redirect
 
 end
 
@@ -1242,7 +1242,7 @@ function get_output_from_cache( ip )
     return nil
   end
 
-  local cache_data = nmap.registry.whois.cache[ip_key]
+  local cache_data = kmap.registry.whois.cache[ip_key]
 
   if ip == ip_key then
     return cache_data.data
@@ -1267,12 +1267,12 @@ function format_data_for_output( data )
 
   local output, display_owner, display_rules = {}
   if data.mirror then
-    display_owner = nmap.registry.whois.whoisdb[data.mirror]
+    display_owner = kmap.registry.whois.whoisdb[data.mirror]
   else
-    display_owner = nmap.registry.whois.whoisdb[data.id]
+    display_owner = kmap.registry.whois.whoisdb[data.id]
   end
 
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     display_rules = display_owner.output_long or display_owner.output_short
   else
     display_rules = display_owner.output_short or display_owner.output_long
@@ -1280,7 +1280,7 @@ function format_data_for_output( data )
   if not display_rules then return "Could not format results for display." end
 
   output[#output+1] = "Record found at "
-  output[#output+1] = nmap.registry.whois.whoisdb[data.id].hostname
+  output[#output+1] = kmap.registry.whois.whoisdb[data.id].hostname
 
   for _, objects in ipairs( display_rules ) do
 
@@ -1376,7 +1376,7 @@ function script_init()
   -- key:    is a short name for the field in a whois record and which will be displayed in the scripts output to identify the field.
   -- value:  is a pattern for the field and contains a capture for the data required to be captured.
 
-  nmap.registry.whois.fields_meta = {
+  kmap.registry.whois.fields_meta = {
     rpsl = {
       ob_exist =  "\r?\n?%s*[Ii]net6?num:%s*.-\r?\n",
       ob_netnum = {
@@ -1496,23 +1496,23 @@ function script_init()
   --                 pattern:       is typically the id or longname key names.
   --                 In the example: {"ob_org", "orgname", "longname"}, we cycle through each service defined in whoisdb and look for its longname in
   --                 the ob_org.orgname of the current record.
-  -- output_short:   Table for each object to be displayed when Nmap verbosity is zero.  The first element of each table is the object name and the
+  -- output_short:   Table for each object to be displayed when Kmap verbosity is zero.  The first element of each table is the object name and the
   --                 second element is a table of fields to display.  The elements of the second may be field names, which are each output to a new
   --                 line, or tables containing field names which are output to the same line.
-  -- output_long:    Table for each object to be displayed when Nmap verbosity is one or above.  The structure is the same as output_short.
+  -- output_long:    Table for each object to be displayed when Kmap verbosity is one or above.  The structure is the same as output_short.
   -- reg:            String name for the field in ob_netnum which captures the Assignment Range (e.g. "netrange", "inetnum"), the data of which is
   --                 cached in the registry.
   -- unordered:      Boolean.  Optional. True if the records from the service display an object other than ob_netnum as the first in the record (such
   --                 as at ARIN).  This flag is used to decide whether we should extract an object immediately before the relevant ob_netnum object
   --                 from a record.
 
-  nmap.registry.whois.whoisdb = {
+  kmap.registry.whois.whoisdb = {
     arin = {
       id = "arin",
       hostname = "whois.arin.net", preflag = "n +", postflag = "",
       longname = {"american registry for internet numbers"},
-      fieldreq = nmap.registry.whois.fields_meta.arin,
-      smallnet_rule = nmap.registry.whois.fields_meta.arin.ob_netnum.netrange,
+      fieldreq = kmap.registry.whois.fields_meta.arin,
+      smallnet_rule = kmap.registry.whois.fields_meta.arin.ob_netnum.netrange,
       redirects = {
         {"ob_org", "orgname", "longname"},
         {"ob_org", "orgname", "id"},
@@ -1532,8 +1532,8 @@ function script_init()
       id = "ripe",
       hostname = "whois.ripe.net", preflag = "-B", postflag = "",
       longname = {"ripe network coordination centre"},
-      fieldreq = nmap.registry.whois.fields_meta.rpsl,
-      smallnet_rule = nmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
+      fieldreq = kmap.registry.whois.fields_meta.rpsl,
+      smallnet_rule = kmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
       redirects = {
         {"ob_role", "role", "longname"},
         {"ob_org", "orgname", "id"},
@@ -1552,8 +1552,8 @@ function script_init()
       id = "apnic",
       hostname = "whois.apnic.net", preflag = "", postflag = "",
       longname = {"asia pacific network information centre"},
-      fieldreq = nmap.registry.whois.fields_meta.rpsl,
-      smallnet_rule = nmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
+      fieldreq = kmap.registry.whois.fields_meta.rpsl,
+      smallnet_rule = kmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
       redirects = {
         {"ob_netnum", "netname", "id"},
         {"ob_org", "orgname", "longname"},
@@ -1574,8 +1574,8 @@ function script_init()
       hostname = "whois.lacnic.net", preflag = "", postflag = "",
       longname =
       {"latin american and caribbean ip address regional registry"},
-      fieldreq = nmap.registry.whois.fields_meta.lacnic,
-      smallnet_rule = nmap.registry.whois.fields_meta.lacnic.ob_netnum.inetnum,
+      fieldreq = kmap.registry.whois.fields_meta.lacnic,
+      smallnet_rule = kmap.registry.whois.fields_meta.lacnic.ob_netnum.inetnum,
       redirects = {
         {"ob_netnum", "ownerid", "id"},
         {"ob_netnum", "source", "id"} },
@@ -1595,8 +1595,8 @@ function script_init()
         "african internet numbers registry",
         "african network information center"
       },
-      fieldreq = nmap.registry.whois.fields_meta.rpsl,
-      smallnet_rule = nmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
+      fieldreq = kmap.registry.whois.fields_meta.rpsl,
+      smallnet_rule = kmap.registry.whois.fields_meta.rpsl.ob_netnum.inetnum,
       redirects = {
         {"ob_org", "orgname", "longname"} },
       output_short = {
@@ -1613,7 +1613,7 @@ function script_init()
       id = "jpnic",
       hostname = "whois.nic.ad.jp", preflag = "", postflag = "/e",
       longname = {"japan network information center"},
-      fieldreq = nmap.registry.whois.fields_meta.jpnic,
+      fieldreq = kmap.registry.whois.fields_meta.jpnic,
       output_short = {
         {"ob_netnum", {"inetnum", "netname", "orgname"}}  },
       reg = "inetnum" },--]]
@@ -1622,7 +1622,7 @@ function script_init()
     }
   }
 
-  nmap.registry.whois.m_none = {
+  kmap.registry.whois.m_none = {
     "\n%s*([Nn]o match found for[%s+]*$addr)",
     "\n%s*([Uu]nallocated resource:%s*$addr)",
     "\n%s*([Rr]eserved:%s*$addr)",
@@ -1631,13 +1631,13 @@ function script_init()
     "(Invalid IP or CIDR block:%s*$addr)",
     "\n%s*%%%s*(Unallocated and unassigned in LACNIC block:%s*$addr)",
   }
-  nmap.registry.whois.m_err = {
+  kmap.registry.whois.m_err = {
     "\n%s*([Aa]n [Ee]rror [Oo]ccured)%s*\n",
     "\n[^\n]*([Ee][Rr][Rr][Oo][Rr][^\n]*)\n"
   }
 
-  nmap.registry.whois.remote_assignments_files = {}
-  nmap.registry.whois.remote_assignments_files.ipv4 = {
+  kmap.registry.whois.remote_assignments_files = {}
+  kmap.registry.whois.remote_assignments_files.ipv4 = {
     {
       remote_resource = "https://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.txt",
       local_resource = "ipv4-address-space",
@@ -1645,7 +1645,7 @@ function script_init()
       match_service = "whois%.(%w+)%.net"
     }
   }
-  nmap.registry.whois.remote_assignments_files.ipv6 = {
+  kmap.registry.whois.remote_assignments_files.ipv6 = {
     --[[{
     remote_resource = "http://www.iana.org/assignments/ipv6-address-space/ipv6-address-space.txt",
     local_resource = "ipv6-address-space",
@@ -1666,26 +1666,26 @@ function script_init()
   get_args()
 
   -- mutex for each service
-  nmap.registry.whois.mutex = {}
-  for id, v in pairs( nmap.registry.whois.whoisdb ) do
+  kmap.registry.whois.mutex = {}
+  for id, v in pairs( kmap.registry.whois.whoisdb ) do
     if id ~= "iana" then
-      nmap.registry.whois.mutex[id] = nmap.mutex(nmap.registry.whois.whoisdb[id])
+      kmap.registry.whois.mutex[id] = kmap.mutex(kmap.registry.whois.whoisdb[id])
     end
   end
 
   -- get IANA assignments lists
-  if nmap.registry.whois.using_local_assignments_file.ipv4
-  or nmap.registry.whois.using_local_assignments_file.ipv6 then
-    nmap.registry.whois.local_assignments_data = get_local_assignments_data()
+  if kmap.registry.whois.using_local_assignments_file.ipv4
+  or kmap.registry.whois.using_local_assignments_file.ipv6 then
+    kmap.registry.whois.local_assignments_data = get_local_assignments_data()
     for _, af in ipairs({"ipv4", "ipv6"}) do
-      if not nmap.registry.whois.local_assignments_data[af] then
-        nmap.registry.whois.using_local_assignments_file[af] = false
+      if not kmap.registry.whois.local_assignments_data[af] then
+        kmap.registry.whois.using_local_assignments_file[af] = false
         stdnse.debug1("Cannot use local assignments file for address family %s.", af)
       end
     end
   end
 
-  nmap.registry.whois.init_done = true
+  kmap.registry.whois.init_done = true
 
 end
 
@@ -1700,7 +1700,7 @@ end
 
 function get_args()
 
-  if not nmap.registry.args then return end
+  if not kmap.registry.args then return end
 
   local args = stdnse.get_script_args('whois.whodb')
 
@@ -1709,14 +1709,14 @@ function get_args()
   local t = {}
   -- match words in args which may be whois dbs or other arguments
   for db in string.gmatch( args, "%w+" ) do
-    if not nmap.registry.whois.whoisdb[db] then
+    if not kmap.registry.whois.whoisdb[db] then
       if ( db == "nofollow" ) then
-        nmap.registry.whois.nofollow = true
+        kmap.registry.whois.nofollow = true
       elseif ( db == "nocache" ) then
-        nmap.registry.whois.using_cache = false
+        kmap.registry.whois.using_cache = false
       elseif ( db == "nofile" ) then
-        nmap.registry.whois.using_local_assignments_file.ipv4 = false
-        nmap.registry.whois.using_local_assignments_file.ipv6 = false
+        kmap.registry.whois.using_local_assignments_file.ipv4 = false
+        kmap.registry.whois.using_local_assignments_file.ipv6 = false
       end
     elseif not ( string.match( table.concat( t, " " ), db ) ) then
       -- we have a unique valid whois db
@@ -1726,19 +1726,19 @@ function get_args()
 
   if ( #t > 0 ) then
     -- "nofile" is implied by supplying custom whoisdb_default_order
-    nmap.registry.whois.using_local_assignments_file.ipv4 = false
-    nmap.registry.whois.using_local_assignments_file.ipv6 = false
+    kmap.registry.whois.using_local_assignments_file.ipv4 = false
+    kmap.registry.whois.using_local_assignments_file.ipv6 = false
     stdnse.debug3("Not using local assignments data because custom whoisdb_default_order was supplied.")
   end
 
-  if ( #t > 1 ) and nmap.registry.whois.nofollow then
+  if ( #t > 1 ) and kmap.registry.whois.nofollow then
     -- using nofollow, we do not follow redirects and can only accept what we find as a record therefore we only accept the first db supplied
     t = {t[1]}
     stdnse.debug1("Too many args supplied with 'nofollow', only using %s.", t[1])
   end
 
   if ( #t > 0 ) then
-    nmap.registry.whois.whoisdb_default_order = t
+    kmap.registry.whois.whoisdb_default_order = t
     stdnse.debug2("whoisdb_default_order: %s.", table.concat( t, " " ))
   end
 
@@ -1757,23 +1757,23 @@ end
 
 function get_local_assignments_data()
 
-  if not next( nmap.registry.whois.remote_assignments_files ) then
+  if not next( kmap.registry.whois.remote_assignments_files ) then
     stdnse.debug1("Error in get_local_assignments_data: Remote resources not defined in remote_assignments_files registry key")
     return nil
   end
 
   -- get the directory path where cached files will be stored.
-  local fetchfile = "nmap-services"
+  local fetchfile = "kmap-services"
   local directory_path, err = get_parentpath( fetchfile )
   if err then
-    stdnse.debug1("Nmap.fetchfile() failed to get a path to %s: %s.", fetchfile, err)
+    stdnse.debug1("Kmap.fetchfile() failed to get a path to %s: %s.", fetchfile, err)
     return nil
   end
 
   local ret = {}
 
   -- cache or update and parse each remote file for each address family
-  for address_family, t in pairs( nmap.registry.whois.remote_assignments_files ) do
+  for address_family, t in pairs( kmap.registry.whois.remote_assignments_files ) do
     for i, assignment_data_spec in ipairs( t ) do
 
       local update_required, modified_date, entity_tag
@@ -1795,7 +1795,7 @@ function get_local_assignments_data()
 
       -- read an existing and up-to-date file into file_content.
       if readable and not update_required then
-        stdnse.debug2("%s was cached less than %s ago. Reading...", file, nmap.registry.whois.local_assignments_file_expiry)
+        stdnse.debug2("%s was cached less than %s ago. Reading...", file, kmap.registry.whois.local_assignments_file_expiry)
         file_content = read_from_file( file )
       end
 
@@ -1874,8 +1874,8 @@ end
 
 
 ---
--- Uses <code>nmap.fetchfile</code> to get the path of the parent directory of the supplied Nmap datafile SCRIPT_NAME.
--- @param fname  String - Filename of an Nmap datafile.
+-- Uses <code>kmap.fetchfile</code> to get the path of the parent directory of the supplied Kmap datafile SCRIPT_NAME.
+-- @param fname  String - Filename of an Kmap datafile.
 -- @return       String - The filepath of the directory containing the supplied SCRIPT_NAME including the trailing slash (or nil in case of an error).
 -- @return       Nil or error message in case of an error.
 
@@ -1885,7 +1885,7 @@ function get_parentpath( fname )
     return nil, "Error in get_parentpath: Expected fname as a string."
   end
 
-  local path = nmap.fetchfile( fname )
+  local path = kmap.fetchfile( fname )
   if not path then
     return nil, "Error in get_parentpath: Call to fetchfile() failed."
   end
@@ -2143,7 +2143,7 @@ function parse_assignments( address_family_spec, table_of_lines )
       if svc then svc = string.lower( svc ) end
       if not svc or ( svc == "iana" ) then
         svc = "arin"
-      elseif not nmap.registry.whois.whoisdb[svc] then
+      elseif not kmap.registry.whois.whoisdb[svc] then
         svc = "arin"
       end
       -- optimise the data
@@ -2172,7 +2172,7 @@ end
 function file_is_expired( time_string )
 
   if type( time_string ) ~= "string" or time_string == "" then return true end
-  local allowed_age = nmap.registry.whois.local_assignments_file_expiry
+  local allowed_age = kmap.registry.whois.local_assignments_file_expiry
   if allowed_age == "" then return true end
 
   local cached_time = tonumber(time_string)

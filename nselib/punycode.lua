@@ -24,7 +24,7 @@
 -- * punycode.js: https://mths.be/punycode
 --
 -- @author Rewanth Cool
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local stdnse = require "stdnse"
 local string = require "string"

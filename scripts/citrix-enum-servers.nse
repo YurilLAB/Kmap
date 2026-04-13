@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -9,7 +9,7 @@ Extracts a list of Citrix servers from the ICA Browser service.
 ]]
 
 ---
--- @usage sudo ./nmap -sU --script=citrix-enum-servers -p 1604
+-- @usage sudo ./kmap -sU --script=citrix-enum-servers -p 1604
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -26,7 +26,7 @@ Extracts a list of Citrix servers from the ICA Browser service.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -104,10 +104,10 @@ action = function(host, port)
 
   counter = 0
 
-  socket = nmap.new_socket()
+  socket = kmap.new_socket()
   socket:set_timeout(5000)
 
-  local try = nmap.new_try(function() socket:close() end)
+  local try = kmap.new_try(function() socket:close() end)
   try(socket:connect(host, port))
 
   -- send the two first packets and never look back
@@ -135,7 +135,7 @@ action = function(host, port)
   end
 
   if #server_list>0 then
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
   end
 
   socket:close()

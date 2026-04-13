@@ -15,7 +15,7 @@ remote user to login anonymously which may lead to server compromise.
 
 ---
 -- @usage
--- nmap <target> -p 80 --script=http-frontpage-login
+-- kmap <target> -p 80 --script=http-frontpage-login
 --
 -- @args http-frontpage-login.path Path prefix to Frontpage directories. Defaults
 -- to root ("/").
@@ -35,7 +35,7 @@ remote user to login anonymously which may lead to server compromise.
 
 author = "Aleksandar Nikolic"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"vuln", "safe"}
 

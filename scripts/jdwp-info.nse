@@ -2,7 +2,7 @@ local io = require "io"
 local jdwp = require "jdwp"
 local stdnse = require "stdnse"
 local string = require "string"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 
 description = [[
@@ -13,11 +13,11 @@ Java class file that returns remote system information.
 ]]
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default","safe","discovery"}
 
 ---
--- @usage nmap -sT <target> -p <port> --script=+jdwp-info
+-- @usage kmap -sT <target> -p <port> --script=+jdwp-info
 -- @output
 -- PORT     STATE SERVICE REASON
 -- 2010/tcp open  search  syn-ack
@@ -59,7 +59,7 @@ action = function(host, port)
   end
 
   -- read .class file
-  local file = io.open(nmap.fetchfile("nselib/data/jdwp-class/JDWPSystemInfo.class"), "rb")
+  local file = io.open(kmap.fetchfile("nselib/data/jdwp-class/JDWPSystemInfo.class"), "rb")
   local class_bytes = file:read("a")
 
   -- inject the class

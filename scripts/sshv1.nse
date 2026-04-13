@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -6,7 +6,7 @@ description = [[
 Checks if an SSH server supports the obsolete and less secure SSH Protocol Version 1.
 ]]
 author = "Brandon Enright"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "safe"}
 
 ---
@@ -22,7 +22,7 @@ categories = {"default", "safe"}
 portrule = shortport.ssh
 
 action = function(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local result;
   local status = true;
 
@@ -44,7 +44,7 @@ action = function(host, port)
     return
   end
 
-  socket:send("SSH-1.5-NmapNSE_1.0\n")
+  socket:send("SSH-1.5-KmapNSE_1.0\n")
 
   -- should be able to consume at least 13 bytes
   -- key length is a 4 byte integer

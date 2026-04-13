@@ -24,7 +24,7 @@ Note that the <code>consumingDetect</code> callback will not take place only if
 ]]
 
 ---
--- @usage nmap -p80 --script http-devframework.nse <target>
+-- @usage kmap -p80 --script http-devframework.nse <target>
 --
 -- @args http-devframework.rapid boolean value that determines if a rapid detection
 --       should take place. The main difference of a rapid vs a lengthy detection
@@ -40,9 +40,9 @@ Note that the <code>consumingDetect</code> callback will not take place only if
 
 categories = {"discovery", "intrusive"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local httpspider = require "httpspider"
@@ -55,7 +55,7 @@ local function loadFingerprints(filename)
   local file, fingerprints
 
   -- Find the file
-  filename = nmap.fetchfile('nselib/data/' .. filename) or filename
+  filename = kmap.fetchfile('nselib/data/' .. filename) or filename
 
   -- Load the file
   stdnse.debug1("Loading fingerprints: %s", filename)

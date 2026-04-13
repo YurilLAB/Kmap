@@ -1,6 +1,6 @@
 local os = require "os"
 local datetime = require "datetime"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local match = require "match"
 local math = require "math"
 local shortport = require "shortport"
@@ -15,7 +15,7 @@ server time) from distributed memory object caching system memcached.
 
 ---
 -- @usage
--- nmap -p 11211 --script memcached-info
+-- kmap -p 11211 --script memcached-info
 --
 -- @output
 -- 11211/udp open  unknown
@@ -48,7 +48,7 @@ server time) from distributed memory object caching system memcached.
 -- <elem key="Authentication">no</elem>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(11211, "memcached", {"tcp", "udp"})
@@ -95,7 +95,7 @@ local Comm = {
     return o
   end,
   connect = function(self)
-    self.socket = nmap.new_socket(self.protocol)
+    self.socket = kmap.new_socket(self.protocol)
     self.socket:set_timeout(self.options.timeout or stdnse.get_timeout(self.host))
     return self.socket:connect(self.host, self.port)
   end,

@@ -9,12 +9,12 @@ if there is one.
 ]]
 
 author = "Michael Kohl"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 ---
 -- @usage
--- nmap --script http-generator [--script-args http-generator.path=<path>,http-generator.redirects=<number>,...] <host>
+-- kmap --script http-generator [--script-args http-generator.path=<path>,http-generator.redirects=<number>,...] <host>
 --
 -- @output
 -- PORT    STATE SERVICE

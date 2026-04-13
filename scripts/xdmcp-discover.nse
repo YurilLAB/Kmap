@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,7 +10,7 @@ Requests an XDMCP (X display manager control protocol) session and lists support
 
 ---
 -- @usage
--- nmap -sU -p 177 --script xdmcp-discover <ip>
+-- kmap -sU -p 177 --script xdmcp-discover <ip>
 --
 -- @output
 -- PORT    STATE         SERVICE
@@ -22,13 +22,13 @@ Requests an XDMCP (X display manager control protocol) session and lists support
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery"}
 
 
 portrule = shortport.port_or_service(177, "xdmcp", "udp")
 
-local mutex = nmap.mutex("xdmcp-discover")
+local mutex = kmap.mutex("xdmcp-discover")
 local function fail(err) return stdnse.format_output(false, err) end
 
 

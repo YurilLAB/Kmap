@@ -1,62 +1,62 @@
 
 /***************************************************************************
  * FPEngine.cc -- Routines used for IPv6 OS detection via TCP/IP           *
- * fingerprinting.  * For more information on how this works in Nmap, see  *
- * https://nmap.org/osdetect/                                               *
+ * fingerprinting.  * For more information on how this works in Kmap, see  *
+ * https://kmap.org/osdetect/                                               *
  *                                                                         *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -65,14 +65,14 @@
 #include "FPEngine.h"
 #include "Target.h"
 #include "FingerPrintResults.h"
-#include "NmapOps.h"
-#include "nmap_error.h"
+#include "KmapOps.h"
+#include "kmap_error.h"
 #include "osscan.h"
 #include "linear.h"
 #include "FPModel.h"
 #include "tcpip.h"
 #include "string_pool.h"
-extern NmapOps o;
+extern KmapOps o;
 #ifdef WIN32
 /* Need DnetName2PcapName */
 #include "libnetutil/netutil.h"
@@ -136,8 +136,8 @@ void FPNetworkControl::init(const char *ifname, devtype iftype) {
   if ((this->nsp = nsock_pool_new(NULL)) == NULL)
     fatal("Unable to obtain an Nsock pool");
 
-  nmap_set_nsock_logger();
-  nmap_adjust_loglevel(o.packetTrace());
+  kmap_set_nsock_logger();
+  kmap_adjust_loglevel(o.packetTrace());
 
   if (*o.device)
     nsock_pool_set_device(nsp, o.device);
@@ -331,7 +331,7 @@ int FPNetworkControl::setup_sniffer(const char *iface, const char *bpf_filter) {
   int rc;
 
 #ifdef WIN32
-  /* Nmap normally uses device names obtained through dnet for interfaces, but
+  /* Kmap normally uses device names obtained through dnet for interfaces, but
      Pcap has its own naming system.  So the conversion is done here */
   if (!DnetName2PcapName(iface, pcapdev, sizeof(pcapdev))) {
     /* Oh crap -- couldn't find the corresponding dev apparently.  Let's just go
@@ -357,7 +357,7 @@ int FPNetworkControl::setup_sniffer(const char *iface, const char *bpf_filter) {
 /* This method makes the controller process pending events (like packet
  * transmissions or packet captures). */
 void FPNetworkControl::handle_events() {
-  nmap_adjust_loglevel(o.packetTrace());
+  kmap_adjust_loglevel(o.packetTrace());
   nsock_loop(nsp, 50);
 }
 
@@ -736,9 +736,9 @@ static double vectorize_tc(const PacketElement *pe) {
     return ipv6->getTrafficClass();
 }
 
-/* For reference, the dev@nmap.org email thread which contains the explanations for the
+/* For reference, the dev@kmap.org email thread which contains the explanations for the
  * design decisions of this vectorization method:
- * http://seclists.org/nmap-dev/2015/q1/218
+ * http://seclists.org/kmap-dev/2015/q1/218
  */
 static int vectorize_hlim(const PacketElement *pe, int target_distance, enum dist_calc_method method) {
   const IPv6Header *ipv6;
@@ -1422,7 +1422,7 @@ int FPHost::update_RTO(int measured_rtt_usecs, bool retransmission) {
 
 /* RFC 2988: Whenever RTO is computed, if it is less than 1 second then the RTO
  * SHOULD be rounded up to 1 second.
- * [NOTE: In Nmap we find this excessive, so we set a minimum of 100ms
+ * [NOTE: In Kmap we find this excessive, so we set a minimum of 100ms
  * (100,000 usecs). It may seem aggressive but waiting too long can cause
  * the engine to fail to detect drops until many probes later on extremely
  * low-latency networks (such as localhost scans).  */

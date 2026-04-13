@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -8,7 +8,7 @@ description=[[
 Checks to see if an FTP server allows port scanning using the FTP bounce method.
 ]]
 author = "Marek Majkowski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 ---
 -- @args ftp-bounce.username Username to log in with. Default
@@ -16,7 +16,7 @@ license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 -- @args ftp-bounce.password Password to log in with. Default
 -- <code>IEUser@</code>.
 -- @args ftp-bounce.checkhost Host to try connecting to with the PORT command.
---                            Default: scanme.nmap.org
+--                            Default: scanme.kmap.org
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -32,11 +32,11 @@ categories = {"default", "safe"}
 portrule = shortport.port_or_service({21, 990}, {"ftp", "ftps"})
 
 local function get_portfmt()
-  local arghost = stdnse.get_script_args(SCRIPT_NAME .. ".checkhost") or "scanme.nmap.org"
-  local reg = nmap.registry[SCRIPT_NAME] or {}
+  local arghost = stdnse.get_script_args(SCRIPT_NAME .. ".checkhost") or "scanme.kmap.org"
+  local reg = kmap.registry[SCRIPT_NAME] or {}
   local addr = reg[arghost]
   if not addr then
-    local status, addrs = nmap.resolve(arghost, "inet")
+    local status, addrs = kmap.resolve(arghost, "inet")
     if not status or #addrs < 1 then
       stdnse.verbose1("Couldn't resolve %s, scanning 10.0.0.1 instead.", arghost)
       addr = "10.0.0.1"
@@ -45,7 +45,7 @@ local function get_portfmt()
     end
     reg[arghost] = addr
   end
-  nmap.registry[SCRIPT_NAME] = reg
+  kmap.registry[SCRIPT_NAME] = reg
   return string.format("PORT %s,%%s\r\n", (string.gsub(addr, "%.", ",")))
 end
 

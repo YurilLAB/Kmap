@@ -1,6 +1,6 @@
 local coroutine = require "coroutine"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local tab = require "tab"
@@ -15,7 +15,7 @@ on a LAN without needing to individually ping each IPv6 address.
 
 ---
 -- @usage
--- ./nmap -6 --script=targets-ipv6-multicast-echo.nse --script-args 'newtargets,interface=eth0' -sL
+-- ./kmap -6 --script=targets-ipv6-multicast-echo.nse --script-args 'newtargets,interface=eth0' -sL
 -- @output
 -- Pre-scan script results:
 -- | targets-ipv6-multicast-echo:
@@ -25,13 +25,13 @@ on a LAN without needing to individually ping each IPv6 address.
 
 author = {"David Fifield", "Xu Weilin"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "broadcast", "safe"}
 
 
 prerule = function()
-  return nmap.is_privileged()
+  return kmap.is_privileged()
 end
 
 local function filter_interfaces(if_table)
@@ -44,7 +44,7 @@ end
 local function single_interface_broadcast(if_nfo, results)
   stdnse.debug1("Starting " .. SCRIPT_NAME .. " on " .. if_nfo.device)
 
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
   local src_mac = if_nfo.mac
   local src_ip6 = ipOps.ip_to_str(if_nfo.address)
   local dst_mac = packet.mactobin("33:33:00:00:00:01")
@@ -53,14 +53,14 @@ local function single_interface_broadcast(if_nfo, results)
   ----------------------------------------------------------------------------
   --Multicast echo ping probe
 
-  local dnet = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local dnet = kmap.new_dnet()
+  local pcap = kmap.new_socket()
 
   local function catch ()
     dnet:ethernet_close()
     pcap:pcap_close()
   end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(dnet:ethernet_open(if_nfo.device))
   pcap:pcap_open(if_nfo.device, 128, false, "icmp6 and ip6[6:1] = 58 and ip6[40:1] = 129")
@@ -72,7 +72,7 @@ local function single_interface_broadcast(if_nfo, results)
   probe.ip_bin_dst = dst_ip6
   probe.echo_id = 5
   probe.echo_seq = 6
-  probe.echo_data = "Nmap host discovery."
+  probe.echo_data = "Kmap host discovery."
   probe:build_icmpv6_echo_request()
   probe:build_icmpv6_header()
   probe:build_ipv6_packet()
@@ -83,12 +83,12 @@ local function single_interface_broadcast(if_nfo, results)
   pcap:set_timeout(1000)
   local pcap_timeout_count = 0
   local nse_timeout = 5
-  local start_time = nmap:clock()
-  local cur_time = nmap:clock()
+  local start_time = kmap:clock()
+  local cur_time = kmap:clock()
 
   repeat
     local status, length, layer2, layer3 = pcap:pcap_receive()
-    cur_time = nmap:clock()
+    cur_time = kmap:clock()
     if not status then
       pcap_timeout_count = pcap_timeout_count + 1
     else
@@ -130,7 +130,7 @@ end
 action = function()
   local threads = {}
   local results = {}
-  local condvar = nmap.condvar(results)
+  local condvar = kmap.condvar(results)
 
   for _, if_nfo in ipairs(stdnse.get_script_interfaces(filter_interfaces)) do
     -- create a thread for each interface

@@ -19,8 +19,8 @@ For this script we only send the A-ASSOCIATE request and look for the success co
 ]]
 
 ---
--- @usage nmap -p4242 --script dicom-ping <target>
--- @usage nmap -sV --script dicom-ping <target>
+-- @usage kmap -p4242 --script dicom-ping <target>
+-- @usage kmap -sV --script dicom-ping <target>
 -- 
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -37,13 +37,13 @@ For this script we only send the A-ASSOCIATE request and look for the success co
 ---
 
 author = "Paulino Calderon <calderon()calderonpale.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "default", "safe", "auth"}
 
 local shortport = require "shortport"
 local dicom = require "dicom"
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 
 portrule = shortport.port_or_service({104, 2345, 2761, 2762, 4242, 11112}, "dicom", "tcp", "open")
 
@@ -54,7 +54,7 @@ action = function(host, port)
     stdnse.debug1("Association failed:%s", err)
     if err == "ASSOCIATE REJECT received" then
       port.version.name = "dicom"
-      nmap.set_port_version(host, port)
+      kmap.set_port_version(host, port)
   
       output.dicom = "DICOM Service Provider discovered!"
       output.config = "Called AET check enabled"
@@ -62,7 +62,7 @@ action = function(host, port)
     return output
   end
   port.version.name = "dicom"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   
   output.dicom = "DICOM Service Provider discovered!"
   output.config = "Any AET is accepted (Insecure)"

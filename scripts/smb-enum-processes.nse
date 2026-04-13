@@ -1,5 +1,5 @@
 local msrpcperformance = require "msrpcperformance"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -25,8 +25,8 @@ impact the system, besides showing a message box to the user.
 
 ---
 -- @usage
--- nmap --script smb-enum-processes.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-enum-processes.nse -p U:137,T:139 <host>
+-- kmap --script smb-enum-processes.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-enum-processes.nse -p U:137,T:139 <host>
 --
 ---
 -- @output
@@ -81,7 +81,7 @@ impact the system, besides showing a message box to the user.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 dependencies = {"smb-brute"}
 
@@ -268,10 +268,10 @@ action = function(host)
 
   -- Produce final output.
   local response
-  if nmap.verbosity() == 0 then
+  if kmap.verbosity() == 0 then
     response = "|_ " .. table.concat(names, ", ")
   else
-    response = "\n" .. psl_print(psl, nmap.verbosity())
+    response = "\n" .. psl_print(psl, kmap.verbosity())
   end
 
   return response

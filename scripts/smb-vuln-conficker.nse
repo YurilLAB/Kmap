@@ -1,5 +1,5 @@
 local msrpc = require "msrpc"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local string = require "string"
 local vulns = require "vulns"
@@ -15,8 +15,8 @@ This check was previously part of smb-check-vulns.
 ]]
 ---
 --@usage
--- nmap --script smb-vuln-conficker.nse -p445 <host>
--- nmap -sU --script smb-vuln-conficker.nse -p T:139 <host>
+-- kmap --script smb-vuln-conficker.nse -p445 <host>
+-- kmap -sU --script smb-vuln-conficker.nse -p T:139 <host>
 --
 --@output
 --| smb-vuln-conficker:
@@ -33,7 +33,7 @@ This check was previously part of smb-check-vulns.
 
 author = {"Ron Bowes", "Jiayi Ye", "Paulino Calderon <calderon()websec.mx>"}
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","exploit","dos","vuln"}
 -- run after all smb-* scripts (so if it DOES crash something, it doesn't kill
 -- other scans have had a chance to run)
@@ -57,7 +57,7 @@ local CLEAN      = 7
 CONFICKER_ERROR_HELP = {
   ["NT_STATUS_BAD_NETWORK_NAME"] =
   [[UNKNOWN; Network name not found (required service has crashed). (Error NT_STATUS_BAD_NETWORK_NAME)]],
-  -- http://seclists.org/nmap-dev/2009/q1/0918.html "non-Windows boxes (Samba on Linux/OS X, or a printer)"
+  -- http://seclists.org/kmap-dev/2009/q1/0918.html "non-Windows boxes (Samba on Linux/OS X, or a printer)"
   -- http://www.skullsecurity.org/blog/?p=209#comment-156
   --   "That means either it isn’t a Windows machine, or the service is
   --    either crashed or not running. That may indicate a failed (or

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"
@@ -14,7 +14,7 @@ Further information:
 ]]
 
 author = {"Niklaus Schiess <nschiess@ernw.de>", "Dominik Schneider <dschneider@ernw.de>"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 portrule = shortport.port_or_service(3671, "efcp", "udp")
 
@@ -91,7 +91,7 @@ local knxParseDescriptionResponse = function(knxMessage)
 
   --Build a proper response table
   local description_response = stdnse.output_table()
-  if nmap.debugging() > 0 then
+  if kmap.debugging() > 0 then
     description_response.Header = stdnse.output_table()
     description_response.Header["Header length"] = knx_header_length
     description_response.Header["Protocol version"] = knx_protocol_version
@@ -124,7 +124,7 @@ local knxParseDescriptionResponse = function(knxMessage)
 end
 
 action = function(host, port)
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(host, port)
 
   if not status then

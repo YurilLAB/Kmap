@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,7 +17,7 @@ References:
 
 ---
 --@usage
--- nmap <target> --script=metasploit-info --script-args username=root,password=root
+-- kmap <target> --script=metasploit-info --script-args username=root,password=root
 --@output
 -- 55553/tcp open  metasploit-msgrpc syn-ack
 -- | metasploit-info:
@@ -42,7 +42,7 @@ References:
 
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","safe"}
 
 portrule = shortport.port_or_service(55553,"metasploit-msgrpc")
@@ -146,7 +146,7 @@ local get_version = function(host, port, token)
       port.version.name = "metasploit-msgrpc"
       port.version.product = metasploit_version
       port.version.name_confidence = 10
-      nmap.set_port_version(host,port)
+      kmap.set_port_version(host,port)
       local info = "Metasploit version: " .. metasploit_version .. " Ruby version: " .. ruby_version .. " API version: " .. api_version
       if string.find(ruby_version,"mingw") < 0 then
         os_type = "linux" -- assume linux for now

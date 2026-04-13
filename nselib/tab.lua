@@ -2,7 +2,7 @@
 -- Arrange output into tables.
 --
 -- This module provides NSE scripts with a way to output structured tables
--- similar to what <code>NmapOutputTable.cc</code> provides.
+-- similar to what <code>KmapOutputTable.cc</code> provides.
 --
 -- Example usage:
 -- <code>
@@ -22,7 +22,7 @@
 -- typing Enter at the end of a line. <code>tab.addrow</code> adds a whole row
 -- at a time and calls <code>tab.nextrow</code> automatically.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 local stdnse = require "stdnse"
 local strbuf = require "strbuf"

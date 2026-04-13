@@ -29,7 +29,7 @@ and password or indirectly from results of http-brute or http-form-brute.
 
 ---
 -- @usage
--- nmap --script http-domino-enum-passwords -p 80 <host> --script-args http-domino-enum-passwords.username='patrik karlsson',http-domino-enum-passwords.password=secret
+-- kmap --script http-domino-enum-passwords -p 80 <host> --script-args http-domino-enum-passwords.username='patrik karlsson',http-domino-enum-passwords.password=secret
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -85,7 +85,7 @@ and password or indirectly from results of http-brute or http-form-brute.
 -- Revised 04/16/2015 - v0.4 - switched to 'creds' credential repository <nnposter>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 dependencies = {"http-brute", "http-form-brute"}
 

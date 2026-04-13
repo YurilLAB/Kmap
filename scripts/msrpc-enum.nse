@@ -14,7 +14,7 @@ Script works much like Microsoft's rpcdump tool
 or dcedump tool from SPIKE fuzzer.
 ]]
 ---
--- @usage nmap <target> --script=msrpc-enum
+-- @usage kmap <target> --script=msrpc-enum
 --
 -- @output
 -- PORT    STATE SERVICE      REASON
@@ -68,7 +68,7 @@ or dcedump tool from SPIKE fuzzer.
 -- -snip-
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe","discovery"}
 
 hostrule = function(host)

@@ -21,7 +21,7 @@
 local coroutine = require "coroutine"
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -542,7 +542,7 @@ Helper = {
 
   doQuery = function(self, ip, name, svc, answers)
 
-    local condvar = nmap.condvar(answers)
+    local condvar = kmap.condvar(answers)
     local config = {}
 
     if ( svc.configuration ) then
@@ -579,7 +579,7 @@ Helper = {
   -- @return result table containing the results of the BL checks
   checkBL = function(self, ip)
     local result, answers, threads = {}, {}, {}
-    local condvar = nmap.condvar(answers)
+    local condvar = kmap.condvar(answers)
 
     for name, svc in pairs(self:getServices()) do
       local co = stdnse.new_thread(self.doQuery, self, ip, name, svc, answers)

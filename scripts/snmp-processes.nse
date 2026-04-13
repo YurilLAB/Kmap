@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -9,7 +9,7 @@ Attempts to enumerate running processes through SNMP.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script=snmp-processes <target>
+-- kmap -sU -p 161 --script=snmp-processes <target>
 -- @output
 -- | snmp-processes:
 -- |   1:
@@ -61,7 +61,7 @@ Attempts to enumerate running processes through SNMP.
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -155,7 +155,7 @@ action = function(host, port)
 
   shares = process_answer( shares )
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   return shares
 end

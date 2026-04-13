@@ -13,8 +13,8 @@ application debugging configuration.
 ]]
 
 ---
--- @usage nmap --script http-aspnet-debug <target>
--- @usage nmap --script http-aspnet-debug --script-args http-aspnet-debug.path=/path <target>
+-- @usage kmap --script http-aspnet-debug <target>
+-- @usage kmap --script http-aspnet-debug --script-args http-aspnet-debug.path=/path <target>
 --
 -- @args http-aspnet-debug.path Path to URI. Default: /
 --
@@ -28,7 +28,7 @@ application debugging configuration.
 ---
 
 author = "Josh Amishav-Zlatin"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "vuln", "discovery" }
 
 portrule = shortport.http

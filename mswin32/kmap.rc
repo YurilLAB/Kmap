@@ -1,0 +1,54 @@
+     //Microsoft Developer Studio generated resource script.
+//
+// edited
+//
+
+#include <windows.h>
+#include "resource.h"
+#include "../kmap.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION KMAP_MAJOR,KMAP_MINOR,KMAP_BUILD,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x21L
+#else
+ FILEFLAGS 0x20L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Insecure.Org\0"
+            VALUE "FileDescription", KMAP_NAME
+            VALUE "FileVersion", KMAP_VERSION
+            VALUE "InternalName", KMAP_NAME
+            VALUE "LegalCopyright", "Copyright (c) The Kmap Project (Kmap Software LLC)\0"
+            VALUE "LegalTrademarks", "KMAP\0"
+            VALUE "OriginalFilename", "kmap.exe\0"
+            VALUE "ProductName", KMAP_NAME
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_KMAP                ICON    DISCARDABLE     "icon1.ico"

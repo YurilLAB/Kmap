@@ -93,7 +93,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
     find.
 
     Suppose there is some host with a TCP service listening that you can't
-    connect to for an unknown reason.  If a Nmap -sS scan doesn't show the
+    connect to for an unknown reason.  If a Kmap -sS scan doesn't show the
     port as open there are a multitude of possible problems.  Maybe the SYN
     packet never made it because of some firewall in the middle.  Maybe the
     SYN did make it but the SYN+ACK got dropped on its way back to you.

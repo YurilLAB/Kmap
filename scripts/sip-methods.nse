@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local sip = require "sip"
 local stdnse = require "stdnse"
@@ -13,7 +13,7 @@ the value of the Allow header in the response.
 
 ---
 -- @usage
--- nmap --script=sip-methods -sU -p 5060 <targets>
+-- kmap --script=sip-methods -sU -p 5060 <targets>
 --
 --@output
 -- 5060/udp open  sip
@@ -34,7 +34,7 @@ the value of the Allow header in the response.
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe", "discovery"}
 
@@ -52,8 +52,8 @@ action = function(host, port)
   status, response = session:options()
   if status then
     -- If port state not set to open, set it to open.
-    if nmap.get_port_state(host, port) ~= "open" then
-      nmap.set_port_state(host, port, "open")
+    if kmap.get_port_state(host, port) ~= "open" then
+      kmap.set_port_state(host, port, "open")
     end
 
     -- Check if allow header exists in response

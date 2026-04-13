@@ -6,7 +6,7 @@ taken, and the embedded geotag information.
 
 ---
 -- @usage
--- nmap --script http-exif-spider -p80,443 <host>
+-- kmap --script http-exif-spider -p80,443 <host>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -23,7 +23,7 @@ taken, and the embedded geotag information.
 -- relative to the scanned host eg. /default.html (default: /)
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive"}
 
 local shortport = require 'shortport'

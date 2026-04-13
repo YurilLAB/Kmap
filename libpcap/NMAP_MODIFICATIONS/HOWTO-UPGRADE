@@ -3,14 +3,14 @@ and verify the signature.
 
 cd
 # Make a copy of this directory.
-cp -r ~/nmap/libpcap/NMAP_MODIFICATIONS .
+cp -r ~/kmap/libpcap/KMAP_MODIFICATIONS .
 tar xzvf libpcap-X.Y.tar.xz
-cd nmap
-rsync -rv --delete ~/libpcap-X.Y/ ~/nmap/libpcap/
+cd kmap
+rsync -rv --delete ~/libpcap-X.Y/ ~/kmap/libpcap/
 # Remove some things we don't want to ship
-rm -rf ~/nmap/libpcap/{rpcapd,testprogs,doc,tests}
+rm -rf ~/kmap/libpcap/{rpcapd,testprogs,doc,tests}
 # Apply patch to avoid those dirs
-git apply ~/NMAP_MODIFICATIONS/0002-Disable-unnecessary-features.patch
+git apply ~/KMAP_MODIFICATIONS/0002-Disable-unnecessary-features.patch
 git add -A libpcap
 cd libpcap
 autoconf
@@ -19,13 +19,13 @@ make
 git add grammar.[ch] scanner.[ch]
 cd ..
 # Apply remaining patches.
-git apply ~/NMAP_MODIFICATIONS/0001-Don-t-autogenerate-Lex-Yacc-files.patch
-git apply ~/NMAP_MODIFICATIONS/0003-Rename-VERSION-file.patch
+git apply ~/KMAP_MODIFICATIONS/0001-Don-t-autogenerate-Lex-Yacc-files.patch
+git apply ~/KMAP_MODIFICATIONS/0003-Rename-VERSION-file.patch
 # Make changes as necessary and update the patch files
 cd libpcap
 autoconf
 cd ..
 git add -u libpcap
-mv ~/NMAP_MODIFICATIONS libpcap/
-git add libpcap/NMAP_MODIFICATIONS
+mv ~/KMAP_MODIFICATIONS libpcap/
+git add libpcap/KMAP_MODIFICATIONS
 git commit -m "Upgrade libpcap to X.Y."

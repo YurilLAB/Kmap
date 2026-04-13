@@ -15,7 +15,7 @@ With knowledge of the correct repository name, usernames and passwords can be gu
 
 ---
 -- @usage
--- nmap -p 2401 --script cvs-brute-repository <host>
+-- kmap -p 2401 --script cvs-brute-repository <host>
 --
 -- @output
 -- PORT     STATE SERVICE    REASON
@@ -38,7 +38,7 @@ With knowledge of the correct repository name, usernames and passwords can be gu
 --                             library [Aleksandar Nikolic]
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

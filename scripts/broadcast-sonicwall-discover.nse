@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -18,7 +18,7 @@ References:
 
 ---
 -- @usage
--- nmap -e eth0 --script broadcast-sonicwall-discover
+-- kmap -e eth0 --script broadcast-sonicwall-discover
 --
 -- @output
 -- | broadcast-sonicwall-discover:
@@ -32,16 +32,16 @@ References:
 --       (default: 1s)
 
 author = "Raphael Hoegger"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("Not running for lack of privileges.")
     return false
   end
-  if nmap.address_family() ~= "inet" then
+  if kmap.address_family() ~= "inet" then
     stdnse.verbose1("Script is IPv4-only")
     return false
   end
@@ -64,7 +64,7 @@ action = function(host, port)
     return false
   end
   local sock, co
-  sock = nmap.new_socket()
+  sock = kmap.new_socket()
 
   local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
   timeout = (timeout or 1) * 1000
@@ -74,9 +74,9 @@ action = function(host, port)
   sock:pcap_open(interface, 1500, false, "ip && udp && port 26214 && greater 57")
   send_discover()
 
-  local start_time = nmap.clock_ms()
+  local start_time = kmap.clock_ms()
   local results = stdnse.output_table()
-  while( nmap.clock_ms() - start_time < timeout ) do
+  while( kmap.clock_ms() - start_time < timeout ) do
     local status, plen, _, layer3 = sock:pcap_receive()
     -- stop once we picked up our response
     if ( status ) then
@@ -121,7 +121,7 @@ end
 function send_discover()
   local host="255.255.255.255"
   local port="26214"
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
 
   local status = socket:sendto(host, port, "ackfin ping\00")
   if not status then return end

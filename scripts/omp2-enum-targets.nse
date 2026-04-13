@@ -17,10 +17,10 @@ These targets will be added to the scanning queue in case
 
 ---
 -- @usage
--- nmap -p 9390 --script omp2-brute,omp2-enum-targets <target>
+-- kmap -p 9390 --script omp2-brute,omp2-enum-targets <target>
 --
 -- @usage
--- nmap -p 9390 --script omp2-enum-targets --script-args omp2.username=admin,omp2.password=secret <target>
+-- kmap -p 9390 --script omp2-enum-targets --script-args omp2.username=admin,omp2.password=secret <target>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -35,7 +35,7 @@ These targets will be added to the scanning queue in case
 
 
 author = "Henri Doreau"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"omp2-brute"}
 

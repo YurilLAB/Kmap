@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 local stdnse = require "stdnse"
@@ -28,9 +28,9 @@ http://sourceforge.net/projects/gameq/
 
 ---
 -- @usage
--- nmap -sV <target>
+-- kmap -sV <target>
 -- @usage
--- nmap -Pn -sU -sV --script allseeingeye-info -p <port> <target>
+-- kmap -Pn -sU -sV --script allseeingeye-info -p <port> <target>
 --
 -- @output
 -- PORT      STATE SERVICE      REASON       VERSION
@@ -128,7 +128,7 @@ http://sourceforge.net/projects/gameq/
 -- </table>
 
 author = "Marin Maržić"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = { "discovery", "safe", "version" }
 
 portrule = shortport.version_port_or_service({1258,2126,3123,12444,13200,23196,26000,27138,27244,27777,28138}, "allseeingeye", "udp")
@@ -140,7 +140,7 @@ action = function(host, port)
   end
 
   -- UDP port is open
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   if not string.match(data, "^EYE1") then
     return
@@ -213,7 +213,7 @@ action = function(host, port)
   end
   port.version.extrainfo = "game: " .. o["game"] .. " " .. o["version"] .. "; port: " .. o["port"] .. passworded_string
 
-  nmap.set_port_version(host, port, "hardmatched")
+  kmap.set_port_version(host, port, "hardmatched")
 
   return o
 end

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -10,7 +10,7 @@ Retrieves cluster and store information from the Voldemort distributed key-value
 
 ---
 -- @usage
--- nmap -p 6666 --script voldemort-info <ip>
+-- kmap -p 6666 --script voldemort-info <ip>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -38,7 +38,7 @@ Retrieves cluster and store information from the Voldemort distributed key-value
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -52,7 +52,7 @@ local function fail(err) return stdnse.format_output(false, err) end
 -- @return status true on success, false on failure
 -- @return socket connected to the server
 local function connect(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(5000)
 
   local status, err = socket:connect(host, port)

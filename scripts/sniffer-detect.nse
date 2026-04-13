@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -17,13 +17,13 @@ http://www.securityfriday.com/promiscuous_detection_01.pdf.
 
 
 author = "Marek Majkowski"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive"}
 
 -- okay, we're interested only in hosts that are on our ethernet lan
 hostrule = function(host)
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.debug1("is IPv4 compatible only.")
     return false
   end
@@ -31,7 +31,7 @@ hostrule = function(host)
       host.mac_addr ~= nil and
       host.mac_addr_src ~= nil and
       host.interface ~= nil then
-    local iface = nmap.get_interface_info(host.interface)
+    local iface = kmap.get_interface_info(host.interface)
     if iface and iface.link == 'ethernet' then
       return true
     end
@@ -84,8 +84,8 @@ do_test = function(dnet, pcap, host, test)
 end
 
 action = function(host)
-  local dnet = nmap.new_dnet()
-  local pcap = nmap.new_socket()
+  local dnet = kmap.new_dnet()
+  local pcap = kmap.new_socket()
   local _
   local status
   local results = {

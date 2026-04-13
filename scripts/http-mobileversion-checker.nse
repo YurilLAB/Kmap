@@ -3,14 +3,14 @@ Checks if the website holds a mobile version.
 ]]
 
 ---
--- @usage nmap -p80 --script http-mobileversion-checker.nse <host>
+-- @usage kmap -p80 --script http-mobileversion-checker.nse <host>
 --
 -- This script sets an Android User-Agent header and checks if the request
 -- will be redirected to a page different than a (valid) browser request
 -- would be. If so, this page is most likely to be a mobile version of the
 -- app.
 --
--- @args newtargets If this is set, add any newly discovered hosts to nmap
+-- @args newtargets If this is set, add any newly discovered hosts to kmap
 --                  scanning queue. Default: nil
 --
 -- @output
@@ -22,7 +22,7 @@ Checks if the website holds a mobile version.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local target = require "target"

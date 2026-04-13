@@ -17,7 +17,7 @@ References:
 
 ---
 -- @usage
--- nmap --script openwebnet-discovery
+-- kmap --script openwebnet-discovery
 --
 -- @output
 --  | openwebnet-discover:
@@ -49,7 +49,7 @@ References:
 --  <elem key="Burglar Alarm">12</elem>
 
 author = "Rewanth Cool"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(20000, "openwebnet")

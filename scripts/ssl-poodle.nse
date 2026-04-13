@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local sslcert = require "sslcert"
 local stdnse = require "stdnse"
@@ -12,20 +12,20 @@ local vulns = require "vulns"
 description = [[
 Checks whether SSLv3 CBC ciphers are allowed (POODLE)
 
-Run with -sV to use Nmap's service scan to detect SSL/TLS on non-standard
+Run with -sV to use Kmap's service scan to detect SSL/TLS on non-standard
 ports. Otherwise, ssl-poodle will only run on ports that are commonly used for
 SSL.
 
 POODLE is CVE-2014-3566. All implementations of SSLv3 that accept CBC
 ciphersuites are vulnerable. For speed of detection, this script will stop
 after the first CBC ciphersuite is discovered. If you want to enumerate all CBC
-ciphersuites, you can use Nmap's own ssl-enum-ciphers to do a full audit of
+ciphersuites, you can use Kmap's own ssl-enum-ciphers to do a full audit of
 your TLS ciphersuites.
 ]]
 
 ---
 -- @usage
--- nmap -sV --version-light --script ssl-poodle -p 443 <host>
+-- kmap -sV --version-light --script ssl-poodle -p 443 <host>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -52,15 +52,15 @@ your TLS ciphersuites.
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"vuln", "safe"}
 
 dependencies = {"ssl-enum-ciphers", "https-redirect"}
 
 -- Test this many ciphersuites at a time.
--- http://seclists.org/nmap-dev/2012/q3/156
--- http://seclists.org/nmap-dev/2010/q1/859
+-- http://seclists.org/kmap-dev/2012/q3/156
+-- http://seclists.org/kmap-dev/2010/q1/859
 local CHUNK_SIZE = 64
 
 -- Add additional context (protocol) to debug output
@@ -81,7 +81,7 @@ local function try_params(host, port, t)
       return nil
     end
   else
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     sock:set_timeout(timeout)
     status, err = sock:connect(host, port)
     if not status then

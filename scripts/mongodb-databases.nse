@@ -1,5 +1,5 @@
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -11,7 +11,7 @@ Attempts to get a list of tables from a MongoDB database.
 
 ---
 -- @usage
--- nmap -p 27017 --script mongodb-databases <host>
+-- kmap -p 27017 --script mongodb-databases <host>
 -- @output
 -- PORT      STATE SERVICE REASON
 -- 27017/tcp open  unknown syn-ack
@@ -41,7 +41,7 @@ Attempts to get a list of tables from a MongoDB database.
 -- Revised 01/03/2012 - v0.2 - added authentication support <patrik@cqure.net>
 
 author = "Martin Holst Swende"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"mongodb-brute"}
@@ -51,7 +51,7 @@ portrule = shortport.port_or_service({27017}, {"mongodb", "mongod"})
 
 function action(host,port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- set a reasonable timeout value
   socket:set_timeout(10000)
@@ -60,7 +60,7 @@ function action(host,port)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try( socket:connect(host, port) )
 
@@ -88,7 +88,7 @@ function action(host,port)
 
   port.version.name ='mongodb'
   port.version.product='MongoDB'
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
 
   local output = mongodb.queryResultToTable(result)
   if err ~= nil then

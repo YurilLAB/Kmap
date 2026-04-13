@@ -1,7 +1,7 @@
 local creds = require "creds"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -32,8 +32,8 @@ Reference:
 
 ---
 -- @usage
--- nmap -p80,8080 --script http-axis2-dir-traversal --script-args 'http-axis2-dir-traversal.file=../../../../../../../etc/issue' <host/ip>
--- nmap -p80 --script http-axis2-dir-traversal <host/ip>
+-- kmap -p80,8080 --script http-axis2-dir-traversal --script-args 'http-axis2-dir-traversal.file=../../../../../../../etc/issue' <host/ip>
+-- kmap -p80 --script http-axis2-dir-traversal <host/ip>
 --
 -- @output
 -- 80/tcp open  http    syn-ack
@@ -44,7 +44,7 @@ Reference:
 -- @args http-axis2-dir-traversal.basepath Basepath to the services page. Default: <code>/axis2/services/</code>
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive", "exploit"}
 
 
@@ -141,7 +141,7 @@ action = function(host, port)
     end
     selected_service = services[1]
   else
-    if nmap.verbosity() >= 2 then
+    if kmap.verbosity() >= 2 then
       stdnse.debug1("There are no services available. We can't exploit this")
     end
     return
@@ -156,7 +156,7 @@ action = function(host, port)
   if req.status and req.status == 200 then
     --if body is empty something wrong could have happened...
     if string.len(req.body) <= 0 then
-      if nmap.verbosity() >= 2 then
+      if kmap.verbosity() >= 2 then
         stdnse.debug1("Response was empty. The file does not exists or the web server does not have sufficient permissions")
       end
       return

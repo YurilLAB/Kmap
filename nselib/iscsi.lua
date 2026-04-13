@@ -26,7 +26,7 @@
 --
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- Version 0.2
 -- Created 2010/11/18 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
@@ -36,7 +36,7 @@
 
 local ipOps = require "ipOps"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local openssl = stdnse.silent_require "openssl"
 local string = require "string"
@@ -558,7 +558,7 @@ Helper = {
   -- @return status true on success, false on failure
   -- @return err string containing error message is status is false
   connect = function( self, socket )
-    self.socket = socket or nmap.new_socket()
+    self.socket = socket or kmap.new_socket()
     self.socket:set_timeout(10000)
     local status, err = self.socket:connect(self.host, self.port, "tcp")
     if ( not(status) ) then return false, err end
@@ -579,7 +579,7 @@ Helper = {
 
     p:setTransit(true)
     p:setNSG(Packet.LoginRequest.NSG.LoginOperationalNegotiation)
-    p.kvp:add( "InitiatorName", "iqn.1991-05.com.microsoft:nmap_iscsi_probe" )
+    p.kvp:add( "InitiatorName", "iqn.1991-05.com.microsoft:kmap_iscsi_probe" )
     p.kvp:add( "SessionType", "Discovery" )
     p.kvp:add( "AuthMethod", "None" )
 
@@ -657,7 +657,7 @@ Helper = {
 
     p:setTransit(true)
     p:setNSG(Packet.LoginRequest.NSG.LoginOperationalNegotiation)
-    p.kvp:add( "InitiatorName", "iqn.1991-05.com.microsoft:nmap_iscsi_probe" )
+    p.kvp:add( "InitiatorName", "iqn.1991-05.com.microsoft:kmap_iscsi_probe" )
     p.kvp:add( "SessionType", "Normal" )
     p.kvp:add( "TargetName", target_name )
     p.kvp:add( "AuthMethod", auth_method )

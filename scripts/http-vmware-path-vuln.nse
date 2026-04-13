@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -13,7 +13,7 @@ The vulnerability was originally released by Justin Morehouse and Tony Flick, wh
 
 ---
 -- @usage
--- nmap --script http-vmware-path-vuln -p80,443,8222,8333 <host>
+-- kmap --script http-vmware-path-vuln -p80,443,8222,8333 <host>
 --
 -- @output
 -- | http-vmware-path-vuln:
@@ -28,7 +28,7 @@ The vulnerability was originally released by Justin Morehouse and Tony Flick, wh
 -----------------------------------------------------------------------
 
 author = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 
@@ -113,7 +113,7 @@ local function go(host, port)
   end
 
   -- Process each of the .vmx files if verbosity is on
-  --if(nmap.verbosity() > 1) then
+  --if(kmap.verbosity() > 1) then
   --  local result, file = get_file(host, port, files[1])
   --  io.write(nsedebug.tostr(file))
   --end
@@ -132,7 +132,7 @@ action = function(host, port)
   local response = {}
   table.insert(response, "VMWare path traversal (CVE-2009-3733): VULNERABLE")
 
-  if(nmap.verbosity() > 1) then
+  if(kmap.verbosity() > 1) then
     table.insert(response, result)
   end
 

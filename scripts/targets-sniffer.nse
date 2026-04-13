@@ -1,5 +1,5 @@
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -16,12 +16,12 @@ by default) and prints discovered addresses. If the
 are added to the scan queue.
 
 Requires root privileges. Either the <code>targets-sniffer.interface</code> script
-argument or <code>-e</code> Nmap option to define which interface to use.
+argument or <code>-e</code> Kmap option to define which interface to use.
 ]]
 
 ---
 -- @usage
--- nmap -sL --script=targets-sniffer --script-args=newtargets,targets-sniffer.timeout=5s,targets-sniffer.interface=eth0
+-- kmap -sL --script=targets-sniffer --script-args=newtargets,targets-sniffer.timeout=5s,targets-sniffer.interface=eth0
 -- @args targets-sniffer.timeout  The amount of time to listen for packets. Default <code>10s</code>.
 -- @args targets-sniffer.interface  The interface to use for sniffing.
 -- @output
@@ -37,7 +37,7 @@ argument or <code>-e</code> Nmap option to define which interface to use.
 
 author = "Nick Nikolaou"
 categories = {"broadcast", "discovery", "safe"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 
 local interface_info
@@ -65,7 +65,7 @@ local function get_ip_addresses(layer3)
 end
 
 prerule =  function()
-  return nmap.is_privileged()
+  return kmap.is_privileged()
 end
 
 local function collect_interface(if_table)
@@ -76,7 +76,7 @@ end
 
 action = function()
 
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local packet_counter = 0
   local ip_counter = 0
   local timeout = stdnse.parse_timespec(stdnse.get_script_args("targets-sniffer.timeout"))
@@ -85,7 +85,7 @@ action = function()
   -- NOTE: targets-sniffer.iface script-arg name is non-standard, but left for compatibility.
   local interface = stdnse.get_script_args("targets-sniffer.iface")
   if interface then
-    interface_info = nmap.get_interface_info(interface)
+    interface_info = kmap.get_interface_info(interface)
   else
     stdnse.get_script_interfaces(collect_interface)
   end
@@ -107,7 +107,7 @@ action = function()
 
     repeat
 
-      local start_time = nmap.clock_ms() -- Used for script timeout
+      local start_time = kmap.clock_ms() -- Used for script timeout
       sock:set_timeout(timeout)
       local status, _, _, layer3 = sock:pcap_receive()
 
@@ -129,7 +129,7 @@ action = function()
 
       end
       -- Update timeout
-      timeout = timeout - (nmap.clock_ms() - start_time)
+      timeout = timeout - (kmap.clock_ms() - start_time)
 
     until timeout <= 0
 
@@ -137,7 +137,7 @@ action = function()
   end
 
   if target.ALLOW_NEW_TARGETS == true then
-    if nmap.address_family() == 'inet6' then
+    if kmap.address_family() == 'inet6' then
       for _,v in pairs(all_addresses) do
         if v:match(':') then
           target.add(v)

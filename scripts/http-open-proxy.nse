@@ -16,10 +16,10 @@ the target to retrieve a web page from www.google.com.
 
 ---
 -- @usage
--- nmap --script http-open-proxy.nse \
+-- kmap --script http-open-proxy.nse \
 --      --script-args proxy.url=<url>,proxy.pattern=<pattern>
 -- @output
--- Interesting ports on scanme.nmap.org (64.13.134.52):
+-- Interesting ports on scanme.kmap.org (64.13.134.52):
 -- PORT     STATE SERVICE
 -- 8080/tcp open  http-proxy
 -- |  proxy-open-http: Potentially OPEN proxy.
@@ -39,7 +39,7 @@ the target to retrieve a web page from www.google.com.
 --   * If google is used, script checks for Server: gws
 
 author = "Arturo 'Buanzo' Busleiman"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "external", "safe"}
 
 --- Performs the custom test, with user's arguments

@@ -1,6 +1,6 @@
 local brute = require "brute"
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -15,7 +15,7 @@ http://cassandra.apache.org/
 
 ---
 -- @usage
--- nmap -p 9160 <ip> --script=cassandra-brute
+-- kmap -p 9160 <ip> --script=cassandra-brute
 --
 -- @output
 -- PORT     STATE SERVICE VERSION
@@ -28,7 +28,7 @@ http://cassandra.apache.org/
 --
 
 author = "Vlatko Kosturjak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({9160}, {"cassandra"})
@@ -104,7 +104,7 @@ Driver = {
 }
 
 local function noAuth(host, port)
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, result = socket:connect(host, port)
 
   local stat,err = cassandra.login (socket,"default","")

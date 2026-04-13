@@ -1,6 +1,6 @@
 local datafiles = require "datafiles"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -13,7 +13,7 @@ module or similar enabled.
 The Apache mod_userdir module allows user-specific directories to be accessed
 using the http://example.com/~user/ syntax.  This script makes http requests in
 order to discover valid user-specific directories and infer valid usernames.  By
-default, the script will use Nmap's
+default, the script will use Kmap's
 <code>nselib/data/usernames.lst</code>.  An HTTP response
 status of 200 or 403 means the username is likely a valid one and the username
 will be output in the script results along with the status code (in parentheses).
@@ -34,7 +34,7 @@ CVE-2001-1013: http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2001-1013.
 -- |_ http-userdir-enum: Potential Users: root (403), user (200), test (200)
 
 author = "jah"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "intrusive"}
 
 
@@ -46,10 +46,10 @@ local function fail (err) return stdnse.format_output(false, err) end
 action = function(host, port)
   local limit = stdnse.get_script_args(SCRIPT_NAME .. '.limit')
 
-  if(not nmap.registry.userdir) then
+  if(not kmap.registry.userdir) then
     init()
   end
-  local usernames = nmap.registry.userdir
+  local usernames = kmap.registry.userdir
 
   -- speedy exit if no usernames
   if(#usernames == 0) then
@@ -70,8 +70,8 @@ action = function(host, port)
   local all = {}
   local i
   for i = 1, #usernames, 1 do
-    if(nmap.registry.args.limit and i > tonumber(nmap.registry.args.limit)) then
-      stdnse.debug1("Reached the limit (%d), stopping", nmap.registry.args.limit)
+    if(kmap.registry.args.limit and i > tonumber(kmap.registry.args.limit)) then
+      stdnse.debug1("Reached the limit (%d), stopping", kmap.registry.args.limit)
       break;
     end
 
@@ -100,7 +100,7 @@ action = function(host, port)
 
   if(#found > 0) then
     return string.format("Potential Users: %s", table.concat(found, ", "))
-  elseif(nmap.debugging() > 0) then
+  elseif(kmap.debugging() > 0) then
     return "Didn't find any users!"
   end
 
@@ -113,7 +113,7 @@ end
 -- Parses a file containing usernames (1 per line), defaulting to
 -- "nselib/data/usernames.lst" and stores the resulting array of usernames in
 -- the registry for use by all threads of this script.  This means file access
--- is done only once per Nmap invocation.  init() also adds a random string to
+-- is done only once per Kmap invocation.  init() also adds a random string to
 -- the array (in the first position) to attempt to catch false positives.
 -- @return nil
 
@@ -122,12 +122,12 @@ function init()
   local read, usernames = datafiles.parse_file(customlist or "nselib/data/usernames.lst", {})
   if not read then
     stdnse.debug1("%s", usernames or "Unknown Error reading usernames list.")
-    nmap.registry.userdir = {}
+    kmap.registry.userdir = {}
     return nil
   end
   -- random dummy username to catch false positives (not necessary)
 --  if #usernames > 0 then table.insert(usernames, 1, randomstring()) end
-  nmap.registry.userdir = usernames
+  kmap.registry.userdir = usernames
   stdnse.debug1("Testing %d usernames.", #usernames)
   return nil
 end

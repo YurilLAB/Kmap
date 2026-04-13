@@ -28,7 +28,7 @@
 --  status, err = nrpc:Close()
 -- </code>
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 
@@ -39,7 +39,7 @@
 
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 _ENV = stdnse.module("nrpc", stdnse.seeall)
@@ -90,7 +90,7 @@ Helper = {
     self.__index = self
     o.host = host
     o.port = port
-    o.domsock = nmap.new_socket()
+    o.domsock = kmap.new_socket()
     return o
   end,
 

@@ -23,7 +23,7 @@
 
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -470,7 +470,7 @@ Helper = {
     local lhost = tonumber(self.lhost or stdnse.get_script_args('vuzedht.lhost'))
     local lport = tonumber(self.lport or stdnse.get_script_args('vuzedht.lport'))
 
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
 
     if ( lport ) then
       self.socket:bind(nil, lport)

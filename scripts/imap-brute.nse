@@ -11,7 +11,7 @@ Performs brute force password auditing against IMAP servers using either LOGIN, 
 
 ---
 -- @usage
--- nmap -p 143,993 --script imap-brute <host>
+-- kmap -p 143,993 --script imap-brute <host>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -32,7 +32,7 @@ Performs brute force password auditing against IMAP servers using either LOGIN, 
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service({143,993}, {"imap","imaps"})

@@ -1,5 +1,5 @@
 local iec61850mms = require "iec61850mms"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -23,7 +23,7 @@ Output contains following attributes:
 
 ---
 -- @usage
--- nmap --script iec61850-mms.nse -p 102 <target>
+-- kmap --script iec61850-mms.nse -p 102 <target>
 --
 
 ---
@@ -42,7 +42,7 @@ Output contains following attributes:
 
 
 author = "Dennis Rösch, Max Helbig"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive", "version"}
 
 -- Helpers
@@ -86,7 +86,7 @@ action = function(host, port)
 
   local status, recv
   local output = {}
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   local decoder = iec61850mms.MMSDecoder:new()
   local encoder = iec61850mms.MMSEncoder:new()

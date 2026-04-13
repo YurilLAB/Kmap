@@ -1,7 +1,7 @@
 local datetime = require "datetime"
 local gps = require "gps"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -12,7 +12,7 @@ Retrieves GPS time, coordinates and speed from the GPSD network daemon.
 
 ---
 -- @usage
--- nmap -p 2947 <ip> --script gpsd-info
+-- kmap -p 2947 <ip> --script gpsd-info
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -26,7 +26,7 @@ Retrieves GPS time, coordinates and speed from the GPSD network daemon.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
@@ -64,7 +64,7 @@ action = function(host, port)
     date  = "-",
   }
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(1000)
 
   local status = socket:connect(host, port)

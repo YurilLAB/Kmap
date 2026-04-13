@@ -1,5 +1,5 @@
 local msrpc = require "msrpc"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -101,8 +101,8 @@ in this script.
 
 ---
 -- @usage
--- nmap --script smb-enum-users.nse -p445 <host>
--- sudo nmap -sU -sS --script smb-enum-users.nse -p U:137,T:139 <host>
+-- kmap --script smb-enum-users.nse -p445 <host>
+-- sudo kmap -sU -sS --script smb-enum-users.nse -p U:137,T:139 <host>
 --
 -- @output
 -- Host script results:
@@ -142,7 +142,7 @@ in this script.
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth","intrusive"}
 dependencies = {"smb-brute"}
 
@@ -161,8 +161,8 @@ action = function(host)
   local names = {}
   local names_lookup = {}
   local response = {}
-  local samronly = nmap.registry.args.samronly
-  local lsaonly  = nmap.registry.args.lsaonly
+  local samronly = kmap.registry.args.samronly
+  local lsaonly  = kmap.registry.args.lsaonly
   local do_samr  = samronly ~= nil or (samronly == nil and lsaonly == nil)
   local do_lsa   = lsaonly  ~= nil or (samronly == nil and lsaonly == nil)
 
@@ -229,7 +229,7 @@ action = function(host)
     table.insert(response, "Couldn't find any account names, sorry!")
   else
     -- If we're not verbose, just print out the names. Otherwise, print out everything we can
-    if(nmap.verbosity() < 1) then
+    if(kmap.verbosity() < 1) then
       for domain, domain_users in pairs(domains) do
         -- Make an impromptu list of users
         local names = {}

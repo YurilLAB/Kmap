@@ -120,7 +120,7 @@ off_t	lseek(int, off_t, int);
 int	lstat(const char *, struct stat *);
 int	mkstemp(char *);
 char	*mktemp(char *);
-int	munmap(caddr_t, int);
+int	mukmap(caddr_t, int);
 void	openlog(const char *, int, int);
 void	perror(const char *);
 int	printf(const char *, ...);

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local ipOps = require "ipOps"
 local stdnse = require "stdnse"
@@ -19,9 +19,9 @@ This works by sending a PIM Hello message to the PIM multicast address
 -- Defaults to <code>5s</code>.
 --
 --@usage
--- nmap --script broadcast-pim-discovery
+-- kmap --script broadcast-pim-discovery
 --
--- nmap --script broadcast-pim-discovery -e eth1
+-- kmap --script broadcast-pim-discovery -e eth1
 --  --script-args 'broadcast-pim-discovery.timeout=10'
 --
 --@output
@@ -35,17 +35,17 @@ This works by sending a PIM Hello message to the PIM multicast address
 
 author = "Hani Benhabiles"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "broadcast"}
 
 prerule = function()
   -- TODO: IPv6 is supported by PIM-SM
-  if nmap.address_family() ~= 'inet' then
+  if kmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
   end
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -84,7 +84,7 @@ local helloQuery = function(interface, dstip)
   hello_packet:ip_set_bin_dst(ipOps.ip_to_str(dstip))
   hello_packet:ip_set_len(ip_raw:len()) hello_packet:ip_count_checksum()
 
-  sock = nmap.new_dnet()
+  sock = kmap.new_dnet()
   sock:ethernet_open(interface.device)
   -- Ethernet multicast for PIM, our ethernet address and packet type IP
   eth_hdr = "\x01\x00\x5e\x00\x00\x0d" .. interface.mac .. "\x08\x00"
@@ -97,9 +97,9 @@ end
 --@param timeout Time to listen for a response.
 --@param responses table to insert responders' IPs into.
 local helloListen = function(interface, timeout, responses)
-  local condvar = nmap.condvar(responses)
-  local start = nmap.clock_ms()
-  local listener = nmap.new_socket()
+  local condvar = kmap.condvar(responses)
+  local start = kmap.clock_ms()
+  local listener = kmap.new_socket()
   local p, hello_raw, status, l3data, _
 
   -- PIM packets that are sent to 224.0.0.13 and not coming from our host
@@ -107,7 +107,7 @@ local helloListen = function(interface, timeout, responses)
   listener:set_timeout(100)
   listener:pcap_open(interface.device, 1024, true, filter)
 
-  while (nmap.clock_ms() - start) < timeout do
+  while (kmap.clock_ms() - start) < timeout do
     status, _, _, l3data = listener:pcap_receive()
     if status then
       p = packet.Packet:new(l3data, #l3data)
@@ -126,7 +126,7 @@ end
 --@return interface Network interface used for destination host.
 local getInterface = function(interfaces, destination)
   -- First, create dummy UDP connection to get interface
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   local status, err = sock:connect(destination, "12345", "udp")
   if not status then
     stdnse.verbose1("%s", err)
@@ -178,7 +178,7 @@ action = function()
   -- Send Hello after small sleep so the listener doesn't miss any responses
   stdnse.sleep(0.1)
   helloQuery(interface, mcast)
-  local condvar = nmap.condvar(responses)
+  local condvar = kmap.condvar(responses)
   condvar("wait")
 
   if #responses > 0 then

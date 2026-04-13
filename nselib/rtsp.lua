@@ -2,7 +2,7 @@
 -- This Real Time Streaming Protocol (RTSP) library implements only a minimal
 -- subset of the protocol needed by the current scripts.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- The library contains the following classes:
@@ -34,7 +34,7 @@
 -- Created 10/23/2011 - v0.1 - Created by Patrik Karlsson
 --
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local stringaux = require "stringaux"
 local table = require "table"
@@ -165,7 +165,7 @@ Client = {
   -- @return status true on success, false on failure
   -- @return err string containing the error message on failure
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(self.timeout)
     local status = self.socket:connect(self.host, self.port)
     if ( not(status) ) then

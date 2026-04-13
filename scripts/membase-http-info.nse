@@ -14,7 +14,7 @@ does not require any credentials.
 
 ---
 -- @usage
--- nmap -p 8091 <ip> --script membase-http-info
+-- kmap -p 8091 <ip> --script membase-http-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -37,7 +37,7 @@ does not require any credentials.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 

@@ -9,7 +9,7 @@ Performs brute force password auditing against a Nessus vulnerability scanning d
 
 ---
 -- @usage
--- nmap --script nessus-brute -p 1241 <host>
+-- kmap --script nessus-brute -p 1241 <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -30,7 +30,7 @@ Performs brute force password auditing against a Nessus vulnerability scanning d
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

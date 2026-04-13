@@ -1,5 +1,5 @@
 local ipOps  = require "ipOps"
-local nmap   = require "nmap"
+local kmap   = require "kmap"
 local ospf   = require "ospf"
 local packet = require "packet"
 local stdnse = require "stdnse"
@@ -23,8 +23,8 @@ the script will fail unless a single interface is present on the system.
 
 ---
 -- @usage
--- nmap --script=broadcast-ospf2-discover
--- nmap --script=broadcast-ospf2-discover -e wlan0
+-- kmap --script=broadcast-ospf2-discover
+-- kmap --script=broadcast-ospf2-discover -e wlan0
 --
 -- @args broadcast-ospf2-discover.md5_key MD5 digest key to use if message digest
 -- authentication is disclosed.
@@ -48,15 +48,15 @@ the script will fail unless a single interface is present on the system.
 --
 
 author     = "Emiliano Ticci"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "discovery", "safe"}
 
 prerule = function()
-  if nmap.address_family() ~= "inet" then
+  if kmap.address_family() ~= "inet" then
     stdnse.print_verbose("is IPv4 only.")
     return false
   end
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.print_verbose("not running for lack of privileges.")
     return false
   end
@@ -77,7 +77,7 @@ local function fail(err) return stdnse.format_output(false, err) end
 -- Print OSPFv2 LSA Header packet details to debug output.
 -- @param hello OSPFv2 LSA Header packet
 local ospfDumpLSAHeader = function(lsa_h)
-  if 2 > nmap.debugging() then
+  if 2 > kmap.debugging() then
     return
   end
   stdnse.print_debug(2, "|   LS Age: %s", lsa_h.age)
@@ -93,7 +93,7 @@ end
 -- Print OSPFv2 Database Description packet details to debug output.
 -- @param hello OSPFv2 Database Description packet
 local ospfDumpDBDesc = function(db_desc)
-  if 2 > nmap.debugging() then
+  if 2 > kmap.debugging() then
     return
   end
   stdnse.print_debug(2, "| MTU:      %s", db_desc.mtu)
@@ -116,7 +116,7 @@ end
 -- Print OSPFv2 Hello packet details to debug output.
 -- @param hello OSPFv2 Hello packet
 local ospfDumpHello = function(hello)
-  if 2 > nmap.debugging() then
+  if 2 > kmap.debugging() then
     return
   end
   stdnse.print_debug(2, "| Router ID:         %s", hello.header.router_id)
@@ -143,7 +143,7 @@ end
 -- Print OSPFv2 LS Request packet details to debug output.
 -- @param ls_req OSPFv2 LS Request packet
 local ospfDumpLSRequest = function(ls_req)
-  if 2 > nmap.debugging() then
+  if 2 > kmap.debugging() then
     return
   end
   for i, req in ipairs(ls_req.ls_requests) do
@@ -195,7 +195,7 @@ end
 -- @param mac_dst     Destination MAC address
 -- @param ospf_packet Raw OSPF packet
 local ospfSend = function(interface, ip_dst, mac_dst, ospf_packet)
-  local dnet  = nmap.new_dnet()
+  local dnet  = kmap.new_dnet()
   local probe = packet.Frame:new()
 
   probe.mac_src    = interface.mac
@@ -305,13 +305,13 @@ end
 -- @param timeout   Amount of time to listen in seconds
 local ospfListen = function(interface, timeout)
   local status, l2_data, l3_data, ospf_raw, _
-  local start  = nmap.clock_ms()
+  local start  = kmap.clock_ms()
 
   stdnse.print_debug("Start listening on interface %s...", interface.shortname)
-  local listener = nmap.new_socket()
+  local listener = kmap.new_socket()
   listener:set_timeout(1000)
   listener:pcap_open(interface.device, 1500, true, "ip proto 89 and not (ip src host " .. interface.address .. ")")
-  while (nmap.clock_ms() - start) < (timeout * 1000) do
+  while (kmap.clock_ms() - start) < (timeout * 1000) do
     status, _, l2_data, l3_data = listener:pcap_receive()
     if status then
       stdnse.print_debug(2, "Packet received on interface %s.", interface.shortname)
@@ -334,7 +334,7 @@ local ospfListen = function(interface, timeout)
         end
 
         ospfReplyHello(interface, ospf_hello)
-        start = nmap.clock_ms()
+        start = kmap.clock_ms()
       elseif ospf_raw:byte(1) == 0x02 and ospf_raw:byte(2) == OSPF_MSG_DBDESC then
         stdnse.print_debug(2, "OSPFv2 Database Description packet detected.")
 

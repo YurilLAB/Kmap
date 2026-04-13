@@ -1,6 +1,6 @@
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local outlib = require "outlib"
 local packet = require "packet"
 local stdnse = require "stdnse"
@@ -24,7 +24,7 @@ hostnames)".
 ]]
 
 ---
--- @usage nmap -6 <target>
+-- @usage kmap -6 <target>
 --
 -- @output
 -- | ipv6-node-info:
@@ -91,14 +91,14 @@ local function build_ni_query(src, dst, qtype)
 end
 
 function hostrule(host)
-  return nmap.is_privileged() and #host.bin_ip == 16 and host.interface
+  return kmap.is_privileged() and #host.bin_ip == 16 and host.interface
 end
 
 local function open_sniffer(host)
   local bpf
   local s
 
-  s = nmap.new_socket()
+  s = kmap.new_socket()
   bpf = string.format("ip6 and src host %s", host.ip)
   s:pcap_open(host.interface, 1500, false, bpf)
 
@@ -108,7 +108,7 @@ end
 local function send_queries(host)
   local dnet
 
-  dnet = nmap.new_dnet()
+  dnet = kmap.new_dnet()
   dnet:ip_open()
   local p = build_ni_query(host.bin_ip_src, host.bin_ip, QTYPE_NODEADDRESSES)
   dnet:ip_send(p, host)
@@ -312,7 +312,7 @@ function action(host)
   }
   results = {}
 
-  now = nmap.clock_ms()
+  now = kmap.clock_ms()
   end_time = now + timeout
   repeat
     local _, status, buf
@@ -328,7 +328,7 @@ function action(host)
       end
     end
 
-    now = nmap.clock_ms()
+    now = kmap.clock_ms()
   until empty(pending) or now > end_time
 
   s:pcap_close()

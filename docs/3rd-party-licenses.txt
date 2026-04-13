@@ -1,26 +1,26 @@
 $Id$
 
 This file is a list of the licenses of the third-party software used by
-Nmap and the other tools distributed with it. What follows is a
+Kmap and the other tools distributed with it. What follows is a
 description of each third-party package. At the end of this file is the
-license of each. The license of Nmap itself is in the LICENSE file.
+license of each. The license of Kmap itself is in the LICENSE file.
 
-On all platforms, Nmap is normally linked with:
- o libpcap: Network packet capture library. Distributed with Nmap in the
+On all platforms, Kmap is normally linked with:
+ o libpcap: Network packet capture library. Distributed with Kmap in the
    libpcap subdirectory.
    http://www.tcpdump.org/
  o libdnet: Networking library, used for low-level tasks such as sending
-   ethernet frames. A modified version is distributed with Nmap in the
-   libdnet-stripped subdirectory. A summary of Nmap-local modifications
-   is in the file NMAP_MODIFICATIONS.
+   ethernet frames. A modified version is distributed with Kmap in the
+   libdnet-stripped subdirectory. A summary of Kmap-local modifications
+   is in the file KMAP_MODIFICATIONS.
    http://code.google.com/p/libdnet/
- o PCRE: Perl-compatible regular expressions. PCRE is part of Nmap's
+ o PCRE: Perl-compatible regular expressions. PCRE is part of Kmap's
    version detection and is also made available as an NSE library.
-   Distributed with Nmap in the libpcre subdirectory.
+   Distributed with Kmap in the libpcre subdirectory.
    http://www.pcre.org/
  o liblua: Lua programming language. Lua is the implementation language
-   of NSE, the Nmap Scripting Engine. Nmap links with liblua to allow
-   running Lua programs inside Nmap. Distributed with Nmap in the liblua
+   of NSE, the Kmap Scripting Engine. Kmap links with liblua to allow
+   running Lua programs inside Kmap. Distributed with Kmap in the liblua
    subdirectory. liblua can be omitted by configuring with the
    --without-liblua configuration directive.
    http://www.lua.org/
@@ -33,17 +33,17 @@ On all platforms, Nmap is normally linked with:
  o LIBLINEAR. Used for IPv6 OS classifiction.
    http://www.csie.ntu.edu.tw/~cjlin/liblinear/
 
-On Windows only, Nmap uses:
+On Windows only, Kmap uses:
  o WinPcap: libpcap for Windows. The libpcap license applies to WinPcap,
    and it also has its own license. A binary copy of the library is
-   distributed with Nmap in the subdirectory mswin32/winpcap.
+   distributed with Kmap in the subdirectory mswin32/winpcap.
    http://www.winpcap.org/
 
-Certain Nmap Scripting Engine scripts use the simplified BSD license in
+Certain Kmap Scripting Engine scripts use the simplified BSD license in
 licenses/BSD-simplified.
 
-Zenmap and Ndiff require:
- o Python. The binary distributions of Nmap include a Python interpreter
+Zekmap and Ndiff require:
+ o Python. The binary distributions of Kmap include a Python interpreter
    and various libraries, built using either py2exe or py2app.
    http://www.python.org/
 

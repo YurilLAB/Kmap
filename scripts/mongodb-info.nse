@@ -1,5 +1,5 @@
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -11,7 +11,7 @@ Attempts to get build info and server status from a MongoDB database.
 
 ---
 -- @usage
--- nmap -p 27017 --script mongodb-info <host>
+-- kmap -p 27017 --script mongodb-info <host>
 --
 -- @args mongodb-info.db Database to check. Default: admin
 --
@@ -57,7 +57,7 @@ Attempts to get build info and server status from a MongoDB database.
 
 
 author = "Martin Holst Swende"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"mongodb-brute"}
@@ -69,7 +69,7 @@ portrule = shortport.port_or_service({27017}, {"mongodb", "mongod"})
 
 function action(host,port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
 
   -- set a reasonable timeout value
   socket:set_timeout(10000)
@@ -78,7 +78,7 @@ function action(host,port)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try( socket:connect(host, port) )
 
@@ -108,7 +108,7 @@ function action(host,port)
   port.version.name ='mongodb'
   port.version.product='MongoDB'
   port.version.name_confidence = 10
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
 
   status, packet = mongodb.buildInfoQuery()
   if not status then return packet end
@@ -122,7 +122,7 @@ function action(host,port)
 
   local versionNumber = buildQResult['version']
   port.version.product='MongoDB '..versionNumber
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
 
   local stat_out = mongodb.queryResultToTable(statQResult)
   local build_out = mongodb.queryResultToTable(buildQResult)

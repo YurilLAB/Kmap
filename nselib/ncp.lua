@@ -45,14 +45,14 @@
 --
 
 --@author Patrik Karlsson <patrik@cqure.net>
---@copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
 -- Version 0.1
 -- Created 24/04/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 local ipOps = require "ipOps"
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -976,7 +976,7 @@ Helper = {
   --- Connect the socket and creates a NCP connection
   -- @return true on success false on failure
   connect = function(self)
-    self.socket = nmap.new_socket()
+    self.socket = kmap.new_socket()
     self.socket:set_timeout(5000)
     local status, err = self.socket:connect(self.host, self.port)
     if ( not(status) ) then return status, err end
@@ -1061,7 +1061,7 @@ Helper = {
     mounts.name = "Mounts"
     table.insert(output, mounts)
 
-    if ( nmap.debugging() > 0 ) then
+    if ( kmap.debugging() > 0 ) then
       table.insert(output, ("Acct version: %d"):format(srv_info.acct_version))
       table.insert(output, ("VAP version: %d"):format(srv_info.vap_version))
       table.insert(output, ("QMS version: %d"):format(srv_info.qms_version))

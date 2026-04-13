@@ -395,7 +395,7 @@ agent_transact_pageant(LIBSSH2_AGENT *agent, agent_transaction_ctx_t transctx)
     if(id > 0) {
         transctx->response_len = _libssh2_ntohu32(p);
         if(transctx->response_len > PAGEANT_MAX_MSGLEN) {
-            UnmapViewOfFile(p);
+            UkmapViewOfFile(p);
             CloseHandle(filemap);
             return _libssh2_error(agent->session, LIBSSH2_ERROR_AGENT_PROTOCOL,
                                   "agent setup fail");
@@ -403,7 +403,7 @@ agent_transact_pageant(LIBSSH2_AGENT *agent, agent_transaction_ctx_t transctx)
         transctx->response = LIBSSH2_ALLOC(agent->session,
                                            transctx->response_len);
         if(!transctx->response) {
-            UnmapViewOfFile(p);
+            UkmapViewOfFile(p);
             CloseHandle(filemap);
             return _libssh2_error(agent->session, LIBSSH2_ERROR_ALLOC,
                                   "agent malloc");
@@ -411,7 +411,7 @@ agent_transact_pageant(LIBSSH2_AGENT *agent, agent_transaction_ctx_t transctx)
         memcpy(transctx->response, p + 4, transctx->response_len);
     }
 
-    UnmapViewOfFile(p);
+    UkmapViewOfFile(p);
     CloseHandle(filemap);
     return 0;
 }

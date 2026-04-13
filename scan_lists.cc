@@ -1,59 +1,59 @@
 /***************************************************************************
  * scan_lists.cc -- Structures and functions for lists of ports to scan    *
  * and scan types                                                          *
- ***********************IMPORTANT NMAP LICENSE TERMS************************
+ ***********************IMPORTANT KMAP LICENSE TERMS************************
  *
- * The Nmap Security Scanner is (C) 1996-2026 Nmap Software LLC ("The Nmap
- * Project"). Nmap is also a registered trademark of the Nmap Project.
+ * The Kmap Security Scanner is (C) 1996-2026 Kmap Software LLC ("The Kmap
+ * Project"). Kmap is also a registered trademark of the Kmap Project.
  *
- * This program is distributed under the terms of the Nmap Public Source
- * License (NPSL). The exact license text applying to a particular Nmap
+ * This program is distributed under the terms of the Kmap Public Source
+ * License (NPSL). The exact license text applying to a particular Kmap
  * release or source code control revision is contained in the LICENSE
- * file distributed with that version of Nmap or source code control
- * revision. More Nmap copyright/legal information is available from
- * https://nmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://nmap.org/npsl/ . This
- * header summarizes some key points from the Nmap license, but is no
+ * file distributed with that version of Kmap or source code control
+ * revision. More Kmap copyright/legal information is available from
+ * https://kmap.org/book/man-legal.html, and further information on the
+ * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
- * Nmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://nmap.org.
+ * Kmap is generally free for end users to download and use themselves,
+ * including commercial use. It is available from https://kmap.org.
  *
- * The Nmap license generally prohibits companies from using and
- * redistributing Nmap in commercial products, but we sell a special Nmap
+ * The Kmap license generally prohibits companies from using and
+ * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://nmap.org/oem/
+ * this purpose. See https://kmap.org/oem/
  *
- * If you have received a written Nmap license agreement or contract
- * stating terms other than these (such as an Nmap OEM license), you may
- * choose to use and redistribute Nmap under those terms instead.
+ * If you have received a written Kmap license agreement or contract
+ * stating terms other than these (such as an Kmap OEM license), you may
+ * choose to use and redistribute Kmap under those terms instead.
  *
- * The official Nmap Windows builds include the Npcap software
+ * The official Kmap Windows builds include the Npcap software
  * (https://npcap.com) for packet capture and transmission. It is under
  * separate license terms which forbid redistribution without special
- * permission. So the official Nmap Windows builds may not be redistributed
- * without special permission (such as an Nmap OEM license).
+ * permission. So the official Kmap Windows builds may not be redistributed
+ * without special permission (such as an Kmap OEM license).
  *
  * Source is provided to this software because we believe users have a
  * right to know exactly what a program is going to do before they run it.
  * This also allows you to audit the software for security holes.
  *
- * Source code also allows you to port Nmap to new platforms, fix bugs, and
+ * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@nmap.org mailing list for possible
+ * Github PR or by email to the dev@kmap.org mailing list for possible
  * incorporation into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
- * submissions as described in the Nmap Public Source License Contributor
+ * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
  * with various terms, and also because the inability to relicense code has
  * caused devastating problems for other Free Software projects (such as KDE
  * and NASM).
  *
- * The free version of Nmap is distributed in the hope that it will be
+ * The free version of Kmap is distributed in the hope that it will be
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://nmap.org/oem/
+ * Npcap OEM program--see https://kmap.org/oem/
  *
  ***************************************************************************/
 
@@ -67,7 +67,7 @@
  *
  * getpts() handles []
  * Any port ranges included inside square brackets will have all
- * their ports looked up in nmap-services or nmap-protocols
+ * their ports looked up in kmap-services or kmap-protocols
  * and will only be included if they are found.
  * Returns a scan_list* with all the ports that should be scanned.
  *
@@ -77,7 +77,7 @@
  * like "*" and "?". See the function wildtest() for the exact details.
  * For example,
  *
- * nmap -p http* host
+ * kmap -p http* host
  *
  * Will scan http (80), http-mgmt (280), http-proxy (8080), https (443), etc.
  *
@@ -91,23 +91,23 @@
  * If you are trying to match the services nmsp (537/tcp) and nms (1429/tcp)
  * and you execute the command
  *
- * ./nmap -p nm* host
+ * ./kmap -p nm* host
  *
  * You will see
  *
- * Found no matches for the service mask 'nmap' and your specified protocols
+ * Found no matches for the service mask 'kmap' and your specified protocols
  * QUITTING!
  *
- * This is because nm* was expanded to the name of the binary file nmap in
+ * This is because nm* was expanded to the name of the binary file kmap in
  * the current directory by your shell. When unsure, quote your port strings
  * to be safe:
  *
- * ./nmap -p 'nm*' host
+ * ./kmap -p 'nm*' host
  *
  * getpts() is smart enough to keep the T: U: and P: directives nested
  * and working in a logical manner. For instance,
  *
- * nmap -sTU -p [U:1025-],1-1024 host
+ * kmap -sTU -p [U:1025-],1-1024 host
  *
  * Will scan UDP ports 1025 and up that are found in the service file
  * and all TCP/UDP ports below <= 1024. Notice that the U doesn't affect
@@ -115,13 +115,13 @@
  */
 
 #include "scan_lists.h"
-#include "nmap_error.h"
-#include "NmapOps.h"
+#include "kmap_error.h"
+#include "KmapOps.h"
 #include "protocols.h"
 #include "services.h"
 #include <nbase.h>
 
-extern NmapOps o;  /* option structure */
+extern KmapOps o;  /* option structure */
 
 static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_type,
                        int *portwarning, bool change_range_type = true);
@@ -458,25 +458,25 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
     while (rangestart <= rangeend) {
       if (porttbl[rangestart] & range_type) {
         if (!(*portwarning)) {
-          error("WARNING: Duplicate port number(s) specified.  Are you alert enough to be using Nmap?  Have some coffee or Jolt(tm).");
+          error("WARNING: Duplicate port number(s) specified.  Are you alert enough to be using Kmap?  Have some coffee or Jolt(tm).");
           (*portwarning)++;
         }
       } else {
         if (nested) {
           if ((range_type & SCAN_TCP_PORT) &&
-              nmap_getservbyport(rangestart, IPPROTO_TCP)) {
+              kmap_getservbyport(rangestart, IPPROTO_TCP)) {
             porttbl[rangestart] |= SCAN_TCP_PORT;
           }
           if ((range_type & SCAN_UDP_PORT) &&
-              nmap_getservbyport(rangestart, IPPROTO_UDP)) {
+              kmap_getservbyport(rangestart, IPPROTO_UDP)) {
             porttbl[rangestart] |= SCAN_UDP_PORT;
           }
           if ((range_type & SCAN_SCTP_PORT) &&
-              nmap_getservbyport(rangestart, IPPROTO_SCTP)) {
+              kmap_getservbyport(rangestart, IPPROTO_SCTP)) {
             porttbl[rangestart] |= SCAN_SCTP_PORT;
           }
           if ((range_type & SCAN_PROTOCOLS) &&
-              nmap_getprotbynum(rangestart)) {
+              kmap_getprotbynum(rangestart)) {
             porttbl[rangestart] |= SCAN_PROTOCOLS;
           }
         } else {

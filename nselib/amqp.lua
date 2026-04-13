@@ -15,7 +15,7 @@
 --
 -- @args amqp.version Can be used to specify the client version to use (currently, 0-8, 0-9 or 0-9-1)
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 -- @author Sebastian Dragomir <velorien@gmail.com>
 
 -- Version 0.1
@@ -23,7 +23,7 @@
 -- Created 05/04/2011 - v0.1 - created by Sebastian Dragomir <velorien@gmail.com>
 
 local match = require "match"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -51,8 +51,8 @@ AMQP = {
     self.__index = self
     o.host = host
     o.port = port
-    o.amqpsocket = nmap.new_socket()
-    o.cli_version = self.client_version_strings[nmap.registry.args['amqp.version']] or self.client_version_strings["0-9-1"]
+    o.amqpsocket = kmap.new_socket()
+    o.cli_version = self.client_version_strings[kmap.registry.args['amqp.version']] or self.client_version_strings["0-9-1"]
     o.protover = nil
     o.server_version = nil
     o.server_product = nil

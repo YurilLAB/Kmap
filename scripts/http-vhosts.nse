@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -23,7 +23,7 @@ various names of the form <name>.example.com are tried.
 
 ---
 -- @usage
--- nmap --script http-vhosts -p 80,8080,443 <target>
+-- kmap --script http-vhosts -p 80,8080,443 <target>
 --
 -- @arg http-vhosts.domain The domain that hostnames will be prepended to, for
 -- example <code>example.com</code> yields www.example.com, www2.example.com,
@@ -41,7 +41,7 @@ various names of the form <name>.example.com are tried.
 -- | docs.example.com: 302 -> https://www.example.com/docs/
 -- |_images.example.com: 200
 
--- see http://seclists.org/nmap-dev/2010/q4/401 and http://seclists.org/nmap-dev/2010/q4/445
+-- see http://seclists.org/kmap-dev/2010/q4/401 and http://seclists.org/kmap-dev/2010/q4/445
 -- todo feature: add option report and implement it
 --           after stripping sensitive info like ip, domain names, hostnames
 --           and redirection targets from the result, append it to a file
@@ -53,7 +53,7 @@ various names of the form <name>.example.com are tried.
 
 author = "Carlos Pantelides"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = { "discovery", "intrusive" }
 
@@ -110,7 +110,7 @@ local collapse = function(result)
 end
 
 local testThread = function(result, host, port, name)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local targetname = makeTargetName(name , arg_domain)
   if targetname ~= nil then
     local http_response = http.generic_request(host, port, "HEAD", arg_path, {header={Host=targetname}})
@@ -147,7 +147,7 @@ portrule = shortport.http
 -- @param port table
 action = function(host, port)
   local result, threads, hostnames = {}, {}, {}
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local status
 
   if arg_filelist then

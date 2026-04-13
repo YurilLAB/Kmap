@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local string = require "string"
 
@@ -16,7 +16,7 @@ Attempts to extract system information from the point-to-point tunneling protoco
 
 author = "Thomas Buchanan"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"version"}
 
@@ -38,7 +38,7 @@ action = function(host, port)
   "\000\000\000\000\000\000\000\000" .. -- padding for hostname
   "\000\000\000\000\000\000\000\000" .. -- padding for hostname
   "\000\000\000\000\000\000\000\000" .. -- padding for hostname
-  "\000\000\000\000" .. "nmap" .. -- padding for hostname, vendor name
+  "\000\000\000\000" .. "kmap" .. -- padding for hostname, vendor name
   "\000\000\000\000\000\000\000\000" .. -- padding for vendor name
   "\000\000\000\000\000\000\000\000" .. -- padding for vendor name
   "\000\000\000\000\000\000\000\000" .. -- padding for vendor name
@@ -48,7 +48,7 @@ action = function(host, port)
   "\000\000\000\000\000\000\000\000" .. -- padding for vendor name
   "\000\000\000\000"; -- padding for vendor name
 
-  local try = nmap.new_try()
+  local try = kmap.new_try()
   local response = try(comm.exchange(host, port, payload, {timeout=5000}))
 
   local result
@@ -75,7 +75,7 @@ action = function(host, port)
     if hostname ~= nil then port.version.hostname = hostname end
 
     port.version.service_tunnel = "none"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
   end
 
 end

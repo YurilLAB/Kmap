@@ -1,5 +1,5 @@
 local creds = require "creds"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
@@ -14,7 +14,7 @@ http://cassandra.apache.org/
 
 ---
 -- @usage
--- nmap -p 9160 <ip> --script=cassandra-info
+-- kmap -p 9160 <ip> --script=cassandra-info
 --
 -- @output
 -- PORT     STATE SERVICE   REASON
@@ -31,7 +31,7 @@ http://cassandra.apache.org/
 -- Created 14/09/2012 - v0.1 - created by Vlatko Kosturjak <kost@linux.hr>
 
 author = "Vlatko Kosturjak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"cassandra-brute"}
@@ -40,7 +40,7 @@ portrule = shortport.port_or_service({9160}, {"cassandra"})
 
 function action(host,port)
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local cassinc = 2 -- cmd/resp starts at 2
 
   -- set a reasonable timeout value
@@ -50,7 +50,7 @@ function action(host,port)
     socket:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try( socket:connect(host, port) )
 
@@ -78,7 +78,7 @@ function action(host,port)
   port.version.name ='cassandra'
   port.version.product='Cassandra'
   port.version.name_confidence = 10
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
   results["Cluster name"] = val
 
   local status, val = cassandra.describe_version(socket,cassinc)
@@ -87,7 +87,7 @@ function action(host,port)
   end
   cassinc = cassinc + 1
   port.version.product='Cassandra ('..val..')'
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
   results["Version"] = val
 
   return results

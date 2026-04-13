@@ -1,5 +1,5 @@
 local netbios = require "netbios"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local tab = require "tab"
 
@@ -9,7 +9,7 @@ Attempts to discover master browsers and the domains they manage.
 
 ---
 -- @usage
--- nmap --script=broadcast-netbios-master-browser
+-- kmap --script=broadcast-netbios-master-browser
 --
 -- @output
 -- | broadcast-netbios-master-browser:
@@ -21,7 +21,7 @@ Attempts to discover master browsers and the domains they manage.
 -- Created 06/14/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
@@ -32,7 +32,7 @@ local function isGroup(flags) return ( (flags & 0x8000) == 0x8000 ) end
 action = function()
 
   -- NBNS only works over ipv4
-  if ( nmap.address_family() == "inet6") then return end
+  if ( kmap.address_family() == "inet6") then return end
 
   local MASTER_BROWSER_DOMAIN = 0x1D
   local STD_WORKSTATION_SERVICE = 0x00

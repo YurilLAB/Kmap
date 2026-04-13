@@ -24,7 +24,7 @@ http://www.exploit-db.com/exploits/15130/
 
 ---
 -- @usage
--- nmap --script http-barracuda-dir-traversal --script-args http-max-cache-size=5000000 -p <port> <host>
+-- kmap --script http-barracuda-dir-traversal --script-args http-max-cache-size=5000000 -p <port> <host>
 --
 -- @args http-max-cache-size
 --       Set max cache size. The default value is 100,000.
@@ -77,7 +77,7 @@ http://www.exploit-db.com/exploits/15130/
 --
 
 author = "Brendan Coles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "exploit", "auth"}
 
 

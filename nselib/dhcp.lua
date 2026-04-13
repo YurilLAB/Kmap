@@ -17,7 +17,7 @@
 local datetime = require "datetime"
 local ipOps = require "ipOps"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local strbuf = require "strbuf"
@@ -413,7 +413,7 @@ function dhcp_build(request_type, ip_address, mac_address, options, request_opti
     -- Request the defaults, or there's no verbosity; otherwise, request everything!
     request_options = strbuf.new()
     for i,v in pairs(actions) do
-      if(v.default or nmap.verbosity() > 0) then
+      if(v.default or kmap.verbosity() > 0) then
         request_options = request_options .. string.char(i)
       end
     end
@@ -531,7 +531,7 @@ function dhcp_parse(data, transaction_id)
       stdnse.debug2("dhcp-discover: Attempting to parse %s", action['name'])
       pos, value = action['func'](data, pos, length)
 
-      if(nmap.verbosity() == 0 and action.default == false) then
+      if(kmap.verbosity() == 0 and action.default == false) then
         stdnse.debug1("dhcp-discover: Server returned unrequested option (%s => %s)", action['name'], value)
 
       else
@@ -615,7 +615,7 @@ function make_request(target, request_type, ip_address, mac_address, options, re
     return false, "Couldn't build packet: "  .. packet
   end
 
-  local socket = nmap.new_socket("udp")
+  local socket = kmap.new_socket("udp")
   socket:bind(nil, 68)
   socket:set_timeout(5000)
 

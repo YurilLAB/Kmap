@@ -6,9 +6,9 @@ Application Entity Titles (AET) are used to restrict responses only to clients k
 ]]
 
 ---
--- @usage nmap -p4242 --script dicom-brute <target>
--- @usage nmap -sV --script dicom-brute <target>
--- @usage nmap --script dicom-brute --script-args passdb=aets.txt <target>
+-- @usage kmap -p4242 --script dicom-brute <target>
+-- @usage kmap -sV --script dicom-brute <target>
+-- @usage kmap --script dicom-brute --script-args passdb=aets.txt <target>
 -- 
 -- @output
 -- PORT     STATE SERVICE        REASON
@@ -20,13 +20,13 @@ Application Entity Titles (AET) are used to restrict responses only to clients k
 ---
 
 author = "Paulino Calderon <calderon()calderonpale.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"auth", "brute"}
 
 local shortport = require "shortport"
 local dicom = require "dicom"
 local stdnse = require "stdnse"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local brute = require "brute"
 local creds = require "creds"
 

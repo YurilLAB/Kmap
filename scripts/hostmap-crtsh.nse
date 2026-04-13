@@ -25,27 +25,27 @@ References:
 -- can change their behavior based on hostname.
 --
 -- @usage
--- nmap --script hostmap-crtsh --script-args 'hostmap-crtsh.prefix=hostmap-' <targets>
+-- kmap --script hostmap-crtsh --script-args 'hostmap-crtsh.prefix=hostmap-' <targets>
 -- @usage
--- nmap -sn --script hostmap-crtsh <target>
+-- kmap -sn --script hostmap-crtsh <target>
 -- @output
 -- Host script results:
 -- | hostmap-crtsh:
 -- |   subdomains:
--- |     svn.nmap.org
--- |     www.nmap.org
--- |_  filename: output_nmap.org
+-- |     svn.kmap.org
+-- |     www.kmap.org
+-- |_  filename: output_kmap.org
 -- @xmloutput
 -- <table key="subdomains">
---  <elem>svn.nmap.org</elem>
---  <elem>www.nmap.org</elem>
+--  <elem>svn.kmap.org</elem>
+--  <elem>www.kmap.org</elem>
 --  </table>
--- <elem key="filename">output_nmap.org</elem>
+-- <elem key="filename">output_kmap.org</elem>
 ---
 
 author = {"Paulino Calderon <calderon@websec.mx>", "Sweekar-cmd"}
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"external", "discovery"}
 

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local smb = require "smb"
 local stdnse = require "stdnse"
 local vulns = require "vulns"
@@ -17,8 +17,8 @@ This check was previously part of smb-check-vulns.
 
 ---
 --@usage
--- nmap --script smb-vuln-cve2009-3103.nse -p445 <host>
--- nmap -sU --script smb-vuln-cve2009-3103.nse -p U:137,T:139 <host>
+-- kmap --script smb-vuln-cve2009-3103.nse -p445 <host>
+-- kmap -sU --script smb-vuln-cve2009-3103.nse -p U:137,T:139 <host>
 --
 --@output
 --Host script results:
@@ -41,7 +41,7 @@ This check was previously part of smb-check-vulns.
 
 author = {"Ron Bowes", "Jiayi Ye", "Paulino Calderon <calderon()websec.mx>"}
 copyright = "Ron Bowes"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive","exploit","dos","vuln"}
 -- run after all smb-* scripts (so if it DOES crash something, it doesn't kill
 -- other scans have had a chance to run)
@@ -79,7 +79,7 @@ local function check_smbv2_dos(host)
     "\x4d\x20\x30\x2e\x31\x32\x00\x02\x53\x4d\x42\x20\x32\x2e" ..
     "\x30\x30\x32\x00"
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   if(socket == nil) then
     return false, "Couldn't create socket"
   end
@@ -104,7 +104,7 @@ local function check_smbv2_dos(host)
   stdnse.sleep(5)
 
   -- Create a new socket
-  socket = nmap.new_socket()
+  socket = kmap.new_socket()
   if(socket == nil) then
     return false, "Couldn't create socket"
   end

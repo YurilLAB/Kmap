@@ -1,5 +1,5 @@
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 local packet = require "packet"
 local stdnse = require "stdnse"
@@ -19,7 +19,7 @@ ctrl+break is issued, by setting the timeout to 0.
 
 ---
 -- @usage
--- nmap --script url-snarf -e <interface>
+-- kmap --script url-snarf -e <interface>
 --
 -- @output
 -- | url-snarf:
@@ -33,12 +33,12 @@ ctrl+break is issued, by setting the timeout to 0.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe"}
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -118,7 +118,7 @@ action = function()
     outfd:close()
   end
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   socket:set_timeout(1000)
   socket:pcap_open(arg_iface, 1500, true, "tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)")
 

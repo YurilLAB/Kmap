@@ -26,13 +26,13 @@
 -- </code>
 --
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @author Riccardo Cecolin <n@rikiji.de>
 --
 
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -244,7 +244,7 @@ send_identity_response = function (iface, id, identity)
     return
   end
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
   local tb = {src = iface.mac, type = eapol_t.PACKET}
   local response = make_eap{header = tb, code = code_t.RESPONSE, type = eap_t.IDENTITY, id = id, payload = identity}
 
@@ -260,7 +260,7 @@ send_nak_response = function (iface, id, auth)
     return
   end
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
   local tb = {src = iface.mac, type = eapol_t.PACKET}
   local response = make_eap{header = tb, code = code_t.RESPONSE, type = eap_t.NAK, id = id, payload = string.pack("B",auth)}
 
@@ -277,7 +277,7 @@ send_start = function (iface)
     return
   end
 
-  local dnet = nmap.new_dnet()
+  local dnet = kmap.new_dnet()
   local start = make_eapol{type = eapol_t.START, src = iface.mac}
 
   dnet:ethernet_open(iface.device)

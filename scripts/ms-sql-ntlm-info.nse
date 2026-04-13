@@ -18,7 +18,7 @@ disclosing information to include NetBIOS, DNS, and OS build version.
 
 ---
 -- @usage
--- nmap -p 1433 --script ms-sql-ntlm-info <target>
+-- kmap -p 1433 --script ms-sql-ntlm-info <target>
 --
 -- @output
 -- 1433/tcp   open     ms-sql-s
@@ -42,7 +42,7 @@ disclosing information to include NetBIOS, DNS, and OS build version.
 
 
 author = "Justin Cacak"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"broadcast-ms-sql-discover"}

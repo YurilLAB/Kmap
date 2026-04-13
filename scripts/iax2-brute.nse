@@ -15,7 +15,7 @@ In order to avoid this problem try:
 
 ---
 -- @usage
--- nmap -sU -p 4569 <ip> --script iax2-brute
+-- kmap -sU -p 4569 <ip> --script iax2-brute
 --
 -- @output
 -- PORT     STATE         SERVICE
@@ -29,7 +29,7 @@ In order to avoid this problem try:
 --
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

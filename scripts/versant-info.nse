@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -11,7 +11,7 @@ a Versant object database.
 
 ---
 -- @usage
--- nmap -p 5019 <ip> --script versant-info
+-- kmap -p 5019 <ip> --script versant-info
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -39,7 +39,7 @@ a Versant object database.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(5019, "versant", "tcp")
@@ -83,7 +83,7 @@ action = function(host, port)
 
   port.version.product = "Versant Database"
   port.version.name = "versant"
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
 
   -- the script may fail after this part, but we want to report at least
   -- the above information if that's the case.

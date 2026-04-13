@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local http = require "http"
 local io = require "io"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -22,7 +22,7 @@ huge number of existing modules (~18k) and themes(~1.4k).
 
 If you want to update your themes or module list refer to the link below.
 
-* https://svn.nmap.org/nmap-exp/gyani/misc/drupal-update.py
+* https://svn.kmap.org/kmap-exp/gyani/misc/drupal-update.py
 ]]
 
 ---
@@ -36,7 +36,7 @@ If you want to update your themes or module list refer to the link below.
 -- @args http-drupal-enum.themes_path Direct Path for Themes
 -- @args http-drupal-enum.type default all.choose between "themes" and "modules"
 --
--- @usage nmap -p 80 --script http-drupal-enum <target>
+-- @usage kmap -p 80 --script http-drupal-enum <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -75,7 +75,7 @@ author = {
   "Gyanendra Mishra",
 }
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {
   "discovery",
@@ -141,8 +141,8 @@ function action (host, port)
   local themes_path = stdnse.get_script_args(SCRIPT_NAME .. ".themes_path")
   local modules_path = stdnse.get_script_args(SCRIPT_NAME .. ".modules_path")
 
-  local themes_file = nmap.fetchfile "nselib/data/drupal-themes.lst"
-  local modules_file = nmap.fetchfile "nselib/data/drupal-modules.lst"
+  local themes_file = kmap.fetchfile "nselib/data/drupal-themes.lst"
+  local modules_file = kmap.fetchfile "nselib/data/drupal-modules.lst"
 
   if resource_type == "themes" or resource_type == "all" then
     local theme_db = assign_file(themes_file)
@@ -223,7 +223,7 @@ function action (host, port)
   if result['Themes'] or result['Modules'] then
     return result
   else
-    if nmap.verbosity() > 1 then
+    if kmap.verbosity() > 1 then
       return string.format("Nothing found amongst the top %s resources," .. "use --script-args number=<number|all> for deeper analysis)", search_limit)
     else
       return nil

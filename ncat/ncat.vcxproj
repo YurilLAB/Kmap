@@ -74,7 +74,7 @@
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\nmap-mswin32-aux\Npcap\Include;..\..\nmap-mswin32-aux\OpenSSL\include;..\liblua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -97,7 +97,7 @@
       <AdditionalDependencies>nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;nsock.lib;advapi32.lib;libcrypto.lib;libssl.lib;liblua.lib</AdditionalDependencies>
       <OutputFile>.\Debug\ncat.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>..\..\nmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\nmap-mswin32-aux\OpenSSL\lib;..\liblua;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\kmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\kmap-mswin32-aux\OpenSSL\lib;..\liblua;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>wpcap.dll</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -109,7 +109,7 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "..\..\nmap-mswin32-aux\OpenSSL\bin\*.dll" "$(Configuration)\" /y</Command>
+      <Command>xcopy "..\..\kmap-mswin32-aux\OpenSSL\bin\*.dll" "$(Configuration)\" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,7 +121,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\nmap-mswin32-aux\Npcap\Include;..\..\nmap-mswin32-aux\OpenSSL\include;..\liblua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -140,7 +140,7 @@
       <AdditionalDependencies>nsock.lib;nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;advapi32.lib;libcrypto.lib;libssl.lib</AdditionalDependencies>
       <OutputFile>.\Release/ncat.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>..\..\nmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\nmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\kmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\kmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>wpcap.dll</DelayLoadDLLs>
       <ProgramDatabaseFile>.\Release/ncat.pdb</ProgramDatabaseFile>
@@ -152,7 +152,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "..\..\nmap-mswin32-aux\OpenSSL\bin\*.dll" "$(Configuration)\" /y</Command>
+      <Command>xcopy "..\..\kmap-mswin32-aux\OpenSSL\bin\*.dll" "$(Configuration)\" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">
@@ -164,7 +164,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\nmap-mswin32-aux\Npcap\Include;..\..\nmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\..\kmap-mswin32-aux\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -183,7 +183,7 @@
       <AdditionalDependencies>nsock.lib;nbase.lib;ws2_32.lib;IPHlpAPI.Lib;advapi32.lib;libcrypto.lib;libssl.lib;user32.lib;gdi32.lib</AdditionalDependencies>
       <OutputFile>.\Release/ncat.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>..\..\nmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\nmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\kmap-mswin32-aux\Npcap\Lib;..\nsock;..\nbase;..\..\kmap-mswin32-aux\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ProgramDatabaseFile>.\Release/ncat.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>

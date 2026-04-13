@@ -3,7 +3,7 @@ Checks if various crawling utilities are allowed by the host.
 ]]
 
 ---
--- @usage nmap -p80 --script http-useragent-tester.nse <host>
+-- @usage kmap -p80 --script http-useragent-tester.nse <host>
 --
 -- This script sets various User-Agent headers that are used by different
 -- utilities and crawling libraries (for example CURL or wget). If the request is
@@ -20,7 +20,7 @@ Checks if various crawling utilities are allowed by the host.
 -- |   Status for browser useragent: 200
 -- |   Redirected To: https://www.example.com/
 -- |   Allowed User Agents:
--- |     Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)
+-- |     Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)
 -- |     libwww
 -- |     lwp-trivial
 -- |     libcurl-agent/1.0
@@ -43,8 +43,8 @@ Checks if various crawling utilities are allowed by the host.
 -- <elem key="Status for browser useragent">200</elem>
 -- <elem key="Redirected To">https://www.example.com/</elem>
 -- <table key="Allowed User Agents">
---   <elem>Mozilla/5.0 (compatible; Nmap Scripting Engine;
---   https://nmap.org/book/nse.html)</elem>
+--   <elem>Mozilla/5.0 (compatible; Kmap Scripting Engine;
+--   https://kmap.org/book/nse.html)</elem>
 --   <elem>libwww</elem>
 --   <elem>lwp-trivial</elem>
 --   <elem>libcurl-agent/1.0</elem>
@@ -68,7 +68,7 @@ Checks if various crawling utilities are allowed by the host.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local target = require "target"

@@ -22,7 +22,7 @@ For more information about QNX QCONN, see:
 
 ---
 -- @usage
--- nmap --script qconn-exec --script-args qconn-exec.timeout=60,qconn-exec.bytes=1024,qconn-exec.cmd="uname -a" -p <port> <target>
+-- kmap --script qconn-exec --script-args qconn-exec.timeout=60,qconn-exec.bytes=1024,qconn-exec.cmd="uname -a" -p <port> <target>
 --
 -- @output
 -- PORT     STATE SERVICE VERSION
@@ -55,7 +55,7 @@ For more information about QNX QCONN, see:
 --                      - now uses the vuln library for reporting
 
 author = "Brendan Coles"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "exploit", "vuln"}
 
 portrule = shortport.port_or_service ({8000}, "qconn", {"tcp"})

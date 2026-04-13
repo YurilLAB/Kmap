@@ -1,6 +1,6 @@
 local _G = require "_G"
 local coroutine = require "coroutine"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local packet = require "packet"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -12,13 +12,13 @@ Spotify, DropBox, DHCP, ARP and a few more. See packetdecoders.lua for more
 information.
 
 The script attempts to sniff all ethernet based interfaces with an IPv4 address
-unless a specific interface was given using the -e argument to Nmap.
+unless a specific interface was given using the -e argument to Kmap.
 ]]
 
 ---
 -- @usage
--- nmap --script broadcast-listener
--- nmap --script broadcast-listener -e eth0
+-- kmap --script broadcast-listener
+-- kmap --script broadcast-listener -e eth0
 --
 -- @output
 -- | broadcast-listener:
@@ -48,7 +48,7 @@ unless a specific interface was given using the -e argument to Nmap.
 --       the network interface. (default 30s)
 --
 -- The script attempts to discover all available ipv4 network interfaces,
--- unless the Nmap -e argument has been supplied, and then starts sniffing
+-- unless the Kmap -e argument has been supplied, and then starts sniffing
 -- packets on all of the discovered interfaces. It sets a BPF filter to exclude
 -- all packets that have the interface address as source or destination in
 -- order to capture broadcast traffic.
@@ -78,14 +78,14 @@ unless a specific interface was given using the -e argument to Nmap.
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
 
 
 prerule = function()
-  if not nmap.is_privileged() then
+  if not kmap.is_privileged() then
     stdnse.verbose1("not running for lack of privileges.")
     return false
   end
@@ -101,7 +101,7 @@ end
 -- @return err string containing the error message on failure
 loadDecoders = function(fname)
   -- resolve the full, absolute, path
-  local abs_fname = nmap.fetchfile(fname)
+  local abs_fname = kmap.fetchfile(fname)
 
   if ( not(abs_fname) ) then
     return false, ("Failed to load decoder definition (%s)"):format(fname)
@@ -131,8 +131,8 @@ end
 -- @param decodertab the "result" table to which all discovered items are
 --      reported
 sniffInterface = function(iface, Decoders, decodertab)
-  local condvar = nmap.condvar(decodertab)
-  local sock = nmap.new_socket()
+  local condvar = kmap.condvar(decodertab)
+  local sock = kmap.new_socket()
   local timeout = stdnse.parse_timespec(stdnse.get_script_args("broadcast-listener.timeout"))
 
   -- default to 30 seconds, if nothing else was set
@@ -144,8 +144,8 @@ sniffInterface = function(iface, Decoders, decodertab)
   -- Set a short timeout so that we can timeout in time if needed
   sock:set_timeout(100)
 
-  local start_time = nmap.clock_ms()
-  while( nmap.clock_ms() - start_time < timeout ) do
+  local start_time = kmap.clock_ms()
+  while( kmap.clock_ms() - start_time < timeout ) do
     local status, _, _, data = sock:pcap_receive()
 
     if ( status ) then
@@ -219,7 +219,7 @@ action = function()
 
   -- create a local table to handle instantiated decoders
   local decodertab = { udp = {}, ether = {} }
-  local condvar = nmap.condvar(decodertab)
+  local condvar = kmap.condvar(decodertab)
   local threads = {}
 
   -- start a thread for each interface to sniff

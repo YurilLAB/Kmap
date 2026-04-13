@@ -20,8 +20,8 @@ https://blog.sucuri.net/2017/02/content-injection-vulnerability-wordpress-rest-a
 
 ---
 -- @usage
--- nmap --script http-vuln-cve2017-1001000 --script-args http-vuln-cve2017-1001000="uri" <target>
--- nmap --script http-vuln-cve2017-1001000 <target>
+-- kmap --script http-vuln-cve2017-1001000 --script-args http-vuln-cve2017-1001000="uri" <target>
+-- kmap --script http-vuln-cve2017-1001000 <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -63,7 +63,7 @@ https://blog.sucuri.net/2017/02/content-injection-vulnerability-wordpress-rest-a
 ---
 
 author = "Vinamra Bhatia"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 portrule = shortport.http

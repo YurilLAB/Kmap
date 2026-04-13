@@ -16,8 +16,8 @@ References:
 
 ---
 -- @usage
--- nmap -sV --script http-vuln-cve2013-0156 <target>
--- nmap -sV --script http-vuln-cve2013-0156 --script-args uri="/test/" <target>
+-- kmap -sV --script http-vuln-cve2013-0156 <target>
+-- kmap -sV --script http-vuln-cve2013-0156 --script-args uri="/test/" <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -43,7 +43,7 @@ References:
 -- * Add argument to exploit cmd exec vuln
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"exploit","vuln"}
 
 local http = require "http"
@@ -55,7 +55,7 @@ portrule = shortport.http
 
 local PAYLOAD_OK = [=[<?xml version="1.0" encoding="UTF-8"?>
 <probe type="string"><![CDATA[
-nmap
+kmap
 ]]></probe>]=]
 
 local PAYLOAD_TIME = [=[<?xml version="1.0" encoding="UTF-8"?>

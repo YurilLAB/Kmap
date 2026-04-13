@@ -1,5 +1,5 @@
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -11,7 +11,7 @@ is enabled, it returns the header fields that were modified in the response.
 
 ---
 -- @usage
--- nmap --script http-trace -d <ip>
+-- kmap --script http-trace -d <ip>
 --
 -- @output
 -- 80/tcp open  http    syn-ack
@@ -27,7 +27,7 @@ is enabled, it returns the header fields that were modified in the response.
 
 author = "Paulino Calderon <calderon@websec.mx>"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"vuln", "discovery", "safe"}
 
@@ -47,7 +47,7 @@ local validate = function(response, response_headers)
   else
     output_lines[ #output_lines+1 ] = "TRACE is enabled"
   end
-  if nmap.verbosity() >= 2 then
+  if kmap.verbosity() >= 2 then
     output_lines[ #output_lines+1 ]= "Headers:"
     for _, value in pairs(response_headers) do
       output_lines [ #output_lines+1 ] = value

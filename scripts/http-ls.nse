@@ -13,12 +13,12 @@ TODO:
 ]]
 
 author = "Pierre Lalet"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
 ---
 -- @usage
--- nmap -n -p 80 --script http-ls test-debit.free.fr
+-- kmap -n -p 80 --script http-ls test-debit.free.fr
 --
 -- @args http-ls.checksum compute a checksum for each listed file. Requires OpenSSL.
 --       (default: false)

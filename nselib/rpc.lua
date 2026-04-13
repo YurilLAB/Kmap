@@ -66,7 +66,7 @@
 -- When multiple versions exists for a specific RPC program the library
 -- always attempts to connect using the highest available version.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
@@ -78,7 +78,7 @@
 local datafiles = require "datafiles"
 local datetime = require "datetime"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -93,7 +93,7 @@ _ENV = stdnse.module("rpc", stdnse.seeall)
 -- Revised 03/13/2010 - v0.3 - re-worked library to be OO
 -- Revised 04/18/2010 - v0.4 - Applied patch from Djalal Harouni with improved
 --                             error checking and re-designed Comm class. see:
---                             http://seclists.org/nmap-dev/2010/q2/232
+--                             http://seclists.org/kmap-dev/2010/q2/232
 -- Revised 06/02/2010 - v0.5 - added code to the Util class to check for file
 --                             types and permissions.
 -- Revised 06/04/2010 - v0.6 - combined Portmap and RPC classes in the
@@ -101,7 +101,7 @@ _ENV = stdnse.module("rpc", stdnse.seeall)
 --
 
 
--- RPC args using the nmap.registry.args
+-- RPC args using the kmap.registry.args
 RPC_args = {
   ["rpcbind"] = { proto = 'rpc.protocol' },
   ["nfs"] = { ver = 'nfs.version' },
@@ -110,15 +110,15 @@ RPC_args = {
 
 -- Defines the order in which to try to connect to the RPC programs
 -- TCP appears to be more stable than UDP in most cases, so try it first
-local RPC_PROTOCOLS = (nmap.registry.args and nmap.registry.args[RPC_args['rpcbind'].proto] and
-  type(nmap.registry.args[RPC_args['rpcbind'].proto]) == 'table') and
-nmap.registry.args[RPC_args['rpcbind'].proto] or { "tcp", "udp" }
+local RPC_PROTOCOLS = (kmap.registry.args and kmap.registry.args[RPC_args['rpcbind'].proto] and
+  type(kmap.registry.args[RPC_args['rpcbind'].proto]) == 'table') and
+kmap.registry.args[RPC_args['rpcbind'].proto] or { "tcp", "udp" }
 
 -- used to cache the contents of the rpc datafile
 local RPC_PROGRAMS, RPC_NUMBERS
 
--- local mutex to synchronize I/O operations on nmap.registry[host.ip]['portmapper']
-local mutex = nmap.mutex("rpc")
+-- local mutex to synchronize I/O operations on kmap.registry[host.ip]['portmapper']
+local mutex = kmap.mutex("rpc")
 
 -- Supported protocol versions
 RPC_version = {
@@ -163,8 +163,8 @@ Comm = {
     if not status then
       return status, err
     end
-    local socket = nmap.new_socket(port.protocol)
-    if nmap.is_privileged() then
+    local socket = kmap.new_socket(port.protocol)
+    if kmap.is_privileged() then
       -- Let's make several attempts to bind to an unused well-known port
       for _ = 1, 10 do
         local srcport = math.random(512, 1023)
@@ -250,8 +250,8 @@ Comm = {
   SetVersion = function(self, version)
     if self.checkprogver then
       if (RPC_version[self.program] and RPC_args[self.program] and
-          nmap.registry.args and nmap.registry.args[RPC_args[self.program].ver]) then
-        self.version = tonumber(nmap.registry.args[RPC_args[self.program].ver])
+          kmap.registry.args and kmap.registry.args[RPC_args[self.program].ver]) then
+        self.version = tonumber(kmap.registry.args[RPC_args[self.program].ver])
       elseif (not(self.version) and version) then
         self.version = version
       end
@@ -326,7 +326,7 @@ Comm = {
     elseif auth.type == Portmap.AuthType.UNIX then
       packet = packet .. Util.marshall_int32(auth.type)
       local blob = (
-        Util.marshall_int32(math.floor(nmap.clock())) --time
+        Util.marshall_int32(math.floor(kmap.clock())) --time
         .. Util.marshall_vopaque(auth.hostname or 'localhost')
         .. Util.marshall_int32(auth.uid or 0)
         .. Util.marshall_int32(auth.gid or 0)
@@ -742,8 +742,8 @@ Portmap =
       table.sort( program_table[program][protocol]["version"] )
     end
 
-    nmap.registry[comm.ip]['portmapper'] = program_table
-    return true, nmap.registry[comm.ip]['portmapper']
+    kmap.registry[comm.ip]['portmapper'] = program_table
+    return true, kmap.registry[comm.ip]['portmapper']
   end,
 
   --- Calls the portmap callit call and returns the raw response
@@ -2788,14 +2788,14 @@ Helper = {
 
     mutex "lock"
 
-    if nmap.registry[host.ip] == nil then
-      nmap.registry[host.ip] = {}
+    if kmap.registry[host.ip] == nil then
+      kmap.registry[host.ip] = {}
     end
-    if nmap.registry[host.ip]['portmapper'] == nil then
-      nmap.registry[host.ip]['portmapper'] = {}
-    elseif next(nmap.registry[host.ip]['portmapper']) ~= nil then
+    if kmap.registry[host.ip]['portmapper'] == nil then
+      kmap.registry[host.ip]['portmapper'] = {}
+    elseif next(kmap.registry[host.ip]['portmapper']) ~= nil then
       mutex "done"
-      return true, nmap.registry[host.ip]['portmapper']
+      return true, kmap.registry[host.ip]['portmapper']
     end
 
     local pversion = 4
@@ -2876,7 +2876,7 @@ Helper = {
 
     local info = {}
     local proginfo
-    local ipv6 = nmap.address_family() == "inet6"
+    local ipv6 = kmap.address_family() == "inet6"
     ::AF_FALLBACK::
     for _, p in ipairs( RPC_PROTOCOLS ) do
       if ipv6 then

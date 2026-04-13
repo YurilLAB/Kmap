@@ -2,7 +2,7 @@ local http = require "http"
 local httpspider = require "httpspider"
 local io = require "io"
 local lfs = require "lfs"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -24,10 +24,10 @@ The script supports three different use cases:
 ]]
 
 ---
--- @usage nmap --script http-fetch --script-args destination=/tmp/mirror <target>
--- nmap --script http-fetch --script-args 'paths={/robots.txt,/favicon.ico}' <target>
--- nmap --script http-fetch --script-args 'paths=.html' <target>
--- nmap --script http-fetch --script-args 'url=/images,paths={.jpg,.png,.gif}' <target>
+-- @usage kmap --script http-fetch --script-args destination=/tmp/mirror <target>
+-- kmap --script http-fetch --script-args 'paths={/robots.txt,/favicon.ico}' <target>
+-- kmap --script http-fetch --script-args 'paths=.html' <target>
+-- kmap --script http-fetch --script-args 'url=/images,paths={.jpg,.png,.gif}' <target>
 --
 -- @args http-fetch.destination - The full path of the directory to save the file(s) to preferably with the trailing slash.
 -- @args http-fetch.files - The name of the file(s) to be fetched.
@@ -48,19 +48,19 @@ The script supports three different use cases:
 -- @output
 -- | http-fetch:
 -- |   Successfully Downloaded:
--- |     http://scanme.nmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html
--- |_    http://scanme.nmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css
+-- |     http://scanme.kmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html
+-- |_    http://scanme.kmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css
 --
 -- @xmloutput
 -- <table key="Successfully Downloaded">
---   <elem>http://scanme.nmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html</elem>
---   <elem>http://scanme.nmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css</elem>
+--   <elem>http://scanme.kmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html</elem>
+--   <elem>http://scanme.kmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css</elem>
 -- </table>
 -- <elem key="result">Successfully Downloaded Everything At: /tmp/mirror/45.33.32.156/80/</elem>
 
 author = "Gyanendra Mishra"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"safe"}
 
@@ -239,7 +239,7 @@ action = function(host, port)
     if paths then
       return output
     else
-      if nmap.verbosity() > 1 then
+      if kmap.verbosity() > 1 then
         return output
       else
         output.result = "Successfully Downloaded Everything At: " .. destination

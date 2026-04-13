@@ -11,7 +11,7 @@ authentication.
 
 ---
 -- @usage
--- nmap --script http-auth [--script-args http-auth.path=/login] -p80 <host>
+-- kmap --script http-auth [--script-args http-auth.path=/login] -p80 <host>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -57,7 +57,7 @@ authentication.
 
 author = "Thomas Buchanan"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "auth", "safe"}
 

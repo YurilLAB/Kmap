@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local shortport = require "shortport"
 local table = require "table"
@@ -14,8 +14,8 @@ Main and Aggressive Mode and sends multiple transforms per request.
 
 ---
 -- @usage
--- nmap -sU -sV -p 500 <target>
--- nmap -sU -p 500 --script ike-version <target>
+-- kmap -sU -sV -p 500 <target>
+-- kmap -sU -p 500 --script ike-version <target>
 --
 -- @output
 -- PORT    STATE SERVICE REASON       VERSION
@@ -40,7 +40,7 @@ Main and Aggressive Mode and sends multiple transforms per request.
 
 
 author = "Jesper Kueckelhahn"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe", "version"}
 
 portrule = shortport.version_port_or_service(500, "isakmp", "udp")
@@ -119,7 +119,7 @@ action = function( host, port )
 
   if ike_response then
     -- get_version only returns something if ike.send_request().success == true
-    nmap.set_port_state(host, port, "open")
+    kmap.set_port_state(host, port, "open")
 
     -- Extra information found in the response. Kept for future reference.
     -- local mode = ike_response['mode']
@@ -160,7 +160,7 @@ action = function( host, port )
     end
 
     if set_version then
-      nmap.set_port_version(host, port, "hardmatched")
+      kmap.set_port_version(host, port, "hardmatched")
     end
     stdnse.debug1("Version: %s", port.version.product )
     return out

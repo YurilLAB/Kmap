@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -12,7 +12,7 @@ Extracts information from a Quake3 game server and other games which use the sam
 
 ---
 -- @usage
--- nmap -sU -sV -Pn --script quake3-info.nse -p <port> <target>
+-- kmap -sU -sV -Pn --script quake3-info.nse -p <port> <target>
 --
 -- @output
 -- PORT      STATE         SERVICE VERSION
@@ -64,7 +64,7 @@ Extracts information from a Quake3 game server and other games which use the sam
 -- |_    sv_privateClients: 0
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe", "version"}
 
 
@@ -238,7 +238,7 @@ action = function(host, port)
     if string.find(osline, "win") then
       port.version.ostype = "Windows"
     end
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
   end
 
   local fraglimit = fields["fraglimit"]
@@ -249,7 +249,7 @@ action = function(host, port)
   local response = {}
   table.insert(response, formatplayers(players, fraglimit))
   table.insert(response, formatfields(basic, "BASIC OPTIONS:"))
-  if nmap.verbosity() > 0 then
+  if kmap.verbosity() > 0 then
     table.insert(response, formatfields(other, "OTHER OPTIONS:"))
   end
   return stdnse.format_output(true, response)

@@ -36,7 +36,7 @@
 
 local http = require "http"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -92,10 +92,10 @@ Comm = {
   -- @return status true on success, false on failure
   connect = function( self )
     if ( self.mcast ) then
-      self.socket = nmap.new_socket("udp")
+      self.socket = kmap.new_socket("udp")
       self.socket:set_timeout(5000)
     else
-      self.socket = nmap.new_socket()
+      self.socket = kmap.new_socket()
       self.socket:set_timeout(5000)
       local status, err = self.socket:connect(self.host, self.port, "udp" )
       if ( not(status) ) then return false, err end
@@ -204,7 +204,7 @@ Comm = {
     local server = string.match(response, "\n[Ss][Ee][Rr][Vv][Ee][Rr]:%s*(.-)\r?\n")
     if server ~= nil then output.server = server end
 
-    if location and nmap.verbosity() > 0 then
+    if location and kmap.verbosity() > 0 then
       -- the following check can output quite a lot of information, so we require at least one -v flag
       local status, result = self:retrieveXML( location )
       if status then
@@ -329,7 +329,7 @@ Comm = {
   setMulticast = function( self, mcast )
     assert( type(mcast)=="boolean", "mcast has to be either true or false")
     self.mcast = mcast
-    local family = nmap.address_family()
+    local family = kmap.address_family()
     self.host = (family=="inet6" and "FF02::C" or "239.255.255.250")
     self.port = 1900
   end,

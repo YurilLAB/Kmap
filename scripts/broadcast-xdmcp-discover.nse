@@ -11,7 +11,7 @@ are marked using the keyword Willing in the result.
 
 ---
 -- @usage
--- nmap --script broadcast-xdmcp-discover
+-- kmap --script broadcast-xdmcp-discover
 --
 -- @output
 -- Pre-scan script results:
@@ -21,7 +21,7 @@ are marked using the keyword Willing in the result.
 -- @args broadcast-xdmcp-discover.timeout socket timeout (default: 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 

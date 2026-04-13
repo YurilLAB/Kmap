@@ -1,5 +1,5 @@
 local mysql = require "mysql"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -40,7 +40,7 @@ Attempts to show all variables on a MySQL server.
 -- |_  wait_timeout: 28800
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 
@@ -53,28 +53,28 @@ portrule = shortport.port_or_service(3306, "mysql")
 
 action = function( host, port )
 
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local catch = function() socket:close() end
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
   local result, response = {}, nil
   local users = {}
-  local nmap_args = nmap.registry.args
+  local kmap_args = kmap.registry.args
   local status, rows
 
   -- set a reasonable timeout value
   socket:set_timeout(5000)
 
   -- first, let's see if the script has any credentials as arguments?
-  if nmap_args.mysqluser then
-    users[nmap_args.mysqluser] = nmap_args.mysqlpass or ""
+  if kmap_args.mysqluser then
+    users[kmap_args.mysqluser] = kmap_args.mysqlpass or ""
   -- next, let's see if mysql-brute or mysql-empty-password brought us anything
-  elseif nmap.registry.mysqlusers then
+  elseif kmap.registry.mysqlusers then
     -- do we have root credentials?
-    if nmap.registry.mysqlusers['root'] then
-      users['root'] = nmap.registry.mysqlusers['root']
+    if kmap.registry.mysqlusers['root'] then
+      users['root'] = kmap.registry.mysqlusers['root']
     else
       -- we didn't have root, so let's make sure we loop over them all
-      users = nmap.registry.mysqlusers
+      users = kmap.registry.mysqlusers
     end
   -- last, no dice, we don't have any credentials at all
   else

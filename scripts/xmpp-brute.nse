@@ -11,7 +11,7 @@ Performs brute force password auditing against XMPP (Jabber) instant messaging s
 
 ---
 -- @usage
--- nmap -p 5222 --script xmpp-brute <host>
+-- kmap -p 5222 --script xmpp-brute <host>
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -36,7 +36,7 @@ Performs brute force password auditing against XMPP (Jabber) instant messaging s
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service(5222, {"jabber", "xmpp-client"})

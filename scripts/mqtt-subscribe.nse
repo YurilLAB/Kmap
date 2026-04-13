@@ -1,5 +1,5 @@
 local mqtt = require "mqtt"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -10,7 +10,7 @@ Dumps message traffic from MQTT brokers.
 This script establishes a connection to an MQTT broker and subscribes
 to the requested topics. The default topics have been chosen to
 receive system information and all messages from other clients. This
-allows Nmap, to listen to all messages being published by clients to
+allows Kmap, to listen to all messages being published by clients to
 the MQTT broker.
 
 For additional information:
@@ -19,7 +19,7 @@ For additional information:
 ]]
 
 ---
--- @usage nmap -p 1883 --script mqtt-subscribe <target>
+-- @usage kmap -p 1883 --script mqtt-subscribe <target>
 --
 -- @output
 -- PORT     STATE SERVICE                 REASON
@@ -126,7 +126,7 @@ For additional information:
 -- </table>
 --
 -- @args mqtt-subscribe.client-id MQTT client identifier, defaults to
---       <code>nmap</code> with a random suffix.
+--       <code>kmap</code> with a random suffix.
 -- @args mqtt-subscribe.listen-msgs Number of PUBLISH messages to
 --       receive, defaults to 100. A value of zero forces this script
 --       to stop only when listen-time has passed.
@@ -146,7 +146,7 @@ For additional information:
 --       authentication.
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"safe", "discovery", "version"}
 
 portrule = shortport.version_port_or_service({1883, 8883}, {"mqtt", "secure-mqtt"}, "tcp")
@@ -329,13 +329,13 @@ action = function(host, port)
   -- conditions is met, whichever comes first:
   --   1) We have listened for max_time
   --   2) We have received max_msgs
-  local end_time = nmap.clock_ms() + options.max_time * 1000
+  local end_time = kmap.clock_ms() + options.max_time * 1000
   local topics = {}
   local keys = {}
   local msgs = 0
   while true do
     -- Check for the first condition.
-    local time_left = end_time - nmap.clock_ms()
+    local time_left = end_time - kmap.clock_ms()
     if time_left <= 0 then
       break
     end
@@ -378,7 +378,7 @@ action = function(host, port)
   local ver = topics["$SYS/broker/version"]
   if ver then
     port.version.name = ver
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
   end
 
   -- Format the topics and payloads we received.

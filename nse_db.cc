@@ -55,7 +55,7 @@ static int l_getservbyport (lua_State *L)
     return luaL_error(L, "Port number out of range");
   }
 
-  serv = nmap_getservbyport((u16) port, proto[i]);
+  serv = kmap_getservbyport((u16) port, proto[i]);
   if (serv == NULL) {
     lua_pushnil(L);
   }
@@ -74,7 +74,7 @@ static int l_getprotbynum (lua_State *L)
     return luaL_error(L, "Protocol number out of range");
   }
 
-  proto = nmap_getprotbynum(num);
+  proto = kmap_getprotbynum(num);
   if (proto == NULL) {
     lua_pushnil(L);
   }
@@ -89,7 +89,7 @@ static int l_getprotbyname (lua_State *L)
   const struct nprotoent *proto = NULL;
   const char *name = luaL_checkstring(L, 1);
 
-  proto = nmap_getprotbyname(name);
+  proto = kmap_getprotbyname(name);
   if (proto == NULL) {
     lua_pushnil(L);
   }

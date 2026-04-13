@@ -4,7 +4,7 @@ local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local os = require "os"
 
 description = [[
@@ -19,7 +19,7 @@ Retrieves the day and time from the Time service.
 
 author = "Daniel Miller"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"discovery", "safe", "version"}
 
@@ -57,7 +57,7 @@ action = function(host, port)
       if confidence < 0 then confidence = 0 end
       datetime.record_skew(host, stamp, recvtime)
       port.version.name_confidence = confidence
-      nmap.set_port_version(host, port, "hardmatched")
+      kmap.set_port_version(host, port, "hardmatched")
     end
 
     return datetime.format_timestamp(stamp)

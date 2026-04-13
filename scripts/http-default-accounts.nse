@@ -1,7 +1,7 @@
 local _G = require "_G"
 local creds = require "creds"
 local http = require "http"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -60,7 +60,7 @@ This script was based on http-enum.
 
 ---
 -- @usage
--- nmap -p80 --script http-default-accounts host/ip
+-- kmap -p80 --script http-default-accounts host/ip
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -131,7 +131,7 @@ This script was based on http-enum.
 ---
 
 author = {"Paulino Calderon <calderon@websec.mx>", "nnposter"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "auth", "intrusive"}
 
 portrule = shortport.http
@@ -279,7 +279,7 @@ end
 -- @return Status (always false)
 -- @return Error message passed in
 local function bad_prints(mutex, err)
-  nmap.registry.http_default_accounts_fingerprints = err
+  kmap.registry.http_default_accounts_fingerprints = err
   mutex "done"
   return false, err
 end
@@ -297,9 +297,9 @@ local function load_fingerprints(filename, catlist, namelist)
   local file, filename_full, fingerprints
 
   -- Check if fingerprints are cached
-  local mutex = nmap.mutex("http_default_accounts_fingerprints")
+  local mutex = kmap.mutex("http_default_accounts_fingerprints")
   mutex "lock"
-  local cached_fingerprints = nmap.registry.http_default_accounts_fingerprints
+  local cached_fingerprints = kmap.registry.http_default_accounts_fingerprints
   if type(cached_fingerprints) == "table" then
     stdnse.debug(1, "Loading cached fingerprints")
     mutex "done"
@@ -312,8 +312,8 @@ local function load_fingerprints(filename, catlist, namelist)
   assert(type(cached_fingerprints) == "nil", "Unexpected cached fingerprints")
 
   -- Try and find the file
-  -- If it isn't in Nmap's directories, take it as a direct path
-  filename_full = nmap.fetchfile('nselib/data/' .. filename)
+  -- If it isn't in Kmap's directories, take it as a direct path
+  filename_full = kmap.fetchfile('nselib/data/' .. filename)
   if(not(filename_full)) then
     filename_full = filename
   end
@@ -382,7 +382,7 @@ local function load_fingerprints(filename, catlist, namelist)
   end
 
   -- Cache the fingerprints for other invocations, so we aren't reading the files every time
-  nmap.registry.http_default_accounts_fingerprints = fingerprints
+  kmap.registry.http_default_accounts_fingerprints = fingerprints
   mutex "done"
   return true, fingerprints
 end
@@ -429,7 +429,7 @@ end
 ---
 -- test_credentials(host, port, fingerprint, path)
 -- Tests default credentials of a given fingerprint against a given path.
--- Any successful credentials are registered in the Nmap credential repository.
+-- Any successful credentials are registered in the Kmap credential repository.
 -- @param host table as received by the scripts action method
 -- @param port table as received by the scripts action method
 -- @param fingerprint as defined in the fingerprint file
@@ -452,7 +452,7 @@ local function  test_credentials (host, port, fingerprint, path)
       end
     end
   end
-  if #credhits == 0 and nmap.verbosity() < 2 then return nil end
+  if #credhits == 0 and kmap.verbosity() < 2 then return nil end
   -- Some credentials found or increased verbosity. Generate the output report
   local out = stdnse.output_table()
   out.cpe = fingerprint.cpe

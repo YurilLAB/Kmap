@@ -1,5 +1,5 @@
 local comm = require "comm"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -21,7 +21,7 @@ Information about MODBUS protocol and security issues:
 
 ---
 -- @usage
--- nmap --script modbus-discover.nse --script-args='modbus-discover.aggressive=true' -p 502 <host>
+-- kmap --script modbus-discover.nse --script-args='modbus-discover.aggressive=true' -p 502 <host>
 --
 -- @args aggressive - boolean value defines find all or just first sid
 --
@@ -48,7 +48,7 @@ Information about MODBUS protocol and security issues:
 -- Version 0.3 - /13.12.10/ - several bugfixes
 
 author = "Alexander Rudakov"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 
@@ -157,7 +157,7 @@ action = function(host, port)
   if ( #results > 0 ) then
     port.state = "open"
     port.version.name = "modbus"
-    nmap.set_port_version(host, port)
+    kmap.set_port_version(host, port)
     return results
   end
 end

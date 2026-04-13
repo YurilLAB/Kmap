@@ -16,7 +16,7 @@ For additional information:
 ]]
 
 ---
--- @usage nmap -p 10809 --script nbd-info <target>
+-- @usage kmap -p 10809 --script nbd-info <target>
 --
 -- @output
 -- PORT      STATE SERVICE REASON
@@ -42,7 +42,7 @@ For additional information:
 -- names to about which to request information from the server.
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 portrule = shortport.version_port_or_service(10809, "nbd", "tcp")

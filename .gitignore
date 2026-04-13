@@ -26,15 +26,15 @@ stamp-h1
 /ncat/test/test-uri
 /ncat/test/test-wildcard
 /ndiff/build/
-/nmap
-/nmap_config.h
+/kmap
+/kmap_config.h
 /nping/nping
 /nping/nping_config.h
 /nsock/include/nsock_config.h
 /nsock/tests/tests_main
 /tests/*_test
-/zenmap/build/
-/zenmap/INSTALLED_FILES
+/zekmap/build/
+/zekmap/INSTALLED_FILES
 TAGS
 autom4te.cache/
 /libpcap/*.3pcap
@@ -66,4 +66,4 @@ libz/configure.log
 !liblua/Makefile
 !macosx/Makefile
 !mswin32/Makefile
-!zenmap/share/zenmap/locale/Makefile
+!zekmap/share/zekmap/locale/Makefile

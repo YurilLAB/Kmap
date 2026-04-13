@@ -1,6 +1,6 @@
 local creds = require "creds"
 local redis = require "redis"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -15,7 +15,7 @@ Retrieves information (such as version number and architecture) from a Redis key
 
 ---
 -- @usage
--- nmap -p 6379 <ip> --script redis-info
+-- kmap -p 6379 <ip> --script redis-info
 --
 -- @output
 -- PORT     STATE SERVICE
@@ -42,7 +42,7 @@ Retrieves information (such as version number and architecture) from a Redis key
 --
 
 author = {"Patrik Karlsson", "Vasiliy Kulikov"}
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 dependencies = {"redis-brute"}
 
@@ -55,14 +55,14 @@ local function cb_parse_version(host, port, val)
   port.version.version = val
   port.version.cpe = port.version.cpe or {}
   table.insert(port.version.cpe, 'cpe:/a:redis:redis:' .. val)
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   return val
 end
 
 local function cb_parse_architecture(host, port, val)
   val = ("%s bits"):format(val)
   port.version.extrainfo = val
-  nmap.set_port_version(host, port)
+  kmap.set_port_version(host, port)
   return val
 end
 
@@ -107,7 +107,7 @@ local extras = {
     "Active channels", {"PUBSUB", "CHANNELS"}, function (data)
       local channels = {}
       local omitted = 0
-      local limit = nmap.verbosity() <= 1 and 20 or false
+      local limit = kmap.verbosity() <= 1 and 20 or false
       for _, channel in ipairs(data) do
         if limit and #channels >= limit then
           omitted = omitted + 1

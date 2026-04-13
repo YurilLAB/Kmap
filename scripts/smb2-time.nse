@@ -9,7 +9,7 @@ Attempts to obtain the current system date and the start date of a SMB2 server.
 ]]
 
 ---
--- @usage nmap -p445 --script smb2-time <target>
+-- @usage kmap -p445 --script smb2-time <target>
 --
 -- @output
 -- Host script results:
@@ -23,7 +23,7 @@ Attempts to obtain the current system date and the start date of a SMB2 server.
 ---
 
 author = "Paulino Calderon <calderon()websec.mx>"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "default"}
 
 hostrule = function(host)

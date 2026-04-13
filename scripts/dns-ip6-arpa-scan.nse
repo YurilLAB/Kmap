@@ -1,7 +1,7 @@
 local coroutine = require "coroutine"
 local dns = require "dns"
 local ipOps = require "ipOps"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local tab = require "tab"
@@ -21,7 +21,7 @@ http://7bits.nl/blog/2012/03/26/finding-v6-hosts-by-efficiently-mapping-ip6-arpa
 
 ---
 -- @usage
--- nmap --script dns-ip6-arpa-scan --script-args='prefix=2001:0DB8::/48'
+-- kmap --script dns-ip6-arpa-scan --script-args='prefix=2001:0DB8::/48'
 --
 -- @see dns-nsec3-enum.nse
 -- @see dns-nsec-enum.nse
@@ -39,7 +39,7 @@ http://7bits.nl/blog/2012/03/26/finding-v6-hosts-by-efficiently-mapping-ip6-arpa
 -- @args mask the ip6 mask to start scanning from
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "discovery"}
 
 
@@ -66,7 +66,7 @@ prerule = function()
 end
 
 local function query_prefix(query, result)
-  local condvar = nmap.condvar(result)
+  local condvar = kmap.condvar(result)
   local status, res = dns.query(query, { dtype='PTR' })
   if ( not(status) and res == "No Answers") then
     table.insert(result, query)
@@ -101,7 +101,7 @@ action = function()
       end
     end
 
-    local condvar = nmap.condvar(result)
+    local condvar = kmap.condvar(result)
     repeat
       for t in pairs(threads) do
         if ( coroutine.status(t) == "dead" ) then threads[t] = nil end

@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local string = require "string"
 
 description = [[
@@ -27,13 +27,13 @@ also known as identd, normally runs on port 113.
 
 author = "Diman Todorov"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
 
 portrule = function(host, port)
   local auth_port = { number=113, protocol="tcp" }
-  local identd = nmap.get_port_state(host, auth_port)
+  local identd = kmap.get_port_state(host, auth_port)
 
   return identd ~= nil
     and identd.state == "open"
@@ -44,15 +44,15 @@ end
 action = function(host, port)
   local owner = ""
 
-  local client_ident = nmap.new_socket()
-  local client_service = nmap.new_socket()
+  local client_ident = kmap.new_socket()
+  local client_service = kmap.new_socket()
 
   local catch = function()
     client_ident:close()
     client_service:close()
   end
 
-  local try = nmap.new_try(catch)
+  local try = kmap.new_try(catch)
 
   try(client_ident:connect(host, 113))
   try(client_service:connect(host, port))

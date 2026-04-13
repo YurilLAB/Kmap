@@ -4,9 +4,9 @@
 -- Since portrules are mostly the same for many scripts, this
 -- module provides functions for the most common tests.
 --
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local tableaux = require "tableaux"
 local comm
@@ -43,7 +43,7 @@ end
 -- in the exclude directive.
 port_is_excluded = function(port, proto)
   proto = proto or "tcp"
-  return nmap.port_is_excluded(port, proto)
+  return kmap.port_is_excluded(port, proto)
 end
 
 --- Return a portrule that returns true when given an open port matching a
@@ -82,8 +82,8 @@ end
 --
 -- A service name is something like <code>"http"</code>, <code>"https"</code>,
 -- <code>"smtp"</code>, or <code>"ftp"</code>. These service names are
--- determined by Nmap's version scan or (if no version scan information is
--- available) the service assigned to the port in <code>nmap-services</code>
+-- determined by Kmap's version scan or (if no version scan information is
+-- available) the service assigned to the port in <code>kmap-services</code>
 -- (e.g. <code>"http"</code> for TCP port 80).
 -- @param services Service name or a list of names to run against.
 -- @param protos The protocol or list of protocols to match against, default
@@ -139,7 +139,7 @@ end
 
 --- Return a portrule that returns true when given an open port matching
 -- either a port number or service name and has not been listed in the
--- exclude port directive of the nmap-service-probes file. If version
+-- exclude port directive of the kmap-service-probes file. If version
 -- intensity is lesser than rarity value, portrule always returns false.
 --
 -- This function is a combination of the <code>port_is_excluded</code>
@@ -164,7 +164,7 @@ version_port_or_service = function(ports, services, protos, states, rarity)
     local p_s_check = port_or_service(ports, services, protos, states)
     return p_s_check(host, port)
       and not(port_is_excluded(port.number, port.protocol))
-      and (nmap.version_intensity() >= (rarity or 7))
+      and (kmap.version_intensity() >= (rarity or 7))
   end
 end
 
@@ -296,14 +296,14 @@ function ssl(host, port)
   -- if we didn't detect something *not* SSL, check it ourselves
   -- but don't check if it's an excluded port
   if port.version and port.version.name_confidence <= 3 and host.registry
-    and not nmap.port_is_excluded(port.number, port.protocol) then
+    and not kmap.port_is_excluded(port.number, port.protocol) then
     comm = comm or require "comm"
     host.registry.ssl = host.registry.ssl or {}
-    local mtx = nmap.mutex(host.registry.ssl)
+    local mtx = kmap.mutex(host.registry.ssl)
     mtx "lock"
     local v = host.registry.ssl[port.number .. port.protocol]
     if v == nil then
-      -- probes from nmap-service-probes
+      -- probes from kmap-service-probes
       for _, probe in ipairs(ssl_probes[port.protocol]) do
         local status, resp = comm.exchange(host, port, probe)
         if status and resp then
@@ -373,7 +373,7 @@ ssh = port_or_service(LIKELY_SSH_PORTS, LIKELY_SSH_SERVICES)
 
 --- Return a portrule that returns true when given an open port matching a port range
 --
---@param range A port range string in Nmap standard format (ex. "T:80,1-30,U:31337,21-25")
+--@param range A port range string in Kmap standard format (ex. "T:80,1-30,U:31337,21-25")
 --@return Function for the portrule.
 function port_range(range)
   assert(type(range)=="string" and range~="","Incorrect port range specification.")

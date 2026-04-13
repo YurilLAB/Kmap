@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -9,7 +9,7 @@ description = [[
 Enumerates Siemens S7 PLC Devices and collects their device information. This
 script is based off PLCScan that was developed by Positive Research and
 Scadastrangelove (https://code.google.com/p/plcscan/). This script is meant to
-provide the same functionality as PLCScan inside of Nmap. Some of the
+provide the same functionality as PLCScan inside of Kmap. Some of the
 information that is collected by PLCScan was not ported over; this
 information can be parsed out of the packets that are received.
 
@@ -17,12 +17,12 @@ Thanks to Positive Research, and Dmitry Efanov for creating PLCScan
 ]]
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "version"}
 
 ---
 -- @usage
--- nmap --script s7-info.nse -p 102 <host/s>
+-- kmap --script s7-info.nse -p 102 <host/s>
 --
 -- @output
 --102/tcp open  Siemens S7 PLC
@@ -82,9 +82,9 @@ end
 -- the second argument is the query to be sent, this is passed in and is created
 -- inside of the main action.
 -- @param response Packet response that was received from S7 host.
--- @param host The host hat was passed in via Nmap, this is to change output of host/port
--- @param port The port that was passed in via Nmap, this is to change output of host/port
--- @param output Table used for output for return to Nmap
+-- @param host The host hat was passed in via Kmap, this is to change output of host/port
+-- @param port The port that was passed in via Kmap, this is to change output of host/port
+-- @param output Table used for output for return to Kmap
 local function parse_response(response, host, port, output)
   -- unpack the protocol ID
   local value = string.byte(response, 8)
@@ -115,7 +115,7 @@ end
 -- the second argument is the query to be sent, this is passed in and is created
 -- inside of the main action.
 -- @param response Packet response that was received from S7 host.
--- @param output Table used for output for return to Nmap
+-- @param output Table used for output for return to Kmap
 local function second_parse_response(response, output)
   local offset = 0
   -- unpack the protocol ID
@@ -163,30 +163,30 @@ local function second_parse_response(response, output)
   end
 end
 ---
---  Function to set the nmap output for the host, if a valid S7COMM packet
+--  Function to set the kmap output for the host, if a valid S7COMM packet
 --  is received then the output will show that the port is open
 --  and change the output to reflect an S7 PLC
 --
--- @param host Host that was passed in via nmap
+-- @param host Host that was passed in via kmap
 -- @param port port that S7COMM is running on
-local function set_nmap(host, port)
+local function set_kmap(host, port)
   --set port Open
   port.state = "open"
   -- set that detected an Siemens S7
   port.version.name = "iso-tsap"
   port.version.devicetype = "specialized"
   port.version.product = "Siemens S7 PLC"
-  nmap.set_port_version(host, port)
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_version(host, port)
+  kmap.set_port_state(host, port, "open")
 
 end
 ---
 --  Action Function that is used to run the NSE. This function will send the initial query to the
---  host and port that were passed in via nmap. The initial response is parsed to determine if host
+--  host and port that were passed in via kmap. The initial response is parsed to determine if host
 --  is a S7COMM device. If it is then more actions are taken to gather extra information.
 --
--- @param host Host that was scanned via nmap
--- @param port port that was scanned via nmap
+-- @param host Host that was scanned via kmap
+-- @param port port that was scanned via kmap
 action = function(host, port)
   -- COTP packet with a dst of 102
 local COTP = stdnse.fromhex( "0300001611e00000001400c1020100c2020" .. "102" .. "c0010a")
@@ -202,10 +202,10 @@ local COTP = stdnse.fromhex( "0300001611e00000001400c1020100c2020" .. "102" .. "
   local second_SZL_Request = stdnse.fromhex( "0300002102f080320700000000000800080001120411440100ff090004001c0001")
   -- response is used to collect the packet responses
   local response
-  -- output table for Nmap
+  -- output table for Kmap
   local output = stdnse.output_table()
   -- create socket for communications
-  local sock = nmap.new_socket()
+  local sock = kmap.new_socket()
   -- connect to host
   local constatus, conerr = sock:connect(host, port)
   if not constatus then
@@ -221,7 +221,7 @@ local COTP = stdnse.fromhex( "0300001611e00000001400c1020100c2020" .. "102" .. "
     sock:close()
     -- create socket for communications
     stdnse.debug1('S7INFO:: CREATING NEW SOCKET')
-    sock = nmap.new_socket()
+    sock = kmap.new_socket()
     -- connect to host
     local constatus, conerr = sock:connect(host, port)
     if not constatus then
@@ -261,11 +261,11 @@ local COTP = stdnse.fromhex( "0300001611e00000001400c1020100c2020" .. "102" .. "
   -- close the socket
   sock:close()
 
-  -- If we parsed anything, then set the version info for Nmap
+  -- If we parsed anything, then set the version info for Kmap
   if #output > 0 then
-    set_nmap(host, port)
+    set_kmap(host, port)
   end
-  -- return output to Nmap
+  -- return output to Kmap
   return output
 
 end

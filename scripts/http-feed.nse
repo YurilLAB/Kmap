@@ -7,7 +7,7 @@ Please, note that the script will become more intrusive though.
 ]]
 
 ---
--- @usage nmap -p80 --script http-feed.nse <target>
+-- @usage kmap -p80 --script http-feed.nse <target>
 --
 -- @output
 -- PORT   STATE SERVICE REASON
@@ -24,7 +24,7 @@ Please, note that the script will become more intrusive though.
 
 categories = {"discovery", "intrusive"}
 author = "George Chatzisofroniou"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 local http = require "http"
 local shortport = require "shortport"

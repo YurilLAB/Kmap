@@ -10,8 +10,8 @@ application.
 
 ---
 -- @usage
--- nmap -sn -Pn --script http-icloud-sendmsg --script-args="username=<user>,password=<pass>,http-icloud-sendmsg.listdevices"
--- nmap -sn -Pn --script http-icloud-sendmsg --script-args="username=<user>,password=<pass>,deviceindex=1,subject='subject',message='hello world.',sound=false"
+-- kmap -sn -Pn --script http-icloud-sendmsg --script-args="username=<user>,password=<pass>,http-icloud-sendmsg.listdevices"
+-- kmap -sn -Pn --script http-icloud-sendmsg --script-args="username=<user>,password=<pass>,deviceindex=1,subject='subject',message='hello world.',sound=false"
 --
 -- @output
 -- Pre-scan script results:
@@ -32,7 +32,7 @@ application.
 --       played while displaying the message. (default: true)
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
 

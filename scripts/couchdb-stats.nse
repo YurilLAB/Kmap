@@ -1,6 +1,6 @@
 local http = require "http"
 local json = require "json"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -17,7 +17,7 @@ http://wiki.apache.org/couchdb/HTTP_database_API.
 
 ---
 -- @usage
--- nmap -p 5984 --script "couchdb-stats.nse" <host>
+-- kmap -p 5984 --script "couchdb-stats.nse" <host>
 -- @output
 -- PORT     STATE SERVICE REASON
 -- 5984/tcp open  httpd   syn-ack
@@ -46,7 +46,7 @@ http://wiki.apache.org/couchdb/HTTP_database_API.
 -- Modified 07/02/2010 - v0.2 - added test if auth is enabled, compacted output a bit (mhs)
 
 author = "Martin Holst Swende"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 portrule = shortport.port_or_service({5984})
 -- Some lazy shortcuts
@@ -159,7 +159,7 @@ action = function(host, port)
   -- Here we know it is a couchdb
   port.version.name ='httpd'
   port.version.product='Apache CouchDB'
-  nmap.set_port_version(host,port)
+  kmap.set_port_version(host,port)
 
   -- We have a valid table in result containing the parsed json
   -- now, get all the interesting bits

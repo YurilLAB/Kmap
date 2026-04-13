@@ -1757,9 +1757,9 @@ pcap_cleanup_bpf(pcap_t *p)
 		 * doesn't try to free it.
 		 */
 		if (pb->zbuf1 != MAP_FAILED && pb->zbuf1 != NULL)
-			(void) munmap(pb->zbuf1, pb->zbufsize);
+			(void) mukmap(pb->zbuf1, pb->zbufsize);
 		if (pb->zbuf2 != MAP_FAILED && pb->zbuf2 != NULL)
-			(void) munmap(pb->zbuf2, pb->zbufsize);
+			(void) mukmap(pb->zbuf2, pb->zbufsize);
 		p->buffer = NULL;
 	}
 #endif

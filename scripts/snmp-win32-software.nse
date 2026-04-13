@@ -1,5 +1,5 @@
 local datetime = require "datetime"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local snmp = require "snmp"
 local stdnse = require "stdnse"
@@ -12,7 +12,7 @@ Attempts to enumerate installed software through SNMP.
 
 ---
 -- @usage
--- nmap -sU -p 161 --script=snmp-win32-software <target>
+-- kmap -sU -p 161 --script=snmp-win32-software <target>
 -- @output
 -- | snmp-win32-software:
 -- |   Apache Tomcat 5.5 (remove only); 2007-09-15T15:13:18
@@ -54,7 +54,7 @@ Attempts to enumerate installed software through SNMP.
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -156,7 +156,7 @@ action = function(host, port)
 
   sw = process_answer( sw )
 
-  nmap.set_port_state(host, port, "open")
+  kmap.set_port_state(host, port, "open")
 
   return sw
 end

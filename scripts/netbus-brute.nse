@@ -1,4 +1,4 @@
-local nmap = require "nmap"
+local kmap = require "kmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local string = require "string"
@@ -11,14 +11,14 @@ Performs brute force password auditing against the Netbus backdoor ("remote admi
 ---
 -- @see netbus-auth-bypass.nse
 -- @usage
--- nmap -p 12345 --script netbus-brute <target>
+-- kmap -p 12345 --script netbus-brute <target>
 --
 -- @output
 -- 12345/tcp open  netbus
 -- |_netbus-brute: password123
 
 author = "Toni Ruottu"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 
@@ -27,9 +27,9 @@ dependencies = {"netbus-version"}
 portrule = shortport.port_or_service (12345, "netbus", {"tcp"})
 
 action = function( host, port )
-  local try = nmap.new_try()
+  local try = kmap.new_try()
   local passwords = try(unpwdb.passwords())
-  local socket = nmap.new_socket()
+  local socket = kmap.new_socket()
   local status, err = socket:connect(host, port)
   if not status then
     return
@@ -47,10 +47,10 @@ action = function( host, port )
     if login == "Access;1" then
       -- Store the password for other netbus scripts
       local key = string.format("%s:%d", host.ip, port.number)
-      if not nmap.registry.netbuspasswords then
-        nmap.registry.netbuspasswords = {}
+      if not kmap.registry.netbuspasswords then
+        kmap.registry.netbuspasswords = {}
       end
-      nmap.registry.netbuspasswords[key] = password
+      kmap.registry.netbuspasswords[key] = password
       if password == "" then
         return "<empty>"
       end

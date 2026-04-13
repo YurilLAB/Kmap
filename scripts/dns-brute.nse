@@ -2,7 +2,7 @@ local coroutine = require "coroutine"
 local dns = require "dns"
 local io = require "io"
 local math = require "math"
-local nmap = require "nmap"
+local kmap = require "kmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local stringaux = require "stringaux"
@@ -21,8 +21,8 @@ Wildcard records are listed as "*A" and "*AAAA" for IPv4 and IPv6 respectively.
 
 ---
 -- @usage
--- nmap --script dns-brute --script-args dns-brute.domain=foo.com,dns-brute.threads=6,dns-brute.hostlist=./hostfile.txt,newtargets -sS -p 80
--- nmap --script dns-brute www.foo.com
+-- kmap --script dns-brute --script-args dns-brute.domain=foo.com,dns-brute.threads=6,dns-brute.hostlist=./hostfile.txt,newtargets -sS -p 80
+-- kmap --script dns-brute www.foo.com
 -- @args dns-brute.hostlist The filename of a list of host strings to try.
 --                          Defaults to "nselib/data/vhosts-default.lst"
 -- @args dns-brute.threads  Thread to use (default 5).
@@ -75,7 +75,7 @@ Wildcard records are listed as "*A" and "*AAAA" for IPv4 and IPv6 respectively.
 
 author = "Cirrus"
 
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 
 categories = {"intrusive", "discovery"}
 
@@ -130,7 +130,7 @@ local function make_record(hostn, addr)
 end
 
 local function thread_main(domainname, results, name_iter)
-  local condvar = nmap.condvar( results )
+  local condvar = kmap.condvar( results )
   for name in name_iter do
     for _, dtype in ipairs({"A", "AAAA"}) do
       local res = resolve(name..'.'..domainname, dtype)
@@ -154,7 +154,7 @@ local function thread_main(domainname, results, name_iter)
 end
 
 local function srv_main(domainname, srvresults, srv_iter)
-  local condvar = nmap.condvar( srvresults )
+  local condvar = kmap.condvar( srvresults )
   for name in srv_iter do
     local res = resolve(name..'.'..domainname, "SRV")
     if(res) then
@@ -211,16 +211,16 @@ action = function(host)
     return string.format("Can't guess domain of \"%s\"; use %s.domain script argument.", stdnse.get_hostname(host), SCRIPT_NAME)
   end
 
-  if not nmap.registry.bruteddomains then
-    nmap.registry.bruteddomains = {}
+  if not kmap.registry.bruteddomains then
+    kmap.registry.bruteddomains = {}
   end
 
-  if nmap.registry.bruteddomains[domainname] then
+  if kmap.registry.bruteddomains[domainname] then
     stdnse.debug1("Skipping already-bruted domain %s", domainname)
     return nil
   end
 
-  nmap.registry.bruteddomains[domainname] = true
+  kmap.registry.bruteddomains[domainname] = true
   stdnse.debug1("Starting dns-brute at: "..domainname)
   local max_threads = tonumber( stdnse.get_script_args('dns-brute.threads') ) or 5
   local dosrv = stdnse.get_script_args("dns-brute.srv") or false
@@ -228,9 +228,9 @@ action = function(host)
   -- First look for dns-brute.hostlist
   local fileName = stdnse.get_script_args('dns-brute.hostlist')
   -- Check fetchfile locations, then relative paths
-  local commFile = (fileName and nmap.fetchfile(fileName)) or fileName
+  local commFile = (fileName and kmap.fetchfile(fileName)) or fileName
   -- Finally, fall back to vhosts-default.lst
-  commFile = commFile or nmap.fetchfile("nselib/data/vhosts-default.lst")
+  commFile = commFile or kmap.fetchfile("nselib/data/vhosts-default.lst")
   local hostlist = {}
   if commFile then
     for l in io.lines(commFile) do
@@ -248,7 +248,7 @@ action = function(host)
     results["*" .. dtype] = detect_wildcard(domainname, dtype)
   end
 
-  local condvar = nmap.condvar( results )
+  local condvar = kmap.condvar( results )
   local i = 1
   local howmany = math.floor(#hostlist/max_threads)+1
   stdnse.debug1("Hosts per thread: "..howmany)
@@ -274,9 +274,9 @@ action = function(host)
     -- First look for dns-brute.srvlist
     fileName = stdnse.get_script_args('dns-brute.srvlist')
     -- Check fetchfile locations, then relative paths
-    commFile = (fileName and nmap.fetchfile(fileName)) or fileName
+    commFile = (fileName and kmap.fetchfile(fileName)) or fileName
     -- Finally, fall back to dns-srv-names
-    commFile = commFile or nmap.fetchfile("nselib/data/dns-srv-names")
+    commFile = commFile or kmap.fetchfile("nselib/data/dns-srv-names")
     local srvlist = {}
     if commFile then
       for l in io.lines(commFile) do
@@ -288,7 +288,7 @@ action = function(host)
       i = 1
       threads = {}
       howmany = math.floor(#srvlist/max_threads)+1
-      condvar = nmap.condvar( srvresults )
+      condvar = kmap.condvar( srvresults )
       stdnse.debug1("SRV's per thread: "..howmany)
       repeat
         local j = math.min(i+howmany, #srvlist)

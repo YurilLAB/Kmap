@@ -1,4 +1,4 @@
-local nmap      = require "nmap"
+local kmap      = require "kmap"
 local stdnse    = require "stdnse"
 local shortport = require "shortport"
 local tn3270    = require "tn3270"
@@ -33,9 +33,9 @@ found for CICS transaction IDs.
 -- @args cics-enum.pass Password to use for authenticated enumeration
 --
 -- @usage
--- nmap --script=cics-enum -p 23 <targets>
+-- kmap --script=cics-enum -p 23 <targets>
 --
--- nmap --script=cics-enum --script-args=idlist=default_cics.txt,
+-- kmap --script=cics-enum --script-args=idlist=default_cics.txt,
 -- cics-enum.command="exit;logon applid(cics42)",
 -- cics-enum.path="/home/dade/screenshots/",cics-enum.noSSL=true -p 23 <targets>
 --
@@ -60,11 +60,11 @@ found for CICS transaction IDs.
 -- 2019-02-01 - v0.4 - Removed TN3270E support (breaks location)
 --
 -- @author Philip Young
--- @copyright Same as Nmap--See https://nmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
 --
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 portrule = shortport.port_or_service({23,992}, "tn3270")
 
@@ -215,7 +215,7 @@ Driver = {
       -- DFHAC2028 -- cannot be used
       -- TSS7254E  -- Access not available through this facility
       stdnse.verbose("Valid CICS Transaction ID [Abbend or ID Disabled]: %s", string.upper(pass))
-      if nmap.verbosity() > 3 then
+      if kmap.verbosity() > 3 then
         if path ~= nil then
           stdnse.verbose(2,"Writting screen to: %s", path..string.upper(pass)..".txt")
           status, err = save_screens(path..string.upper(pass)..".txt",self.tn3270:get_screen())
@@ -233,7 +233,7 @@ Driver = {
       -- TSS7251E  : Access Denied to PROGRAM <X>
       -- DFHAC2033 : You are not authorized to use transaction <X>
       stdnse.verbose("Valid CICS Transaction ID [Access Denied]: %s", string.upper(pass))
-      if nmap.verbosity() > 3 then
+      if kmap.verbosity() > 3 then
         return true, creds.Account:new("CICS ID [Access Denied]", string.upper(pass), creds.State.VALID)
       else
         return false, brute.Error:new( "Correct Transaction ID - Access Denied" )
@@ -401,7 +401,7 @@ action = function(host, port)
     "CWBG", "CWTO", "CWWU", "CWXN", "CWXU", "CW2A", "CXCU", "CXRE", "CXRT",
     "DSNC"} -- Default CICS from https://www-01.ibm.com/support/knowledgecenter/SSGMCP_5.2.0/com.ibm.cics.ts.systemprogramming.doc/topics/dfha726.html
 
-  cics_id_file = ( (cics_id_file and nmap.fetchfile(cics_id_file)) or cics_id_file )
+  cics_id_file = ( (cics_id_file and kmap.fetchfile(cics_id_file)) or cics_id_file )
 
   if cics_id_file then
     for l in io.lines(cics_id_file) do
