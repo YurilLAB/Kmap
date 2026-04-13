@@ -1,6 +1,6 @@
 # Kmap
 
-**Kmap** is a fork of [nmap](https://github.com/YurilLAB/Kmap/) extended with active pentesting capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds three new offensive features designed for security assessments.
+**Kmap** is a fork of [nmap](https://nmap.org/) extended with active pentesting capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds three new offensive features designed for security assessments.
 
 > **License:** Kmap inherits the Nmap Public Source License (NPSL). See `LICENSE` for full terms.
 
@@ -10,8 +10,8 @@
 
 | Feature | Flag | What it does |
 |---|---|---|
-| Default credential probing | `--default-creds` | Tests open services against ~50 built-in credential pairs |
-| HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 40+ high-value paths |
+| Default credential probing | `--default-creds` | Tests open services against 175+ built-in credential pairs |
+| HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 95+ high-value paths |
 | CVE cross-reference | `--cve-map` | Queries bundled 10,000+ CVE database for detected service versions |
 
 All three features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
@@ -87,7 +87,7 @@ The `kmap-cve.db` SQLite database is installed alongside the binary and located 
 
 Tests every open port with a detected service against a built-in list of common/default credentials. Stops on the first hit per port.
 
-**Supported protocols:** SSH (libssh2), FTP, Telnet, HTTP Basic Auth, MySQL, PostgreSQL, MSSQL (TDS), MongoDB
+**Supported protocols:** SSH (libssh2), FTP, Telnet, HTTP Basic Auth, MySQL (SHA1 native auth), PostgreSQL (MD5 auth), MSSQL (TDS Login7), MongoDB (wire protocol)
 
 ```bash
 kmap --default-creds 10.0.0.1
@@ -133,7 +133,7 @@ kmap --web-recon --web-paths /path/to/extra-paths.txt 10.0.0.1
 - Page title, `Server`, `X-Powered-By`, `X-Generator` response headers
 - TLS certificate subject CN, issuer, expiry date, self-signed detection
 - `robots.txt` disallowed paths (often reveals hidden structure)
-- HTTP status codes for 40+ high-value paths: admin panels, config files, debug endpoints, backup files, API docs, framework-specific paths
+- HTTP status codes for 95+ high-value paths: admin panels, config files, debug endpoints, backup files, API docs, framework-specific paths, Spring actuator endpoints, Docker/Kubernetes metadata, environment files
 
 **Example output:**
 ```
@@ -233,6 +233,7 @@ Kmap/
 - **Three new features** — `--default-creds`, `--web-recon`, `--cve-map`
 - **JSON output** — `-oJ` via nlohmann/json
 - **Terminal colors** — `--color` with `NO_COLOR` env var support
+- **Full protocol authentication** — MySQL SHA1, PostgreSQL MD5, MSSQL TDS Login7 (when OpenSSL is available)
 - **IPv6 support** in all custom probes
 - **C++17** for modified source files
 - **Bundled SQLite** — no external DB dependency for CVE lookups

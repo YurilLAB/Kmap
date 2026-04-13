@@ -62,85 +62,212 @@ struct CredPair {
 };
 
 static const CredPair builtin_creds[] = {
-  /* SSH */
+  /* ---- SSH (25 entries) ----
+   * Root common passwords, admin accounts, IoT/embedded defaults,
+   * cloud VM defaults, common service accounts. */
   {"ssh", "root",      "root"},
   {"ssh", "root",      ""},
   {"ssh", "root",      "toor"},
   {"ssh", "root",      "password"},
   {"ssh", "root",      "123456"},
+  {"ssh", "root",      "12345678"},
+  {"ssh", "root",      "admin"},
+  {"ssh", "root",      "changeme"},
+  {"ssh", "root",      "letmein"},
+  {"ssh", "root",      "default"},
   {"ssh", "admin",     "admin"},
   {"ssh", "admin",     "password"},
   {"ssh", "admin",     ""},
   {"ssh", "admin",     "1234"},
-  {"ssh", "ubuntu",    "ubuntu"},
-  {"ssh", "pi",        "raspberry"},
+  {"ssh", "admin",     "admin123"},
+  {"ssh", "admin",     "changeme"},
+  {"ssh", "ubnt",      "ubnt"},          /* Ubiquiti devices */
+  {"ssh", "pi",        "raspberry"},     /* Raspberry Pi */
   {"ssh", "user",      "user"},
+  {"ssh", "support",   "support"},       /* Various appliances */
+  {"ssh", "ubuntu",    "ubuntu"},        /* Ubuntu cloud images */
+  {"ssh", "vagrant",   "vagrant"},       /* Vagrant boxes */
+  {"ssh", "ec2-user",  "ec2-user"},      /* AWS EC2 (rare but tested) */
+  {"ssh", "centos",    "centos"},        /* CentOS cloud images */
+  {"ssh", "deploy",    "deploy"},        /* Deployment accounts */
+  {"ssh", "oracle",    "oracle"},        /* Oracle appliances */
+  {"ssh", "postgres",  "postgres"},      /* PostgreSQL system user */
   {"ssh", "guest",     "guest"},
   {"ssh", "test",      "test"},
-  {"ssh", "oracle",    "oracle"},
+  {"ssh", "git",       "git"},           /* Gitea/GitLab instances */
+  {"ssh", "nagios",    "nagios"},        /* Nagios monitoring */
+  {"ssh", "tomcat",    "tomcat"},        /* Tomcat SSH access */
+  {"ssh", "ftpuser",   "ftpuser"},       /* Embedded NAS */
 
-  /* FTP */
+  /* ---- FTP (22 entries) ----
+   * Anonymous access variants, common server defaults,
+   * embedded device / NAS defaults. */
   {"ftp", "anonymous", ""},
   {"ftp", "anonymous", "anonymous"},
   {"ftp", "anonymous", "guest@"},
+  {"ftp", "anonymous", "anonymous@"},
+  {"ftp", "anonymous", "ftp@example.com"},
   {"ftp", "ftp",       "ftp"},
+  {"ftp", "ftp",       ""},
   {"ftp", "admin",     "admin"},
   {"ftp", "admin",     "password"},
+  {"ftp", "admin",     "1234"},
+  {"ftp", "admin",     "admin123"},
+  {"ftp", "admin",     ""},
   {"ftp", "root",      "root"},
+  {"ftp", "root",      "password"},
+  {"ftp", "root",      ""},
   {"ftp", "user",      "user"},
+  {"ftp", "user",      "password"},
   {"ftp", "test",      "test"},
   {"ftp", "guest",     "guest"},
+  {"ftp", "ftpuser",   "ftpuser"},       /* Embedded / NAS devices */
+  {"ftp", "ftpuser",   "password"},
+  {"ftp", "upload",    "upload"},        /* Upload-only accounts */
+  {"ftp", "backup",    "backup"},        /* Backup service accounts */
 
-  /* Telnet */
-  {"telnet", "admin",  "admin"},
-  {"telnet", "admin",  "password"},
-  {"telnet", "root",   "root"},
-  {"telnet", "root",   ""},
-  {"telnet", "user",   "user"},
-  {"telnet", "guest",  "guest"},
-  {"telnet", "",       ""},
+  /* ---- Telnet (25 entries) ----
+   * Router/gateway defaults, IoT/embedded systems,
+   * SCADA/ICS common credentials. */
+  {"telnet", "admin",      "admin"},
+  {"telnet", "admin",      "password"},
+  {"telnet", "admin",      "1234"},
+  {"telnet", "admin",      ""},
+  {"telnet", "admin",      "admin1234"},
+  {"telnet", "admin",      "default"},
+  {"telnet", "admin",      "changeme"},
+  {"telnet", "admin",      "meinsm"},     /* ZTE routers */
+  {"telnet", "root",       "root"},
+  {"telnet", "root",       ""},
+  {"telnet", "root",       "toor"},
+  {"telnet", "root",       "password"},
+  {"telnet", "root",       "default"},
+  {"telnet", "root",       "vizxv"},      /* Dahua DVRs */
+  {"telnet", "root",       "xc3511"},     /* Xiongmai IP cameras */
+  {"telnet", "root",       "juantech"},   /* Juanvision cameras */
+  {"telnet", "user",       "user"},
+  {"telnet", "guest",      "guest"},
+  {"telnet", "",           ""},           /* No-auth telnet */
+  {"telnet", "supervisor", "supervisor"}, /* SCADA/ICS systems */
+  {"telnet", "tech",       "tech"},       /* Telecom equipment */
+  {"telnet", "support",    "support"},    /* Support accounts */
+  {"telnet", "manager",    "manager"},    /* Management interfaces */
+  {"telnet", "operator",   "operator"},   /* SCADA operator */
+  {"telnet", "service",    "service"},    /* Service/maintenance */
+  {"telnet", "mother",     "fucker"},     /* Mirai botnet default */
 
-  /* HTTP Basic Auth */
+  /* ---- HTTP Basic Auth (24 entries) ----
+   * Generic admin panels, router/appliance web interfaces,
+   * web server / framework defaults. */
   {"http", "admin",    "admin"},
   {"http", "admin",    "password"},
   {"http", "admin",    "1234"},
   {"http", "admin",    ""},
+  {"http", "admin",    "admin123"},
+  {"http", "admin",    "12345"},
+  {"http", "admin",    "changeme"},
+  {"http", "admin",    "default"},
+  {"http", "admin",    "letmein"},
+  {"http", "admin",    "admin1"},
+  {"http", "admin",    "password1"},
+  {"http", "admin",    "1234567890"},
   {"http", "root",     "root"},
+  {"http", "root",     "password"},
+  {"http", "root",     "admin"},
   {"http", "user",     "user"},
   {"http", "test",     "test"},
   {"http", "guest",    "guest"},
-  {"http", "admin",    "admin123"},
+  {"http", "cisco",    "cisco"},         /* Cisco web management */
+  {"http", "manager",  "manager"},       /* Tomcat manager */
+  {"http", "tomcat",   "tomcat"},        /* Apache Tomcat */
+  {"http", "tomcat",   "s3cret"},        /* Tomcat common default */
+  {"http", "manager",  "tomcat"},        /* Tomcat manager variant */
+  {"http", "pi",       "raspberry"},     /* Raspberry Pi web UIs */
 
-  /* MySQL */
+  /* ---- MySQL (21 entries) ----
+   * Default installations, common DBA passwords,
+   * MariaDB defaults. */
   {"mysql", "root",    ""},
   {"mysql", "root",    "root"},
   {"mysql", "root",    "password"},
   {"mysql", "root",    "mysql"},
+  {"mysql", "root",    "123456"},
+  {"mysql", "root",    "toor"},
+  {"mysql", "root",    "changeme"},
+  {"mysql", "root",    "admin"},
+  {"mysql", "root",    "default"},
   {"mysql", "admin",   "admin"},
+  {"mysql", "admin",   "password"},
+  {"mysql", "admin",   ""},
   {"mysql", "mysql",   "mysql"},
   {"mysql", "test",    "test"},
+  {"mysql", "test",    ""},
   {"mysql", "user",    ""},
+  {"mysql", "user",    "user"},
+  {"mysql", "dbadmin", "dbadmin"},       /* Common DBA account */
+  {"mysql", "db",      "db"},
+  {"mysql", "dba",     "dba"},
+  {"mysql", "guest",   "guest"},
 
-  /* PostgreSQL */
+  /* ---- PostgreSQL (17 entries) ----
+   * Default installations, common DBA passwords. */
   {"postgresql", "postgres",  ""},
   {"postgresql", "postgres",  "postgres"},
   {"postgresql", "postgres",  "password"},
+  {"postgresql", "postgres",  "admin"},
+  {"postgresql", "postgres",  "123456"},
+  {"postgresql", "postgres",  "changeme"},
+  {"postgresql", "postgres",  "default"},
   {"postgresql", "admin",     "admin"},
+  {"postgresql", "admin",     "password"},
   {"postgresql", "root",      "root"},
+  {"postgresql", "root",      "password"},
   {"postgresql", "user",      "user"},
+  {"postgresql", "user",      "password"},
+  {"postgresql", "dbuser",    "dbuser"},   /* Common dev setup */
+  {"postgresql", "pgsql",     "pgsql"},    /* Legacy alias */
+  {"postgresql", "test",      "test"},
+  {"postgresql", "guest",     "guest"},
 
-  /* MSSQL */
+  /* ---- MSSQL (17 entries) ----
+   * SQL Server Express defaults, common sa passwords. */
   {"mssql", "sa",      ""},
   {"mssql", "sa",      "sa"},
   {"mssql", "sa",      "password"},
   {"mssql", "sa",      "Password1"},
+  {"mssql", "sa",      "Password123"},
+  {"mssql", "sa",      "1234"},
+  {"mssql", "sa",      "changeme"},
+  {"mssql", "sa",      "master"},
+  {"mssql", "sa",      "sql"},
+  {"mssql", "sa",      "sa123"},
+  {"mssql", "sa",      "sqlserver"},
   {"mssql", "admin",   "admin"},
+  {"mssql", "admin",   "password"},
+  {"mssql", "sql",     "sql"},
+  {"mssql", "guest",   "guest"},
+  {"mssql", "test",    "test"},
+  {"mssql", "dba",     "dba"},
 
-  /* MongoDB (unauthenticated by default in old versions) */
-  {"mongodb", "",      ""},
-  {"mongodb", "admin", "admin"},
-  {"mongodb", "admin", "password"},
-  {"mongodb", "root",  "root"},
+  /* ---- MongoDB (16 entries) ----
+   * Unauthenticated access (pre-3.0 default, still common),
+   * common admin credentials when auth is enabled. */
+  {"mongodb", "",        ""},             /* No-auth (old default) */
+  {"mongodb", "admin",   "admin"},
+  {"mongodb", "admin",   "password"},
+  {"mongodb", "admin",   "changeme"},
+  {"mongodb", "admin",   "123456"},
+  {"mongodb", "admin",   "mongo"},
+  {"mongodb", "admin",   ""},
+  {"mongodb", "root",    "root"},
+  {"mongodb", "root",    "password"},
+  {"mongodb", "root",    "mongo"},
+  {"mongodb", "root",    "changeme"},
+  {"mongodb", "mongodb", "mongodb"},     /* Service account */
+  {"mongodb", "user",    "user"},
+  {"mongodb", "user",    "password"},
+  {"mongodb", "test",    "test"},
+  {"mongodb", "guest",   "guest"},
 
   {nullptr, nullptr, nullptr}
 };
@@ -549,11 +676,17 @@ static bool probe_telnet(const char *ip, uint16_t port,
   close_fd(fd);
 
   if (n <= 0) return false;
-  // Heuristic: shell prompt indicators; absence of "Login incorrect" / "Password:"
-  bool has_prompt = (strchr(buf, '$') || strchr(buf, '#') ||
-                     strchr(buf, '>') || strstr(buf, "~]"));
+  /* Heuristic: look for shell prompt indicators while rejecting known failure
+   * messages.  Avoid bare '>' — it matches HTML tags and many non-prompt
+   * contexts.  Instead look for common prompt suffixes like "$ ", "# ",
+   * or "> " (space after the character) that indicate a real shell. */
+  bool has_prompt = (strstr(buf, "$ ") || strstr(buf, "# ") ||
+                     strstr(buf, "> ") || strstr(buf, "~]") ||
+                     strstr(buf, ":~") || strstr(buf, ":/"));
   bool has_fail   = (strstr(buf, "incorrect") || strstr(buf, "failed") ||
-                     strstr(buf, "denied")    || strstr(buf, "Password:"));
+                     strstr(buf, "denied")    || strstr(buf, "Password:") ||
+                     strstr(buf, "invalid")   || strstr(buf, "bad password") ||
+                     strstr(buf, "Login fail") || strstr(buf, "Access denied"));
   return has_prompt && !has_fail;
 }
 
@@ -752,7 +885,7 @@ static bool probe_mongodb(const char *ip, uint16_t port,
 
   // Minimal MongoDB wire protocol: OP_QUERY for isMaster
   static const uint8_t ismaster_msg[] = {
-    0x48,0x00,0x00,0x00, // total length = 72
+    0x3A,0x00,0x00,0x00, // total length = 58
     0x01,0x00,0x00,0x00, // requestID
     0x00,0x00,0x00,0x00, // responseTo
     0xd4,0x07,0x00,0x00, // opCode = OP_QUERY (2004)

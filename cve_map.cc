@@ -310,7 +310,7 @@ static std::vector<CveEntry> query_cves(
   const char *sql_exact_vendor =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
-    "FROM cves WHERE product = ? AND vendor LIKE ? AND cvss_score >= ? "
+    "FROM cves WHERE product = ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 15";
 
   const char *sql_exact =
@@ -322,7 +322,7 @@ static std::vector<CveEntry> query_cves(
   const char *sql_like_vendor =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
-    "FROM cves WHERE product LIKE ? AND vendor LIKE ? AND cvss_score >= ? "
+    "FROM cves WHERE product LIKE ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 15";
 
   const char *sql_like =

@@ -53,17 +53,49 @@
  * Built-in high-value path list
  * ----------------------------------------------------------------------- */
 static const char *builtin_paths[] = {
-  "/admin", "/login", "/phpMyAdmin", "/.env", "/.git/HEAD",
-  "/wp-login.php", "/wp-admin/", "/api/v1", "/actuator",
-  "/actuator/env", "/actuator/health", "/console",
-  "/manager/html", "/config.php", "/backup", "/server-status",
-  "/.htaccess", "/api/swagger.json", "/api/docs", "/graphql",
-  "/.well-known/security.txt", "/crossdomain.xml", "/elmah.axd",
-  "/trace.axd", "/_profiler", "/debug", "/staging", "/test",
-  "/phpmyadmin", "/adminer.php", "/webadmin", "/.DS_Store",
-  "/.svn/entries", "/WEB-INF/web.xml", "/web.config",
+  /* Admin panels / login pages */
+  "/admin", "/login", "/admin/login", "/administrator",
+  "/manager/html", "/webadmin", "/cpanel", "/dashboard",
+  "/portal", "/admin/dashboard", "/cgi-bin/",
+  /* PHP tooling */
+  "/phpMyAdmin", "/phpmyadmin", "/adminer.php", "/config.php",
+  /* WordPress */
+  "/wp-login.php", "/wp-admin/", "/wp-config.php.bak", "/wp-json/wp/v2/users",
+  "/xmlrpc.php",
+  /* API / documentation endpoints */
+  "/api/v1", "/api/v2", "/api/docs", "/api/swagger.json",
+  "/swagger-ui.html", "/swagger/v1/swagger.json",
+  "/graphql", "/graphiql", "/v1/api-docs", "/openapi.json",
+  /* Java / Spring */
+  "/actuator", "/actuator/env", "/actuator/health", "/actuator/mappings",
+  "/actuator/configprops", "/actuator/beans", "/console", "/jolokia",
   "/jmx-console", "/web-console", "/invoker/JMXInvokerServlet",
-  "/robots.txt", "/sitemap.xml", "/README.md", "/CHANGELOG.md",
+  "/h2-console",
+  /* Debug / profiling endpoints */
+  "/_profiler", "/debug", "/debug/vars", "/debug/pprof",
+  "/server-status", "/server-info", "/trace.axd", "/elmah.axd",
+  "/_debug_toolbar/", "/telescope",
+  /* Sensitive files / directories */
+  "/.env", "/.env.bak", "/.env.local", "/.env.production",
+  "/.git/HEAD", "/.git/config", "/.gitignore",
+  "/.htaccess", "/.htpasswd", "/.svn/entries", "/.DS_Store",
+  "/web.config", "/WEB-INF/web.xml", "/crossdomain.xml",
+  "/backup", "/backup.sql", "/backup.zip", "/db.sql",
+  "/dump.sql", "/database.sql", "/config.yml", "/config.json",
+  "/credentials.json", "/application.yml", "/application.properties",
+  "/.npmrc", "/.dockerenv",
+  /* Framework / CMS detection */
+  "/wp-includes/version.php", "/joomla.xml", "/RELEASE_NOTES.txt",
+  "/vendor/composer/installed.json",
+  /* Kubernetes / Docker / cloud */
+  "/.kube/config", "/v2/_catalog",
+  "/api/v1/namespaces", "/metadata",
+  /* Common test / staging endpoints */
+  "/staging", "/test", "/info.php", "/phpinfo.php",
+  /* Metadata / discovery */
+  "/robots.txt", "/sitemap.xml", "/.well-known/security.txt",
+  "/.well-known/openid-configuration",
+  "/README.md", "/CHANGELOG.md",
   nullptr
 };
 
@@ -201,8 +233,12 @@ static int extract_status_code(const std::string &response) {
   if (response.size() < 12) return 0;
   if (response.substr(0, 4) != "HTTP") return 0;
   size_t sp = response.find(' ');
-  if (sp == std::string::npos) return 0;
-  return std::stoi(response.substr(sp + 1, 3));
+  if (sp == std::string::npos || sp + 3 >= response.size()) return 0;
+  /* Validate that the status code chars are digits before parsing */
+  char c1 = response[sp + 1], c2 = response[sp + 2], c3 = response[sp + 3];
+  if (c1 < '0' || c1 > '9' || c2 < '0' || c2 > '9' || c3 < '0' || c3 > '9')
+    return 0;
+  return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
 }
 
 static std::string extract_redirect(const std::string &response) {
@@ -260,7 +296,12 @@ static std::string https_get(const char *ip, uint16_t port,
 
   SSL *ssl = SSL_new(ctx);
   SSL_set_fd(ssl, fd);
-  SSL_set_tlsext_host_name(ssl, ip);
+  /* SNI must be a hostname, not an IP — skip for bare IPs (RFC 6066) */
+  { struct in_addr dummy4; struct in6_addr dummy6;
+    if (inet_pton(AF_INET, ip, &dummy4) != 1 &&
+        inet_pton(AF_INET6, ip, &dummy6) != 1)
+      SSL_set_tlsext_host_name(ssl, ip);
+  }
 
   if (SSL_connect(ssl) != 1) {
     SSL_free(ssl); close_fd_wr(fd); return "";
