@@ -95,6 +95,33 @@ static const char *builtin_paths[] = {
   "/robots.txt", "/sitemap.xml", "/.well-known/security.txt",
   "/.well-known/openid-configuration",
   "/README.md", "/CHANGELOG.md",
+  /* Additional sensitive files */
+  "/composer.json", "/package.json", "/Gemfile", "/requirements.txt",
+  "/Pipfile", "/yarn.lock", "/pom.xml", "/build.gradle",
+  "/.travis.yml", "/.circleci/config.yml", "/Dockerfile",
+  "/docker-compose.yml", "/.aws/credentials",
+  /* Version control / CI artifacts */
+  "/.hg/", "/.bzr/", "/CVS/Entries",
+  "/.github/workflows/", "/Jenkinsfile", "/Vagrantfile",
+  /* Server config files */
+  "/nginx.conf", "/httpd.conf", "/php.ini", "/.user.ini",
+  "/wp-config.php", "/configuration.php", "/settings.php",
+  "/local_settings.py", "/config/database.yml",
+  /* Error pages and info disclosure */
+  "/error", "/errors", "/404", "/500",
+  "/error_log", "/access_log",
+  /* Additional admin endpoints */
+  "/admin.php", "/administrator.php", "/cms", "/cms/admin",
+  "/controlpanel", "/panel", "/management",
+  "/siteadmin", "/webmaster",
+  /* Additional API endpoints */
+  "/api/v3", "/api/graphql", "/api/health",
+  "/api/status", "/api/config", "/api/users",
+  "/rest/api/latest",
+  /* Backup and dump patterns */
+  "/backup.tar.gz", "/site.tar.gz", "/www.zip",
+  "/old", "/archive", "/temp", "/tmp",
+  "/.backup", "/data.sql", "/site.sql",
   nullptr
 };
 

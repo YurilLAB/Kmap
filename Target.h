@@ -81,6 +81,7 @@
 class FingerPrintResults;
 
 #include <list>
+#include <map>
 #include <string>
 #include <vector>
 #include <time.h> /* time_t */
@@ -282,6 +283,17 @@ class Target {
   /* The state the port or protocol entered when the response to pingprobe was
      received. */
   int pingprobe_state;
+
+  /* Kmap extension: generic key-value store for attaching feature data
+     (--default-creds, --web-recon, --cve-map results) to targets. */
+  struct {
+    void *get(const char *key) const {
+      auto it = data_.find(key);
+      return (it != data_.end()) ? it->second : nullptr;
+    }
+    void set(const char *key, void *val) { data_[key] = val; }
+    std::map<std::string, void *> data_;
+  } attribute;
 
   private:
   void FreeInternal(); // Free memory allocated inside this object

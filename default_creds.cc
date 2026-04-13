@@ -97,6 +97,18 @@ static const CredPair builtin_creds[] = {
   {"ssh", "nagios",    "nagios"},        /* Nagios monitoring */
   {"ssh", "tomcat",    "tomcat"},        /* Tomcat SSH access */
   {"ssh", "ftpuser",   "ftpuser"},       /* Embedded NAS */
+  {"ssh", "ansible",   "ansible"},       /* Ansible automation */
+  {"ssh", "docker",    "docker"},        /* Docker host access */
+  {"ssh", "minecraft", "minecraft"},     /* Minecraft servers */
+  {"ssh", "teamspeak", "teamspeak"},     /* TeamSpeak servers */
+  {"ssh", "webmaster", "webmaster"},     /* Webmaster accounts */
+  {"ssh", "backup",    "backup"},        /* Backup service accounts */
+  {"ssh", "monitor",   "monitor"},       /* Monitoring agents */
+  {"ssh", "zabbix",    "zabbix"},        /* Zabbix monitoring */
+  {"ssh", "grafana",   "grafana"},       /* Grafana dashboards */
+  {"ssh", "www-data",  "www-data"},      /* Apache web user */
+  {"ssh", "mysql",     "mysql"},         /* MySQL system user */
+  {"ssh", "redis",     "redis"},         /* Redis system user */
 
   /* ---- FTP (22 entries) ----
    * Anonymous access variants, common server defaults,
@@ -124,6 +136,13 @@ static const CredPair builtin_creds[] = {
   {"ftp", "ftpuser",   "password"},
   {"ftp", "upload",    "upload"},        /* Upload-only accounts */
   {"ftp", "backup",    "backup"},        /* Backup service accounts */
+  {"ftp", "web",       "web"},           /* Web content accounts */
+  {"ftp", "data",      "data"},          /* Data transfer accounts */
+  {"ftp", "media",     "media"},         /* Media upload accounts */
+  {"ftp", "www",       "www"},           /* Web directory access */
+  {"ftp", "files",     "files"},         /* File share accounts */
+  {"ftp", "share",     "share"},         /* Shared folder access */
+  {"ftp", "public",    "public"},        /* Public access accounts */
 
   /* ---- Telnet (25 entries) ----
    * Router/gateway defaults, IoT/embedded systems,
@@ -154,6 +173,19 @@ static const CredPair builtin_creds[] = {
   {"telnet", "operator",   "operator"},   /* SCADA operator */
   {"telnet", "service",    "service"},    /* Service/maintenance */
   {"telnet", "mother",     "fucker"},     /* Mirai botnet default */
+  {"telnet", "enable",     "system"},     /* Cisco enable password */
+  {"telnet", "admin",      "motorola"},   /* Motorola devices */
+  {"telnet", "admin",      "epicrouter"}, /* Epic/Conexant routers */
+  {"telnet", "admin",      "superadmin"}, /* Super admin accounts */
+  {"telnet", "admin",      "conexant"},   /* Conexant chipsets */
+  {"telnet", "admin",      "bEn2o#US9s"}, /* Hak5 Pineapple */
+  {"telnet", "root",       "admin"},      /* Root/admin combo */
+  {"telnet", "root",       "pass"},       /* Root/pass combo */
+  {"telnet", "root",       "1234"},       /* Numeric defaults */
+  {"telnet", "root",       "12345"},      /* Numeric defaults */
+  {"telnet", "root",       "123456"},     /* Numeric defaults */
+  {"telnet", "admin",      "AitbISP4eCj"}, /* ISP router defaults */
+  {"telnet", "admin",      "airocon"},    /* Airocon HVAC systems */
 
   /* ---- HTTP Basic Auth (24 entries) ----
    * Generic admin panels, router/appliance web interfaces,
@@ -182,6 +214,16 @@ static const CredPair builtin_creds[] = {
   {"http", "tomcat",   "s3cret"},        /* Tomcat common default */
   {"http", "manager",  "tomcat"},        /* Tomcat manager variant */
   {"http", "pi",       "raspberry"},     /* Raspberry Pi web UIs */
+  {"http", "admin",    "secret"},        /* Common weak password */
+  {"http", "admin",    "pass"},          /* Common weak password */
+  {"http", "admin",    "abc123"},        /* Common weak password */
+  {"http", "webmaster","webmaster"},     /* Webmaster panels */
+  {"http", "monitor",  "monitor"},       /* Monitoring dashboards */
+  {"http", "operator", "operator"},      /* Operator consoles */
+  {"http", "nagios",   "nagios"},        /* Nagios web UI */
+  {"http", "zabbix",   "zabbix"},        /* Zabbix web UI */
+  {"http", "admin",    "ubnt"},          /* Ubiquiti web default */
+  {"http", "ubnt",     "ubnt"},          /* Ubiquiti device default */
 
   /* ---- MySQL (21 entries) ----
    * Default installations, common DBA passwords,
@@ -207,6 +249,14 @@ static const CredPair builtin_creds[] = {
   {"mysql", "db",      "db"},
   {"mysql", "dba",     "dba"},
   {"mysql", "guest",   "guest"},
+  {"mysql", "root",    "abc123"},        /* Common weak password */
+  {"mysql", "root",    "pass"},          /* Common weak password */
+  {"mysql", "root",    "1234"},          /* Numeric default */
+  {"mysql", "root",    "secret"},        /* Common weak password */
+  {"mysql", "wordpress","wordpress"},    /* WordPress DB account */
+  {"mysql", "joomla",  "joomla"},        /* Joomla DB account */
+  {"mysql", "drupal",  "drupal"},        /* Drupal DB account */
+  {"mysql", "magento", "magento"},       /* Magento DB account */
 
   /* ---- PostgreSQL (17 entries) ----
    * Default installations, common DBA passwords. */
@@ -227,6 +277,13 @@ static const CredPair builtin_creds[] = {
   {"postgresql", "pgsql",     "pgsql"},    /* Legacy alias */
   {"postgresql", "test",      "test"},
   {"postgresql", "guest",     "guest"},
+  {"postgresql", "postgres",  "abc123"},   /* Common weak password */
+  {"postgresql", "postgres",  "pass"},     /* Common weak password */
+  {"postgresql", "postgres",  "secret"},   /* Common weak password */
+  {"postgresql", "postgres",  "1234"},     /* Numeric default */
+  {"postgresql", "django",    "django"},   /* Django framework */
+  {"postgresql", "rails",     "rails"},    /* Rails framework */
+  {"postgresql", "sonar",     "sonar"},    /* SonarQube */
 
   /* ---- MSSQL (17 entries) ----
    * SQL Server Express defaults, common sa passwords. */
@@ -247,6 +304,13 @@ static const CredPair builtin_creds[] = {
   {"mssql", "guest",   "guest"},
   {"mssql", "test",    "test"},
   {"mssql", "dba",     "dba"},
+  {"mssql", "sa",      "Password1!"},    /* Complex password variant */
+  {"mssql", "sa",      "admin"},         /* Common weak password */
+  {"mssql", "sa",      "P@ssw0rd"},      /* Complex password variant */
+  {"mssql", "sa",      "abc123"},        /* Common weak password */
+  {"mssql", "sa",      "pass"},          /* Common weak password */
+  {"mssql", "sa",      "1234"},          /* Numeric default */
+  {"mssql", "sa",      "Welcome1"},      /* Welcome variant */
 
   /* ---- MongoDB (16 entries) ----
    * Unauthenticated access (pre-3.0 default, still common),
@@ -267,6 +331,12 @@ static const CredPair builtin_creds[] = {
   {"mongodb", "user",    "password"},
   {"mongodb", "test",    "test"},
   {"mongodb", "guest",   "guest"},
+  {"mongodb", "admin",   "mongo123"},    /* Common MongoDB password */
+  {"mongodb", "admin",   "default"},     /* Default credential */
+  {"mongodb", "admin",   "abc123"},      /* Common weak password */
+  {"mongodb", "dbadmin", "dbadmin"},     /* DB admin account */
+  {"mongodb", "mongouser","mongouser"},  /* Mongo user account */
+  {"mongodb", "app",     "app"},         /* Application account */
 
   {nullptr, nullptr, nullptr}
 };
