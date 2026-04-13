@@ -195,7 +195,18 @@ python3 scripts/update_cves.py
 
 # Insert additional curated CVEs
 python3 scripts/add_cves.py
+
+# Import CVEs from any supported file format
+kmap --import-cves /path/to/cves.csv
+kmap --import-cves /path/to/another.db
+kmap --import-cves cves.txt --import-cves-db custom-cve.db
 ```
+
+**`--import-cves`** accepts:
+- **Text files** (`.txt`, `.csv`, `.md`, `.tsv`) — comma, tab, or pipe delimited. Format: `CVE-ID, product, vendor, ver_min, ver_max, cvss_score, severity, description`. Lines starting with `#` are comments.
+- **SQLite databases** (`.db`, `.sqlite`) — any database with a `cves` table matching the kmap schema. All rows are imported; duplicates are skipped.
+
+Severity is auto-derived from the CVSS score if not provided. Validation catches invalid CVE IDs, out-of-range CVSS scores, and empty products.
 
 ---
 
@@ -205,6 +216,8 @@ python3 scripts/add_cves.py
 |---|---|
 | `-oJ <file>` | JSON output (complements existing `-oN`, `-oX`, `-oG`) |
 | `--color=auto\|always\|never` | Terminal color (default: auto via `isatty` + `NO_COLOR`) |
+| `--import-cves <file>` | Import CVEs from text/CSV/SQLite file into the database |
+| `--import-cves-db <path>` | Target database for import (default: `kmap-cve.db`) |
 
 ---
 

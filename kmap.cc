@@ -299,6 +299,8 @@ static void printusage() {
          "  --web-paths <file>: Additional paths to probe during --web-recon\n"
          "  --cve-map: Cross-reference detected services with CVE database (auto-enables -sV)\n"
          "  --cve-min-score <score>: Minimum CVSS score to report (default: 7.0)\n"
+         "  --import-cves <file>: Import CVEs from file into database (txt/csv/md/db)\n"
+         "  --import-cves-db <path>: Custom target database path (default: kmap-cve.db)\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
          "  -d: Increase debugging level (use -dd or more for greater effect)\n"
          "  --reason: Display the reason a port is in a particular state\n"
@@ -650,6 +652,8 @@ void parse_options(int argc, char **argv) {
     {"web-paths", required_argument, 0, 0},
     {"cve-map", no_argument, 0, 0},
     {"cve-min-score", required_argument, 0, 0},
+    {"import-cves", required_argument, 0, 0},
+    {"import-cves-db", required_argument, 0, 0},
     {0, 0, 0, 0}
   };
 
@@ -966,6 +970,10 @@ void parse_options(int argc, char **argv) {
           o.cve_min_score = (float)atof(optarg);
           if (o.cve_min_score < 0.0f || o.cve_min_score > 10.0f)
             fatal("--cve-min-score must be between 0.0 and 10.0");
+        } else if (strcmp(long_options[option_index].name, "import-cves") == 0) {
+          o.import_cves_file = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "import-cves-db") == 0) {
+          o.import_cves_db = strdup(optarg);
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
           exit(0);
@@ -2022,6 +2030,12 @@ int kmap_main(int argc, char *argv[]) {
     fatal("n_ctime failed: %s", strerror(err));
   }
   chomp(mytime);
+
+  /* --import-cves: run import and exit before any scanning */
+  if (o.import_cves_file) {
+    int rc = import_cves(o.import_cves_file, o.import_cves_db);
+    exit(rc);
+  }
 
   if (!o.resuming) {
     /* Brief info in case they forget what was scanned */

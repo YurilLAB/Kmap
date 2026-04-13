@@ -282,6 +282,9 @@ class KmapOps {
   /* --cve-map options */
   bool cve_map;           /* Cross-reference services with CVE database */
   float cve_min_score;    /* Minimum CVSS score to report (default 7.0) */
+  /* --import-cves options */
+  char *import_cves_file; /* File to import CVEs from, or NULL */
+  char *import_cves_db;   /* Custom target DB path, or NULL for default */
   int ttl; // Time to live
   bool badsum;
   char *datadir;

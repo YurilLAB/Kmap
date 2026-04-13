@@ -41,4 +41,10 @@ void run_cve_map(std::vector<Target*>& Targets, float min_score);
 /* Print CVE map output for a single host (called in the per-host loop). */
 void print_cve_map_output(const Target *t);
 
+/* Import CVEs from a file into kmap-cve.db.
+   Supports: .txt/.csv/.md (comma or tab delimited text)
+             .db/.sqlite   (SQLite database with 'cves' table)
+   Prints summary and exits.  Returns 0 on success, 1 on error. */
+int import_cves(const char *import_file, const char *db_path);
+
 #endif /* CVE_MAP_H */

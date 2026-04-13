@@ -541,3 +541,420 @@ void print_cve_map_output(const Target *t) {
     }
   }
 }
+
+/* =======================================================================
+ * --import-cves: Import CVEs from external files into kmap-cve.db
+ *
+ * Supported input formats:
+ *   .txt / .csv / .md — delimited text (comma, tab, or pipe)
+ *     Line format: CVE-ID, product, vendor, ver_min, ver_max, cvss, severity, desc
+ *     Lines starting with # are comments.  Empty lines are skipped.
+ *
+ *   .db / .sqlite — SQLite database with a 'cves' table matching our schema
+ *     All rows are copied.  Duplicates (by cve_id PK) are skipped.
+ * ======================================================================= */
+
+#include <fstream>
+
+/* -----------------------------------------------------------------------
+ * Validation helpers
+ * ----------------------------------------------------------------------- */
+
+static bool is_valid_cve_id(const std::string &id) {
+  /* Must match CVE-YYYY-NNNNN (at least 4 digits after second dash) */
+  if (id.size() < 13 || id.substr(0, 4) != "CVE-") return false;
+  if (id[8] != '-') return false;
+  for (int i = 4; i < 8; i++)
+    if (!isdigit((unsigned char)id[i])) return false;
+  for (size_t i = 9; i < id.size(); i++)
+    if (!isdigit((unsigned char)id[i])) return false;
+  return true;
+}
+
+static bool is_valid_severity(const std::string &sev) {
+  return sev.empty() || sev == "LOW" || sev == "MEDIUM" ||
+         sev == "HIGH" || sev == "CRITICAL";
+}
+
+static bool is_valid_cvss(float score) {
+  return score >= 0.0f && score <= 10.0f;
+}
+
+/* -----------------------------------------------------------------------
+ * Trim whitespace and optional surrounding quotes from a field
+ * ----------------------------------------------------------------------- */
+static std::string trim_field(const std::string &s) {
+  size_t a = s.find_first_not_of(" \t\r\n\"'");
+  if (a == std::string::npos) return "";
+  size_t b = s.find_last_not_of(" \t\r\n\"'");
+  return s.substr(a, b - a + 1);
+}
+
+/* -----------------------------------------------------------------------
+ * Split a line by the first delimiter found (comma, tab, or pipe)
+ * ----------------------------------------------------------------------- */
+static std::vector<std::string> split_line(const std::string &line) {
+  /* Detect delimiter: use the first of comma, tab, pipe that appears */
+  char delim = ',';
+  if (line.find('\t') != std::string::npos &&
+      (line.find(',') == std::string::npos || line.find('\t') < line.find(',')))
+    delim = '\t';
+  else if (line.find('|') != std::string::npos && line.find(',') == std::string::npos)
+    delim = '|';
+
+  std::vector<std::string> fields;
+  std::istringstream ss(line);
+  std::string field;
+  while (std::getline(ss, field, delim))
+    fields.push_back(trim_field(field));
+  return fields;
+}
+
+/* -----------------------------------------------------------------------
+ * Detect file type by extension
+ * ----------------------------------------------------------------------- */
+enum ImportFileType { IMPORT_TEXT, IMPORT_SQLITE, IMPORT_UNKNOWN };
+
+static ImportFileType detect_file_type(const std::string &path) {
+  size_t dot = path.rfind('.');
+  if (dot == std::string::npos) return IMPORT_UNKNOWN;
+  std::string ext = path.substr(dot);
+  std::transform(ext.begin(), ext.end(), ext.begin(),
+                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
+  if (ext == ".db" || ext == ".sqlite" || ext == ".sqlite3")
+    return IMPORT_SQLITE;
+  if (ext == ".txt" || ext == ".csv" || ext == ".md" || ext == ".tsv" || ext == ".json")
+    return IMPORT_TEXT;
+  return IMPORT_UNKNOWN;
+}
+
+/* -----------------------------------------------------------------------
+ * Ensure the target database exists and has the correct schema
+ * ----------------------------------------------------------------------- */
+static bool ensure_schema(sqlite3 *db) {
+  const char *create_sql =
+    "CREATE TABLE IF NOT EXISTS cves ("
+    "  cve_id      TEXT PRIMARY KEY,"
+    "  product     TEXT NOT NULL,"
+    "  vendor      TEXT,"
+    "  version_min TEXT,"
+    "  version_max TEXT,"
+    "  cvss_score  REAL,"
+    "  severity    TEXT,"
+    "  description TEXT"
+    ");"
+    "CREATE INDEX IF NOT EXISTS idx_product  ON cves(product);"
+    "CREATE INDEX IF NOT EXISTS idx_severity ON cves(severity);";
+
+  char *errmsg = nullptr;
+  if (sqlite3_exec(db, create_sql, nullptr, nullptr, &errmsg) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Failed to create schema: %s\n",
+            errmsg ? errmsg : "unknown error");
+    sqlite3_free(errmsg);
+    return false;
+  }
+  return true;
+}
+
+/* -----------------------------------------------------------------------
+ * Insert a single validated CVE entry.  Returns 1 if inserted, 0 if dup.
+ * ----------------------------------------------------------------------- */
+static int insert_cve(sqlite3_stmt *stmt, const std::string &cve_id,
+                      const std::string &product, const std::string &vendor,
+                      const std::string &vmin, const std::string &vmax,
+                      float cvss, const std::string &severity,
+                      const std::string &desc) {
+  sqlite3_reset(stmt);
+  sqlite3_bind_text(stmt, 1, cve_id.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 2, product.c_str(), -1, SQLITE_TRANSIENT);
+  if (vendor.empty())
+    sqlite3_bind_null(stmt, 3);
+  else
+    sqlite3_bind_text(stmt, 3, vendor.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 4, vmin.empty() ? nullptr : vmin.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 5, vmax.empty() ? nullptr : vmax.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_double(stmt, 6, static_cast<double>(cvss));
+  sqlite3_bind_text(stmt, 7, severity.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 8, desc.c_str(), -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step(stmt);
+  return (rc == SQLITE_DONE) ? 1 : 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Import from delimited text file (.txt, .csv, .md, .tsv)
+ * ----------------------------------------------------------------------- */
+static int import_from_text(const char *path, sqlite3 *db) {
+  std::ifstream f(path);
+  if (!f.is_open()) {
+    fprintf(stderr, "ERROR: Cannot open file: %s\n", path);
+    return 1;
+  }
+
+  const char *ins_sql =
+    "INSERT OR IGNORE INTO cves "
+    "(cve_id, product, vendor, version_min, version_max, cvss_score, severity, description) "
+    "VALUES (?,?,?,?,?,?,?,?)";
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, ins_sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Failed to prepare insert statement: %s\n", sqlite3_errmsg(db));
+    return 1;
+  }
+
+  sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+
+  int line_num = 0, inserted = 0, skipped = 0, errors = 0;
+  std::string line;
+
+  while (std::getline(f, line)) {
+    line_num++;
+
+    /* Skip empty lines and comments */
+    size_t first = line.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos || line[first] == '#' || line[first] == '/')
+      continue;
+
+    /* Skip markdown headers and horizontal rules */
+    if (line[first] == '-' || line[first] == '=' || line[first] == '|')
+      continue;
+
+    auto fields = split_line(line);
+
+    /* Need at least CVE-ID and product (2 fields minimum) */
+    if (fields.size() < 2) {
+      /* Could be a bare CVE-ID line — skip silently */
+      continue;
+    }
+
+    std::string cve_id = fields[0];
+    std::string product = fields.size() > 1 ? str_lower(fields[1]) : "";
+    std::string vendor  = fields.size() > 2 ? str_lower(fields[2]) : "";
+    std::string vmin    = fields.size() > 3 ? fields[3] : "";
+    std::string vmax    = fields.size() > 4 ? fields[4] : "";
+    float cvss          = fields.size() > 5 ? 0.0f : 0.0f;
+    std::string severity = fields.size() > 6 ? fields[6] : "";
+    std::string desc    = fields.size() > 7 ? fields[7] : "";
+
+    /* Parse CVSS score */
+    if (fields.size() > 5 && !fields[5].empty()) {
+      try { cvss = std::stof(fields[5]); }
+      catch (...) { cvss = 0.0f; }
+    }
+
+    /* Severity: auto-derive from CVSS if not provided */
+    if (severity.empty() && cvss > 0.0f) {
+      if (cvss >= 9.0f)      severity = "CRITICAL";
+      else if (cvss >= 7.0f) severity = "HIGH";
+      else if (cvss >= 4.0f) severity = "MEDIUM";
+      else                    severity = "LOW";
+    } else {
+      /* Normalize to uppercase */
+      std::transform(severity.begin(), severity.end(), severity.begin(),
+                     [](unsigned char c){ return static_cast<char>(toupper(c)); });
+    }
+
+    /* Validate */
+    if (!is_valid_cve_id(cve_id)) {
+      fprintf(stderr, "  WARN line %d: invalid CVE ID '%s' — skipped\n",
+              line_num, cve_id.c_str());
+      errors++;
+      continue;
+    }
+    if (product.empty()) {
+      fprintf(stderr, "  WARN line %d: empty product for %s — skipped\n",
+              line_num, cve_id.c_str());
+      errors++;
+      continue;
+    }
+    if (!is_valid_cvss(cvss)) {
+      fprintf(stderr, "  WARN line %d: invalid CVSS %.1f for %s — clamped\n",
+              line_num, cvss, cve_id.c_str());
+      if (cvss < 0.0f) cvss = 0.0f;
+      if (cvss > 10.0f) cvss = 10.0f;
+    }
+    if (!is_valid_severity(severity)) {
+      fprintf(stderr, "  WARN line %d: invalid severity '%s' for %s — cleared\n",
+              line_num, severity.c_str(), cve_id.c_str());
+      severity = "";
+    }
+
+    if (insert_cve(stmt, cve_id, product, vendor, vmin, vmax, cvss, severity, desc))
+      inserted++;
+    else
+      skipped++;
+  }
+
+  sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+  sqlite3_finalize(stmt);
+
+  printf("Text import complete: %d inserted, %d duplicates skipped, %d errors\n",
+         inserted, skipped, errors);
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Import from another SQLite database
+ * ----------------------------------------------------------------------- */
+static int import_from_sqlite(const char *path, sqlite3 *db) {
+  sqlite3 *src = nullptr;
+  if (sqlite3_open_v2(path, &src, SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Cannot open source database: %s\n",
+            src ? sqlite3_errmsg(src) : "unknown error");
+    if (src) sqlite3_close(src);
+    return 1;
+  }
+
+  /* Verify source has a 'cves' table */
+  sqlite3_stmt *check = nullptr;
+  sqlite3_prepare_v2(src, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='cves'", -1, &check, nullptr);
+  int has_table = 0;
+  if (sqlite3_step(check) == SQLITE_ROW)
+    has_table = sqlite3_column_int(check, 0);
+  sqlite3_finalize(check);
+
+  if (!has_table) {
+    fprintf(stderr, "ERROR: Source database has no 'cves' table\n");
+    sqlite3_close(src);
+    return 1;
+  }
+
+  /* Read all rows from source */
+  sqlite3_stmt *read_stmt = nullptr;
+  if (sqlite3_prepare_v2(src,
+        "SELECT cve_id, product, vendor, version_min, version_max, "
+        "cvss_score, severity, description FROM cves", -1, &read_stmt, nullptr) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Failed to query source database: %s\n", sqlite3_errmsg(src));
+    sqlite3_close(src);
+    return 1;
+  }
+
+  /* Prepare insert into destination */
+  const char *ins_sql =
+    "INSERT OR IGNORE INTO cves "
+    "(cve_id, product, vendor, version_min, version_max, cvss_score, severity, description) "
+    "VALUES (?,?,?,?,?,?,?,?)";
+  sqlite3_stmt *ins_stmt = nullptr;
+  if (sqlite3_prepare_v2(db, ins_sql, -1, &ins_stmt, nullptr) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Failed to prepare insert: %s\n", sqlite3_errmsg(db));
+    sqlite3_finalize(read_stmt);
+    sqlite3_close(src);
+    return 1;
+  }
+
+  sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+
+  int inserted = 0, skipped = 0, errors = 0;
+  auto col_str = [&](int c) -> std::string {
+    const unsigned char *p = sqlite3_column_text(read_stmt, c);
+    return p ? reinterpret_cast<const char *>(p) : "";
+  };
+
+  while (sqlite3_step(read_stmt) == SQLITE_ROW) {
+    std::string cve_id = col_str(0);
+    std::string product = col_str(1);
+    std::string vendor  = col_str(2);
+    std::string vmin    = col_str(3);
+    std::string vmax    = col_str(4);
+    float cvss = static_cast<float>(sqlite3_column_double(read_stmt, 5));
+    std::string severity = col_str(6);
+    std::string desc    = col_str(7);
+
+    if (!is_valid_cve_id(cve_id) || product.empty()) {
+      errors++;
+      continue;
+    }
+
+    if (insert_cve(ins_stmt, cve_id, product, vendor, vmin, vmax, cvss, severity, desc))
+      inserted++;
+    else
+      skipped++;
+  }
+
+  sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+  sqlite3_finalize(ins_stmt);
+  sqlite3_finalize(read_stmt);
+  sqlite3_close(src);
+
+  printf("SQLite import complete: %d inserted, %d duplicates skipped, %d invalid\n",
+         inserted, skipped, errors);
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Public API: import_cves()
+ * ----------------------------------------------------------------------- */
+int import_cves(const char *import_file, const char *db_path) {
+  if (!import_file || !import_file[0]) {
+    fprintf(stderr, "ERROR: --import-cves requires a file path\n");
+    return 1;
+  }
+
+  /* Determine the target database path */
+  std::string target_db;
+  if (db_path && db_path[0]) {
+    target_db = db_path;
+  } else {
+    target_db = find_db();
+    if (target_db.empty()) {
+      /* No existing DB — create one in the current directory */
+      target_db = "kmap-cve.db";
+      printf("No existing kmap-cve.db found; creating new database: %s\n",
+             target_db.c_str());
+    }
+  }
+
+  /* Detect input file type */
+  ImportFileType ftype = detect_file_type(import_file);
+  if (ftype == IMPORT_UNKNOWN) {
+    /* Default to text for unrecognized extensions */
+    fprintf(stderr, "WARNING: Unrecognized file extension, treating as text format\n");
+    ftype = IMPORT_TEXT;
+  }
+
+  /* Open (or create) the target database */
+  sqlite3 *db = nullptr;
+  if (sqlite3_open(target_db.c_str(), &db) != SQLITE_OK) {
+    fprintf(stderr, "ERROR: Cannot open database %s: %s\n",
+            target_db.c_str(), db ? sqlite3_errmsg(db) : "unknown");
+    if (db) sqlite3_close(db);
+    return 1;
+  }
+
+  /* Ensure schema exists (creates table + indexes if missing) */
+  if (!ensure_schema(db)) {
+    sqlite3_close(db);
+    return 1;
+  }
+
+  /* Count existing entries before import */
+  sqlite3_stmt *cnt = nullptr;
+  int before = 0;
+  if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM cves", -1, &cnt, nullptr) == SQLITE_OK) {
+    if (sqlite3_step(cnt) == SQLITE_ROW)
+      before = sqlite3_column_int(cnt, 0);
+    sqlite3_finalize(cnt);
+  }
+
+  printf("Importing CVEs from: %s\n", import_file);
+  printf("Target database:     %s (%d existing entries)\n", target_db.c_str(), before);
+  printf("Format:              %s\n", ftype == IMPORT_SQLITE ? "SQLite" : "Text/CSV");
+  printf("\n");
+
+  int rc;
+  if (ftype == IMPORT_SQLITE)
+    rc = import_from_sqlite(import_file, db);
+  else
+    rc = import_from_text(import_file, db);
+
+  /* Report final count */
+  int after = 0;
+  if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM cves", -1, &cnt, nullptr) == SQLITE_OK) {
+    if (sqlite3_step(cnt) == SQLITE_ROW)
+      after = sqlite3_column_int(cnt, 0);
+    sqlite3_finalize(cnt);
+  }
+
+  printf("\nDatabase now contains %d CVE entries (was %d)\n", after, before);
+  sqlite3_close(db);
+  return rc;
+}

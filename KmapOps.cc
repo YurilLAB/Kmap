@@ -296,6 +296,8 @@ void KmapOps::Initialize() {
   web_paths_file   = nullptr;
   cve_map          = false;
   cve_min_score    = 7.0f;
+  import_cves_file = nullptr;
+  import_cves_db   = nullptr;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;
