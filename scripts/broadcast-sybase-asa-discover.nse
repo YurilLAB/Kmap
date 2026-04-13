@@ -20,7 +20,7 @@ Discovers Sybase Anywhere servers on the LAN by sending broadcast discovery mess
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "broadcast", "safe" }
 
 prerule = function() return ( kmap.address_family() == "inet") end

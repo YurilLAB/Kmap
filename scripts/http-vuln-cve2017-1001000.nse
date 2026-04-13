@@ -63,7 +63,7 @@ https://blog.sucuri.net/2017/02/content-injection-vulnerability-wordpress-rest-a
 ---
 
 author = "Vinamra Bhatia"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe"}
 
 portrule = shortport.http

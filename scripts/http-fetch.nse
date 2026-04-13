@@ -48,19 +48,19 @@ The script supports three different use cases:
 -- @output
 -- | http-fetch:
 -- |   Successfully Downloaded:
--- |     http://scanme.kmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html
--- |_    http://scanme.kmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css
+-- |     http://scanme.nmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html
+-- |_    http://scanme.nmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css
 --
 -- @xmloutput
 -- <table key="Successfully Downloaded">
---   <elem>http://scanme.kmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html</elem>
---   <elem>http://scanme.kmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css</elem>
+--   <elem>http://scanme.nmap.org:80/ as /tmp/mirror/45.33.32.156/80/index.html</elem>
+--   <elem>http://scanme.nmap.org/shared/css/insecdb.css as /tmp/mirror/45.33.32.156/80/shared/css/insecdb.css</elem>
 -- </table>
 -- <elem key="result">Successfully Downloaded Everything At: /tmp/mirror/45.33.32.156/80/</elem>
 
 author = "Gyanendra Mishra"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"safe"}
 

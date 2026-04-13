@@ -52,7 +52,7 @@ the creds library, for other scripts to use.
 
 
 author = {"Patrik Karlsson", "Piotr Olma", "Gyanendra Mishra"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 

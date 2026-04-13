@@ -3,7 +3,7 @@
 -- formatting key fingerprints.
 --
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 
 local io = require "io"

@@ -41,7 +41,7 @@ back-end Java application server containers.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

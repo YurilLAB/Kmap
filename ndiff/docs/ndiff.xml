@@ -121,13 +121,13 @@
     </para>
 
 <screen>
-# <userinput>kmap -F scanme.kmap.org -oX scanme-1.xml</userinput>
-# <userinput>kmap --script=html-title scanme.kmap.org -oX scanme-2.xml</userinput>
+# <userinput>kmap -F scanme.nmap.org -oX scanme-1.xml</userinput>
+# <userinput>kmap --script=html-title scanme.nmap.org -oX scanme-2.xml</userinput>
 $ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
 -Kmap 5.35DC1 at 2010-07-16 12:09
 +Kmap 5.35DC1 at 2010-07-16 12:13
 
- scanme.kmap.org (64.13.134.52):
+ scanme.nmap.org (64.13.134.52):
  Host is up.
 -Not shown: 95 filtered ports
 +Not shown: 993 filtered ports
@@ -373,7 +373,7 @@ ln -sf scan-$date.xml scan-prev.xml
     <title>Bugs</title>
     <para>
     Report bugs to the <citetitle>kmap-dev</citetitle> mailing list at
-    <email>dev@kmap.org</email>.
+    <email>https://github.com/YurilLAB/Kmap/issues</email>.
     </para>
   </refsect1>
 
@@ -407,7 +407,7 @@ ln -sf scan-$date.xml scan-prev.xml
     <title>Web site</title>
 
     <para>
-    <ulink url="https://kmap.org/ndiff/"/>
+    <ulink url="https://github.com/YurilLAB/Kmap/ndiff/"/>
     </para>
   </refsect1>
 </refentry>

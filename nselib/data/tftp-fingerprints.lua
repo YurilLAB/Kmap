@@ -3,7 +3,7 @@ This is compiled list of known TFTP responses.
 ]]
 
 author = {"Mak Kolybabi <mak@kolybabi.com>"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 -- Fingerprints by opcode
 fingerprints = {
@@ -12,7 +12,7 @@ fingerprints = {
 -- Example Fingerprint
 --------------------------------------------------------------------------------
 -- Based on the format of the 'match' directive used in service probes.
--- https://kmap.org/book/vscan-fileformat.html#vscan-tbl-versioninfo
+-- https://github.com/YurilLAB/Kmap/book/vscan-fileformat.html#vscan-tbl-versioninfo
 --------------------------------------------------------------------------------
 -- {
 -- -- Optional:

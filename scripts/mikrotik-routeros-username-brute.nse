@@ -7,7 +7,7 @@ is invalid; if the response is 51 bytes, the username is valid.
 ]]
 
 author = "deauther890"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "discovery"}
 
 ---@usage

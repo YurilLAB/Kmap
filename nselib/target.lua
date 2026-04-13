@@ -7,7 +7,7 @@
 -- able to add new targets. Post-scanning scripts (postrule) are not
 -- allowed to add new targets.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @args newtargets  If specified, lets NSE scripts add new targets.
 -- @args max-newtargets  Sets the number of the maximum allowed
@@ -67,7 +67,7 @@ end
 -- @usage
 -- local status, err = target.add("192.168.1.1")
 -- local status, err = target.add("192.168.1.1","192.168.1.2",...)
--- local status, err = target.add("scanme.kmap.org","192.168.1.1",...)
+-- local status, err = target.add("scanme.nmap.org","192.168.1.1",...)
 -- local status, err = target.add(table.unpack(array_of_targets))
 -- local status, pending_targets = target.add()
 -- @return True if it has been able to add a minimum one target, or

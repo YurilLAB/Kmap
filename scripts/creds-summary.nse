@@ -25,7 +25,7 @@ Lists all discovered credentials (e.g. from brute force and default password che
 
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth", "default", "safe"}
 
 

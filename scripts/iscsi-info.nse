@@ -35,7 +35,7 @@ Collects and displays information from remote iSCSI targets.
 -- Revised 2010/11/28 - v0.2 - improved error handling <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "safe", "discovery"}
 
 

@@ -60,7 +60,7 @@ found for application IDs.
 -- 2019-02-01 - v0.5 - Disabling Enhanced mode
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992}, "tn3270")

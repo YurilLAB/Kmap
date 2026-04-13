@@ -30,7 +30,7 @@ http://labs.mwrinfosecurity.com/tools/2009/01/12/rdp-cipher-checker/
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 
 local kmap = require("kmap")

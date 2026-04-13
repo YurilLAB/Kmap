@@ -17,21 +17,21 @@ Obtains up to 100 forward DNS names for a target IP address by querying the Robt
 -- Pre-scan script results:
 -- | http-robtex-reverse-ip:
 -- |   *.insecure.org
--- |   *.kmap.com
--- |   *.kmap.org
+-- |   *.github.com/YurilLAB/Kmap
+-- |   *.github.com/YurilLAB/Kmap
 -- |   *.seclists.org
 -- |   insecure.com
 -- |   insecure.org
 -- |   lists.insecure.org
--- |   kmap.com
+-- |   github.com/YurilLAB/Kmap
 -- |   kmap.net
--- |   kmap.org
+-- |   github.com/YurilLAB/Kmap
 -- |   seclists.org
 -- |   sectools.org
 -- |   web.insecure.org
 -- |   www.insecure.org
--- |   www.kmap.com
--- |   www.kmap.org
+-- |   www.github.com/YurilLAB/Kmap
+-- |   www.github.com/YurilLAB/Kmap
 -- |   www.seclists.org
 -- |_  images.insecure.org
 --
@@ -39,7 +39,7 @@ Obtains up to 100 forward DNS names for a target IP address by querying the Robt
 --
 
 author = "riemann"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "external"}
 
 

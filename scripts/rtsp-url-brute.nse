@@ -48,7 +48,7 @@ on which it determines whether the URL is valid or not.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"brute", "intrusive"}
 
 

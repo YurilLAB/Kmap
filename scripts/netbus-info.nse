@@ -81,7 +81,7 @@ and an smtp-server used for notification delivery.
 -- @args netbus-info.password The password used for authentication
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 

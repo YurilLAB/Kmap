@@ -115,9 +115,9 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88\&.392 seconds
 .\}
 .PP
 La plus récente version de Kmap peut être obtenue à l\*(Aqurl
-\m[blue]\fB\%https://kmap.org/\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]
 \&. La plus récente version du manuel est disponible à
-\m[blue]\fB\%https://kmap.org/man/\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/man/\fR\m[]
 \&.
 .SH "NOTES DE TRADUCTION"
 .PP
@@ -134,7 +134,7 @@ Mise a jour au 19 dec 2007\&.
 .SH "RÉSUMÉ DES OPTIONS"
 .PP
 Ce résumé des options est affiché quand Kmap est exécuté sans aucun argument; la plus récente version est toujours disponible sur
-\m[blue]\fB\%https://kmap.org/data/kmap.usage.txt\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap
 \&. Il sert d\*(Aqaide\-mémoire des options les plus fréquemment utilisées, mais ne remplace pas la documentation bien plus détaillée de la suite de ce manuel\&. Les options obscures n\*(Aqy sont pas incluses\&.
 .PP
 .if n \{\
@@ -694,7 +694,7 @@ ouvert|filtré\&. Kmap se comportera de la même façon que le type de scan de b
 .PP
 \fB\-sI <zombie host[:probeport]>\fR(Scan passif \-\- idlescan)
 .RS 4
-Cette méthode de scan avancé permet de faire un véritable scan de port TCP en aveugle, (dans le sens où aucun paquet n\*(Aqest envoyé directement à la cible depuis votre vraie adresse IP)\&. En effet, la technique employée consiste à récolter des informations sur les ports ouverts de la cible en utilisant un exploit basé sur la prédictibilité de la génération des identifiants de fragmentation IP de l\*(Aqhôte relais (le zombie)\&. Les systèmes IDS considéreront que le scan provient de la machine zombie que vous avez spécifié (qui doit remplir certains critères)\&. Le mécanisme de cette incroyable technique est trop complexe pour être expliqué en détail dans ce guide; un papier informel a été posté pour rendre compte de tous ces détails:\m[blue]\fB\%https://kmap.org/book/idlescan.html\fR\m[]\&.
+Cette méthode de scan avancé permet de faire un véritable scan de port TCP en aveugle, (dans le sens où aucun paquet n\*(Aqest envoyé directement à la cible depuis votre vraie adresse IP)\&. En effet, la technique employée consiste à récolter des informations sur les ports ouverts de la cible en utilisant un exploit basé sur la prédictibilité de la génération des identifiants de fragmentation IP de l\*(Aqhôte relais (le zombie)\&. Les systèmes IDS considéreront que le scan provient de la machine zombie que vous avez spécifié (qui doit remplir certains critères)\&. Le mécanisme de cette incroyable technique est trop complexe pour être expliqué en détail dans ce guide; un papier informel a été posté pour rendre compte de tous ces détails:\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book/idlescan.html\fR\m[]\&.
 .sp
 En plus de son incroyable furtivité (en raison du caractère aveugle de la technique), ce type de scan permet de déterminer les relations de confiance entre les machines\&. La liste des ports ouverts est établie
 \fIdu point de vue de l\*(Aqhôte zombie\&.\fR
@@ -789,7 +789,7 @@ contient les tests à effectuer selon les services, ainsi que les chaînes de ca
 ouvert|filtré\ \& lorsqu\*(Aqun scan de ports UDP a été incapable de déterminer si le port était ouvert ou fermé\&. La détection de version tentera d\*(Aqobtenir une réponse de ces ports (comme s\*(Aqils étaient ouverts), et changera l\*(Aqétat à ouvert si elle y parvient\&. Les ports TCP
 ouverts|filtré
 sont traités de la même façon\&. Notez que l\*(Aqoption\fB\-A\fRde Kmap active notamment la détection de version\&. Un papier documentant le fonctionnement, l\*(Aqutilisation et la personnalisation de la détection de version est disponible à
-\m[blue]\fB\%https://kmap.org/vscan/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/vscan/\fR\m[]\&.
 .PP
 Lorsque Kmap reçoit une réponse d\*(Aqun service mais ne parvient pas à le faire correspondre à un service de sa base de données, il affiche une empreinte et une adresse URL où vous pouvez l\*(Aqenvoyer si vous êtes sûr de ce qui tourne sur ce port\&. Prendre quelques minutes pour faire cette soumission permettra à tout le monde de bénéficier de votre découverte\&. Grâce à ces soumissions, Kmap dispose d\*(Aqenviron 3 000 empreintes de référence liées à plus de 350 protocoles, comme smtp, ftp et http\&.
 .PP
@@ -849,7 +849,7 @@ Cette section n\*(Aqa pas été traduite en français\&. Veuillez vous référer
 .SH "KMAP SCRIPTING ENGINE (NSE)"
 .PP
 Le moteur de scripts de Kmap (Kmap Scripting Engine \-NSE) allie l\*(Aqefficacité avec laquelle Kmap traite le réseau avec la souplesse d\*(Aqun langage léger comme Lua, fournissant ainsi une infinité d\*(Aqopportunités\&. Une documentation plus complète du NSE (y compris ses API) peut être obtenue sur
-\m[blue]\fB\%https://kmap.org/nse\fR\m[]\&. Le but du NSE est de fournir à Kmap une infrastructure flexible afin d\*(Aqétendre ses capacités et ainsi offrir à ses utilisateurs une facon simple de créer leurs propres tests personnalisés\&. Le cadre d\*(Aqusage du NSE englobe (mais encore une fois n\*(Aqest pas limité à) :
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/nse\fR\m[]\&. Le but du NSE est de fournir à Kmap une infrastructure flexible afin d\*(Aqétendre ses capacités et ainsi offrir à ses utilisateurs une facon simple de créer leurs propres tests personnalisés\&. Le cadre d\*(Aqusage du NSE englobe (mais encore une fois n\*(Aqest pas limité à) :
 .PP
 \fIDétection de version évoluée \fR(catégorie
 version) \- Alors que Kmap propose déja son système de détection de Service et de Version qui est inégalé en termes d\*(Aqefficacité et de couverture, cette puissance trouve sa limite lorsqu\*(Aqil s\*(Aqagit de services qui demandent des tests plus complexes\&. La version 2 du Protocole Skype par exemple peut être identifié en envoyant deux paquets de tests pour lesquels le système n\*(Aqest pas prévu d\*(Aqorigine: un simple script NSE peut alors faire le travail et mettre ainsi à jour les informations sur le service tournant sur le port\&.
@@ -879,7 +879,7 @@ est lui même un script Lua et peut être mis à jour via l\*(Aqoption
 \fB\-\-script\-updatedb\fR\&.
 .PP
 Un script NSE est simplement un code Lua qui a (parmis quelques champs d\*(Aqinformation comme le nom, l\*(Aqidentifiant et la catégorie) 2 fonctions: un test dans le cas où le script en particulier doit être lancé contre une cible et un port spécifiques (appelés hostrule et portrule respectivement) et une action qui doit être menée si le test est positif\&. Les scripts ont acces à la plupart des informations collectées par Kmap durant les étapes précédentes\&. Pour chaque hôte ceci inclus l\*(Aqadresse IP, le nom de l\*(Aqhôte et (si disponible) le système d\*(Aqexploitation\&. Si un script est destiné à un port en particulier, il a accès au numéro du port, son protocole (tcp, udp ou ssl), le service tournant derrière ce port et des informations optionnelles en provenance d\*(Aqun scan de version\&. Par convention les scripts NSE ont une extension \&.nse\&. Toutefois vous n\*(Aqavez pas besoin de suivre cette recommandation pour le moment, ceci pouvant changer dans l\*(Aqavenir\&. Kmap donnera une mise en garde si un fichier a une autre extension\&. Une documentation plus exhaustive sur le NSE comprenant une description de son API peut être obtenue sur
-\m[blue]\fB\%https://kmap.org/nse/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/nse/\fR\m[]\&.
 .PP
 \fB\-sC\fR
 .RS 4
@@ -1375,7 +1375,7 @@ Si vous souhaitez voir les options dans les paquets envoyés et recus, spécifie
 \fB\-\-badsum\fR (Envoyer des paquets avec des sommes de contrôle TCP/UDP erronnées)
 .RS 4
 Demande a Kmap d\*(Aqutiliser une somme de contrôle TCP ou UDP erronnée pour les paquets envoyés aux hôtes cibles\&. Comme virtuellement toutes les piles IP des hôtes rejettent ces paquets, toute réponse recue doivent venir d\*(Aqun pare\-feu ou d\*(Aqun IDS qui ne se préoccuppe pas de vérifier les sommes de contrôle\&. Pour plus de détails sur cette technique, voir
-\m[blue]\fB\%https://kmap.org/p60-12.txt\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/p60-12.txt\fR\m[]
 .RE
 .PP
 \fB\-\-ttl <value>\fR (Règle la valeur du champ IP de durée de vie (time\-to\-live))
@@ -1471,7 +1471,7 @@ interactive output\&.
 Demande que le format
 XML output
 soit donné au fichier spécifié\&. Kmap contient une définition de type de document (DTD) qui permet le traitement XML des résultats de Kmap\&. Bien que ce soit d\*(Aqabord pensé aux fins d\*(Aqutilisation de programmation, cette procédure peut aussi aider à interpréter la sortie XML de Kmap\&. Le DTD définit les éléments légaux du format et énumère souvent les attributs et les valeurs qu\*(Aqils peuvent prendre\&. La dernière version est toujours disponible sur
-\m[blue]\fB\%https://kmap.org/data/kmap.dtd\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap
 .sp
 Le XML offre un format stable facilement traitable au moyen d\*(Aqun logiciel\&. Des outils de traitement XML sont offerts gratuitement dans tous les grands langages de programmation, y compris C/C++, Perl, Python et Java\&. Des gens ont même écrit des outils spécifiques dans ces langages destinés au support de traitement des sorties de Kmap\&. Notons comme exemples le
 \m[blue]\fBKmap::Scanner\fR\m[]\&\s-2\u[10]\d\s+2
@@ -1829,12 +1829,12 @@ Effectue un transfert de zone DNS afin de trouver les hôtes au sein de company\
 .SH "BOGUES"
 .PP
 Comme son auteur, Kmap n\*(Aqest pas parfait\&. Mais vous pouvez aider à l\*(Aqaméliorer en envoyant les rapports de bogues ou même en écrivant des programmes de correction\&. Si Kmap ne satisfait pas à vos attentes, mettez\-le d\*(Aqabord à jour en utilisant la dernière version disponible sur
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. Si le problème persiste, faites quelques recherches afin de déterminer s\*(Aqil a déjà été remarqué et signalé\&. Essayez pour cela de mettre l\*(Aqerreur en argument sur Google ou parcourez les archives de Kmap\-dev sur
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. Si le problème persiste, faites quelques recherches afin de déterminer s\*(Aqil a déjà été remarqué et signalé\&. Essayez pour cela de mettre l\*(Aqerreur en argument sur Google ou parcourez les archives de Kmap\-dev sur
 \m[blue]\fB\%https://seclists.org/\fR\m[]\&. Lisez ce manuel en entier quoiqu\*(Aqil en soit\&. Si rien ne semble fonctionner, envoyez un rapport de bogue à
 <dev@kmap\&.org>\&. Veillez à inclure tout ce que vous avez appris au sujet de ce bogue ainsi que la version de Kmap concernée et le système d\*(Aqexploitation que vous utilisez\&. Les rapports de problèmes et les questions sur l\*(Aqutilisation de Kmap envoyés à dev@kmap\&.org ont plus de chance de trouver une réponse que ceux envoyés à Fyodor directement\&.
 .PP
 Les codes de programmes de correction destinés à régler des bogues sont encore meilleurs que les rapports de bogues\&. Les instructions de base pour créer des fichiers de programmes de correction avec vos modifications sont disponibles sur
-\m[blue]\fB\%https://kmap.org/data/HACKING\fR\m[]\&. Les programmes de correction peuvent être envoyés à kmap\-dev (recommandé) ou à Fyodor directement\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap Les programmes de correction peuvent être envoyés à kmap\-dev (recommandé) ou à Fyodor directement\&.
 .SH "AUTEUR"
 .PP
 Fyodor
@@ -1855,7 +1855,7 @@ Bien qu\*(Aqun soin particulier ait été apporté à cette traduction, il est p
 Des centaines de personnes ont apporté de précieuses contributions à Kmap au cours des années\&. Celles\-ci sont détaillées dans le fichier
 CHANGELOG
 qui est distribué avec Kmap mais aussi disponible sur
-\m[blue]\fB\%https://kmap.org/changelog.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .SH "DISPOSITIONS LÉGALES"
 .SS "Droits d\*(Aqauteur et licence"
 .PP
@@ -1928,7 +1928,7 @@ Lie à une librairie ou à un programme exécutable qui fait l\*(Aqune des proc�
 Le terme
 « Kmap »
 doit être pris comme incluant aussi toute portion ou travail dérivé de Kmap\&. Cette liste n\*(Aqest pas exhaustive; elle est simplement conçue de façon à clarifier notre interprétation des travaux dérivés au moyen de quelques exemples connus\&. Ces restrictions s\*(Aqappliquent seulement lorsque vous redistribuez Kmap\&. Par exemple, rien ne vous empêche d\*(Aqécrire et de vendre une interface graphique propriétaire pour Kmap\&. Distribuez\-la seulement en entier et assurez\-vous de diriger les gensvers le lien
-\m[blue]\fB\%https://kmap.org/\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]
 de façon à télécharger Kmap\&.
 .PP
 Nous ne considérons pas ce document comme étant un ajout à la licence GPL, mais simplement une clarification de la façon dont nous interprétons
@@ -1989,7 +1989,7 @@ Contrôle des exportations : Insecure\&.Com LLC pense que Kmap tombe sous la jur
 .IP " 1." 4
 version originale en Anglais
 .RS 4
-\%https://kmap.org/man/
+\%https://github.com/YurilLAB/Kmap/man/
 .RE
 .IP " 2." 4
 Creative Commons Attribution License
@@ -2024,7 +2024,7 @@ RFC 959
 .IP " 8." 4
 la documentation en anglais
 .RS 4
-\%https://kmap.org/book/man-os-detection.html
+\%https://github.com/YurilLAB/Kmap/book/man-os-detection.html
 .RE
 .IP " 9." 4
 protocole IP

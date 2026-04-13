@@ -26,7 +26,7 @@ Performs password guessing against MySQL.
 -- @args mysql-brute.timeout socket timeout for connecting to MySQL (default 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 -- Version 0.5

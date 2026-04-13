@@ -22,7 +22,7 @@ and login to the service by typing Password;1; into the console.
 -- |_netbus-auth-bypass: Vulnerable
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth", "safe", "vuln"}
 
 

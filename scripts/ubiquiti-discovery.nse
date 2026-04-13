@@ -15,7 +15,7 @@ and, if that fails, attempt version 2.
 
 author = {"Tom Sellers"}
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"default", "discovery", "version", "safe"}
 

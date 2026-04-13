@@ -68,7 +68,7 @@ Reference:
 -- |       http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2005-3299
 -- |_      http://www.exploit-db.com/exploits/1244/
 author = "Alexey Meshcheryakov"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "exploit"}
 
 portrule = shortport.http

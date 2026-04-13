@@ -32,20 +32,20 @@ References:
 -- Host script results:
 -- | hostmap-crtsh:
 -- |   subdomains:
--- |     svn.kmap.org
--- |     www.kmap.org
--- |_  filename: output_kmap.org
+-- |     svn.github.com/YurilLAB/Kmap
+-- |     www.github.com/YurilLAB/Kmap
+-- |_  filename: output_github.com/YurilLAB/Kmap
 -- @xmloutput
 -- <table key="subdomains">
---  <elem>svn.kmap.org</elem>
---  <elem>www.kmap.org</elem>
+--  <elem>svn.github.com/YurilLAB/Kmap</elem>
+--  <elem>www.github.com/YurilLAB/Kmap</elem>
 --  </table>
--- <elem key="filename">output_kmap.org</elem>
+-- <elem key="filename">output_github.com/YurilLAB/Kmap</elem>
 ---
 
 author = {"Paulino Calderon <calderon@websec.mx>", "Sweekar-cmd"}
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"external", "discovery"}
 

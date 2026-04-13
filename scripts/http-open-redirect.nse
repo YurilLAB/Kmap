@@ -24,7 +24,7 @@ discovered.
 -- PORT   STATE SERVICE REASON
 -- 443/tcp open  https   syn-ack
 -- | http-open-redirect:
--- |_  https://foobar.target.se:443/redirect.php?url=http%3A%2f%2fscanme.kmap.org%2f
+-- |_  https://foobar.target.se:443/redirect.php?url=http%3A%2f%2fscanme.nmap.org%2f
 --
 -- @args http-open-redirect.maxdepth the maximum amount of directories beneath
 --       the initial url to spider. A negative value disables the limit.
@@ -41,13 +41,13 @@ discovered.
 --
 
 author = "Martin Holst Swende"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 
 portrule = shortport.http
 
-local redirect_canary = "http://scanme.kmap.org/"
+local redirect_canary = "http://scanme.nmap.org/"
 
 local function dbg(str,...)
   stdnse.debug2(str, ...)

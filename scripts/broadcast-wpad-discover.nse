@@ -32,7 +32,7 @@ argument or by attempting to reverse resolve the local IP.
 -- @args broadcast-wpad-discover.getwpad instructs the script to retrieve the WPAD file instead of parsing it
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"broadcast", "safe"}
 
 

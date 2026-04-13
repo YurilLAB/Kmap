@@ -38,7 +38,7 @@ Attempts to downloads Cisco router IOS configuration files using SNMP RW (v1) an
 
 author = {"Vikas Singhal", "Patrik Karlsson"}
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"intrusive"}
 

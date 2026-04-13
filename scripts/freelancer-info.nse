@@ -45,7 +45,7 @@ See http://sourceforge.net/projects/gameq/
 -- <elem key="allow new players">yes</elem>
 
 author = "Marin Maržić"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "default", "discovery", "safe", "version" }
 
 portrule = shortport.version_port_or_service({2302}, "freelancer", "udp")

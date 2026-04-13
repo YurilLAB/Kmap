@@ -9,13 +9,13 @@
 <para>The Kmap Security Scanner is (C) 1996&ndash;2022 Kmap Software
 LLC ("The Kmap Project"). Kmap is also a registered trademark of the
 Kmap Project. It is published under the <ulink
-url="https://kmap.org/npsl">Kmap Public Source License</ulink>. This
+url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE">Kmap Public Source License</ulink>. This
 generally allows end users to download and use Kmap for free.  It
 doesn't allow Kmap to be used and redistributed within commercial
 software or hardware products (including appliances, virtual machines,
 and traditional applications).  We fund the project by selling a
 special Kmap OEM Edition for this purpose, as described at <ulink
-url="https://kmap.org/oem"/>. Hundreds of large and small software
+url="https://github.com/YurilLAB/Kmap"/>. Hundreds of large and small software
 vendors have already purchased OEM licenses to embed Kmap technology
 such as host discovery, port scanning, OS detection, version
 detection, and the Kmap Scripting Engine within their products.</para>
@@ -34,14 +34,14 @@ Even though the NPSL is based on GPLv2, it contains different
 provisions and is not directly compatible. It is incompatible with
 some other open source licenses as well. In some cases we can
 relicense portions of Kmap or grant special permissions to use it in
-other open source software.  Please contact fyodor@kmap.org with any
+other open source software.  Please contact https://github.com/YurilLAB/Kmap/issues with any
 such requests.  Similarly, we don't incorporate incompatible open
 source software into Kmap without special permission from the
 copyright holders.
 </para>
       
 <para>If you have received a written license agreement or contract for
-Kmap (such as an <ulink url="https://kmap.org/oem/">Kmap OEM
+Kmap (such as an <ulink url="https://github.com/YurilLAB/Kmap">Kmap OEM
 license</ulink>) stating terms other than these, you may choose to use
 and redistribute Kmap under those terms instead.</para>
 
@@ -69,13 +69,13 @@ run it. This also allows you to audit the software for security holes.</para>
 <para>Source code also allows you to port Kmap to new platforms, fix
 bugs, and add new features. You are highly encouraged to submit your
 changes as Github Pull Requests (PR) or send them to
-<email>dev@kmap.org</email> for possible incorporation into the main
+<email>https://github.com/YurilLAB/Kmap/issues</email> for possible incorporation into the main
 distribution.  By submitting such changes, it is assumed that you are
 offering the Kmap Project the unlimited, non-exclusive right to reuse,
 modify, and relicense the code.  This is important because the
 inability to relicense code has caused devastating problems for other
 Free Software projects (such as KDE and NASM). We also sell commercial
-licenses to <ulink url="https://kmap.org/oem">Kmap OEM</ulink>. If you
+licenses to <ulink url="https://github.com/YurilLAB/Kmap">Kmap OEM</ulink>. If you
 wish to specify special license conditions of your contributions, just
 say so when you send them.</para>
 
@@ -147,7 +147,7 @@ language</primary></indexterm>  The <ulink role="hidepdf" url="https://www.csie.
 linear classification library</ulink> is used for our 
 <man>
 <ulink
-url="https://kmap.org/book/osdetect-guess.html#osdetect-guess-ipv6">IPv6
+url="https://github.com/YurilLAB/Kmap/book/osdetect-guess.html#osdetect-guess-ipv6">IPv6
 OS detection machine learning techniques</ulink>.
 </man>
 <notman>
@@ -166,7 +166,7 @@ is included in the <filename>LICENSES</filename> files.
 </para>
 
 <para>
-This software was supported in part through the <ulink url="https://kmap.org/soc/">Google Summer of Code</ulink> and the <ulink role="hidepdf" url="https://www.fbo.gov/index?s=opportunity&amp;mode=form&amp;id=585e02a51f77af5cb3c9e06b9cc82c48&amp;tab=core&amp;_cview=1">DARPA CINDER program</ulink> (DARPA-BAA-10-84).
+This software was supported in part through the <ulink url="https://github.com/YurilLAB/Kmap/soc/">Google Summer of Code</ulink> and the <ulink role="hidepdf" url="https://www.fbo.gov/index?s=opportunity&amp;mode=form&amp;id=585e02a51f77af5cb3c9e06b9cc82c48&amp;tab=core&amp;_cview=1">DARPA CINDER program</ulink> (DARPA-BAA-10-84).
 </para>
 
 </refsect2>

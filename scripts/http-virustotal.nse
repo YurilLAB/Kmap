@@ -90,7 +90,7 @@ where status of the queued file may be checked.
 
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories={"safe", "malware", "external"}
 
 

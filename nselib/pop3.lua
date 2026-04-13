@@ -1,7 +1,7 @@
 ---
 -- POP3 functions.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local base64 = require "base64"
 local comm = require "comm"

@@ -12,7 +12,7 @@ Check for HTTP services that redirect to the HTTPS on the same port.
 
 author = {"Daniel Miller"}
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"version"}
 

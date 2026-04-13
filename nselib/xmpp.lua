@@ -23,7 +23,7 @@
 -- status, err = helper:login(user, pass, "DIGEST-MD5")
 -- </code>
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @author Patrik Karlsson <patrik@cqure.net>
 
 -- Version 0.2

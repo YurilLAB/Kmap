@@ -22,7 +22,7 @@ Checks if the website holds a mobile version.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local http = require "http"
 local target = require "target"

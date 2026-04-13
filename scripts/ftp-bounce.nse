@@ -8,7 +8,7 @@ description=[[
 Checks to see if an FTP server allows port scanning using the FTP bounce method.
 ]]
 author = "Marek Majkowski"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 ---
 -- @args ftp-bounce.username Username to log in with. Default
@@ -16,7 +16,7 @@ license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
 -- @args ftp-bounce.password Password to log in with. Default
 -- <code>IEUser@</code>.
 -- @args ftp-bounce.checkhost Host to try connecting to with the PORT command.
---                            Default: scanme.kmap.org
+--                            Default: scanme.nmap.org
 --
 -- @output
 -- PORT   STATE SERVICE
@@ -32,7 +32,7 @@ categories = {"default", "safe"}
 portrule = shortport.port_or_service({21, 990}, {"ftp", "ftps"})
 
 local function get_portfmt()
-  local arghost = stdnse.get_script_args(SCRIPT_NAME .. ".checkhost") or "scanme.kmap.org"
+  local arghost = stdnse.get_script_args(SCRIPT_NAME .. ".checkhost") or "scanme.nmap.org"
   local reg = kmap.registry[SCRIPT_NAME] or {}
   local addr = reg[arghost]
   if not addr then

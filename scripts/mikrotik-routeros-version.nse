@@ -7,7 +7,7 @@ The provided payload can be used for all RouterOs versions until 6.49.17. Though
 ]]
 
 author = {"deauther890", "Daniel Miller"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "version", "discovery", "safe"}
 
 ---@usage

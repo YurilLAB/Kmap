@@ -48,7 +48,7 @@ of different tests.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "external"}
 
 local arg_domain = stdnse.get_script_args(SCRIPT_NAME .. '.domain')
@@ -56,7 +56,7 @@ local arg_domain = stdnse.get_script_args(SCRIPT_NAME .. '.domain')
 
 hostrule = function(host) return ( arg_domain ~= nil ) end
 
-local PROBE_HOST = "scanme.kmap.org"
+local PROBE_HOST = "scanme.nmap.org"
 
 local Status = {
   PASS = "PASS",

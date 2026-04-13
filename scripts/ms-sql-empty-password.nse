@@ -56,7 +56,7 @@ be disabled using the <code>mssql.scanned-ports-only</code> script argument.
 --    - Added compatibility with changes in mssql.lua
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth","intrusive"}
 
 dependencies = {"broadcast-ms-sql-discover"}

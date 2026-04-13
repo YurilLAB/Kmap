@@ -13,18 +13,18 @@
  * release or source code control revision is contained in the LICENSE
  * file distributed with that version of Kmap or source code control
  * revision. More Kmap copyright/legal information is available from
- * https://kmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * https://github.com/YurilLAB/Kmap/blob/master/LICENSE, and further information on the
+ * NPSL license itself can be found at https://github.com/YurilLAB/Kmap/blob/master/LICENSE . This
  * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
  * Kmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://kmap.org.
+ * including commercial use. It is available from https://github.com/YurilLAB/Kmap.
  *
  * The Kmap license generally prohibits companies from using and
  * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://kmap.org/oem/
+ * this purpose. See https://github.com/YurilLAB/Kmap
  *
  * If you have received a written Kmap license agreement or contract
  * stating terms other than these (such as an Kmap OEM license), you may
@@ -42,8 +42,8 @@
  *
  * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@kmap.org mailing list for possible
- * incorporation into the main distribution. Unless you specify otherwise, it
+ * Github PR at https://github.com/YurilLAB/Kmap for possible incorporation
+ * into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
  * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
@@ -55,7 +55,7 @@
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://kmap.org/oem/
+ * Kmap project -- see https://github.com/YurilLAB/Kmap
  *
  ***************************************************************************/
 
@@ -202,7 +202,7 @@ static void printusage() {
          "Usage: kmap [Scan Type(s)] [Options] {target specification}\n"
          "TARGET SPECIFICATION:\n"
          "  Can pass hostnames, IP addresses, networks, etc.\n"
-         "  Ex: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254\n"
+         "  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254\n"
          "  -iL <inputfilename>: Input from list of hosts/networks\n"
          "  -iR <num hosts>: Choose random targets\n"
          "  --exclude <host1[,host2][,host3],...>: Exclude hosts/networks\n"
@@ -321,10 +321,10 @@ static void printusage() {
          "  -V: Print version number\n"
          "  -h: Print this help summary page.\n"
          "EXAMPLES:\n"
-         "  kmap -v -A scanme.kmap.org\n"
+         "  kmap -v -A scanme.nmap.org\n"
          "  kmap -v -sn 192.168.0.0/16 10.0.0.0/8\n"
          "  kmap -v -iR 10000 -Pn -p 80\n"
-         "SEE THE MAN PAGE (https://kmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES\n", KMAP_NAME, KMAP_VERSION, KMAP_URL);
+         "SEE THE MAN PAGE (https://github.com/YurilLAB/Kmap) FOR MORE OPTIONS AND EXAMPLES\n", KMAP_NAME, KMAP_VERSION, KMAP_URL);
 }
 
 #ifdef WIN32
@@ -910,7 +910,7 @@ void parse_options(int argc, char **argv) {
           log_write(LOG_STDOUT, "%s", (char*)(k+3));
           delayed_options.advanced = true;
         } else if (strcmp(long_options[option_index].name, "webxml") == 0) {
-          o.setXSLStyleSheet("https://svn.kmap.org/kmap/docs/kmap.xsl");
+          o.setXSLStyleSheet("https://github.com/YurilLAB/Kmap/docs/kmap.xsl");
         } else if (strcmp(long_options[option_index].name, "oN") == 0) {
           test_file_name(optarg, long_options[option_index].name);
           delayed_options.normalfilename = logfilename(optarg, &local_time);
@@ -1617,7 +1617,7 @@ void  apply_delayed_options() {
       unsigned int a = (local_time.tm_year - 97)%100;
       log_write(LOG_STDOUT | LOG_SKID, "Happy %d%s Birthday to Kmap, may it live to be %d!\n", local_time.tm_year - 97,(a>=11&&a<=13?"th":(a%10==1?"st":(a%10==2?"nd":(a%10==3?"rd":"th")))), local_time.tm_year + 3);
     } else if (local_time.tm_mon == 11 && local_time.tm_mday == 25) {
-      log_write(LOG_STDOUT | LOG_SKID, "Kmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://kmap.org/book/man-port-scanning-techniques.html).\n");
+      log_write(LOG_STDOUT | LOG_SKID, "Kmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://github.com/YurilLAB/Kmap/book/man-port-scanning-techniques.html).\n");
     }
   }
 

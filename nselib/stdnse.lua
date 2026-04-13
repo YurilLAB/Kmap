@@ -2,7 +2,7 @@
 -- Standard Kmap Scripting Engine functions. This module contains various handy
 -- functions that are too small to justify modules of their own.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @class module
 -- @name stdnse
 
@@ -526,7 +526,7 @@ end
 
 ---This function is deprecated.
 --
--- Please use structured NSE output instead: https://kmap.org/book/nse-api.html#nse-structured-output
+-- Please use structured NSE output instead: https://github.com/YurilLAB/Kmap/book/nse-api.html#nse-structured-output
 --
 -- Takes a table of output on the commandline and formats it for display to the
 -- user.

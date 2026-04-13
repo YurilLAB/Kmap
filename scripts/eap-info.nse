@@ -29,7 +29,7 @@ anonymous identity if no argument is passed.
 -- @args eap-info.timeout Maximum time allowed for the scan (default 10s). Methods not tested because of timeout will be listed as "unknown".
 
 author = "Riccardo Cecolin"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = { "broadcast", "safe" }
 

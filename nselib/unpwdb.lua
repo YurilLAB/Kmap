@@ -63,7 +63,7 @@
 -- 30 minutes. The default depends on the timing template level (see the module
 -- description). Use the value <code>0</code> to disable the time limit.
 -- @author Kris Katterjohn 06/2008
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local io = require "io"
 local kmap = require "kmap"

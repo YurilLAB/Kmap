@@ -61,7 +61,7 @@ Additional information for the Bing Maps REST Services API can be found at:
 -- @see ip-geolocation-maxmind.nse
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"external", "safe"}
 
 local render = function(params, options)

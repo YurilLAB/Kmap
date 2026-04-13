@@ -10,7 +10,7 @@ description = [[
 Checks for a vulnerability in IIS 5.1/6.0 that allows arbitrary users to access
 secured WebDAV folders by searching for a password-protected folder and
 attempting to access it. This vulnerability was patched in Microsoft Security
-Bulletin MS09-020, https://kmap.org/r/ms09-020.
+Bulletin MS09-020, https://github.com/YurilLAB/Kmap/r/ms09-020.
 
 A list of well known folders (almost 900) is used by default. Each one is
 checked, and if returns an authentication request (401), another attempt is
@@ -42,7 +42,7 @@ For more information on this vulnerability and script, see:
 -----------------------------------------------------------------------
 
 author = {"Ron Bowes", "Andrew Orr"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "intrusive"}
 
 

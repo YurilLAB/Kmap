@@ -9,7 +9,7 @@ _ENV = stdnse.module("geoip", stdnse.seeall)
 -- Consolidation of GeoIP functions.
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 --- Add a geolocation to the registry
 -- @param ip The IP that was geolocated

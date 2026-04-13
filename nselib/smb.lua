@@ -119,7 +119,7 @@
 -- @args randomseed   Set to a value to change the filenames/service names that are randomly generated.
 --
 -- @author Ron Bowes <ron@skullsecurity.net>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -----------------------------------------------------------------------
 local asn1 = require "asn1"
 local datetime = require "datetime"

@@ -2,7 +2,7 @@
 -- Library methods for handling unicode strings.
 --
 -- @author Daniel Miller
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 
 local string = require "string"

@@ -3,7 +3,7 @@
 -- NetBIOS name requests.
 --
 -- @author Ron Bowes <ron@skullsecurity.net>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local dns = require "dns"
 local math = require "math"

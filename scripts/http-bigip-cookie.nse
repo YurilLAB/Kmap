@@ -36,7 +36,7 @@ local table = require "table"
 -- @args http-bigip-cookie.path The URL path to request. The default path is "/".
 
 author = "Seth Jackson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "discovery", "safe" }
 
 portrule = shortport.http

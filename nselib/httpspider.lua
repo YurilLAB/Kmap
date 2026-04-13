@@ -844,7 +844,7 @@ Crawler = {
       if ( self.options.useheadfornonwebfiles ) then
         local is_web_file = false
         local file = url:getPath():lower()
-        -- check if we are at a URL with 'no extension', for example: kmap.org/6
+        -- check if we are at a URL with 'no extension', for example: github.com/YurilLAB/Kmap/6
         if string.match(file,".*(/[^/%.]*)$") or string.match(file, "/$") then is_web_file = true end
         if not is_web_file then
           for _,v in pairs(self.web_files_extensions) do

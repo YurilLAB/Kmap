@@ -30,7 +30,7 @@ Attempts to extract system information from the UPnP service by sending a multic
 -- Created 10/29/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"broadcast", "safe"}
 
 

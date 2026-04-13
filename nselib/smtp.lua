@@ -1,7 +1,7 @@
 ---
 -- Simple Mail Transfer Protocol (SMTP) operations.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @args smtp.domain The domain to be returned by get_domain, overriding the
 --                   target's own domain name.
 

@@ -52,7 +52,7 @@ The attack vector/probe used is: <code>/'"/><script>alert(1)</script></code>
 -- @see http-dombased-xss.nse
 -- @see http-xssed.nse
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"fuzzer", "intrusive", "vuln"}
 
 local http = require 'http'

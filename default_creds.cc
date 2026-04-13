@@ -23,6 +23,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 #include <cctype>
 
 #ifndef WIN32
@@ -40,6 +41,11 @@
 
 #ifdef HAVE_LIBSSH2
 #include <libssh2.h>
+#endif
+
+#ifdef HAVE_OPENSSL
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 #endif
 
 /* Key used to attach PortCredResults list to a Target */
@@ -551,39 +557,85 @@ static bool probe_telnet(const char *ip, uint16_t port,
   return has_prompt && !has_fail;
 }
 
-/* MySQL: check if server accepts unauthenticated / empty-password login
- * We send a minimal MySQL 4.1 handshake response. */
+/* MySQL: authenticate using native_password (SHA1-based) when OpenSSL is
+ * available, falling back to empty-password for no-auth servers otherwise.
+ *
+ * Protocol: HandshakeV10 → parse 20-byte scramble → SHA1 auth response.
+ * Works with MySQL 5.x and MySQL 8.x servers still configured for
+ * mysql_native_password. Also detects servers with no-password (auth_type=0). */
 static bool probe_mysql(const char *ip, uint16_t port,
-                        const std::string &user, const std::string & /*pass*/,
+                        const std::string &user, const std::string &pass,
                         int timeout_ms) {
   int fd = tcp_connect(ip, port, timeout_ms);
   if (fd < 0) return false;
 
-  char buf[256]{};
+  char buf[512]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   if (n < 5) { close_fd(fd); return false; }
 
-  // MySQL server greeting starts with packet length (3 bytes LE) + seq(1) + protocol(1=0x0a)
+  /* Packet header: 3-byte length + 1-byte seq; then protocol byte must be 0x0a */
   if (static_cast<unsigned char>(buf[4]) != 0x0a) { close_fd(fd); return false; }
 
-  // Build minimal auth response (empty password = 20 zero bytes for hash)
-  uint8_t resp[64]{};
-  // client_flags (4) + max_packet (4) + charset (1) + filler (23)
-  resp[0] = 0x85; resp[1] = 0xa6; resp[2] = 0x03; resp[3] = 0x00; // flags
-  resp[4] = 0x00; resp[5] = 0x00; resp[6] = 0x00; resp[7] = 0x01; // max packet
-  resp[8] = 0x21; // utf8 charset
-  // resp[9..31] = zeros (filler)
+  /* Parse HandshakeV10 to extract the 20-byte auth scramble.
+   * Layout after the protocol byte:
+   *   server version (null-terminated) | connID(4) | scramble_pt1(8) | filler(1)
+   *   cap_lower(2) | charset(1) | status(2) | cap_upper(2) | plugin_data_len(1)
+   *   reserved(10) | scramble_pt2(max(13, plugin_data_len-8)) */
+  uint8_t scramble[20]{};
+  int pos = 5;
+  while (pos < n && buf[pos] != '\0') pos++;
+  pos++;        /* skip null terminator of server version */
+  if (pos + 13 <= n) {
+    pos += 4;   /* skip connection ID */
+    memcpy(scramble, buf + pos, 8);  /* scramble part 1 */
+    pos += 9;   /* skip 8-byte scramble + 1-byte filler */
+    /* Skip capability lower(2) + charset(1) + status(2) + capability upper(2) */
+    if (pos + 8 + 10 <= n) {
+      pos += 7;
+      int pdata_len = static_cast<int>(static_cast<unsigned char>(buf[pos])); pos++;
+      pos += 10;  /* skip reserved */
+      int part2_len = std::max(13, pdata_len - 8);
+      if (pos + part2_len <= n)
+        memcpy(scramble + 8, buf + pos, std::min(12, part2_len));
+    }
+  }
+
+  /* Compute auth token — SHA1(pass) XOR SHA1(scramble + SHA1(SHA1(pass))) */
+  uint8_t token[20]{};
+  bool    has_token = false;
+#ifdef HAVE_OPENSSL
+  if (!pass.empty()) {
+    uint8_t sha1_pw[20], sha1_sha1_pw[20], hash_input[40], sha1_combined[20];
+    SHA1(reinterpret_cast<const uint8_t *>(pass.data()), pass.size(), sha1_pw);
+    SHA1(sha1_pw, 20, sha1_sha1_pw);
+    memcpy(hash_input, scramble, 20);
+    memcpy(hash_input + 20, sha1_sha1_pw, 20);
+    SHA1(hash_input, 40, sha1_combined);
+    for (int i = 0; i < 20; i++) token[i] = sha1_pw[i] ^ sha1_combined[i];
+    has_token = true;
+  }
+#endif
+
+  /* Build HandshakeResponse41 */
+  uint8_t resp[128]{};
+  resp[0] = 0x85; resp[1] = 0xa6; resp[2] = 0x03; resp[3] = 0x00; /* CLIENT flags */
+  resp[4] = 0x00; resp[5] = 0x00; resp[6] = 0x00; resp[7] = 0x01; /* max packet */
+  resp[8] = 0x21; /* utf8 charset */
+  /* resp[9..31] = zeros (filler) */
   size_t off = 32;
-  // username
   size_t ulen = std::min(user.size(), static_cast<size_t>(16));
   memcpy(resp + off, user.c_str(), ulen);
-  off += ulen + 1; // null terminated
-  resp[off++] = 0x00; // empty password hash length
+  off += ulen + 1; /* username + null terminator (zero from {} init) */
+  if (has_token) {
+    resp[off++] = 20;              /* auth-response length */
+    memcpy(resp + off, token, 20); off += 20;
+  } else {
+    resp[off++] = 0x00;            /* empty password */
+  }
 
-  // Wrap in packet header
-  uint8_t pkt[72]{};
+  uint8_t pkt[136]{};
   uint8_t plen = static_cast<uint8_t>(off);
-  pkt[0] = plen; pkt[1] = 0; pkt[2] = 0; pkt[3] = 1; // seq=1
+  pkt[0] = plen; pkt[1] = 0; pkt[2] = 0; pkt[3] = 1; /* seq=1 */
   memcpy(pkt + 4, resp, off);
 
   fd_send(fd, reinterpret_cast<char *>(pkt), off + 4);
@@ -591,27 +643,31 @@ static bool probe_mysql(const char *ip, uint16_t port,
   n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
 
-  // OK packet starts with 0x00, error with 0xff
+  /* OK packet: 3-byte len + 1-byte seq + 0x00 */
   return (n > 4 && static_cast<unsigned char>(buf[4]) == 0x00);
 }
 
-/* PostgreSQL: send startup message, check if auth OK or MD5 requested */
+/* PostgreSQL: send startup message, then handle the auth challenge.
+ *   auth_type 0 → trust auth (no password, detected regardless of cred pair)
+ *   auth_type 5 → MD5 password auth (when OpenSSL is available)
+ *
+ * MD5 auth: MD5("md5" + hex(MD5(password + username)) + hex(salt))
+ * Salt is the 4-byte value returned with auth_type 5. */
 static bool probe_postgresql(const char *ip, uint16_t port,
-                              const std::string &user, const std::string & /*pass*/,
+                              const std::string &user, const std::string &pass,
                               int timeout_ms) {
   int fd = tcp_connect(ip, port, timeout_ms);
   if (fd < 0) return false;
 
-  // Build startup message: length(4) + protocol(4) + "user\0<user>\0\0"
-  std::string param = "user";
+  /* StartupMessage: length(4) + protocol 3.0(4) + "user\0<user>\0\0" */
   std::vector<uint8_t> msg;
-  msg.push_back(0); msg.push_back(0); msg.push_back(0); msg.push_back(0); // length placeholder
-  msg.push_back(0); msg.push_back(3); msg.push_back(0); msg.push_back(0); // protocol 3.0
-  for (char c : param) msg.push_back(static_cast<uint8_t>(c));
+  msg.push_back(0); msg.push_back(0); msg.push_back(0); msg.push_back(0);
+  msg.push_back(0); msg.push_back(3); msg.push_back(0); msg.push_back(0);
+  for (const char *k = "user"; *k; k++) msg.push_back(static_cast<uint8_t>(*k));
   msg.push_back(0);
   for (char c : user) msg.push_back(static_cast<uint8_t>(c));
   msg.push_back(0);
-  msg.push_back(0); // end of params
+  msg.push_back(0); /* end of params */
   uint32_t total = static_cast<uint32_t>(msg.size());
   msg[0] = static_cast<uint8_t>((total >> 24) & 0xff);
   msg[1] = static_cast<uint8_t>((total >> 16) & 0xff);
@@ -621,19 +677,69 @@ static bool probe_postgresql(const char *ip, uint16_t port,
   fd_send(fd, reinterpret_cast<const char *>(msg.data()), msg.size());
   char buf[256]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
-  close_fd(fd);
 
-  if (n < 1) return false;
-  // 'R' = auth request (need password), but if it asks for cleartext or trust, could be open
-  // 'E' = error (wrong user or not allowed)
-  // Auth type 0 = AuthenticationOk (trust auth — no password needed)
-  if (buf[0] == 'R' && n >= 9) {
-    uint32_t auth_type = (static_cast<uint8_t>(buf[5]) << 24) |
-                         (static_cast<uint8_t>(buf[6]) << 16) |
-                         (static_cast<uint8_t>(buf[7]) <<  8) |
-                          static_cast<uint8_t>(buf[8]);
-    return auth_type == 0; // AuthenticationOk = trust auth, no password needed
+  if (n < 9 || buf[0] != 'R') { close_fd(fd); return false; }
+
+  uint32_t auth_type = (static_cast<uint8_t>(buf[5]) << 24) |
+                       (static_cast<uint8_t>(buf[6]) << 16) |
+                       (static_cast<uint8_t>(buf[7]) <<  8) |
+                        static_cast<uint8_t>(buf[8]);
+
+  if (auth_type == 0) { close_fd(fd); return true; } /* trust auth */
+
+#ifdef HAVE_OPENSSL
+  if (auth_type == 5 && n >= 13 && !pass.empty()) {
+    /* MD5 auth: server sends 4-byte salt at buf[9..12] */
+    uint8_t salt[4];
+    memcpy(salt, buf + 9, 4);
+
+    /* inner = hex(MD5(password + username)) */
+    std::string inner_src = pass + user;
+    uint8_t md5_inner[16];
+    MD5(reinterpret_cast<const uint8_t *>(inner_src.data()), inner_src.size(), md5_inner);
+    char hex_inner[33];
+    for (int i = 0; i < 16; i++) snprintf(hex_inner + i*2, 3, "%02x", md5_inner[i]);
+
+    /* outer = hex(MD5(hex_inner + salt)) */
+    uint8_t combined[36];
+    memcpy(combined, hex_inner, 32);
+    memcpy(combined + 32, salt, 4);
+    uint8_t md5_outer[16];
+    MD5(combined, 36, md5_outer);
+    char hex_outer[33];
+    for (int i = 0; i < 16; i++) snprintf(hex_outer + i*2, 3, "%02x", md5_outer[i]);
+
+    /* Final password string: "md5" + hex_outer + '\0' */
+    std::string pg_pass = std::string("md5") + hex_outer;
+
+    /* PasswordMessage: 'p' + int32(4 + len + 1) + password + '\0' */
+    uint32_t pw_len = static_cast<uint32_t>(4 + pg_pass.size() + 1);
+    std::vector<uint8_t> pw_msg;
+    pw_msg.push_back('p');
+    pw_msg.push_back((pw_len >> 24) & 0xff);
+    pw_msg.push_back((pw_len >> 16) & 0xff);
+    pw_msg.push_back((pw_len >>  8) & 0xff);
+    pw_msg.push_back( pw_len        & 0xff);
+    for (char c : pg_pass) pw_msg.push_back(static_cast<uint8_t>(c));
+    pw_msg.push_back(0);
+
+    fd_send(fd, reinterpret_cast<const char *>(pw_msg.data()), pw_msg.size());
+    memset(buf, 0, sizeof(buf));
+    n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
+    close_fd(fd);
+
+    if (n >= 9 && buf[0] == 'R') {
+      uint32_t at = (static_cast<uint8_t>(buf[5]) << 24) |
+                    (static_cast<uint8_t>(buf[6]) << 16) |
+                    (static_cast<uint8_t>(buf[7]) <<  8) |
+                     static_cast<uint8_t>(buf[8]);
+      return (at == 0);
+    }
+    return false;
   }
+#endif
+
+  close_fd(fd);
   return false;
 }
 
@@ -706,10 +812,12 @@ static std::string normalize_service(const char *name) {
   if (s.find("ssh")        != std::string::npos) return "ssh";
   if (s.find("ftp")        != std::string::npos) return "ftp";
   if (s.find("telnet")     != std::string::npos) return "telnet";
-  if (s.find("http")       != std::string::npos) return "http";
+  /* Only probe plaintext HTTP — HTTPS (SSL/TLS) cannot be probed with raw TCP */
+  if (s == "http" || s == "http-alt" || s == "http-proxy") return "http";
   if (s.find("mysql")      != std::string::npos) return "mysql";
   if (s.find("postgres")   != std::string::npos) return "postgresql";
   if (s.find("ms-sql")     != std::string::npos) return "mssql";
+  if (s.find("mssql")      != std::string::npos) return "mssql";
   if (s.find("mongodb")    != std::string::npos) return "mongodb";
   return "";
 }

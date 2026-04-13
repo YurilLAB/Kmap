@@ -30,7 +30,7 @@ newtargets script argument.
 -- |_  UDP  192.168.56.3:464     *:*
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 

@@ -2,7 +2,7 @@
 -- Library methods for handling MongoDB, creating and parsing packets.
 --
 -- @author Martin Holst Swende
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @args mongodb.db - the database to use for authentication
 
@@ -42,7 +42,7 @@ end
 -- and licensed under the Apache License, Version 2.0 http://www.apache.org/licenses/LICENSE-2.0)
 --
 -- @author Martin Holst Swende
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- Version 0.1
 

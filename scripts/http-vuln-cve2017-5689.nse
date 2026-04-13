@@ -77,7 +77,7 @@ local rand = require "rand"
 ---
 
 author = "Andrew Orr"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "vuln", "auth", "exploit" }
 
 portrule = shortport.port_or_service({623, 664, 16992, 16993}, "amt-soap-http")

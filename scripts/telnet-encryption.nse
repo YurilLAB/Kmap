@@ -35,7 +35,7 @@ categories = {"safe", "discovery"}
 portrule = shortport.port_or_service(23, 'telnet')
 
 author = {"Patrik Karlsson", "David Fifield", "Fyodor"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local COMMAND = {
   SubCommand = 0xFA,

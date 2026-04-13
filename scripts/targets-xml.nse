@@ -31,7 +31,7 @@ Address type (IPv4 or IPv6) is determined according to whether -6 is specified t
 
 author = "Daniel Miller"
 categories = {"safe"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local filename = stdnse.get_script_args(SCRIPT_NAME .. ".iX")
 

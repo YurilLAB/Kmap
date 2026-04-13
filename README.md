@@ -1,6 +1,6 @@
 # Kmap
 
-**Kmap** is a fork of [nmap](https://nmap.org/) extended with active pentesting capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds three new offensive features designed for security assessments.
+**Kmap** is a fork of [nmap](https://github.com/YurilLAB/Kmap/) extended with active pentesting capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds three new offensive features designed for security assessments.
 
 > **License:** Kmap inherits the Nmap Public Source License (NPSL). See `LICENSE` for full terms.
 

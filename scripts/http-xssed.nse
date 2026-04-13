@@ -27,7 +27,7 @@ This script searches the xssed.com database and outputs the result.
 -- @see http-phpself-xss.nse
 
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "external", "discovery"}
 
 local http = require "http"

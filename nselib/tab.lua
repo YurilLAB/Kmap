@@ -22,7 +22,7 @@
 -- typing Enter at the end of a line. <code>tab.addrow</code> adds a whole row
 -- at a time and calls <code>tab.nextrow</code> automatically.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local stdnse = require "stdnse"
 local strbuf = require "strbuf"

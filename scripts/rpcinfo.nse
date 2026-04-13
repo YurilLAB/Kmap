@@ -76,7 +76,7 @@ supported version numbers, port number and protocol, and program name.
 -- @see rpc-grind.nse
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "default", "safe", "version"}
 
 

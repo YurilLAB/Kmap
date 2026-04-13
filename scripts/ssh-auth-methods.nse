@@ -32,7 +32,7 @@ username which may be invalid. The abandoned connection will likely be logged.
 -- <elem key="Banner">This is a private system. Use of this system constitutes&#xa;consent to monitoring.&#xa;</elem>
 
 author = "Devin Bjelland"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth", "intrusive"}
 
 local username = stdnse.get_script_args("ssh.user") or rand.random_alpha(5)

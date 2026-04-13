@@ -4,7 +4,7 @@
 -- Since portrules are mostly the same for many scripts, this
 -- module provides functions for the most common tests.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local kmap = require "kmap"
 local stdnse = require "stdnse"

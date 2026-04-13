@@ -30,7 +30,7 @@ http://mobilemouse.com/
 -- @args mmouse-brute.timeout socket timeout for connecting to Mobile Mouse (default 5s)
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 

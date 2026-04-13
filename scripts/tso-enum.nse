@@ -61,7 +61,7 @@ TSO user IDs have the following rules:
 
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992,623}, {"tn3270"})

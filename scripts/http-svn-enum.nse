@@ -51,7 +51,7 @@ description = [[Enumerates users of a Subversion repository by examining logs of
 
 author = "Gyanendra Mishra"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"default", "discovery", "safe"}
 

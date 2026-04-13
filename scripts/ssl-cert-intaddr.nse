@@ -37,7 +37,7 @@ address itself is not private.  Kmap v7.30 or later is required.
 -- @see ssl-cert.nse
 
 author = "Steve Benson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "discovery", "safe"}
 dependencies = {"https-redirect"}
 

@@ -54,7 +54,7 @@ https://www.fieldcommgroup.org/hart-specifications.
 --<elem>Private Label Distributor: Phoenix Contact</elem>
 
 author = "DINA-community"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 -- Function to define the portrule as per kmap standards

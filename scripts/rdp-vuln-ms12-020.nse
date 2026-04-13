@@ -65,7 +65,7 @@ Original check by by Worawit Wang (sleepya).
 -- |_      http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-0002
 
 author = "Aleksandar Nikolic"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "vuln"}
 
 

@@ -59,7 +59,7 @@ Multicast Address Space Registry have their descriptions listed.
 -- </table>
 
 author = {"alegen", "Daniel Miller"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 -- Technically multicast, not broadcast
 categories = {"broadcast", "discovery"}
 

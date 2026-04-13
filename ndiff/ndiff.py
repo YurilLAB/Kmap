@@ -8,7 +8,7 @@
 # Copyright 2021 Kmap Software LLC
 # Ndiff is distributed under the same license as Kmap. See the file
 # LICENSE in the Kmap source distribution or
-# https://kmap.org/book/man-legal.html for more details.
+# https://github.com/YurilLAB/Kmap/blob/master/LICENSE for more details.
 #
 # Original author was David Fifield based on a design by Michael Pattrick
 

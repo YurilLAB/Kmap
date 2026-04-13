@@ -20,7 +20,7 @@ Wakes a remote system up from sleep by sending a Wake-On-Lan packet.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"broadcast", "safe"}
 
 local MAC = stdnse.get_script_args("broadcast-wake-on-lan.MAC")

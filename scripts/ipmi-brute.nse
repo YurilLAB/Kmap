@@ -21,7 +21,7 @@ Performs brute force password auditing against IPMI RPC server.
 --
 
 author = "Claudiu Perta"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(623, "asf-rmcp", "udp", {"open", "open|filtered"})

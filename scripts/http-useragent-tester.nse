@@ -20,7 +20,7 @@ Checks if various crawling utilities are allowed by the host.
 -- |   Status for browser useragent: 200
 -- |   Redirected To: https://www.example.com/
 -- |   Allowed User Agents:
--- |     Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)
+-- |     Mozilla/5.0 (compatible; Kmap Scripting Engine; https://github.com/YurilLAB/Kmap/book/nse.html)
 -- |     libwww
 -- |     lwp-trivial
 -- |     libcurl-agent/1.0
@@ -44,7 +44,7 @@ Checks if various crawling utilities are allowed by the host.
 -- <elem key="Redirected To">https://www.example.com/</elem>
 -- <table key="Allowed User Agents">
 --   <elem>Mozilla/5.0 (compatible; Kmap Scripting Engine;
---   https://kmap.org/book/nse.html)</elem>
+--   https://github.com/YurilLAB/Kmap/book/nse.html)</elem>
 --   <elem>libwww</elem>
 --   <elem>lwp-trivial</elem>
 --   <elem>libcurl-agent/1.0</elem>
@@ -68,7 +68,7 @@ Checks if various crawling utilities are allowed by the host.
 
 categories = {"discovery", "safe"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local http = require "http"
 local target = require "target"

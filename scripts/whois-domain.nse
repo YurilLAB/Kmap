@@ -78,7 +78,7 @@ Attempts to retrieve information about the domain name of the target
 ---
 
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "external", "safe"}
 
 local ipOps = require "ipOps"

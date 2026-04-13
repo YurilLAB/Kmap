@@ -44,7 +44,7 @@ References:
 --
 
 author = {"Ange Gutek", "Patrik Karlsson"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "vuln"}
 
 
@@ -151,7 +151,7 @@ servers to remote users who send carefully crafted requests.]],
   end
 
   -- TEST 3: The external website test. This does not mean that you can reach a LAN ip, but this is a relevant issue anyway.
-  local external = http.get(host,port, ("%s@scanme.kmap.org"):format(prefix))
+  local external = http.get(host,port, ("%s@scanme.nmap.org"):format(prefix))
   if ( external.status == 200 and string.match(external.body,"Go ahead and ScanMe") ) then
     vuln.extra_info = "Proxy allows requests to external websites"
   end

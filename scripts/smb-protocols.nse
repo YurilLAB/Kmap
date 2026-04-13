@@ -43,7 +43,7 @@ script is the successor to the (removed) smbv2-enabled script.
 ---
 
 author = "Paulino Calderon"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery"}
 
 hostrule = function(host)

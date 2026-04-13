@@ -59,7 +59,7 @@ You must run at least 1 of the following scripts to collect clock data:
 
 author = "Daniel Miller"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"default", "safe"}
 

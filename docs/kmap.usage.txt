@@ -1,8 +1,8 @@
-Kmap 7.99SVN ( https://kmap.org )
+Kmap 7.99SVN ( https://github.com/YurilLAB/Kmap )
 Usage: kmap [Scan Type(s)] [Options] {target specification}
 TARGET SPECIFICATION:
   Can pass hostnames, IP addresses, networks, etc.
-  Ex: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL <inputfilename>: Input from list of hosts/networks
   -iR <num hosts>: Choose random targets
   --exclude <host1[,host2][,host3],...>: Exclude hosts/networks
@@ -109,7 +109,7 @@ MISC:
   -V: Print version number
   -h: Print this help summary page.
 EXAMPLES:
-  kmap -v -A scanme.kmap.org
+  kmap -v -A scanme.nmap.org
   kmap -v -sn 192.168.0.0/16 10.0.0.0/8
   kmap -v -iR 10000 -Pn -p 80
-SEE THE MAN PAGE (https://kmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES
+SEE THE MAN PAGE (https://github.com/YurilLAB/Kmap) FOR MORE OPTIONS AND EXAMPLES

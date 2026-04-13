@@ -20,7 +20,7 @@
 -- <code>"lines"</code> takes precedence. If neither are given, the functions
 -- read as many bytes as possible.
 -- @author Kris Katterjohn 04/2008
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local kmap = require "kmap"
 local shortport

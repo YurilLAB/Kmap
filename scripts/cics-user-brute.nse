@@ -37,7 +37,7 @@ CICS User ID brute forcing script for the CESL login screen.
 -- 2019-02-01 - v0.4 - Disabled new TN3270E support
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 portrule = shortport.port_or_service({23,992}, "tn3270")
 

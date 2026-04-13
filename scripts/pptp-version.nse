@@ -16,7 +16,7 @@ Attempts to extract system information from the point-to-point tunneling protoco
 
 author = "Thomas Buchanan"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"version"}
 

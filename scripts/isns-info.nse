@@ -31,7 +31,7 @@ Service (iSNS).
 portrule = shortport.port_or_service(3205, 'isns')
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery"}
 
 local function fail(err) return stdnse.format_output(false, err) end

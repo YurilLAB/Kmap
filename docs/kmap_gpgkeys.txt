@@ -1,11 +1,11 @@
 GPG detached signatures and MD5/SHA-1 hashes for each Kmap release are
-available from https://kmap.org/dist/sigs/?C=M;O=D .  The
+available from https://github.com/YurilLAB/Kmap .  The
 releases are signed by the Kmap project GPG key (KeyId 6B9355D0).
 Some messages to Kmap mailing lists may be signed by Kmap author and
 maintainer Fyodor.  Fyodor's KeyID is 33599B5F.  Those two keys and
 their fingerprints are reproduced below.  The latest version of this
 file is always available at
-https://kmap.org/data/kmap_gpgkeys.txt .
+https://github.com/YurilLAB/Kmap .
 
 To verify a file with GPG, obtain and import the keys with a command
 such as "gpg --import kmap_gpgkeys.txt" and then verify the obtained

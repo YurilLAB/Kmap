@@ -57,7 +57,7 @@ Attempts to get build info and server status from a MongoDB database.
 
 
 author = "Martin Holst Swende"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"mongodb-brute"}

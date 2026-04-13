@@ -135,7 +135,7 @@ References:
 ---
 
 author = {"Seth Art <sethsec()gmail>", "Paulino Calderon <calderon()websec.mx>", "Gyanendra Mishra"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "external", "vuln"}
 
 portrule = shortport.http

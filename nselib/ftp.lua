@@ -1,7 +1,7 @@
 ---
 -- FTP functions.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local comm = require "comm"
 local stdnse = require "stdnse"

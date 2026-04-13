@@ -131,7 +131,7 @@ This script was based on http-enum.
 ---
 
 author = {"Paulino Calderon <calderon@websec.mx>", "nnposter"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "auth", "intrusive"}
 
 portrule = shortport.http

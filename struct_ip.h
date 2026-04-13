@@ -60,7 +60,7 @@ typedef unsigned __int8 u_int8_t;
 #define HAVE_STRUCT_IP
 
 /* From Linux glibc, which apparently borrowed it from
-   BSD code.  Slightly modified for portability --fyodor@kmap.org */
+   BSD code.  Slightly modified for portability --https://github.com/YurilLAB/Kmap/issues */
 /*
  * Structure of an internet header, naked of options.
  */

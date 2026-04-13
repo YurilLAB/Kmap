@@ -6,7 +6,7 @@
     Originally written by:
     William McVey <wam@cisco.com> <wam+kmap@wamber.net>
 
-    Now maintained by Fyodor <fyodor@kmap.org> as part of Kmap.     
+    Now maintained by Fyodor <https://github.com/YurilLAB/Kmap/issues> as part of Kmap.     
 
     To validate using this file, simply add a DOCTYPE line similar to:
     <!DOCTYPE kmaprun SYSTEM "kmap.dtd">

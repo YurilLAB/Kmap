@@ -35,7 +35,7 @@ Please, note that the script will become more intrusive though.
 
 categories = {"discovery", "intrusive"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local shortport = require "shortport"
 local stdnse = require "stdnse"

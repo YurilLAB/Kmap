@@ -37,7 +37,7 @@ See http://mumble.sourceforge.net/Protocol.
 -- 64740/udp open  murmur  Murmur 1.2.4 (voice port; users: 35; max. users: 100; bandwidth: 72000 b/s)
 
 author = "Marin Maržić"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "version" }
 
 portrule = shortport.version_port_or_service({64738}, "murmur", {"tcp", "udp"})

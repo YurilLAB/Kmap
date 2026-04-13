@@ -92,7 +92,7 @@ Retrieves the LDAP root DSA-specific Entry (DSE)
 
 author = "Patrik Karlsson"
 copyright = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 dependencies = {"ldap-brute"}
 

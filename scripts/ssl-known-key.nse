@@ -39,7 +39,7 @@ too large to include with Kmap) list.
 -- </table>
 
 author = "Mak Kolybabi"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery", "vuln", "default"}
 dependencies = {"https-redirect"}
 

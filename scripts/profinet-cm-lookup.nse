@@ -37,7 +37,7 @@ References:
 
 categories = {"discovery", "intrusive"}
 author = "DINA-community"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local EPM_UDP_PORT = 34964
 

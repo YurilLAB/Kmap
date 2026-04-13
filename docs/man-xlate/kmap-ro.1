@@ -92,8 +92,8 @@ Exemplu 1, „O scanare reprezentativa cu Kmap\(rq\&. Singurele argumente folos
 .\}
 .PP
 Cea mai noua versiune de Kmap poate fi obtinuta de la
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. Cea mai noua versiune a paginii man poate fi vizualizata la
-\m[blue]\fB\%https://kmap.org/man/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. Cea mai noua versiune a paginii man poate fi vizualizata la
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/man/\fR\m[]\&.
 .SH "TRADUCERE"
 .PP
 Aceasta editie inlimba romana a Ghidului de referinta Kmap a fost tradus din versiunea 2991 a textului original aflat la
@@ -103,7 +103,7 @@ Aceasta editie inlimba romana a Ghidului de referinta Kmap a fost tradus din ver
 .SH "SUMARUL OPTIUNILOR"
 .PP
 Acest sumar al optiunilor este printat cand Kmap este rulat fara nici un argument si ultima versiune este disponibila la
-\m[blue]\fB\%https://kmap.org/data/kmap.usage.txt\fR\m[]\&. Ajuta oamenii sa isi aduca aminte de cele mai comune optiuni, dar nu reprezinta un substitut pentru documentatia in profunzime din restul acestui manual\&. Unele optiuni obscure nici nu sunt incluse aici\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap Ajuta oamenii sa isi aduca aminte de cele mai comune optiuni, dar nu reprezinta un substitut pentru documentatia in profunzime din restul acestui manual\&. Unele optiuni obscure nici nu sunt incluse aici\&.
 .PP
 .if n \{\
 .RS 4
@@ -560,7 +560,7 @@ deschis|filtrat (open|filtered)\&. Kmap se va comporta in acelasi fel in care o 
 \fB\-sI <host zombie [:port_de_proba]>\fR(Scanare Idle)
 .RS 4
 Aceasta metoda avansata de scanare permite o scanare TCP complet oarba a tintei (insemnand ca nici un pachet nu este trimis tintei de la adresa IP reala)\&. In loc, un canal derivat de atac exploateaza o secventa de fragmentare IPID predictibila a hostului zombie pentru a culege informatii despre porturile deschise pe masina tinta\&. Sistemele IDS vor indica scanarea ca venind de la hostul zombie specificat (care trebuie sa fie functional si sa indeplineasca anumite criterii)\&. Acest tip fascinant de scanare este prea complex pentru a fi descris in acest ghid de referinta, astfel ca am scris un document informativ cu detalii complete disponibil la
-\m[blue]\fB\%https://kmap.org/book/idlescan.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book/idlescan.html\fR\m[]\&.
 .sp
 In afara faptului ca este extrem de discreta (datorita naturii oarbe), acest tip de scanare permite maparea relatiilor de incredere bazate pe IP intre masini\&. Lista de porturi arata porturile deschise
 \fIdin perspectiva hostului zombie\&.\fRAsa ca puteti incerca scanarea tintei folosind diferiti zombie despre care credeti ca ar putea avea relatii de incredere cu tinta (prin router/filtru de pachete)\&.
@@ -650,7 +650,7 @@ kmap\-service\-probescontine probe pentru interogarea diferitelor servicii si co
 deschis|filtrat (open|filtered)dupa o scanare UDP care nu a putut determina daca porturile sunt deschise sau filtrate\&. Detectia versiunii va incerca sa smulga un raspuns de la aceste porturi (asa cum o face cu porturile deschise), si sa sa le schimbe starea in deschis daca reuseste\&. Porturile TCP
 deschis|filtrat (open|filtered)sunt tratate in aceeasi maniera\&. Notati ca optiunea
 \fB\-A\fRactiveaza detectia versiunii printre altele\&. Un document care explica aceste lucruri, utilizarea lor si rafinarea detectiei versiunii este disponibila la
-\m[blue]\fB\%https://kmap.org/vscan/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/vscan/\fR\m[]\&.
 .PP
 Cand Kmap primeste raspunsuri de la un serviciu dar nu gaseste ceva corespunzator in baza de date, afiseaza o amprenta si un URL pentru a o putea trimite daca stiti cu exactitate ce ruleaza la respectivul port\&. Va rog sa va rupeti cateva minute pentru a face acest lucru, astfel incat de descoperirea dumneavoastra sa poata beneficia toata lumea\&. Datorita amprentelor trimise de utilizatori, Kmap are aproximativ 3\&.000 de modele pentru 350 de protocoale cum ar fi smtp, ftp, http, etc\&.
 .PP
@@ -719,7 +719,7 @@ Detectia sistemului de operare activeaza alte cateva teste care folosesc oricum 
 „incrementala\(rq, ceea ce inseamna ca incrementeaza campul ID din headerul fiecarui pachet pe care il trimit\&. Acest lucru le face vulnerabile la cateva tehnici avansate de culegere a informatiilor si la atacuri simulate\&.
 .PP
 Un articol ce documenteaza aceste aspecte, precum si personalizarea detectiei versiunii este disponibil in mai multe limbi la
-\m[blue]\fB\%https://kmap.org/osdetect/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .PP
 Detectarea sistemului de operare este activata si controlata prin urmatoarele optiuni:
 .PP
@@ -1269,12 +1269,12 @@ Realizeaza un transfer de zona DNS pentru a gasi toate hosturile din company\&.c
 .SH "PROBLEME"
 .PP
 Asemeni autorului, Kmap nu este perfect\&. Dar ilputeti face mai bun trimitand rapoarte despre problemele aparute si chiar scriind patchuri\&. daca Kmap nu se comporta in modul in care va asteptati, faceti upgradeul la ultima versiune disponibila la
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. Daca problema persista, faceti munca de cercetare pentru a vedea daca problema a fost descoperita si discutata\&. Incercati cautarea in Google a mesajului de eroare sau navigand prin arhivele Kmap\-dev la
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. Daca problema persista, faceti munca de cercetare pentru a vedea daca problema a fost descoperita si discutata\&. Incercati cautarea in Google a mesajului de eroare sau navigand prin arhivele Kmap\-dev la
 \m[blue]\fB\%https://seclists.org/\fR\m[]\&. Cititi acest manual in intregime de asemenea\&. Daca nimic nu se rezolva, trimiteti un mail la
 <dev@kmap\&.org>\&. Va rog sa includeti tot ce ati aflat despre problema, precum si versiunea de Kmap pe care o folositi si sistemul de operare\&. Problemele si intrebarile legate de utilizarea Kmapului trimise la dev@kmap\&.org au sanse mult mai mari de a li se raspunde decat cele trimise direct la Fyodor\&.
 .PP
 Patchurile de rezolvare a problemelor sunt si mai bune decat rapoartele despre problema in sine\&. Instructiuni de baza pentru crearea patchurilor sunt disponibile la
-\m[blue]\fB\%https://kmap.org/data/HACKING\fR\m[]\&. Patchurile pot fi trimise la kmap\-dev (recomandat) sau direct la Fyodor\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap Patchurile pot fi trimise la kmap\-dev (recomandat) sau direct la Fyodor\&.
 .SH "AUTOR"
 .PP
 Fyodor
@@ -1360,7 +1360,7 @@ Face legatura la o biblioteca sau executa un program care realizeaza oricare din
 .PP
 Termenul
 „Kmap\(rqinclude si portiuni din produse derivate din Kmap\&. Lista nu este exclusiva, dar este menita a clarifica interpretarea noastra a produselor derivate cu exemple comune\&. Aceste restrictii se aplica doar pentru cazul in care redistribuiti Kmap\&. De exemplu, nimic nu va impiedica sa scrieti interfete grafice proprietare pentru Kmap\&. Distribuiti\-o independent si invitati oamenii la
-\m[blue]\fB\%https://kmap.org/\fR\m[]pentru a descarca Kmap\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]pentru a descarca Kmap\&.
 .PP
 Nu consideram aceste ca restrictii adugate peste GPL ci doar o clarificare a modului in care interpretam termenul de
 „produs derivat\(rqasa cum se aplica el la produsul Kmap licentiat GPL\&. Este similar modului in care Linus Torvalds a anuntat interpretarea sa asupra a cum se aplica termenul de
@@ -1407,7 +1407,7 @@ Clasificarea de control al exportului din SUA: Insecure\&.Com LLC considera ca K
 .IP " 1." 4
 original English version
 .RS 4
-\%https://kmap.org/man/
+\%https://github.com/YurilLAB/Kmap/man/
 .RE
 .IP " 2." 4
 Creative Commons Attribution License
@@ -1441,7 +1441,7 @@ RFC 959
 .RE
 .IP " 8." 4
 .RS 4
-\%https://kmap.org/data/kmap.dtd
+\%https://github.com/YurilLAB/Kmap
 .RE
 .IP " 9." 4
 Kmap::Scanner
@@ -1459,12 +1459,12 @@ Kmap::Parser
 .RE
 .IP "12." 4
 .RS 4
-\%https://kmap.org/kmap_changelog.html
+\%https://github.com/YurilLAB/Kmap/kmap_changelog.html
 .RE
 .IP "13." 4
 Kmap license details
 .RS 4
-\%https://kmap.org/man/man-legal.html
+\%https://github.com/YurilLAB/Kmap/man/man-legal.html
 .RE
 .IP "14." 4
 Apache Software Foundation

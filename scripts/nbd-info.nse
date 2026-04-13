@@ -42,7 +42,7 @@ For additional information:
 -- names to about which to request information from the server.
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 portrule = shortport.version_port_or_service(10809, "nbd", "tcp")

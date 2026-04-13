@@ -53,7 +53,7 @@ script to analyze the data.
 --   was for a particular information source.
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe"}
 dependencies = {"ssl-cert", "ssh-hostkey", "nbstat"}
 

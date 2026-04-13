@@ -62,7 +62,7 @@ http://www.gamers.org/dEngine/quake/QDP/qnp.html
 categories = {"default", "discovery", "safe", "version"}
 author = "Ulrik Haugen"
 copyright = "Linköpings universitet 2014, Ulrik Haugen 2014"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 
 --- Proceed with action on open/open|filtered udp ports in interval

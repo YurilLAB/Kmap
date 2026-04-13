@@ -83,7 +83,7 @@ hostname, IPv4 and IPv6 addresses, and hardware type (for example
 -- Revised 2015/02/25 - v0.3 - XML structured output
 
 author = "Andrew Orr"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 

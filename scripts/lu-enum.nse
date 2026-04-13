@@ -47,7 +47,7 @@ script to find LUs that take you to TSO, CICS, etc.
 -- 2019-02-04 - v0.1 - created by Soldier of Fortran
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service({23,992}, "tn3270")

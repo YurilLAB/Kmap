@@ -28,7 +28,7 @@ categories = {"version"}
 -- 8899/tcp open  ssl/ovs-agent syn-ack Oracle Virtual Server Agent 3.0 (BaseHTTP 0.3; Python SimpleXMLRPCServer; Python 2.5.2)
 
 author = "David Fifield"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 
 portrule = shortport.version_port_or_service({8899})

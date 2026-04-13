@@ -79,7 +79,7 @@ Reference:
 ---
 
 author = "Paulino Calderon <calderon()websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit", "vuln"}
 
 portrule = shortport.port_or_service(3310, "clam")

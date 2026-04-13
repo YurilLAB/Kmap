@@ -84,7 +84,7 @@ class scan_test(unittest.TestCase):
         scan = Scan()
         scan.load_from_file("test-scans/simple.xml")
         host = scan.hosts[0]
-        self.assertEqual(host.hostnames, ["scanme.kmap.org"])
+        self.assertEqual(host.hostnames, ["scanme.nmap.org"])
 
     def test_os(self):
         """Test that OS information is recorded."""

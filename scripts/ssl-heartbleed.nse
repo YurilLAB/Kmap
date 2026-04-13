@@ -7,7 +7,7 @@ local string = require "string"
 local tableaux = require "tableaux"
 local vulns = require('vulns')
 local have_tls, tls = pcall(require,'tls')
-assert(have_tls, "This script requires the tls.lua library from https://kmap.org/nsedoc/lib/tls.html")
+assert(have_tls, "This script requires the tls.lua library from https://github.com/YurilLAB/Kmap/nsedoc/lib/tls.html")
 
 description = [[
 Detects whether a server is vulnerable to the OpenSSL Heartbleed bug (CVE-2014-0160).
@@ -39,7 +39,7 @@ The code is based on the Python script ssltest.py authored by Katie Stafford (ka
 --
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "vuln", "safe" }
 dependencies = {"https-redirect"}
 

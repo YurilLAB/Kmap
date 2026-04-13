@@ -49,7 +49,7 @@ requests using a given subnet.
 --
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://github.com/YurilLAB/Kmap/svn/docs/licenses/BSD-simplified"
 categories = {"discovery", "safe"}
 
 

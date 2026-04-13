@@ -42,7 +42,7 @@ Additional documents: https://tools.ietf.org/rfc/rfc6104.txt
 -- kmap -6 --script ipv6-ra-flood.nse --script-args 'interface=<interface>,timeout=10s'
 
 author = "Adam Števko"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"dos", "intrusive"}
 
 try = kmap.new_try()

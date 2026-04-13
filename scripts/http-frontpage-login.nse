@@ -35,7 +35,7 @@ remote user to login anonymously which may lead to server compromise.
 
 author = "Aleksandar Nikolic"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"vuln", "safe"}
 

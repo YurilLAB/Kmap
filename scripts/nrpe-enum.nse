@@ -34,7 +34,7 @@ enabled. User-supplied arguments are not supported.
 -- |_check_zombie_procs  OK        PROCS OK: 0 processes with STATE = Z
 
 author = "Mak Kolybabi"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 

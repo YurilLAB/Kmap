@@ -145,7 +145,7 @@ so-called "Custom data".
 -- |_        file:/C:/CFusionMX7/runtime/../wwwroot/WEB-INF/cfform/jars/
 
 author = "Martin Holst Swende"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service({1098, 1099, 1090, 8901, 8902, 8903}, {"java-rmi", "rmiregistry"})

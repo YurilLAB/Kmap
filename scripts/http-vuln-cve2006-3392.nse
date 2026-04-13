@@ -37,7 +37,7 @@ to bypass the removal of "../" directory traversal sequences.
 ---
 
 author = "Paul AMAR <aos.paul@gmail.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.portnumber({10000})

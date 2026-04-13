@@ -59,7 +59,7 @@
 -- x IBM Informix Dynamic Server Express Edition v11.50 32-bit on Ubuntu
 -- x IBM Informix Dynamic Server xxx 32-bit on Windows 2003
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- @args informix.instance specifies the Informix instance to connect to

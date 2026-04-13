@@ -4,7 +4,7 @@
 -- Provides helper class for the libssh2 binding that abstracts away
 -- details of running remote commands.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @class module
 -- @name libssh2-utility
 

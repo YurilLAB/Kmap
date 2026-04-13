@@ -6,7 +6,7 @@ description = [[
 Checks if an SSH server supports the obsolete and less secure SSH Protocol Version 1.
 ]]
 author = "Brandon Enright"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "safe"}
 
 ---

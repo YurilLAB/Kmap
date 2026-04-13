@@ -17,18 +17,18 @@
  * release or source code control revision is contained in the LICENSE
  * file distributed with that version of Kmap or source code control
  * revision. More Kmap copyright/legal information is available from
- * https://kmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * https://github.com/YurilLAB/Kmap/blob/master/LICENSE, and further information on the
+ * NPSL license itself can be found at https://github.com/YurilLAB/Kmap/blob/master/LICENSE . This
  * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
  * Kmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://kmap.org.
+ * including commercial use. It is available from https://github.com/YurilLAB/Kmap.
  *
  * The Kmap license generally prohibits companies from using and
  * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://kmap.org/oem/
+ * this purpose. See https://github.com/YurilLAB/Kmap
  *
  * If you have received a written Kmap license agreement or contract
  * stating terms other than these (such as an Kmap OEM license), you may
@@ -46,8 +46,8 @@
  *
  * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@kmap.org mailing list for possible
- * incorporation into the main distribution. Unless you specify otherwise, it
+ * Github PR at https://github.com/YurilLAB/Kmap for possible incorporation
+ * into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
  * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
@@ -59,7 +59,7 @@
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://kmap.org/oem/
+ * Kmap project -- see https://github.com/YurilLAB/Kmap
  *
  ***************************************************************************/
 
@@ -839,7 +839,7 @@ void printportoutput(const Target *currenths, const PortList *plist) {
     log_write(LOG_PLAIN, "%d service%s unrecognized despite returning data."
               " If you know the service/version, please submit the following"
               " fingerprint%s at"
-              " https://kmap.org/cgi-bin/submit.cgi?new-service :\n",
+              " https://github.com/YurilLAB/Kmap/cgi-bin/submit.cgi?new-service :\n",
               numfps, (numfps > 1) ? "s" : "", (numfps > 1) ? "s" : "");
     for (i = 0; i < numfps; i++) {
       if (numfps > 1)
@@ -1908,7 +1908,7 @@ void printosscanoutput(const Target *currenths) {
       bool suggest_submission = currenths->af() == AF_INET6 && reason == NULL && rand() % 5 >= numprints;
       if (suggest_submission)
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-            "Kmap needs more fingerprint submissions of this type. Please submit via https://kmap.org/submit/\n");
+            "Kmap needs more fingerprint submissions of this type. Please submit via https://github.com/YurilLAB/Kmap/submit/\n");
       if (suggest_submission || o.debugging || o.verbose > 1)
         write_merged_fpr(FPR, currenths, reason == NULL, true);
     } else {
@@ -1932,7 +1932,7 @@ void printosscanoutput(const Target *currenths) {
 
       if (!reason) {
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-                  "No exact OS matches for host (If you know what OS is running on it, see https://kmap.org/submit/ ).\n");
+                  "No exact OS matches for host (If you know what OS is running on it, see https://github.com/YurilLAB/Kmap/submit/ ).\n");
         write_merged_fpr(FPR, currenths, true, true);
       } else {
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
@@ -1945,7 +1945,7 @@ void printosscanoutput(const Target *currenths) {
     /* No matches at all. */
     if (!reason) {
       log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
-                "No OS matches for host (If you know what OS is running on it, see https://kmap.org/submit/ ).\n");
+                "No OS matches for host (If you know what OS is running on it, see https://github.com/YurilLAB/Kmap/submit/ ).\n");
       write_merged_fpr(FPR, currenths, true, true);
     } else {
       log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
@@ -2007,7 +2007,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3877 -- please report to fyodor@kmap.org\n");
+        fatal("STRANGE ERROR #3877 -- please report to https://github.com/YurilLAB/Kmap/issues\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.seqs[i]);
@@ -2031,7 +2031,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3876 -- please report to fyodor@kmap.org\n");
+        fatal("STRANGE ERROR #3876 -- please report to https://github.com/YurilLAB/Kmap/issues\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%hX", currenths->seq.ipids[i]);
@@ -2052,7 +2052,7 @@ void printosscanoutput(const Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3878 -- please report to fyodor@kmap.org\n");
+        fatal("STRANGE ERROR #3878 -- please report to https://github.com/YurilLAB/Kmap/issues\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.timestamps[i]);
@@ -2513,11 +2513,11 @@ void printfinaloutput() {
     log_write(LOG_STDOUT, "Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn\n");
   else if (o.numhosts_up > 0) {
     if (o.osscan && o.servicescan)
-      log_write(LOG_PLAIN, "OS and Service detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "OS and Service detection performed. Please report any incorrect results at https://github.com/YurilLAB/Kmap/submit/ .\n");
     else if (o.osscan)
-      log_write(LOG_PLAIN, "OS detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "OS detection performed. Please report any incorrect results at https://github.com/YurilLAB/Kmap/submit/ .\n");
     else if (o.servicescan)
-      log_write(LOG_PLAIN, "Service detection performed. Please report any incorrect results at https://kmap.org/submit/ .\n");
+      log_write(LOG_PLAIN, "Service detection performed. Please report any incorrect results at https://github.com/YurilLAB/Kmap/submit/ .\n");
     else if (o.udpscan && o.defeat_icmp_ratelimit)
       log_write(LOG_PLAIN, "WARNING: Some ports marked closed|filtered may actually be open. For more accurate results, do not use --defeat-icmp-ratelimit .\n");
 

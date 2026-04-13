@@ -55,7 +55,7 @@ the password hash.
 -- then use "kmap -sV" so that kmap discovers the port as an HTTP server.
 
 author = "Micah Hoffman"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "vuln"}
 
 

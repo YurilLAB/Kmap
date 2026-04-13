@@ -22,7 +22,7 @@
 -- </code>
 --
 -- @author Henri Doreau
--- @copyright Same as Kmap -- See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap -- See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @args omp2.username The username to use for authentication.
 -- @args omp2.password The password to use for authentication.

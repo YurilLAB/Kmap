@@ -35,7 +35,7 @@
       <note><para>
           Acest document descrie versiunea Kmap 3.95. Cea mai recentă
           documentație este disponibilă în limba engleză la
-          <ulink url="https://kmap.org/book/man.html" />.</para></note>
+          <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
     </web>
       <para>Kmap (
       <quote>Network Mapper</quote>) este un instrument open source pentru
@@ -94,16 +94,16 @@
       specificatiile pentru cele doua tinte.</para>
       <example id="man-ex-repscan">
         <title>O scanare reprezentativa cu Kmap</title>
-        <screen format="linespecific"># kmap -A -T4 scanme.kmap.org playground
-        Starting kmap ( https://kmap.org/ ) Interesting ports on
-        scanme.kmap.org (205.217.153.62): (The 1663 ports scanned but not shown
+        <screen format="linespecific"># kmap -A -T4 scanme.nmap.org playground
+        Starting kmap ( https://github.com/YurilLAB/Kmap/ ) Interesting ports on
+        scanme.nmap.org (205.217.153.62): (The 1663 ports scanned but not shown
         below are in state: filtered) PORT STATE SERVICE VERSION 22/tcp open
         ssh OpenSSH 3.9p1 (protocol 1.99) 53/tcp open domain 70/tcp closed
         gopher 80/tcp open http Apache httpd 2.0.52 ((Fedora)) 113/tcp closed
         auth Device type: general purpose Running: Linux 2.4.X|2.5.X|2.6.X OS
         details: Linux 2.4.7 - 2.6.11, Linux 2.6.0 - 2.6.11 Uptime 33.908 days
         (since Thu Jul 21 03:38:03 2005) Interesting ports on
-        playground.kmap.org (192.168.0.40): (The 1659 ports scanned but not
+        playground.github.com/YurilLAB/Kmap (192.168.0.40): (The 1659 ports scanned but not
         shown below are in state: closed) PORT STATE SERVICE VERSION 135/tcp
         open msrpc Microsoft Windows RPC 139/tcp open netbios-ssn 389/tcp open
         ldap? 445/tcp open microsoft-ds Microsoft Windows XP microsoft-ds
@@ -117,15 +117,15 @@
         addresses (2 hosts up) scanned in 88.392 seconds</screen>
       </example>
       <para>Cea mai noua versiune de Kmap poate fi obtinuta de la
-      <ulink url="https://kmap.org/"></ulink>. Cea mai noua
+      <ulink url="https://github.com/YurilLAB/Kmap/"></ulink>. Cea mai noua
       versiune a paginii man poate fi vizualizata la
-      <ulink url="https://kmap.org/man/"></ulink>.</para>
+      <ulink url="https://github.com/YurilLAB/Kmap/man/"></ulink>.</para>
     </refsect1>
     <refsect1 id="translation">
       <title>Traducere</title>
       <para>Aceasta editie inlimba romana a Ghidului de referinta Kmap a fost
       tradus din versiunea 2991 a textului original aflat la 
-      <ulink url="https://kmap.org/man/">original English
+      <ulink url="https://github.com/YurilLAB/Kmap/man/">original English
       version</ulink>de Dan Catalin Vasile 
       <email>danvasile@danvasile.com</email>. Traducerea a fost facuta cu scopul
       de a asigura o intelegere mai buna a functionalitatilor Kmap intai pentru
@@ -141,14 +141,14 @@
       <title>Sumarul Optiunilor</title>
       <para>Acest sumar al optiunilor este printat cand Kmap este rulat fara
       nici un argument si ultima versiune este disponibila la
-      <ulink url="https://kmap.org/data/kmap.usage.txt"></ulink>.
+      <ulink url="https://github.com/YurilLAB/Kmap
       Ajuta oamenii sa isi aduca aminte de cele mai comune optiuni, dar nu
       reprezinta un substitut pentru documentatia in profunzime din restul
       acestui manual. Unele optiuni obscure nici nu sunt incluse aici.</para>
       <para>
         <literallayout format="linespecific" class="normal">Usage: kmap [Scan
         Type(s)] [Options] {target specification} TARGET SPECIFICATION: Can
-        pass hostnames, IP addresses, networks, etc. Ex: scanme.kmap.org,
+        pass hostnames, IP addresses, networks, etc. Ex: scanme.nmap.org,
         microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254 -iL
         &lt;inputfilename&gt;: Input from list of hosts/networks -iR &lt;num
         hosts&gt;: Choose random targets --exclude
@@ -204,7 +204,7 @@
         custom Kmap data file location --send-eth/--send-ip: Send using raw
         ethernet frames or IP packets --privileged: Assume that the user is
         fully privileged -V: Print version number -h: Print this help summary
-        page. EXAMPLES: kmap -v -A scanme.kmap.org kmap -v -sP 192.168.0.0/16
+        page. EXAMPLES: kmap -v -A scanme.nmap.org kmap -v -sP 192.168.0.0/16
         10.0.0.0/8 kmap -v -iR 10000 -P0 -p 80</literallayout>
       </para>
     </refsect1>
@@ -226,8 +226,8 @@
       si 192.168.10.255 (binar:
       <literal moreinfo="none">11000000 10101000 00001010 11111111</literal>),
       inclusiv. 192.168.10.40/24 va realiza exact acelasi lucru. Dat fiind
-      numele scanme.kmap.org cu adresa IP 205.217.153.62, specificatia
-      scanme.kmap.org/16 va scana cele 65.536 adrese IP intre 205.217.0.0 si
+      numele scanme.nmap.org cu adresa IP 205.217.153.62, specificatia
+      scanme.nmap.org/16 va scana cele 65.536 adrese IP intre 205.217.0.0 si
       205.217.255.255. Cea mai mica valoare permisa este /1, care va scana
       jumatate de Internet. Cea mai mare este 32, care va scana doar
       calculatorul specificat prin nume sau IP deoarece toti bitii sunt
@@ -248,7 +248,7 @@
       sunt rareori folositoare.</para>
       <para>Kmap accepta specificarea mai multor adrese in linia de comanda si
       nici nu este necesar ca ele sa fie de acelasi tip. Comnda
-      <command moreinfo="none">kmapscanme.kmap.org 192.168.0.0/8
+      <command moreinfo="none">kmapscanme.nmap.org 192.168.0.0/8
       10.0.0,1,3-7.0-255</command>realizeaza exact ceea ce asteptati.</para>
       <para>Desi tintele sunt specificate in mod uzual in linia de comanda,
       exista si urmatoarele optiuni pentru selectia tintelor</para>
@@ -1247,7 +1247,7 @@
             este prea complex pentru a fi descris in acest ghid de referinta,
             astfel ca am scris un document informativ cu detalii complete
             disponibil la
-            <ulink url="https://kmap.org/book/idlescan.html"></ulink>.</para>
+            <ulink url="https://github.com/YurilLAB/Kmap/book/idlescan.html"></ulink>.</para>
             <para>In afara faptului ca este extrem de discreta (datorita
             naturii oarbe), acest tip de scanare permite maparea relatiilor de
             incredere bazate pe IP intre masini. Lista de porturi arata
@@ -1489,7 +1489,7 @@
       <option>-A</option>activeaza detectia versiunii printre altele. Un
       document care explica aceste lucruri, utilizarea lor si rafinarea
       detectiei versiunii este disponibila la
-      <ulink url="https://kmap.org/vscan/"></ulink>.</para>
+      <ulink url="https://github.com/YurilLAB/Kmap/vscan/"></ulink>.</para>
       <para>Cand Kmap primeste raspunsuri de la un serviciu dar nu gaseste ceva
       corespunzator in baza de date, afiseaza o amprenta si un URL pentru a o
       putea trimite daca stiti cu exactitate ce ruleaza la respectivul port. Va
@@ -1652,7 +1652,7 @@
       atacuri simulate.</para>
       <para>Un articol ce documenteaza aceste aspecte, precum si personalizarea
       detectiei versiunii este disponibil in mai multe limbi la
-      <ulink url="https://kmap.org/osdetect/"></ulink>.</para>
+      <ulink url="https://github.com/YurilLAB/Kmap"></ulink>.</para>
       <para>Detectarea sistemului de operare este activata si controlata prin
       urmatoarele optiuni:</para>
       <variablelist>
@@ -2359,7 +2359,7 @@
             rezultatele. DTD defineste elementele legale ale formatului si
             adesea enumera atributele si valorile pe care le pot lua. Ultima
             versiune este intotdeauna disponibila la
-            <ulink url="https://kmap.org/data/kmap.dtd">
+            <ulink url="https://github.com/YurilLAB/Kmap
             </ulink>.</para>
             <para>XML ofera un format stabil care este usor interpretat de
             software. Analizatoare XML sunt disponibile pentru majoritate
@@ -2634,7 +2634,7 @@
             <option>--stylesheet</option>. Trebuie sa furnizati calea completa
             sau URLul. O apelare uzuala este
             <option>
-            --stylesheethttps://kmap.org/data/kmap.xsl</option>.
+            --stylesheethttps://github.com/YurilLAB/Kmap
             Aceasta aplelare spune browserului sa incarce cel mai nou format de
             afisare de la Insecure.Org. Optiunea
             <option>--webxml</option>realizeaza acelasi lucru cu mai putine
@@ -2653,7 +2653,7 @@
           <listitem>
             <para>Este un sinonim covenabil pentru
             <option>--stylesheet
-            https://kmap.org/data/kmap.xsl</option>.</para>
+            https://github.com/YurilLAB/Kmap
           </listitem>
         </varlistentry>
         <varlistentry>
@@ -2871,28 +2871,28 @@
       lor si pot depune plangere. Obtinerea mai intai a permisiunii este cea
       mai buna abordare.</para>
       <para>Pentru testare, aveti permisiunea sa scanati hostul
-      <literal moreinfo="none">scanme.kmap.org</literal>. Aceasta permisiune
+      <literal moreinfo="none">scanme.nmap.org</literal>. Aceasta permisiune
       include doar scanarea cu Kmap si nu testarea gaurilor de securitate sau
       atacuri de tip DOS. Pentru conservarea latimii de banda, va rog sa nu
       initiati mai multe scanari zilnic. Daca aceasta tinta este abuzata, va fi
       indisponibila in retea si Kmap va raporta imposibilitatea de a gasi
       hostul
       <computeroutput moreinfo="none">Failed to resolve given hostname/IP:
-      scanme.kmap.org</computeroutput>. Aceasta permisiune se aplica si
+      scanme.nmap.org</computeroutput>. Aceasta permisiune se aplica si
       hosturilor
-      <literal moreinfo="none">scanme2.kmap.org</literal>,
-      <literal moreinfo="none">scanme3.kmap.org</literal>, si asa mai departe,
+      <literal moreinfo="none">scanme2.github.com/YurilLAB/Kmap</literal>,
+      <literal moreinfo="none">scanme3.github.com/YurilLAB/Kmap</literal>, si asa mai departe,
       desi acestea nu exista inca.</para>
       <para>
-        <userinput moreinfo="none">kmap -v scanme.kmap.org</userinput>
+        <userinput moreinfo="none">kmap -v scanme.nmap.org</userinput>
       </para>
       <para>Aceasta linie de comanda scaneaza toate porturile TCP rezervate de
       pe masina
-      <literal moreinfo="none">scanme.kmap.org</literal>. Optiunea
+      <literal moreinfo="none">scanme.nmap.org</literal>. Optiunea
       <option>-v</option>activeaza modul de afisare in timp real a
       rezultateor.</para>
       <para>
-        <userinput moreinfo="none">kmap -sS -O scanme.kmap.org/24</userinput>
+        <userinput moreinfo="none">kmap -sS -O scanme.nmap.org/24</userinput>
       </para>
       <para>Lanseaza o scanare SYN impotriva tuturor celor 255 masini din
       reteaua de
@@ -2939,34 +2939,34 @@
       trimitand rapoarte despre problemele aparute si chiar scriind patchuri.
       daca Kmap nu se comporta in modul in care va asteptati, faceti upgradeul
       la ultima versiune disponibila la
-      <ulink url="https://kmap.org/"></ulink>. Daca problema
+      <ulink url="https://github.com/YurilLAB/Kmap/"></ulink>. Daca problema
       persista, faceti munca de cercetare pentru a vedea daca problema a fost
       descoperita si discutata. Incercati cautarea in Google a mesajului de
       eroare sau navigand prin arhivele Kmap-dev la
       <ulink url="https://seclists.org/"></ulink>. Cititi acest manual in
       intregime de asemenea. Daca nimic nu se rezolva, trimiteti un mail la
-      <email>dev@kmap.org</email>. Va rog sa includeti tot ce ati
+      <email>https://github.com/YurilLAB/Kmap/issues</email>. Va rog sa includeti tot ce ati
       aflat despre problema, precum si versiunea de Kmap pe care o folositi si
       sistemul de operare. Problemele si intrebarile legate de utilizarea
-      Kmapului trimise la dev@kmap.org au sanse mult mai mari de a li
+      Kmapului trimise la https://github.com/YurilLAB/Kmap/issues au sanse mult mai mari de a li
       se raspunde decat cele trimise direct la Fyodor.</para>
       <para>Patchurile de rezolvare a problemelor sunt si mai bune decat
       rapoartele despre problema in sine. Instructiuni de baza pentru crearea
       patchurilor sunt disponibile la
-      <ulink url="https://kmap.org/data/HACKING"></ulink>.
+      <ulink url="https://github.com/YurilLAB/Kmap
       Patchurile pot fi trimise la kmap-dev (recomandat) sau direct la
       Fyodor.</para>
     </refsect1>
     <refsect1 id="man-author">
       <title>Autor</title>
       <para>Fyodor
-      <email>fyodor@kmap.org</email>(
+      <email>https://github.com/YurilLAB/Kmap/issues</email>(
       <ulink url="http://www.insecure.org"></ulink>)</para>
       <para>Sute de oameni au facut contributii importante la Kmap de-a lungul
       timpului. Ei sunt mentionati in fisierul
       <filename moreinfo="none">CHANGELOG</filename>distribuit cu Kmap si
       disponibil la
-      <ulink url="https://kmap.org/kmap_changelog.html">
+      <ulink url="https://github.com/YurilLAB/Kmap/kmap_changelog.html">
       </ulink>.</para>
     </refsect1>
     <refsect1 id="man-legal">
@@ -2975,14 +2975,14 @@
         <title>Unofficial Translation Disclaimer / Disculparea fata de
         traducerea neoficiala</title>
         <para>This is an unnofficial translation of the 
-        <ulink url="https://kmap.org/man/man-legal.html">Kmap
+        <ulink url="https://github.com/YurilLAB/Kmap/man/man-legal.html">Kmap
         license details</ulink>into Romanian. It was not written by
         Insecure.Com LLC, and does not legally state the distribution terms for
         Kmap -- only the original English text does that. However, we hope that
         this translation helps Romanian speakers understand the Kmap license
         better.</para>
         <para>Aceasta este traducerea neoficiala a 
-        <ulink url="https://kmap.org/man/man-legal.html">detaliilor
+        <ulink url="https://github.com/YurilLAB/Kmap/man/man-legal.html">detaliilor
         de licenta ale Kmap</ulink>in limba romana. Nu a fost scrisa de
         Insecure.Com LLC si nu statueaza in mod legal termenii distributiei
         Kmap – numai textul original in limba engleza realizeaza acest lucru.
@@ -3041,7 +3041,7 @@
         aplica doar pentru cazul in care redistribuiti Kmap. De exemplu, nimic
         nu va impiedica sa scrieti interfete grafice proprietare pentru Kmap.
         Distribuiti-o independent si invitati oamenii la
-        <ulink url="https://kmap.org/"></ulink>pentru a descarca
+        <ulink url="https://github.com/YurilLAB/Kmap/"></ulink>pentru a descarca
         Kmap.</para>
         <para>Nu consideram aceste ca restrictii adugate peste GPL ci doar o
         clarificare a modului in care interpretam termenul de
@@ -3082,7 +3082,7 @@
         <para>Codul sursa permite portarea Kmap pe noi platforme, rezolvarea
         problemelor si adaugarea de noi functionalitati. Sunteti incurajati sa
         trimiteti modificarile dumneavoastra la
-        <email>fyodor@kmap.org</email>pentru o posibila incorporare in
+        <email>https://github.com/YurilLAB/Kmap/issues</email>pentru o posibila incorporare in
         distributia principala. Prin trimiterea acestor modificari catre Fyodor
         sau la una din listele de dezvoltare de la Insecure.Org, se presupune
         ca oferiti lui Fyodor si Insecure.Com LLC dreptul neliitat, neexclusiv

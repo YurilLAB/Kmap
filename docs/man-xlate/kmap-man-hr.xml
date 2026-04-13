@@ -37,7 +37,7 @@
       <note><para>
           Ovaj dokument opisuje Kmap verziju 3.95. Najnovija dokumentacija
           dostupna je na engleskom jeziku, na
-          <ulink url="https://kmap.org/book/man.html" />.</para></note>
+          <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
     </web>
     <para>Kmap (<quote>Network Mapper</quote>) je open source alat za istraživanje
     mreže i sigurnosni auditing.  Dizajniran je za brzo skeniranje velikih mreža,
@@ -84,10 +84,10 @@
     
 <example id="man-ex-repscan"><title>Ovako izgleda primjer Kmap skena</title>
 <screen format="linespecific">
-# kmap -A -T4 scanme.kmap.org playground
+# kmap -A -T4 scanme.nmap.org playground
 
-Starting kmap ( https://kmap.org/ )
-Interesting ports on scanme.kmap.org (205.217.153.62):
+Starting kmap ( https://github.com/YurilLAB/Kmap/ )
+Interesting ports on scanme.nmap.org (205.217.153.62):
 (The 1663 ports scanned but not shown below are in state: filtered)
 PORT    STATE  SERVICE VERSION
 22/tcp  open   ssh     OpenSSH 3.9p1 (protocol 1.99)
@@ -100,7 +100,7 @@ Running: Linux 2.4.X|2.5.X|2.6.X
 OS details: Linux 2.4.7 - 2.6.11, Linux 2.6.0 - 2.6.11
 Uptime 33.908 days (since Thu Jul 21 03:38:03 2005)
 
-Interesting ports on playground.kmap.org (192.168.0.40):
+Interesting ports on playground.github.com/YurilLAB/Kmap (192.168.0.40):
 (The 1659 ports scanned but not shown below are in state: closed)
 PORT     STATE SERVICE       VERSION
 135/tcp  open  msrpc         Microsoft Windows RPC
@@ -122,16 +122,16 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
 </screen>
 </example>
 
-<para>Najnoviju verziju Kmap-a možete downloadati sa sljedećeg linka: <ulink url="https://kmap.org/">
+<para>Najnoviju verziju Kmap-a možete downloadati sa sljedećeg linka: <ulink url="https://github.com/YurilLAB/Kmap/">
 </ulink>.  Najnovija verzija man stranica (uputa) dostupna je na sljedećem linku:
-<ulink url="https://kmap.org/man/"></ulink>.</para>
+<ulink url="https://github.com/YurilLAB/Kmap/man/"></ulink>.</para>
 
   </refsect1>
   
 <refsect1 id="man-translation">
   <title>Napomene o prijevodu</title>
 
-  <para>Hrvatsku verziju Kmap vodiča je preveo Robert Petrunić s <ulink url="https://kmap.org/man/">
+  <para>Hrvatsku verziju Kmap vodiča je preveo Robert Petrunić s <ulink url="https://github.com/YurilLAB/Kmap/man/">
   originalne Engleske verije</ulink> 2991.
   Iako se nadam da će prijevod učiniti Kmap dostupniji ljudima Hrvatskog govornog područja, ne mogu garantirati da je
   prijevod kompletan i up to date kao i originalna Engleska verzija. Projevod možete modificirati i redistribuirati
@@ -147,7 +147,7 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
 
 <para>Sljedeći pregled opcija je ispisan kad pokrenete Kmap bez ikakvih parametara,
 a posljednja verzija je uvijek dostupna na:
-<ulink url="https://kmap.org/data/kmap.usage.txt"></ulink>.
+<ulink url="https://github.com/YurilLAB/Kmap
 Pomaže ljudima zapamtiti najčešće opcije, ali nije zamjena za detaljne upute koje se nalaze u ovom manualu.
 Neke manje korištene opcije čak se ni ne nalaze u pregledu opcija.</para>
 
@@ -155,7 +155,7 @@ Neke manje korištene opcije čak se ni ne nalaze u pregledu opcija.</para>
 <literallayout class="normal">Upotreba: kmap [Tip(ovi) skeniranja] [Opcije] {ciljano računalo}
 CILJANO RAČUNALO:
   Možete upisati hostname (naziv računala), IP adrese, mreže (subnete) isl.
-  Primjer: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Primjer: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL &lt;naziv datoteke&gt;: Naziv datoteke u kojoj se nalazi popis hostova/mreža
   -iR &lt;broj hostova&gt;: Odaberi nasumične hostove
   --exclude &lt;host1[,host2][,host3],...&gt;: Ne skeniraj navedene hostove/mreže
@@ -225,7 +225,7 @@ RAZNO:
   -V: Ispiši verziju Kmap-a
   -h: Ispiši ovaj help ekran
 PRIMJERI:
-  kmap -v -A scanme.kmap.org
+  kmap -v -A scanme.nmap.org
   kmap -v -sP 192.168.0.0/16 10.0.0.0/8
   kmap -v -iR 10000 -P0 -p 80
 </literallayout>
@@ -246,8 +246,8 @@ Za tu namjenu Kmap podržava CIDR adresiranje.  Dakle, nakon IP adrese ili naziv
 /<replaceable>numbits (broj bitova)</replaceable> koji se koriste kao mrežni ID. Npr. 192.168.10.0/24 će skenirati
 256 hostova između 192.168.10.0 (binarno: <literal moreinfo="none">11000000 10101000 00001010 00000000</literal>) i
 192.168.10.255 (binarno: <literal moreinfo="none">11000000 10101000 00001010 11111111</literal>) uključujući i
-192.168.10.0 i 192.168.10.255. 192.168.10.40/24 će učiniti istu stvar. Ako smo pak odabrali scanme.kmap.org, a recimo
-da je IP adresa tog hosta 205.217.153.62, scanme.kmap.org/16 bi skeniralo 65,536 IP adresa između 205.217.0.0 i
+192.168.10.0 i 192.168.10.255. 192.168.10.40/24 će učiniti istu stvar. Ako smo pak odabrali scanme.nmap.org, a recimo
+da je IP adresa tog hosta 205.217.153.62, scanme.nmap.org/16 bi skeniralo 65,536 IP adresa između 205.217.0.0 i
 205.217.255.255. Najmanja dozvoljena vrijednost je 1 (što bi skeniralo gotovo cijeli internet), dok je najveća
 dozvoljena vrijednost 32, što skenira samo jednog hosta.</para>
 
@@ -264,7 +264,7 @@ koristan za razna istraživanja i ispitivanja.</para>
 naziv hosta. CIDR i oktet područja nisu podržani za IPv6 jer se rijetko koriste.</para>
 
 <para>Kmap prihvaća navođenje više hostova u komandnoj liniji, a hostovi ne moraju biti istog tipa. Naredba
-<command moreinfo="none">kmap scanme.kmap.org 192.168.0.0/8 10.0.0,1,3-7.0-255</command> će učiniti upravo ono što
+<command moreinfo="none">kmap scanme.nmap.org 192.168.0.0/8 10.0.0,1,3-7.0-255</command> će učiniti upravo ono što
 očekujete od nje.</para>
 
 <para>Ciljevi skeniranja su obično navedeni u samoj komandnoj liniji, ali podržane su i sljedeće opcije:</para>
@@ -1004,7 +1004,7 @@ se SYN scan.</para>
           ciljanom računalu. IDS sustavi će pokazati da scan dolazi sa zombie mašine kojju ste specificirali kod
           pokretanja ovog tipa skeniranja (zombie mora biti upaljen i mora zadovoljavati neke kriterije). Ovaj način
           skeniranja je prekompleksan da bi ga ovdje opisali u potpunosti, pa sam napisao i postao informativni
-          članak sa svim detaljima na <ulink url="https://kmap.org/book/idlescan.html"></ulink>.</para>
+          članak sa svim detaljima na <ulink url="https://github.com/YurilLAB/Kmap/book/idlescan.html"></ulink>.</para>
 
           <para>Osim što je nevjerovatno nevidljiv (zbog načina na koji radi) ovaj tip skeniranja omogućava mapiranje
           IP baziranih pravila između računala. Ispis portova pokazuje otvorene portove <emphasis>kako ih vidi zombi
@@ -1174,7 +1174,7 @@ kao anonymous user i koriste se sljedeći parametri <literal moreinfo="none">ano
     promijeniti njihovo stanje u otvoren ako uspije dobiti odgovor. TCP portovi koji su okarakterizirani kao <literal moreinfo="none">otvoreni|filtrirani</literal>, tretirani su na isti način. Imajte na umu da opcija
     <option>-A</option> omogućije otkrivanje verzije uz ostale stvari koje podržava. Dokument koji objašnjava rad,
     korištenje i mijenjanje ovog dijela programa je dostupan na linku:
-    <ulink url="https://kmap.org/vscan/"></ulink>.
+    <ulink url="https://github.com/YurilLAB/Kmap/vscan/"></ulink>.
     </para>
 
     <para>Kad Kmap dobije odgovr od servisa, a ne može ga usporediti s ni jednim zapisom u svojoj bazi podataka, ispisat će scepijalni "fingerprint" i URL linka na koji ga možete poslati ukoliko ste sigurni u to što se nalazi na tom portu. Molim vas da odvojite nekoliko minuta svog vremena kako bi poslali te informacije, jer će kasnije nekom drugom biti od velike koristi. Zahvaljujući upravo takvom načinu prikupljanaj informacija, Kmap ima preko 3000 zapisa koji odgovaraju (prepoznavaju) preko 350 protokola, poput smtp-a, ftp-a, http-a, itd..</para>
@@ -1310,7 +1310,7 @@ kao anonymous user i koriste se sljedeći parametri <literal moreinfo="none">ano
 
     <para>Dokument u kojem je opisano kako radi, kako se koristi i kako se može prilagoditi otkrivanje verzije,
     dostupan je u podosta jezika na linku:
-    <ulink url="https://kmap.org/osdetect/"></ulink>.</para>
+    <ulink url="https://github.com/YurilLAB/Kmap"></ulink>.</para>
 
     <para>Otkrivanje OS-a se uključuje i upravlja sa sljedećim opcijama</para>
 
@@ -1837,7 +1837,7 @@ i SYN sken podržava ove opcije u potpunosti isto kao i UDP sken.</para>
           <para>Ova opcija traži od Kmap-a da koristi neispravne TCP i UDP checksume za pakete koje šalje na ciljano
           računalo. Kako skoro svaki IP stack odbacuje takve pakete, svaki odgovor koji dobijete najvjerovatnie
           dolazi od vatrozida ili IDS sustava koji nisu provjeravali checksum. Za više detalja o ovoj tehnici,
-          pogledajte: <ulink url="https://kmap.org/p60-12.txt"></ulink>.</para>
+          pogledajte: <ulink url="https://github.com/YurilLAB/Kmap/p60-12.txt"></ulink>.</para>
         </listitem>
       </varlistentry>
 
@@ -1918,7 +1918,7 @@ datoteku , a ne da je prepiše. Sve navedene opcije opisane su u daljnjem tekstu
           provjere Kmap-ov XML izvještaj. Iako je primarno namijenjeno za programsko korištenje, može pomoći i
           ljudima da interpretiraju Kmap-ov XML izvještaj. DTD definira ispravne elemente formata i često navodi
           atribute i vrijednosti koje mogu poprimiti. Najsvježija verija je uvijek dostupna na:
-          <ulink url="https://kmap.org/data/kmap.dtd"></ulink>.</para>
+          <ulink url="https://github.com/YurilLAB/Kmap
 
           <para>XML nudi stabilan format koji je lako čitljiv od strane programa. Besplatni XML parseri su dostupni
           za većinu kompjutorskih jezika, uključujući C/C++, Perl, Python i Java-u. Čak postoje i poveznice za većinu
@@ -2123,7 +2123,7 @@ samoobjašnjavajuće, ali poruke postaju sve čudnije što je nivo debugiranja v
           dohvatiti <filename moreinfo="none">kmap.xsl</filename> i iskoristiti ga za prikaz rezultata. Ukoliko ž
           elite koristiti neki drugi stil, navedite ga kao argument opciji <option>--stylesheet</option>. Morate
           navesti kompletnu putanju do njega ili URL. Npr. --stylesheet <option>--stylesheet
-          https://kmap.org/data/kmap.xsl</option>. Ova naredba kaže pregledniku da učita zadnju verziju
+          https://github.com/YurilLAB/Kmap Ova naredba kaže pregledniku da učita zadnju verziju
           stila s isecure.org. Opcija <option>--webxml</option> čini isto to bez potrebe pretjeranog pisanja i
           pamćenja linka. Učitavanje XSL stila sa stranica insecure.org omogućava gledanje rezultata na jednostavniji
           način čak i računalima koja nemaju instaliran Kmap (a samim tim i
@@ -2137,7 +2137,7 @@ samoobjašnjavajuće, ali poruke postaju sve čudnije što je nivo debugiranja v
           <option>--webxml</option> (Učitaj stil sa stranice Insecure.Org)
         </term>
         <listitem>
-          <para>Ovo je jednostavno kratica za <option>--stylesheet https://kmap.org/data/kmap.xsl
+          <para>Ovo je jednostavno kratica za <option>--stylesheet https://github.com/YurilLAB/Kmap
           </option>.</para>
         </listitem>
       </varlistentry>
@@ -2354,22 +2354,22 @@ samoobjašnjavajuće, ali poruke postaju sve čudnije što je nivo debugiranja v
     tuđih mreža iligelano i da bi trebalo biti, neki mrežni administratori ne vole nedozvoljeno skeniranje njihovih
     mreža i mogli bi se žaliti. Dobiti dozvolu prije samog čina je u svakom slučaju ispravan postupak.</para>
 
-    <para>Za testiranje imate dozvolu skenirati host <literal moreinfo="none">scanme.kmap.org</literal>. Dozvola
+    <para>Za testiranje imate dozvolu skenirati host <literal moreinfo="none">scanme.nmap.org</literal>. Dozvola
     vrijedi samo za skeniranje korištenjem Kmap-a i ne vrijedi za testiranje exploita i DOS (denial of Service)
     napada. Kako ne bi preopteretili mrežu, molim Vas da ne skenirate više od 12-tak portova dnevno. Ukoliko će ovaj
     host biti napadan na bilo koji način, uklonit ću ga s NET-a i Kmap će javiti grešku
     <computeroutput moreinfo="none">Failed to resolve given hostname/IP:
-    scanme.kmap.org</computeroutput>. Ova dozvola vrijedi i za hostove
-    <literal moreinfo="none">scanme2.kmap.org</literal>,
-    <literal moreinfo="none">scanme3.kmap.org</literal> itd., iako navedeni hostovi za sad ne postoje.</para>
+    scanme.nmap.org</computeroutput>. Ova dozvola vrijedi i za hostove
+    <literal moreinfo="none">scanme2.github.com/YurilLAB/Kmap</literal>,
+    <literal moreinfo="none">scanme3.github.com/YurilLAB/Kmap</literal> itd., iako navedeni hostovi za sad ne postoje.</para>
 
     <para>
-      <userinput moreinfo="none">kmap -v scanme.kmap.org</userinput>
+      <userinput moreinfo="none">kmap -v scanme.nmap.org</userinput>
     </para>
     <para>Ova naredba skenira sve rezervirane TCP portove na računalu
-    <literal moreinfo="none">scanme.kmap.org</literal>. Opcija <option>-v</option> uključuje verbose mod..</para>
+    <literal moreinfo="none">scanme.nmap.org</literal>. Opcija <option>-v</option> uključuje verbose mod..</para>
     <para>
-      <userinput moreinfo="none">kmap -sS -O scanme.kmap.org/24</userinput>
+      <userinput moreinfo="none">kmap -sS -O scanme.nmap.org/24</userinput>
     </para>
     <para>Pokreće skriveni (engl. stealth) SYN scan prema svakom računalu koje je upaljeno od njih 255 mogućih na
     mreži <quote>class C</quote> na kojoj se nalazi scanme host. Također pokuša ustanoviti koji OS je pokrenut na
@@ -2408,29 +2408,29 @@ samoobjašnjavajuće, ali poruke postaju sve čudnije što je nivo debugiranja v
     <para>Poput svog autora niti Kmap nije savršen, no Vi možete pomoći slanjem prijava o greškama, pa čak i pišući
     patcheve. Ukoliko se Kmap ne ponaša onako kako očekujete od njega, najprije ga nadogradite na najnoviju verziju
     dostupnu na
-    <ulink url="https://kmap.org/"></ulink>. Ukoliko je problem i dalje tu, istražite da li je već
+    <ulink url="https://github.com/YurilLAB/Kmap/"></ulink>. Ukoliko je problem i dalje tu, istražite da li je već
     otkriven i prijavljen. Pokušajte "zaguglati" poruku o grešci ili otiđite na Kmap-dev arhive na
     <ulink url="https://seclists.org/"></ulink>. Također pročitajte i kompletan manual. Ukoliko ništa od toga ne
-    pomogne, pošaljite izvještaj o grešci na <email>dev@kmap.org</email>. Molim Vas napišite sve što ste do
+    pomogne, pošaljite izvještaj o grešci na <email>https://github.com/YurilLAB/Kmap/issues</email>. Molim Vas napišite sve što ste do
     tad otkrili o problemu, te koju verziju Kmap- imate i koju verziju OS-a imate. Izvještaji o prijavljenim
-    problemima i upiti o korištenju Kmap-a koji su poslani na dev@kmap.org imaju više šansi da budu
+    problemima i upiti o korištenju Kmap-a koji su poslani na https://github.com/YurilLAB/Kmap/issues imaju više šansi da budu
     odgovoreni nego oni poslani direktno Fyodor-u.</para>
 
     <para>Patchevi za otklanjanje bugova su još i bolji od samih prijava. Osnovne upute za kreiranje patch datoteka s
-    promjenama su dostupne na <ulink url="https://kmap.org/data/HACKING"></ulink>. Patchevi mogu biti
+    promjenama su dostupne na <ulink url="https://github.com/YurilLAB/Kmap Patchevi mogu biti
     poslani na kmap-dev (što je preporučeno) ili direktno Fyodoru.</para>
   </refsect1>
 
   <refsect1 id="man-author">
     <title>Author</title>
     <para>Fyodor 
-    <email>fyodor@kmap.org</email>
+    <email>https://github.com/YurilLAB/Kmap/issues</email>
     (<ulink url="http://www.insecure.org"></ulink>)
     </para>
 
     <para>Stotine ljudi su doprinjeli u stvaranju Kmap-a tijekom godina. To je navedeno u
     <filename moreinfo="none">CHANGELOG</filename> datoteci koja je distribuirana s Kmap-om, a dostupna je i na
-    sljedećem linku: <ulink url="https://kmap.org/changelog.html"></ulink>.</para>
+    sljedećem linku: <ulink url="https://github.com/YurilLAB/Kmap"></ulink>.</para>
 
   </refsect1>
 
@@ -2471,7 +2471,7 @@ InstallShield-a.</para></listitem>
 <para>Naziv <quote>Kmap</quote> je također uključen u to. Ova lista nije eksluzivna, ali je navedena kako bi
 pojasnila našu interpretaciju deriviranih djela s najčešćim primjerima. Zabrane se primjenjuju samo u slučaju da
 uistinu redistribuirate i Kmap.  Npr. mišta vas ne sprječava da napišete i prodate front-end za Kmap. Distribuirajte
-front end i usmjerite ljude na <ulink url="https://kmap.org/"></ulink> kako bi preuzeli Kmap.</para>
+front end i usmjerite ljude na <ulink url="https://github.com/YurilLAB/Kmap/"></ulink> kako bi preuzeli Kmap.</para>
 
 <para>Ne smatramo da su to dodatne zabrane povrh GPL-a, nego samo pojašnjenja toga kako mi interpretiramo <quote>
 derivirano djelo</quote> jer se primjenjuje na naš produkt pod GPL licencom. To je slično načinu na koji je Linus
@@ -2510,7 +2510,7 @@ prije nego će ga pokrenuti. To Vam isto tako omogućava provjeru softvera na si
 niti jedna).</para>
 
 <para>Izvorni Vam kod isto tako omogućava prijenos Kmap-a na nove platforme, popravljanje grešaka i dodavanje novih
-mogućnosti. Potaknuti ste da promjene pošaljete na <email>fyodor@kmap.org</email> kako bi eventualno bile
+mogućnosti. Potaknuti ste da promjene pošaljete na <email>https://github.com/YurilLAB/Kmap/issues</email> kako bi eventualno bile
 inkorporirane u buduće verzije glavne distribucije. Slanjem promjena Fyodoru ili nekom na Insecure.Org mailing listi
 developera, podrazumijeva se da Fyodoru i Insecure.Org-u dajete puna prava na korištenje, modificiranje i
 relicenciranje koda. Kmap će uvijek biti dostupan kao open source, ali to je bitno jer je nemogućnost relicenciranja

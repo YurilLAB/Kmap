@@ -32,7 +32,7 @@ to be on the LAN.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery"}
 
 local arg_target = stdnse.get_script_args(SCRIPT_NAME .. ".target")

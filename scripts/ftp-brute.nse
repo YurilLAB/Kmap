@@ -34,7 +34,7 @@ Based on old ftp-brute.nse script by Diman Todorov, Vlatko Kosturjak and Ron Bow
 
 -- 06.08.16 - Modified by Sergey Khegay to support new brute.lua adaptability mechanism.
 author = "Aleksandar Nikolic"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(21, "ftp")

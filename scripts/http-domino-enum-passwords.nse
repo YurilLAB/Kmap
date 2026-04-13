@@ -85,7 +85,7 @@ and password or indirectly from results of http-brute or http-form-brute.
 -- Revised 04/16/2015 - v0.4 - switched to 'creds' credential repository <nnposter>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "auth"}
 dependencies = {"http-brute", "http-form-brute"}
 

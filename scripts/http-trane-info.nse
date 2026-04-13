@@ -63,7 +63,7 @@ References:
 ---
 
 author = "Pedro Joaquin <pjoaquin()websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "version", "safe"}
 
 portrule = function(host, port)

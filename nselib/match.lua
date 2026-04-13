@@ -3,7 +3,7 @@
 --
 -- The functions in this module can be used for delimiting data received by the
 -- <code>kmap.receive_buf</code> function in the Network I/O API (which see).
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local stdnse = require "stdnse"
 local find = (require "string").find

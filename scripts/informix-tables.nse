@@ -50,7 +50,7 @@ Retrieves a list of tables and column definitions for each database on an Inform
 -- Created 27/07/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "auth"}
 dependencies = { "informix-brute" }
 

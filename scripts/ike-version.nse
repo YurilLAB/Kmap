@@ -40,7 +40,7 @@ Main and Aggressive Mode and sends multiple transforms per request.
 
 
 author = "Jesper Kueckelhahn"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe", "version"}
 
 portrule = shortport.version_port_or_service(500, "isakmp", "udp")

@@ -22,7 +22,7 @@ huge number of existing modules (~18k) and themes(~1.4k).
 
 If you want to update your themes or module list refer to the link below.
 
-* https://svn.kmap.org/kmap-exp/gyani/misc/drupal-update.py
+* https://github.com/YurilLAB/Kmap-exp/gyani/misc/drupal-update.py
 ]]
 
 ---
@@ -75,7 +75,7 @@ author = {
   "Gyanendra Mishra",
 }
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {
   "discovery",

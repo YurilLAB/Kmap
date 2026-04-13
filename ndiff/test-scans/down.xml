@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet href="file:///usr/share/kmap/kmap.xsl" type="text/xsl"?>
 <!-- This scan has a down host. -->
-<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:21:37 2009 as: kmap -oX down.xml -p 1-100 -PS100 scanme.kmap.org -->
-<kmaprun scanner="kmap" args="kmap -oX down.xml -p 1-100 -PS100 scanme.kmap.org" start="1247268097" startstr="Fri Jul 10 17:21:37 2009" version="4.90RC2" xmloutputversion="1.03">
+<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:21:37 2009 as: kmap -oX down.xml -p 1-100 -PS100 scanme.nmap.org -->
+<kmaprun scanner="kmap" args="kmap -oX down.xml -p 1-100 -PS100 scanme.nmap.org" start="1247268097" startstr="Fri Jul 10 17:21:37 2009" version="4.90RC2" xmloutputversion="1.03">
 <scaninfo type="syn"  protocol="tcp" numservices="100" services="1-100" />
 <verbose level="0" />
 <debugging level="0" />

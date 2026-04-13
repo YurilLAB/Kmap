@@ -23,7 +23,7 @@ Performs brute force password auditing against the DelugeRPC daemon.
 -- |_    Performed 8 guesses in 1 seconds, average tps: 8
 
 author = "Claudiu Perta <claudiu.perta@gmail.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(58846, "deluge-rpc")

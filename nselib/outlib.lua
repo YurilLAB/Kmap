@@ -4,7 +4,7 @@
 -- between scans and following conventions for output formatting.
 --
 -- @author Daniel Miller
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @class module
 -- @name outlib
 

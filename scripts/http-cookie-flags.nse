@@ -59,7 +59,7 @@ by it will be checked in addition to the root.
 
 categories = { "default", "safe", "vuln" }
 author = "Steve Benson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 dependencies = {"http-enum"}
 
 portrule = shortport.http

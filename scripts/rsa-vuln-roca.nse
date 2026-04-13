@@ -29,7 +29,7 @@ References:
 -- @see ssh-hostkey.nse
 
 author = "Daniel Miller"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe"}
 
 -- only run this script if the target host is NOT a private (RFC1918) IP address)

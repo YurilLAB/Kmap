@@ -31,7 +31,7 @@ Performs brute-force password auditing against telnet servers.
 --                              (default: "true")
 
 author = "nnposter"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {'brute', 'intrusive'}
 
 portrule = shortport.port_or_service(23, 'telnet')

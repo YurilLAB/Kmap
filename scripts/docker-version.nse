@@ -20,7 +20,7 @@ description = [[Detects the Docker service version.]]
 
 
 author = "Claudio Criscione"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"version"}
 
 portrule = shortport.version_port_or_service({2375, 2376}, {"docker", "docker-s"}, "tcp")

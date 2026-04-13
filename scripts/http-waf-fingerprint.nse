@@ -34,7 +34,7 @@ Credit to wafw00f and w3af for some fingerprints.
 --|_    BinarySec version 3.2.2
 
 author = "Hani Benhabiles"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 --

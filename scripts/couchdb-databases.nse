@@ -33,7 +33,7 @@ http://wiki.apache.org/couchdb/HTTP_database_API.
 -- TODO : Authentication not implemented
 
 author = "Martin Holst Swende"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service({5984})

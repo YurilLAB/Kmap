@@ -35,7 +35,7 @@ Original idea by Jacob Appelbaum and his TeaTime and tlsdate tools:
 -- <elem key="delta">4</elem>
 
 author = {"Aleksandar Nikolic", "nnposter"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "default"}
 dependencies = {"https-redirect"}
 

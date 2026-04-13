@@ -39,7 +39,7 @@ Either with guest credentials or with specified username/password.
 -- |_      http://seclists.org/fulldisclosure/2010/Aug/122
 
 author = "Aleksandar Nikolic"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln","intrusive","dos"}
 
 hostrule = function(host)

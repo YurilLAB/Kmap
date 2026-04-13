@@ -82,7 +82,7 @@ The script needs to be run as a privileged user, typically root.
 -- Created 07/14/2011 - v0.1 - created by Patrik Karlsson
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"broadcast", "safe"}
 
 

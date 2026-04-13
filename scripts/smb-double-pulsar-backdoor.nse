@@ -30,7 +30,7 @@ https://github.com/countercept/doublepulsar-detection-script
 -- |_      https://steemit.com/shadowbrokers/@theshadowbrokers/lost-in-translation
 
 author = "Andrew Orr"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe", "malware"}
 
 hostrule = function(host)

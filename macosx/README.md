@@ -24,7 +24,7 @@ Installation of all packages is optional. Unselect Zekmap to get just the comman
 The kmap, ncat, ndiff, and nping command-line binaries will be installed in `/usr/local/bin`, and additional support files will be installed in `/usr/local/share`. The Zekmap application bundle will be installed in `/Applications/Zekmap.app`.
 
 For a full description of Kmap's installation on Mac OS, visit the page:
-[https://kmap.org/book/inst-macosx.html](https://kmap.org/book/inst-macosx.html) 
+[https://github.com/YurilLAB/Kmap/book/inst-macosx.html](https://github.com/YurilLAB/Kmap/book/inst-macosx.html) 
 
 ## <a name="requ"></a>Requirements
 
@@ -44,7 +44,7 @@ Ideally, you should be able to just type:
 	
 from `kmap/` directory (the root folder).
 
-For far more in-depth compilation, installation, and removal notes, read the **Kmap Install Guide** at [https://kmap.org/book/install.html](https://kmap.org/book/install.html).
+For far more in-depth compilation, installation, and removal notes, read the **Kmap Install Guide** at [https://github.com/YurilLAB/Kmap/book/install.html](https://github.com/YurilLAB/Kmap/book/install.html).
 
 ## <a name="files"></a>Files in this directory
 
@@ -87,9 +87,9 @@ After the bundling process is done and the app is installed, the **execution** p
 
 Kmap uses a read-only repository on **Github** for issues tracking and pull requests. You can contribute at the following address: [https://github.com/kmap/kmap](https://github.com/kmap/kmap).
 
-The read-write repository is managed with **Subversion**. Although, all actual commits are made to our Subversion repository on [https://svn.kmap.org](https://svn.kmap.org/).
+The read-write repository is managed with **Subversion**. Although, all actual commits are made to our Subversion repository on [https://github.com/YurilLAB/Kmap
 
-In order to be always up to date, you can consult the Changelog here: [https://kmap.org/changelog.html](https://kmap.org/changelog.html).
+In order to be always up to date, you can consult the Changelog here: [https://github.com/YurilLAB/Kmap](https://github.com/YurilLAB/Kmap).
 
 ## <a name="contributing"></a>The CONTRIBUTING file
 

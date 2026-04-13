@@ -20,7 +20,7 @@ of information object addresses stored.
 --
 
 author = {"Aleksandr Timorin", "Daniel Miller"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 portrule = shortport.port_or_service(2404, "iec-104", "tcp")

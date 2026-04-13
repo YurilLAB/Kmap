@@ -42,7 +42,7 @@ Retrieves information (such as version number and architecture) from a Redis key
 --
 
 author = {"Patrik Karlsson", "Vasiliy Kulikov"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 dependencies = {"redis-brute"}
 

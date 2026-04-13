@@ -146,7 +146,7 @@ For additional information:
 --       authentication.
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery", "version"}
 
 portrule = shortport.version_port_or_service({1883, 8883}, {"mqtt", "secure-mqtt"}, "tcp")

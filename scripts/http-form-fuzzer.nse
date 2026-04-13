@@ -48,7 +48,7 @@ determine if the fuzzing was successful.
 --
 
 author = {"Piotr Olma", "Gioacchino Mazzurco"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"fuzzer", "intrusive"}
 
 local shortport = require 'shortport'

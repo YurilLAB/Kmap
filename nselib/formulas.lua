@@ -5,7 +5,7 @@
 -- averages, entropy, randomness and other calculations. Scripts that generate statistics
 -- and metrics can also make use of this library.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 ---
 
 local math = require "math"

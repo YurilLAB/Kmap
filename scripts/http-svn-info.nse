@@ -15,9 +15,9 @@ description = [[Requests information from a Subversion repository.
 -- 443/tcp open  https   syn-ack
 -- | http-svn-info:
 -- |   Path: .
--- |   URL: https://svn.kmap.org/
+-- |   URL: https://github.com/YurilLAB/Kmap
 -- |   Relative URL: ^/
--- |   Repository Root: https://svn.kmap.org
+-- |   Repository Root: https://github.com/YurilLAB/Kmap
 -- |   Repository UUID: e0a8ed71-7df4-0310-8962-fdc924857419
 -- |   Revision: 34938
 -- |   Node Kind: directory
@@ -27,9 +27,9 @@ description = [[Requests information from a Subversion repository.
 --
 -- @xmloutput
 -- <elem key="Path">.</elem>
--- <elem key="URL">https://svn.kmap.org/</elem>
+-- <elem key="URL">https://github.com/YurilLAB/Kmap
 -- <elem key="Relative URL">^/</elem>
--- <elem key="Repository Root">https://svn.kmap.org</elem>
+-- <elem key="Repository Root">https://github.com/YurilLAB/Kmap
 -- <elem key="Repository UUID">e0a8ed71-7df4-0310-8962-fdc924857419</elem>
 -- <elem key="Revision">34938</elem>
 -- <elem key="Node Kind">directory</elem>
@@ -40,7 +40,7 @@ description = [[Requests information from a Subversion repository.
 
 author = "Gyanendra Mishra"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"default", "discovery", "safe"}
 

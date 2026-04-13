@@ -1,14 +1,14 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet href="file:///usr/share/kmap/kmap.xsl" type="text/xsl"?>
 <!-- This simple scan has one scaninfo and no extraports. -->
-<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:23:30 2009 as: kmap -oX simple.xml -p 22,113 scanme.kmap.org -->
-<kmaprun scanner="kmap" args="kmap -oX simple.xml -p 22,113 scanme.kmap.org" start="1247268210" startstr="Fri Jul 10 17:23:30 2009" version="4.90RC2" xmloutputversion="1.03">
+<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:23:30 2009 as: kmap -oX simple.xml -p 22,113 scanme.nmap.org -->
+<kmaprun scanner="kmap" args="kmap -oX simple.xml -p 22,113 scanme.nmap.org" start="1247268210" startstr="Fri Jul 10 17:23:30 2009" version="4.90RC2" xmloutputversion="1.03">
 <scaninfo type="syn"  protocol="tcp" numservices="2" services="22,113" />
 <verbose level="0" />
 <debugging level="0" />
 <host starttime="1247268210" endtime="1247268210"><status state="up" reason="echo-reply"/>
 <address addr="64.13.134.52" addrtype="ipv4" />
-<hostnames><hostname name="scanme.kmap.org" type="PTR" /></hostnames>
+<hostnames><hostname name="scanme.nmap.org" type="PTR" /></hostnames>
 <ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" method="table" conf="3" /></port>
 <port protocol="tcp" portid="113"><state state="closed" reason="reset" reason_ttl="52"/><service name="auth" method="table" conf="3" /></port>
 </ports>

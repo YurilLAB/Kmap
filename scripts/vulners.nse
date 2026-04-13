@@ -50,7 +50,7 @@ software name and its version (or CPE), so one can still have the desired privac
 -- </table>
 
 author = 'gmedian AT vulners DOT com'
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe", "external"}
 
 

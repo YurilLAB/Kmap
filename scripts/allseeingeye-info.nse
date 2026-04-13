@@ -128,7 +128,7 @@ http://sourceforge.net/projects/gameq/
 -- </table>
 
 author = "Marin Maržić"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "discovery", "safe", "version" }
 
 portrule = shortport.version_port_or_service({1258,2126,3123,12444,13200,23196,26000,27138,27244,27777,28138}, "allseeingeye", "udp")

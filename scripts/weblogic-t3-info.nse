@@ -5,7 +5,7 @@ local kmap = require "kmap"
 
 description = "Detect the T3 RMI protocol and Weblogic version"
 author = {"Alessandro ZANNI <alessandro.zanni@bt.com>", "Daniel Miller"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default","safe","discovery","version"}
 
 ---@output

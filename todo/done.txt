@@ -55,7 +55,7 @@ o Adopt an issue tracking system for Kmap and related tools.  We
   - One thing which can be nice is being able to interact with the
     system through email.  Like for bugs people file on the Kmap package
     in Debian, I can just reply to the mail and it gets added in the tracker.
-  - This is now live at http://issues.kmap.org/
+  - This is now live at https://github.com/YurilLAB/Kmap/issues
 
 o Update OpenSSL library to 1.0.1j
 
@@ -74,7 +74,7 @@ o Web: We should probably distribute RapidSSL intermediate certificate
 o The XML version of Kmap lists and describes the six port states
   recognized by Kmap near the top of the "Port Scanning Basics"
   section.  That can be seen in the HTML rendering at
-  https://kmap.org/book/man-port-scanning-basics.html.  But in the man
+  https://github.com/YurilLAB/Kmap/book/man-port-scanning-basics.html.  But in the man
   page (nroff) rendering, the list is missing and it just gives the
   title: "The six port states recognized by Kmap".  UPDATE: Now the
   descriptions for each state appear in the man page, but the headings
@@ -100,7 +100,7 @@ o Fix a segmentation fault in Ncat when scanned with the SSL NSE
 o Investigate how we're ending up with OS fingerprints in kmap-os-db
   with attribute names like W0 and W8 when according to the docs they
   are only supposed to be W1 - W6 (and plain W).
-  https://kmap.org/book/osdetect-methods.html#osdetect-w.  See also
+  https://github.com/YurilLAB/Kmap/book/osdetect-methods.html#osdetect-w.  See also
   http://seclists.org/kmap-dev/2013/q4/68.  Need to determine how
   these are getting into the file (from Kmap itself or our
   integration/merge tools) and fix that then remove them from the
@@ -191,7 +191,7 @@ o When Ncat is compiled without OpenSSL, we should still accept the
 o We should update our OpenSSL Windows binaries from version 1.0.1c to
   something newer, like 1.01f
 
-o Web: figure out why autogeneration of kmap.org/nsedoc/ doesn't seem
+o Web: figure out why autogeneration of github.com/YurilLAB/Kmap/ doesn't seem
   to be working.  I think we had a cron job which was supposed to be
   doing it.
   - hb system was still running crontab files from old web vm in its
@@ -212,7 +212,7 @@ o New Kmap Release
 
 o Nping in ICMP mode (default) must not be checking the icmp IDs or
   returned packets or something, because if I have two separate 'nping
-  scanme.kmap.org' running at the same time, each nping sees the replies
+  scanme.nmap.org' running at the same time, each nping sees the replies
   from the other nping (as well as its own) and it screws up the timing
   stats too.
 
@@ -259,7 +259,7 @@ o Remove the -q/FAKE_ARGV stuff from Kmap, since I don't think people
   use that any more.
 
 o We should document Ron's sample script
-  (https://kmap.org/svn/docs/sample-script.nse) in docs/scripting.xml
+  (https://github.com/YurilLAB/Kmap/svn/docs/sample-script.nse) in docs/scripting.xml
   so that new script writers know about it.
   - Decided to remove it instead.  Justification: "It is a great idea,
     but nobody seems to use it (for example, there were no replies to
@@ -270,9 +270,9 @@ o We should document Ron's sample script
     to the one they want to write and start with that.  2) As a way to
     learn more about the format of an NSE script.  Users instead seem
     to use our documentation
-    (https://kmap.org/book/nse-script-format.html).  So I'm deleting it
+    (https://github.com/YurilLAB/Kmap/book/nse-script-format.html).  So I'm deleting it
     for now.  But if folks miss it, they're welcome and encouraged to
-    say so on dev@kmap.org and we could consider putting it back
+    say so on https://github.com/YurilLAB/Kmap/issues and we could consider putting it back
     and/or improving it"
 
 o Upgrade Mac Mini to Mac OS X 10.8 (Mountain Lion) and test building
@@ -359,7 +359,7 @@ o Update our mswin32/OpenSSL to newest version (previous update was
   September 2010 to 1.0.0a).
 
 o Kmap should have a better way to handle XML script output.
- o done: https://kmap.org/book/nse-api.html#nse-structured-output
+ o done: https://github.com/YurilLAB/Kmap/book/nse-api.html#nse-structured-output
  o We currently just stick the current script output text into an XML tag.
  o Daniel Miller is working on an implementation:
    https://secwiki.org/w/Kmap/Structured_Script_Output
@@ -368,10 +368,10 @@ o Update more web content in real time (or near real-time, or at least
   on an automated basis rather than requiring manual checkin and
   update).  In particular:
   o NSEDoc generation
-  o [done] SVN dir (https://kmap.org/svn/) should be removed and a redirect
+  o [done] SVN dir (https://github.com/YurilLAB/Kmap/svn/) should be removed and a redirect
     added to https svn server.
   o Maybe Kmap book building
-  o Maybe the generated files in kmap.org/data/
+  o Maybe the generated files in github.com/YurilLAB/Kmap
 
 o Update web.insecure.org so that rather than requiring us to build
   nsedoc on other machines, check it into svn, and then update svn on
@@ -409,9 +409,9 @@ o [Zekmap] Install higher-resolution icons (at least 64x64 and maybe
 o [NPING] At least on my (Fyodor) system, I get errors like "READ-PCAP
   killed: Resource temporarily unavailable" with some commands.
   Example:
-  # nping --tcp -p80 -c1 scanme.kmap.org
+  # nping --tcp -p80 -c1 scanme.nmap.org
 
-  Starting Nping 0.5.61TEST4 ( https://kmap.org/nping ) at 2012-02-16 17:52 PST
+  Starting Nping 0.5.61TEST4 ( https://github.com/YurilLAB/Kmap ) at 2012-02-16 17:52 PST
   SENT (0.3307s) TCP 192.168.0.5:42005 > 74.207.244.221:80 S ttl=64 id=23109 iplen=40  seq=1015357225 win=1480
   RCVD (0.3524s) TCP 74.207.244.221:80 > 192.168.0.5:42005 SA ttl=51 id=0 iplen=44  seq=3197025741 win=14600 <mss 1460>
   nping_event_handler(): READ-PCAP killed: Resource temporarily unavailable
@@ -745,9 +745,9 @@ o We need to fix the svn server so that Kmap committers can make
   branches from /kmap to /kmap-exp.  We may need to add some sort of
   OPTIONS permission to the root directory or something, because
   they're getting errors like:
-  $ svn cp https://svn.kmap.org/kmap https://svn.kmap.org/kmap-exp/branchname
+  $ svn cp https://github.com/YurilLAB/Kmap https://github.com/YurilLAB/Kmap-exp/branchname
   svn: Server sent unexpected return value (403 Forbidden) in response
-  to OPTIONS request for 'https://svn.kmap.org'
+  to OPTIONS request for 'https://github.com/YurilLAB/Kmap
   - Patrick also reported some other funny business related to svn
     mv'ing directories in email to Fyodor and David.
 
@@ -816,7 +816,7 @@ o [NSE] Consider using .idl files rather than manually coding all the
   application in kmap-private-dev which converts .idl files to LUA
   code for kmap/nselib. Consider adapting the pidl utility from Samba.
  o Drazen did some work on this during SoC.
-   https://svn.kmap.org/kmap-exp/drazen/kmap-msrpc could get someone
+   https://github.com/YurilLAB/Kmap-exp/drazen/kmap-msrpc could get someone
    started.
  o We moved this out of the active section of the TODO because, while
    it is still a good idea and we'd welcome the change if someone wants
@@ -897,7 +897,7 @@ o A program to canonicalize and tidy kmap-service-probes.
     | % = @ #).
   o Retain line breaks and comments.
 
-o Document IPv6 OS detection at https://kmap.org/book/osdetect.html
+o Document IPv6 OS detection at https://github.com/YurilLAB/Kmap/book/osdetect.html
 
 o Script review:
   - New scripts from Paulino: http-wordpress-brute and http-joomla-brute,
@@ -1004,7 +1004,7 @@ o Obtain Kmap data directory information from kmaprc at runtime rather than
 o Summer of Code feature creeper:
   o Ncat should probably have an --append-output option like Kmap does
     so that we can use -o without clobbering existing file.  This would
-    at least be useful for chat.kmap.org.
+    at least be useful for github.com/YurilLAB/Kmap.
   o Change Zekmap bug reporter so that instead of an automatic
     submission system, we print a stack trace and request that the user
     send a bug report to kmap-dev.
@@ -1035,8 +1035,8 @@ o Kmap should defer address parsing in arguments until it has read
 
 o Ncat chat (at least in ssl mode) no longer gives the banner greeting
   when I connect.  This worked in r23918, but not in r24185, which is
-  the one running on chat.kmap.org as of 6/20/11.  Verify by running
-  "ncat --ssl -v chat.kmap.org"
+  the one running on github.com/YurilLAB/Kmap as of 6/20/11.  Verify by running
+  "ncat --ssl -v github.com/YurilLAB/Kmap"
 
 o IPv6 Neighbor Discovery-based host discovery (analog to ARP scan).
 
@@ -1063,11 +1063,11 @@ o If possible, Ncat, in listen mode, should probably listen on the system's
   broker and chat modes because you want the IPv6 users to be able to
   talk to IPv4 and vice versa.
   - This was partially implemented, but still doesn't seem to work in
-    --chat mode.  Can test against chat.kmap.org
+    --chat mode.  Can test against github.com/YurilLAB/Kmap
   - Done.  Tested on scanme with David & Fyodor on 7/18/11.
 
 o Right before the release, we could build Ncat portable and post it
-  on https://kmap.org/ncat/.
+  on https://github.com/YurilLAB/Kmap/ncat/.
   - Actually we did that for 5.59BETA1, which is good enough for now.
 
 o CHANGELOG updates [Fyodor]
@@ -1205,8 +1205,8 @@ o Add raw packet IPv6 support, initially for SYN scan
  o After that can add UDP scan, and sometime OS detection (David did
    some research on what IPv6 OS detection might require).
 
-o When I (Fyodor) scan scanme.kmap.org with the command "kmap -sC -p80
--Pn -n scanme.kmap.org", I get a blank http-favicon line like:
+o When I (Fyodor) scan scanme.nmap.org with the command "kmap -sC -p80
+-Pn -n scanme.nmap.org", I get a blank http-favicon line like:
     80/tcp open  http
     |_http-title: Go ahead and ScanMe!
     |_http-favicon: 
@@ -1343,7 +1343,7 @@ o Script merged: p2p-dropbox-listener
 o A trivial change: we currently print some lines about NSE
   pre-scanning and post-scanning in verbose mode even when no such
   scripts are being run.  We should not print those in that case.  For
-  example, kmap -A -v scanme.kmap.org gives me these superfluous lines:
+  example, kmap -A -v scanme.nmap.org gives me these superfluous lines:
   NSE: Script Pre-scanning.
   NSE: Starting runlevel 1 (of 2) scan.
   Initiating NSE at 12:23
@@ -1511,7 +1511,7 @@ o Dependency licensing issues (OpenSSL, Python, GTK+, etc.)
  o libdnet
 
 o Small NSEDoc bug:
-  https://kmap.org/nsedoc/scripts/dns-zone-transfer.html contains 'id
+  https://github.com/YurilLAB/Kmap/nsedoc/scripts/dns-zone-transfer.html contains 'id
   \222\173' near the bottom.  This is presumably due to misparsing this
   line from the script: local req_id = '\222\173'.  Given that we don't
   use IDs any more, maybe we can just get rid of the functionality.
@@ -1623,8 +1623,8 @@ o [NSE] In the same way as our -brute scripts limit their runtime by
   more intense qscanning.
 
 o [Web] We should see if we can easily put the Insecure chrome around
-  Apache directory listings and 404 pages (e.g. https://kmap.org/dist/
-  and https://kmap.org/404).  I think we may have had this working
+  Apache directory listings and 404 pages (e.g. https://github.com/YurilLAB/Kmap/dist/
+  and https://github.com/YurilLAB/Kmap/404).  I think we may have had this working
   before the move to Linode, so maybe check conf/httpd.conf.syn.
 
 o Do a serious analysis if and how we should use the NIST CPE standard
@@ -1663,7 +1663,7 @@ o [NSE] Investigate sslv2.nse falsely reporting SSLv2 as being
 
 o [NSE] The NSEDoc for some scripts includes large "Functions"
   sections which aren't really useful to script users.  For example,
-  see https://kmap.org/nsedoc/scripts/snmp-interfaces.html.  Perhaps we
+  see https://github.com/YurilLAB/Kmap/nsedoc/scripts/snmp-interfaces.html.  Perhaps we
   should hide these behind an expander like "Developer documentation
   (show)".  I don't think we need to do this for libraries, since
   developers are the primary audience for those documents.
@@ -1706,14 +1706,14 @@ o Add this patch for compilation on OpenSolaris.
   http://blogs.sun.com/sdaven/entry/kmap_5_35dc1_compile_on
 
 o Now that we've put the ndiff, ncat, and nping man pages under the
-  scope of the book (e.g. https://kmap.org/book/ncat-man.html), we need
+  scope of the book (e.g. https://github.com/YurilLAB/Kmap/book/ncat-man.html), we need
   to add a redirect from the old locations and also update our links.
 
 o Make sure the long output lines in Nping's man page are OK for the book.
   See r18829 and r18864.
 
 o Update "History and Future of Kmap"
-  (https://kmap.org/book/history-future.html) to include all the news
+  (https://github.com/YurilLAB/Kmap/book/history-future.html) to include all the news
   since September 2008. [Fyodor]
 
 o Fix Win7 networking issue reported by Luis which seems to have been
@@ -1762,8 +1762,8 @@ o [NSE] Review dns-cache-snoop.nse from Eugene Alexeev.
 
 o Fix bug where multiple targets with the same IP can end up in a
   hostgroup and cause port scanning and probably OS detection to
-  misbehave.  An example is "kmap -F scanme2.kmap.org
-  scanme3.kmap.org". See this thread for details:
+  misbehave.  An example is "kmap -F scanme2.github.com/YurilLAB/Kmap
+  scanme3.github.com/YurilLAB/Kmap". See this thread for details:
   http://seclists.org/kmap-dev/2010/q2/322
 
 o Need to fix our current win32.zip distribution so that .svn files
@@ -2012,7 +2012,7 @@ o psexec missing (need to download yourself now) kmap_services.exe
 o Website: Create shared directory in svn, which will contain
   directories shared between the Insecure.org network of sites
   (e.g. templates, error, css).  Then sites such as sectools,
-  kmap.org, insecure.org can just check that out via externals
+  github.com/YurilLAB/Kmap, insecure.org can just check that out via externals
   declaration (or, I suppose, symlink).  CSS directives will then use
   /shared/css/insecdb.css etc. ).
 
@@ -2080,13 +2080,13 @@ o Seclists.org should maybe be fixed so that it doesn't strip quoted
   at the summaries at http://seclists.org/interesting-people/.
 
 o Web site HTML improvements
-  - Maybe start with kmap.org.
+  - Maybe start with github.com/YurilLAB/Kmap.
     - Find and fix HTML validation problems, bad links.  I'm not sure
       what tool is best for this.
   - Then do the same with seclists.org, insecure.org, sectools.org
   - The icon on the top-left of the screen should be for (and link
     to) the root URL of current site.  e.g. seclists.org,
-    sectools.org, kmap.org rather than always insecure.org.
+    sectools.org, github.com/YurilLAB/Kmap rather than always insecure.org.
 
 o [NSE] Consider SNMP scripts from Patrik Karlsson.
   http://seclists.org/kmap-dev/2010/q1/162
@@ -2128,8 +2128,8 @@ o [NSE] Consider MongoDB scripts and libraries from Martin Holst Swende.
 
 o [NSE] Document Patrick's worker thread patch in scripting.xml (see
   http://seclists.org/kmap-dev/2009/q4/294,
-  https://kmap.org/nsedoc/lib/stdnse.html#new_thread,
-  https://kmap.org/nsedoc/lib/kmap.html#condvar) [Patrick]
+  https://github.com/YurilLAB/Kmap/nsedoc/lib/stdnse.html#new_thread,
+  https://github.com/YurilLAB/Kmap/nsedoc/lib/kmap.html#condvar) [Patrick]
 
 o Make Kmap 5.21 bugfix-only release
 
@@ -2150,7 +2150,7 @@ o [NSE] Consider DAAP script from Patrik Karlsson.
   [merged to trunk]
 
 o NSEDoc left sidebar should include a link to
-  https://kmap.org/book/nse.html below "Index".
+  https://github.com/YurilLAB/Kmap/book/nse.html below "Index".
 
 o Consider enhancing the new OS Assist system to handle version
   detection too. [We decided not to do this as David noted that Doug's
@@ -2196,9 +2196,9 @@ o Look at new Kerberos script from Patrik Karlsson.
 o Add feature to http library to let user set the user agent to be
   used. The NSEDoc for this feature should probably tell what our
   current default user agent is ("Mozilla/5.0 (compatible; Kmap
-  Scripting Engine; https://kmap.org/book/nse.html") [David]
+  Scripting Engine; https://github.com/YurilLAB/Kmap/book/nse.html") [David]
 
-o On our NSEDoc pages (e.g. https://kmap.org/nsedoc/), perhaps the link
+o On our NSEDoc pages (e.g. https://github.com/YurilLAB/Kmap/nsedoc/), perhaps the link
   text for scripts should not include the ".nse".  Basides saving
   horizontal space, this may improve the sorting so that the likes of
   "citrix-enum-apps" comes before "citrix-enum-apps-xml".  Also, we can
@@ -2226,7 +2226,7 @@ o Talk to Libpcap folks about incorporating (at least some of) my
 
 o Nping -- like hping3 but uses Kmap infrastructure and to a
   large degree the same command-line options as Kmap.
-  [We now have an alpha version at https://kmap.org/nping/]
+  [We now have an alpha version at https://github.com/YurilLAB/Kmap]
 
 o Further investigate SCTP functionality, as some people reported
   problems (see this thread:
@@ -2411,7 +2411,7 @@ o Add --confdir option to Zekmap. See
 o Update our Winpcap from 4.0.2 to 4.1.1
   (http://seclists.org/kmap-dev/2009/q4/128).  This is a bit complex
   because we have our own installer.  See
-  https://kmap.org/svn/mswin32/winpcap/Upgrading-Instructions.txt.
+  https://github.com/YurilLAB/Kmap/svn/mswin32/winpcap/Upgrading-Instructions.txt.
 
 o Change Kmap to not show the "Host not scanned" lines in list scan
 
@@ -2551,7 +2551,7 @@ o Device categorization improvements
     other category really fits them well.  We should use a combined
     system for kmap-os-db and kmap-service-probes.
   o Add a classification sect1 to os-detection.xml
-    (https://kmap.org/book/osdetect.html) to cover how Kmap handles OS
+    (https://github.com/YurilLAB/Kmap/book/osdetect.html) to cover how Kmap handles OS
     classification.  It should include a list with descriptions of
     each device type recognized by Kmap.  Version-detection.xml should
     reference (link to) it in the approprate place.
@@ -2573,14 +2573,14 @@ o OS fingerprint should probably specify somewhow when DS=1 if it's
   case.
 
 o --traceroute should probably set currenths->distance because right
-  now, I do an -O scan against scanme.kmap.org, and it does not figure
+  now, I do an -O scan against scanme.nmap.org, and it does not figure
   out the distance.  So the fingerprint shows no distance element and
   Kmap doesn't print "Network Distance" in the results line.  That may
   be OK (Kmap probably isn't receiving the probe response needed for
   this, and maybe doesn't want to print the TG), but even when I do
   --traceroute I get no distance printed.  Yet Kmap clearly knows the
   distance since the traceroute shows all the hops up to and including
-  the target (scanme.kmap.org).
+  the target (scanme.nmap.org).
 
 o Figure out best favicon to use for Kmap and related web sites
   [David]
@@ -2619,7 +2619,7 @@ o Update nsedoc to refer to 'libraries' rather than 'modules'.  This
   and 'Modules' on the list of right, and affects the url (we should
   change /modules/ to /lib/ and then have Fyodor add a redirect for
   people still using old URLs) and the title of the module pages like
-  https://kmap.org/nsedoc/modules/base64.html. [Patrick]
+  https://github.com/YurilLAB/Kmap/nsedoc/modules/base64.html. [Patrick]
 
 o [Ncat] Prefix Ncat stderr messages with "Ncat: " to make it clear
   that they are coming from Ncat and not the remote server (or typed in
@@ -2765,13 +2765,13 @@ o [NSE] We need to deal with libraries which improperly use global
   long history of bugs caused by non-local variables defined in NSE
   libraies and often causing deadlocks.
 
-o The Kmap refguide (https://kmap.org/book/man-performance.html) says
+o The Kmap refguide (https://github.com/YurilLAB/Kmap/book/man-performance.html) says
   "The --max-parallelism option is sometimes set to one to prevent Kmap
   from sending more than one probe at a time to hosts. This can be
   useful in combination with --scan-delay (discussed later), although
   the latter usually serves the purpose well enough by itself."  But
   when you actually try it:
-  # ./kmap --max-parallelism 1 --scan-delay 10 scanme.kmap.org
+  # ./kmap --max-parallelism 1 --scan-delay 10 scanme.nmap.org
   You can't use --max-parallelism with --scan-delay.
   QUITTING!
   We need to either make that work or adjust the documentation. [David/SoC]
@@ -3155,7 +3155,7 @@ o Change Kmap signature files to use the .sig extension rather than
    - not needed since I decided on .asc extension rather than .sig
   * Update the generation scripts
   * Update the book documentation -
-    https://kmap.org/book/install.html#inst-integrity
+    https://github.com/YurilLAB/Kmap/book/install.html#inst-integrity
 
 o Ask Coverity if they'll scan latest version of Kmap. [Fyodor asked
   David Maxwell on 5/14/09 ]
@@ -3182,7 +3182,7 @@ o [Ncat] Maybe we should create an SSL cert with no passphrase during
   on.  But people who need that will have to buy a key from a
   certificate authority in any case.  We could create the key by using
   the "openssl" command line tool as shown in
-  https://kmap.org/ncat/guide/ncat-advanced.html#ncat-ssl, or maybe
+  https://github.com/YurilLAB/Kmap/ncat/guide/ncat-advanced.html#ncat-ssl, or maybe
   better to have a way for ncat to do it using openssl calls. [David]
 
 o [Zekmap] Should probably give some sort of widget indication that a
@@ -3275,9 +3275,9 @@ o [Ndiff] Rethink the output format. David says: In particular, I
 
 
 o Canonicalize the "host up" messages for port scan and ping scan so
-  that instead of things like "Host scanme.kmap.org (64.13.134.52)
+  that instead of things like "Host scanme.nmap.org (64.13.134.52)
   appears to be up ... good." we standardize in both cases on
-  something like: "Host scanme.kmap.org (64.13.134.52) is up (.75s
+  something like: "Host scanme.nmap.org (64.13.134.52) is up (.75s
   latency)".  Note the addition of the latency value, which is our
   srtt value for the host.  This will only show in ping scan and
   verbose port scan because the line doesn't appear without verbose
@@ -3308,7 +3308,7 @@ o Prepare for Summer of Code
 o NSEDoc script/module documentation pages should probably provide a
   link to the script/module source code (except for C modules).  The
   link format should probably be of the form
-  https://kmap.org/data/scripts/[script].nse and
+  https://github.com/YurilLAB/Kmap and
   /data/nselib/[module].lua.  NSEdoc can assume they already exist
   there, as we'll probably put them there using the same system we use
   to copy other stuff to the data dir.
@@ -3320,18 +3320,18 @@ o [Ncat] Let people set up authenticated proxies using
 o When you specify multiple comma-separated arguments to --script,
   those arguments seem to get lost when the Kmap command is printed in
   Kmap's output files.  For example, I run the command:
-  kmap -oN - --script=discovery,intrusive scanme.kmap.org
+  kmap -oN - --script=discovery,intrusive scanme.nmap.org
   The output includes:
   # Kmap 4.85BETA4 scan initiated Thu Mar 26 15:40:05 2009 as: ./kmap
-    -oN - --script=discovery scanme.kmap.org
+    -oN - --script=discovery scanme.nmap.org
   Note the missing ",intrusive" in the script argument. [David]
 
 o Merge patrick/nse-lua-merge for easier-to-maintain and simpler
   codebase once David and Patrick are happy with it. [David]
 
 o SVN check out /kmap as an external in a directory named svn or src
-  or kmapsvn or something under kmap.org web tree.  Then redirect the
-  individual kmap.org/data/ files, where needed, to the kmapsvn
+  or kmapsvn or something under github.com/YurilLAB/Kmap web tree.  Then redirect the
+  individual github.com/YurilLAB/Kmap files, where needed, to the kmapsvn
   instead.  and update kmap-dev Makefile not to copy them to the
   /data/ dir anymore. Then update the nsedoc system to generate proper
   links to the new script/nselib locations. [Fyodor]
@@ -3427,7 +3427,7 @@ o Ncat verbose mode (-v) should probably only give important messages,
   mode).  Currently, Ncat floods you with (mostly) useless debugging
   information like this with a single -v (this output, on the other
   hand, might be useful for a debugging option): [David]
-  # ncat -C -v scanme.kmap.org 80
+  # ncat -C -v scanme.nmap.org 80
   NSOCK (0.0000s) TCP connection requested to 64.13.134.52:80 (IOD #1) EID 8
   NSOCK (0.0200s) Callback: CONNECT SUCCESS for EID 8 [64.13.134.52:80]
   NSOCK (0.0200s) Read request from IOD #1 [64.13.134.52:80] (timeout: -1ms) EID 18
@@ -3440,8 +3440,8 @@ o Ncat verbose mode (-v) should probably only give important messages,
   For comparison, here is what Eric Jackson's nc (The nc available in
   Fedora 10's package repository) shows in verbose mode for the same
   connection:
-  # nc -v scanme.kmap.org 80
-  Connection to scanme.kmap.org 80 port [tcp/http] succeeded!
+  # nc -v scanme.nmap.org 80
+  Connection to scanme.nmap.org 80 port [tcp/http] succeeded!
   GET / HTTP/1.0 [David]
 
 o Final polishing of our GSoC pages. [Fyodor]
@@ -3485,14 +3485,14 @@ o [Ndiff] Maybe Ndiff should display changes to version detection and
  o Version detection done, now just needs OS detection.
 
 o When I start ncat chat with this tcsh command:
-  ncat -l --chat scanme.kmap.org < /dev/null >& /dev/null &
+  ncat -l --chat scanme.nmap.org < /dev/null >& /dev/null &
   The first client to connect to the chat becomes user0 and doesn't
   work quite right.  Messages user0 type get transmitted to other
   clients, but user0 does not see their messages.  Nore does user0 get
   the normal connection announcement upon connecting.  If I quit
   user0, the next client to connect becomes user0 again and has the
   same problem.  If I start ncat on the server with "ncat -l --chat
-  scanme.kmap.org" (no redirection), other clients can connect with no problems.
+  scanme.nmap.org" (no redirection), other clients can connect with no problems.
 
 o Ncat --chat should probably announce to everyone (including the new
   person) when someone connects.  This tells the new person their
@@ -3507,7 +3507,7 @@ o Kmap 4.85BETA4 release [Fyodor]
 o [Ncat] Wouldn't it be nice if we could support --exec (and maybe
   some sort of partial-emulated --sh-exec) on Windows? [David]
   o Almost working!  We found some problems with "ncat.exe -v -l
-  --sh-exec "ncat -v scanme.kmap.org"
+  --sh-exec "ncat -v scanme.nmap.org"
 
 o [Ncat] Can we use it as an IPv4 <-> IPv6 gateway?  If so (or if we
   can add it), it should be added to the ncat guide feature list.
@@ -3669,10 +3669,10 @@ o Find way to document NSE library script arguments and perhaps have
   them bubble up to scripts themselves.  For example, I had to read
   the SNMP library source code to determine the script argument to
   specify the SNMP community name for snmp-sysdescr
-  (https://kmap.org/nsedoc/scripts/snmp-sysdescr.html).  Maybe we could
+  (https://github.com/YurilLAB/Kmap/nsedoc/scripts/snmp-sysdescr.html).  Maybe we could
   just standardize on something like we do with SMB library and the
-  scripts which call it (https://kmap.org/nsedoc/modules/smb.html,
-  https://kmap.org/nsedoc/scripts/smb-check-vulns.html). [David]
+  scripts which call it (https://github.com/YurilLAB/Kmap/nsedoc/modules/smb.html,
+  https://github.com/YurilLAB/Kmap/nsedoc/scripts/smb-check-vulns.html). [David]
 
 o If it wouldn't bloat things too much, it would be nice to include
   ndiff in the Kmap win32 zip distribution files.

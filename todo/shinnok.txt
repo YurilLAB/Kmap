@@ -90,8 +90,8 @@ o Ncat hangs on ssl -> REFACTORING
 
 o Ncat chat (at least in ssl mode) no longer gives the banner greeting
   when I connect.  This worked in r23918, but not in r24185, which is
-  the one running on chat.kmap.org as of 6/20/11.  Verify by running
-  "ncat --ssl -v chat.kmap.org"
+  the one running on github.com/YurilLAB/Kmap as of 6/20/11.  Verify by running
+  "ncat --ssl -v github.com/YurilLAB/Kmap"
 
 o Pending uncompleted SSL handshakes when in --exec* listening mode make
   Ncat consume 100% cpu(core/thread).

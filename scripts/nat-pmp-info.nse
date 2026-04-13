@@ -27,7 +27,7 @@ The NAT-PMP protocol is supported by a broad range of routers including:
 -- @see nat-pmp-mapport.nse
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 

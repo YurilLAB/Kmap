@@ -104,14 +104,14 @@ Kmap done: 1 IP address (1 host up) scanned in 14\&.40 seconds
 .\}
 .PP
 L\*(Aqultima versione di Kmap si può ottenere dal sito
-\m[blue]\fB\%https://kmap.org\fR\m[]\&. L\*(Aqultima versione di questa pagina del manuale è disponibile al sito
-\m[blue]\fB\%https://kmap.org/book/man.html\fR\m[]\&. È anche inclusa come capitolo di
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&. L\*(Aqultima versione di questa pagina del manuale è disponibile al sito
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&. È anche inclusa come capitolo di
 «Kmap Network Scanning: The Official Kmap Project Guide to Network Discovery and Security Scanning»
-(\m[blue]\fB\%https://kmap.org/book/\fR\m[])\&.
+(\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book/\fR\m[])\&.
 .SH "ELENCO DELLE OPZIONI"
 .PP
 Questo elenco delle possibili opzioni viene stampato quando Kmap viene eseguito senza argomenti; una versione aggiornata di questo elenco è sempre disponibile sul sito
-\m[blue]\fB\%https://svn.kmap.org/kmap/docs/kmap.usage.txt\fR\m[]\&. È utile per ricordarsi le opzioni più comuni ma non dev\*(Aqessere inteso come un\*(Aqalternativa alla documentazione approfondita presente in questa pagina di manuale\&. Alcune opzioni "oscure" non sono neanche incluse qui\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/docs/kmap.usage.txt\fR\m[]\&. È utile per ricordarsi le opzioni più comuni ma non dev\*(Aqessere inteso come un\*(Aqalternativa alla documentazione approfondita presente in questa pagina di manuale\&. Alcune opzioni "oscure" non sono neanche incluse qui\&.
 .PP
 .if n \{\
 .RS 4
@@ -435,7 +435,7 @@ e
 .RS 4
 Un\*(Aqaltra opzione di host discovery è il ping UDP, la quale manda un pacchetto UDP alle porte indicate\&. Per molte porte, il pacchetto sarà vuoto, anche se utilizzare un payload specifico del protocollo aumentale probabilità di risposta\&. Vedi la sezione
 «UDP payloads: \fBkmap\-payloads\fR»
-(\m[blue]\fB\%https://kmap.org/book/kmap-payloads.html\fR\m[]) per una descrizione del database dei payloads\&. Il contenuto del pacchetto può essere gestito con le opzioni
+(\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book/kmap-payloads.html\fR\m[]) per una descrizione del database dei payloads\&. Il contenuto del pacchetto può essere gestito con le opzioni
 \fB\-\-data\fR,
 \fB\-\-data\-string\fR
 e
@@ -647,7 +647,7 @@ e
 filtered\&.
 .sp
 Questa tecnica è spesso indicata come "scanning semi\-aperto" (tradotto letteralmente per esigenze di comprensione, da "half\-open scanning", NdT), perché non viene aperta una connessione TCP completa\&. Viene mandato un pacchetto SYN come se si fosse sul punto di aprire una connessione reale e si attende una risposta\&. Un SYN/ACK indica che la porta è in ascolto (aperta), mentre un RST (reset) indica che la porta non è in ascolto\&. Se non viene ricevuta nessuna risposta dopo diverse ritrasmissioni la porta viene marcata come filtrata\&. La porta viene marcata come tale anche se viene ricevuto un pacchetto di errore "ICMP unreachable" (tipo 3, codici 1, 2, 3, 9, 10, 13)\&. La porta viene considerata aperta anche nel caso in cui un pacchetto SYN (senza il flag ACK) viene ricevuto in risposta\&. Questo in base ad una feature TCP estremamente rara conosciuta come "apertura simultanea" ("simultaneous open") o connessione "split handshake" (vedere
-\m[blue]\fB\%https://kmap.org/misc/split-handshake.pdf\fR\m[])\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/misc/split-handshake.pdf\fR\m[])\&.
 .RE
 .PP
 \fB\-sT\fR (TCP connect scan)
@@ -1261,7 +1261,7 @@ name=value\&. I nomi e i valori possono essere stringhe senza spazi o i caratter
 xmpp\-info\&.server_name\&. Si può utilizzare questa identificazione per agire solo sullo script specificato, oppure utilizzare la versione non identificativa (server_name
 in questo caso) per agire su tutti gli script che utilizzano questo argomento\&. Uno script controllerà prima gli argomenti a lui identificati (il nome degli argomenti è specificato nella documentazione dello script) prima di accettare un argomento non qualificato\&. Un esempio complesso è
 \fB\-\-script\-args \*(Aquser=foo,pass=",{}=bar",whois={whodb=nofollow+ripe},xmpp\-info\&.server_name=localhost\*(Aq\fR\&. L\*(AqNSE Documentation Portal all\*(Aqindirizzo
-\m[blue]\fB\%https://kmap.org/nsedoc/\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/nsedoc/\fR\m[]
 elenca gli argomenti che ogni script accetta\&.
 .RE
 .PP
@@ -1691,7 +1691,7 @@ Attenzione: questa feature è ancora in fase di sviluppo ed ha alcune limitazion
 \fB\-\-badsum\fR (Send packets with bogus TCP/UDP checksums)
 .RS 4
 Richiede ad Kmap di usare un checksum TCP o UDP non valido per i pacchetti inviati alla macchina di destinazione\&. Poiché teoricamente tutti gli stack IP degli host finiranno per ignorare questi pacchetti, qualunque risposta ricevuta dovrà per forza provenire da un firewall o da un Intrusion Detection System (IDS) che non si preoccupa di verificare il checksum\&. Per maggiori informazioni su questa tecnica, si consulti
-\m[blue]\fB\%https://kmap.org/p60-12.txt\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/p60-12.txt\fR\m[]\&.
 .RE
 .PP
 \fB\-\-adler32\fR (Use deprecated Adler32 instead of CRC32C for SCTP checksums)
@@ -1786,7 +1786,7 @@ interactive output\&.
 \fB\-oX <filespec>\fR (XML output)
 .RS 4
 Richiede che l\*(Aqoutput XML sia rediretto al file specificato\&. Kmap contiene un document type definition (DTD) che permette agli interpreti XML di validare l\*(Aqoutput XML di Kmap\&. Sebbene serva principalmente per l\*(Aquso programmatico, può essere d\*(Aqaiuto anche agli utenti\&. Il DTD definisce gli elementi convenzionali del formato, e spesso enumera gli attributi e i valori che possono assumere\&. L\*(Aqultima versione è sempre disponibile al link
-\m[blue]\fB\%https://svn.kmap.org/kmap/docs/kmap.dtd\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/docs/kmap.dtd\fR\m[]\&.
 .sp
 XML offre un formato stabile e facilmente interpretato dal software\&. Gli interpreti XML liberi (free) sono disponibili per la maggior parte dei linguaggi di programmazione, compresi C/C++, Perl, Python e Java\&. Qualcuno ha anche scritto dei bindings per gran parte di questi linguaggi per trattare in maniera specifica l\*(Aqoutput e l\*(Aqesecuzione di Kmap\&. Ne sono esempio:
 \m[blue]\fBKmap::Scanner\fR\m[]\&\s-2\u[21]\d\s+2
@@ -2184,21 +2184,21 @@ Questo scansiona 4096 indirizzi IP in cerca di webservers (ma senza effettuare p
 .PP
 Dato che questa guida di riferimento mostra nel dettaglio tutte le opzioni di Kmap, non può dimostrare in maniera completa come utilizzare queste feature per risolvere velocemente applicazioni reali\&. È per questo che è stato pubblicato
 \m[blue]\fB\fIKmap Network Scanning: The Official Kmap Project Guide to Network Discovery and Security Scanning\fR\fR\m[]\&\s-2\u[27]\d\s+2\&. Gli argomenti trattati sono sovvertire i firewall e gli IDS, ottimizzare le performance di Kmap e l\*(Aqautomazione di comuni processi di rete con l\*(AqKmap Scripting Engine\&. Vengono forniti suggerimenti ed istruzioni per operazioni comuni con Kmap come fare un inventario della rete, penetration testing, trovare rogue access point wireless e l\*(Aqannullamento di possibili worm\&. Esempi e diagrammi mostrano l\*(Aqattuale sistema di comunicazione via cavo\&. Più della metà del libro è disponibile gratuitamente online\&. Per maggiori informazioni
-\m[blue]\fB\%https://kmap.org/book\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book\fR\m[]\&.
 .SH "BUGS"
 .PP
 Al pari del suo autore (e di questa traduzione, NdT), Kmap non è perfetto\&. Ma puoi fare qualcosa per aiutare a renderlo migliore mandando delle segnalazioni di bug o addirittura scrivendo delle patch\&. Se Kmap non si dovesse comportare come ti aspetteresti, prova prima l\*(Aqultima versione disponibile su
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. Se il problema persiste effettua qualche ricerca per determinare se il problema è stato già scoperto e segnalato\&. Prova a cercare sulla nostra pagina di ricerca
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. Se il problema persiste effettua qualche ricerca per determinare se il problema è stato già scoperto e segnalato\&. Prova a cercare sulla nostra pagina di ricerca
 \m[blue]\fB\%https://insecure.org/search.html\fR\m[]
 o su Google il messaggio di errore o ancora a sfogliare l\*(Aqarchivio Kmap\-dev all\*(Aqindirizzo
 \m[blue]\fB\%https://seclists.org/\fR\m[]\&. Leggi inoltre tutta questa pagina di manuale\&. Se nulla di questo riguarda il tuo caso, manda un bug report a
 <dev@kmap\&.org>\&. Accertati di includere ogni cosa che sei riuscito a sapere sul problema, la versione di Kmap che hai installato e su quale sistema operativo la stai usando\&. Segnalazioni di problemi ed eventuali domande sull\*(Aquso di Kmap inviate a
 <dev@kmap\&.org>
 hanno più probabilità di avere risposta di quelle inviate a Fyodor direttamente\&. Se ti registri alla lista di kmap\-dev prima di inviare il messaggio, quest\*(Aqultimo non verrà moderato e quindi arriverà più velocemente\&. Iscriviti su
-\m[blue]\fB\%https://kmap.org/mailman/listinfo/dev\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/mailman/listinfo/dev\fR\m[]\&.
 .PP
 Le patch che risolvono i bug sono molto meglio di una segnalazione\&. Le istruzioni di base per creare delle patch sono disponibili su
-\m[blue]\fB\%https://svn.kmap.org/kmap/HACKING\fR\m[]\&. Le patch potranno essere inviate a kmap\-dev (raccomandato) oppure direttamente a Fyodor\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/HACKING\fR\m[]\&. Le patch potranno essere inviate a kmap\-dev (raccomandato) oppure direttamente a Fyodor\&.
 .SH "AUTORE"
 .PP
 Gordon
@@ -2217,7 +2217,7 @@ Aggiornamento e revisione 04/2015: Andrea Pizzarotti
 <andrew3686@gmail\&.com>
 .PP
 Centinaia di persone hanno dato validi contributi a Kmap nel corso degli anni\&. Questi sono elencati dettagliatamente nel file di CHANGELOG che è distribuito assieme a Kmap ed è anche disponibile su
-\m[blue]\fB\%https://kmap.org/changelog.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .SH "NOTE LEGALI"
 .SS "Copyright e Licenze di Kmap"
 .PP
@@ -2381,7 +2381,7 @@ Quando compilato col supporto ad OpenSSL o distribuito come codice sorgente, Ins
 La presente traduzione ha il solo scopo di aiutare nella comprensione del testo originale
 «Kmap Reference Guide», non ne costituisce copia sostitutiva e nemmeno licenza alternativa di
 «Covered Software»\&. Per qualsiasi informazione o chiarimento e per la versione più aggiornata, fare riferimento al testo originale disponibile al link
-\m[blue]\fB\%https://kmap.org/book/man.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .SH "NOTE"
 .IP " 1." 4
 RFC 1122
@@ -2416,7 +2416,7 @@ RFC del protocollo TCP
 .IP " 7." 4
 TCP Idle Scan (-sI)
 .RS 4
-\%https://kmap.org/book/idlescan.html
+\%https://github.com/YurilLAB/Kmap/book/idlescan.html
 .RE
 .IP " 8." 4
 RFC 959
@@ -2427,12 +2427,12 @@ RFC 959
 Well Known Port List:
             \fBkmap-services\fR
 .RS 4
-\%https://kmap.org/book/kmap-services.html
+\%https://github.com/YurilLAB/Kmap/book/kmap-services.html
 .RE
 .IP "10." 4
 Chapter 7, Service and Application Version Detection
 .RS 4
-\%https://kmap.org/book/vscan.html
+\%https://github.com/YurilLAB/Kmap/book/vscan.html
 .RE
 .IP "11." 4
 RFC 1323
@@ -2442,7 +2442,7 @@ RFC 1323
 .IP "12." 4
 Chapter 8, Remote OS Detection
 .RS 4
-\%https://kmap.org/book/osdetect.html
+\%https://github.com/YurilLAB/Kmap/book/osdetect.html
 .RE
 .IP "13." 4
 linguaggio di programmazione Lua
@@ -2452,33 +2452,33 @@ linguaggio di programmazione Lua
 .IP "14." 4
 Script Categories
 .RS 4
-\%https://kmap.org/book/nse-usage.html#nse-categories
+\%https://github.com/YurilLAB/Kmap/book/nse-usage.html#nse-categories
 .RE
 .IP "15." 4
 Chapter 9, Kmap Scripting Engine
 .RS 4
-\%https://kmap.org/book/nse.html
+\%https://github.com/YurilLAB/Kmap/book/nse.html
 .RE
 .IP "16." 4
 Chapter 14, Understanding and Customizing Kmap Data Files
 .RS 4
-\%https://kmap.org/book/data-files.html
+\%https://github.com/YurilLAB/Kmap/book/data-files.html
 .RE
 .IP "17." 4
 \(lqIdle
             Scan Implementation Algorithms\(rq
 .RS 4
-\%https://kmap.org/book/scan-methods.html#port-scanning-algorithms
+\%https://github.com/YurilLAB/Kmap/book/scan-methods.html#port-scanning-algorithms
 .RE
 .IP "18." 4
 A practical example: bypassing default Snort 2.2.0 rules
 .RS 4
-\%https://kmap.org/book/firewalls.html#defeating-ids-snort-portscan
+\%https://github.com/YurilLAB/Kmap/book/firewalls.html#defeating-ids-snort-portscan
 .RE
 .IP "19." 4
 adaptive retransmission
 .RS 4
-\%https://kmap.org/book/scan-methods.html#scan-methods-adaptive-retransmission
+\%https://github.com/YurilLAB/Kmap/book/scan-methods.html#scan-methods-adaptive-retransmission
 .RE
 .IP "20." 4
 RFC 2960
@@ -2498,12 +2498,12 @@ Kmap::Parser
 .IP "23." 4
 Grepable Output (-oG)
 .RS 4
-\%https://kmap.org/book/output-formats-grepable-output.html
+\%https://github.com/YurilLAB/Kmap/book/output-formats-grepable-output.html
 .RE
 .IP "24." 4
 Timing and Performance
 .RS 4
-\%https://kmap.org/book/man-performance.html
+\%https://github.com/YurilLAB/Kmap/book/man-performance.html
 .RE
 .IP "25." 4
 xsltproc
@@ -2520,7 +2520,7 @@ su Wikipedia
       Network Scanning: The Official Kmap Project Guide to Network Discovery
       and Security Scanning\fR
 .RS 4
-\%https://kmap.org/book/
+\%https://github.com/YurilLAB/Kmap/book/
 .RE
 .IP "28." 4
 Apache Software Foundation
@@ -2565,7 +2565,7 @@ Liblinear linear classification library
 .IP "36." 4
 IPv6 matching
 .RS 4
-\%https://kmap.org/book/osdetect-guess.html#osdetect-guess-ipv6
+\%https://github.com/YurilLAB/Kmap/book/osdetect-guess.html#osdetect-guess-ipv6
 .RE
 .IP "37." 4
 Export Administration Regulations (EAR)

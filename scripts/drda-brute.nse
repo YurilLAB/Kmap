@@ -26,7 +26,7 @@ Performs password guessing against databases supporting the IBM DB2 protocol suc
 -- |_  db2admin:db2admin => Valid credentials
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories={"intrusive", "brute"}
 
 

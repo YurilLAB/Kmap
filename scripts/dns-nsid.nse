@@ -37,7 +37,7 @@ References:
 -- <elem key="bind.version">NSD 3.2.15</elem>
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://github.com/YurilLAB/Kmap/svn/docs/licenses/BSD-simplified"
 
 categories = {"discovery", "default", "safe"}
 

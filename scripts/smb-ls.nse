@@ -107,7 +107,7 @@ The output is intended to resemble the output of the UNIX <code>ls</code> comman
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 dependencies = {"smb-enum-shares"}
 

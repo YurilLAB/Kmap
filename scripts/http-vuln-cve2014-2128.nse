@@ -33,7 +33,7 @@ Authentication Bypass Vulnerability (CVE-2014-2128).
 -- |_      http://cvedetails.com/cve/2014-2128/
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe"}
 
 portrule = function(host, port)

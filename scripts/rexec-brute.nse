@@ -27,7 +27,7 @@ Performs brute force password auditing against the classic UNIX rexec (remote ex
 
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service(512, "exec", "tcp")

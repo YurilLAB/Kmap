@@ -34,7 +34,7 @@ CVE-2001-1013: http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2001-1013.
 -- |_ http-userdir-enum: Potential Users: root (403), user (200), test (200)
 
 author = "jah"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth", "intrusive"}
 
 

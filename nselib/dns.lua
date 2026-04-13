@@ -27,7 +27,7 @@
 --</code>
 --
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 
 local coroutine = require "coroutine"
@@ -1372,7 +1372,7 @@ local tests = { {
       0x00, 0x00, 0x0e, 0x0f, -- TTL 3599
       0x00, 0x04, -- Record Length
       0x2d, 0x21, 0x20, 0x9c ), -- 45.33.32.156
-    qname = "scanme.kmap.org",
+    qname = "scanme.nmap.org",
     qtype = "A",
     ans = {"ip", "45.33.32.156"}
   },
@@ -1413,7 +1413,7 @@ local tests = { {
       0x00),  -- Name terminator
     qname = "156.32.33.45.in-addr.arpa",
     qtype = "PTR",
-    ans = {"domain", "scanme.kmap.org"}
+    ans = {"domain", "scanme.nmap.org"}
   },
 }
 for _, t in ipairs(tests) do

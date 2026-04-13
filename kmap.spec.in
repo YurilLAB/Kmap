@@ -19,10 +19,10 @@ Name: %{name}
 Version: %{version}
 Release: %{release}
 Epoch: 1
-License: https://kmap.org/man/man-legal.html
+License: https://github.com/YurilLAB/Kmap/man/man-legal.html
 Group: Applications/System
-Source0: https://kmap.org/dist/%{name}-%{version}.tgz
-URL: https://kmap.org
+Source0: https://github.com/YurilLAB/Kmap/dist/%{name}-%{version}.tgz
+URL: https://github.com/YurilLAB/Kmap
 
 # Disable automatic dependency calculation because we want to provide
 # packages for more than one version of Python. Without this, RPM will
@@ -136,5 +136,5 @@ Service attacks, route tracing, etc.
 
 * Sat Jun 06 2009 Fyodor (fyodor(a)insecure.org)
 - Removed changelog entries as SVN is a more authoritative source. Execute:
-- svn log --username guest --password "" https://svn.kmap.org/kmap/kmap.spec.in
+- svn log --username guest --password "" https://github.com/YurilLAB/Kmap/kmap.spec.in
 

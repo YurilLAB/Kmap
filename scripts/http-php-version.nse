@@ -39,7 +39,7 @@ Link:
 --     if the http code is 200 (ok), proceed. (thanks to Tom Sellers who has reported this lack of check)
 
 author = {"Ange Gutek", "Rob Nicholls"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

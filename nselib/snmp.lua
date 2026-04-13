@@ -7,7 +7,7 @@
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 -- @author Gioacchino Mazzurco <gmazzurco89@gmail.com>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 -- 2015-06-11 Gioacchino Mazzurco - Use creds library to handle SNMP community
 

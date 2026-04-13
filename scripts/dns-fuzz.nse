@@ -36,7 +36,7 @@ development lifecycle.
 -- |_dns-fuzz: Server stopped responding... He's dead, Jim.
 
 author = "Michael Pattrick"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"fuzzer", "intrusive"}
 
 
@@ -50,7 +50,7 @@ DNStimeout = 500
 recursiveOnly = false
 
 -- We only perform a DNS lookup of this site
-recursiveServer = "scanme.kmap.org"
+recursiveServer = "scanme.nmap.org"
 
 ---
 -- Checks if the server is alive/DNS
@@ -82,7 +82,7 @@ function pingServer (host, port, attempts)
 
     return false
   else
-    -- just do a vanilla recursive lookup of scanme.kmap.org
+    -- just do a vanilla recursive lookup of scanme.nmap.org
     for i = 1, attempts do
       status, response = dns.query(recursiveServer, {host=host.ip, port=port.number, proto=port.protocol, tries=1, timeout=DNStimeout^slowDown})
       if status then

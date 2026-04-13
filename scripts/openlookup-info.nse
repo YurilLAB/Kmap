@@ -34,7 +34,7 @@ Parses and displays the banner information of an OpenLookup (network key-value s
 -- <elem key="http port">5851</elem>
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe", "version"}
 
 

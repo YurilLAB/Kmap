@@ -34,11 +34,11 @@ This script was formerly (until April 2012) known as hostmap.nse.
 -- |     173.255.243.189
 -- |     images.insecure.org
 -- |     www.insecure.org
--- |     kmap.org
+-- |     github.com/YurilLAB/Kmap
 -- |     189.243.255.173.in-addr.arpa
--- |     mail.kmap.org
--- |     svn.kmap.org
--- |     www.kmap.org
+-- |     mail.github.com/YurilLAB/Kmap
+-- |     svn.github.com/YurilLAB/Kmap
+-- |     www.github.com/YurilLAB/Kmap
 -- |     sectools.org
 -- |     seclists.org
 -- |_    li253-189.members.linode.com
@@ -49,11 +49,11 @@ This script was formerly (until April 2012) known as hostmap.nse.
 --  <elem>173.255.243.189</elem>
 --  <elem>images.insecure.org</elem>
 --  <elem>www.insecure.org</elem>
---  <elem>kmap.org</elem>
+--  <elem>github.com/YurilLAB/Kmap</elem>
 --  <elem>189.243.255.173.in-addr.arpa</elem>
---  <elem>mail.kmap.org</elem>
---  <elem>svn.kmap.org</elem>
---  <elem>www.kmap.org</elem>
+--  <elem>mail.github.com/YurilLAB/Kmap</elem>
+--  <elem>svn.github.com/YurilLAB/Kmap</elem>
+--  <elem>www.github.com/YurilLAB/Kmap</elem>
 --  <elem>sectools.org</elem>
 --  <elem>seclists.org</elem>
 --  <elem>li253-189.members.linode.com</elem>
@@ -62,7 +62,7 @@ This script was formerly (until April 2012) known as hostmap.nse.
 
 author = "Ange Gutek"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"external", "discovery"}
 

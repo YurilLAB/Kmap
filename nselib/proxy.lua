@@ -5,7 +5,7 @@
 -- @args proxy.pattern Pattern that will be searched inside the request results
 --
 -- @author Joao Correa <joao@livewire.com.br>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local dns = require "dns"
 local ipOps = require "ipOps"

@@ -40,7 +40,7 @@ Note that the <code>consumingDetect</code> callback will not take place only if
 
 categories = {"discovery", "intrusive"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local kmap = require "kmap"
 local shortport = require "shortport"

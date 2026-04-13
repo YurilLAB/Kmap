@@ -57,7 +57,7 @@ when run from Windows.
 -- @see http-slowloris-check.nse
 
 author = {"Aleksandar Nikolic", "Ange Gutek"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"dos", "intrusive"}
 
 

@@ -22,13 +22,13 @@ The script searches for email and ip by default.
 -- kmap -p 80 www.example.com --script http-grep --script-args 'http-grep.builtins ={"mastercard", "discover"}, http-grep.url="example.html"'
 -- @output
 -- | http-grep:
--- |   (1) https://kmap.org/book/man-bugs.html:
+-- |   (1) https://github.com/YurilLAB/Kmap/book/man-bugs.html:
 -- |     (1) email:
--- |       + dev@kmap.org
--- |   (1) https://kmap.org/book/install.html:
+-- |       + https://github.com/YurilLAB/Kmap/issues
+-- |   (1) https://github.com/YurilLAB/Kmap/book/install.html:
 -- |     (1) email:
--- |       + fyodor@kmap.org
--- |   (16) https://kmap.org/changelog.html:
+-- |       + https://github.com/YurilLAB/Kmap/issues
+-- |   (16) https://github.com/YurilLAB/Kmap:
 -- |     (7) ip:
 -- |       + 255.255.255.255
 -- |       + 10.99.24.140
@@ -47,7 +47,7 @@ The script searches for email and ip by default.
 -- |       + president@whitehouse.gov
 -- |       + haesslich@loyalty.org
 -- |       + rchong@fcc.gov
--- |   (6) https://kmap.org/5/#5changes:
+-- |   (6) https://github.com/YurilLAB/Kmap/5/#5changes:
 -- |     (6) ip:
 -- |       + 207.68.200.30
 -- |       + 64.13.134.52
@@ -75,17 +75,17 @@ The script searches for email and ip by default.
 -- visa, amex, ssn and ip addresses. If you just put in script-args http-grep.builtins then all will be enabled.
 --
 -- @xmloutput
--- <table key="(1) https://kmap.org/book/man-bugs.html">
+-- <table key="(1) https://github.com/YurilLAB/Kmap/book/man-bugs.html">
 --   <table key="(1) email">
---     <elem>+ dev@kmap.org</elem>
+--     <elem>+ https://github.com/YurilLAB/Kmap/issues</elem>
 --   </table>
 -- </table>
--- <table key="(1) https://kmap.org/book/install.html">
+-- <table key="(1) https://github.com/YurilLAB/Kmap/book/install.html">
 --   <table key="(1) email">
---     <elem>+ fyodor@kmap.org</elem>
+--     <elem>+ https://github.com/YurilLAB/Kmap/issues</elem>
 --   </table>
 -- </table>
--- <table key="(16) https://kmap.org/changelog.html">
+-- <table key="(16) https://github.com/YurilLAB/Kmap">
 --   <table key="(7) ip">
 --     <elem>+ 255.255.255.255</elem>
 --     <elem>+ 10.99.24.140</elem>
@@ -107,7 +107,7 @@ The script searches for email and ip by default.
 --     <elem>+ rchong@fcc.gov</elem>
 --   </table>
 -- </table>
--- <table key="(6) https://kmap.org/5/#5changes">
+-- <table key="(6) https://github.com/YurilLAB/Kmap/5/#5changes">
 --   <table key="(6) ip">
 --     <elem>+ 207.68.200.30</elem>
 --     <elem>+ 64.13.134.52</elem>
@@ -119,7 +119,7 @@ The script searches for email and ip by default.
 -- </table>
 
 author = {"Patrik Karlsson", "Gyanendra Mishra"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

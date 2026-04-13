@@ -265,7 +265,7 @@
 --       (default: 5).
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 --
 -- Version 0.73

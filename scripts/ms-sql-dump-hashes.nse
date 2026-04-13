@@ -37,7 +37,7 @@ discovered by other scripts.
 --
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"auth", "discovery", "safe"}
 
 dependencies = {"broadcast-ms-sql-discover", "ms-sql-brute", "ms-sql-empty-password"}

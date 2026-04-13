@@ -89,7 +89,7 @@ Opportunistic STARTTLS sessions are established on services that support them.
 -- |_      https://weakdh.org
 
 author = "Jacob Gajek"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe"}
 dependencies = {"https-redirect"}
 

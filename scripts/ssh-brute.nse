@@ -25,7 +25,7 @@ Performs brute-force password guessing against ssh servers.
 -- @args ssh-brute.timeout    Connection timeout (default: "5s")
 
 author = "Devin Bjelland"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {
   'brute',
   'intrusive',

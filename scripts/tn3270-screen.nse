@@ -56,7 +56,7 @@ Hidden fields will be listed below the screen with (row, col) coordinates.
 --
 
 author = "Philip Young aka Soldier of Fortran"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery"}
 
 portrule = shortport.port_or_service({23,992}, {"tn3270"})

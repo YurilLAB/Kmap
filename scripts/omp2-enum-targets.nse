@@ -35,7 +35,7 @@ These targets will be added to the scanning queue in case
 
 
 author = "Henri Doreau"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 dependencies = {"omp2-brute"}
 

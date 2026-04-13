@@ -849,7 +849,7 @@ References:
 -- </table>
 
 author = "Rewanth Cool"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery","intrusive","safe"}
 
 portrule = shortport.port_or_service({445, 139}, "microsoft-ds", "tcp", "open")

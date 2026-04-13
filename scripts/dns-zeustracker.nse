@@ -22,7 +22,7 @@ Please review the following information before you start to scan:
 -- |_  bar.example.com     1.2.3.5   SBL123456   1234   CN       online   Bulletproof hosted  0             2011-06-15
 
 author = "Mikael Keri"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "discovery", "external", "malware"}
 
 

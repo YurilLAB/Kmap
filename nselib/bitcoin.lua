@@ -20,7 +20,7 @@
 --
 --@author Patrik Karlsson <patrik@cqure.net>
 --@author Andrew Orr <andrew@andreworr.ca>
---@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 --
 -- Version 0.2

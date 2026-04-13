@@ -22,7 +22,7 @@ Attempts to enumerate Windows Shares through SNMP.
 -- <elem key="Webapps">C:\Program Files\Apache Software Foundation\Tomcat 5.5\webapps\ROOT</elem>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 

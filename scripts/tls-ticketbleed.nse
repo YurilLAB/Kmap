@@ -46,13 +46,13 @@ For additional information:
 -- @args tls-ticketbleed.protocols (default tries all) TLSv1.0, TLSv1.1, or TLSv1.2
 
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "safe"}
 dependencies = {"https-redirect"}
 
 portrule = function(host, port)
   if not tls.handshake_parse.NewSessionTicket then
-    stdnse.verbose1("Not running: incompatible tls.lua. Get the latest from https://kmap.org/nsedoc/lib/tls.html")
+    stdnse.verbose1("Not running: incompatible tls.lua. Get the latest from https://github.com/YurilLAB/Kmap/nsedoc/lib/tls.html")
     return false
   end
   -- Ensure we have the privileges necessary to run the PCAP operations this

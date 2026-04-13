@@ -15,7 +15,7 @@
 --
 -- @args amqp.version Can be used to specify the client version to use (currently, 0-8, 0-9 or 0-9-1)
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @author Sebastian Dragomir <velorien@gmail.com>
 
 -- Version 0.1

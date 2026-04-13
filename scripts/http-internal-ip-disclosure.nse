@@ -37,7 +37,7 @@ the documentation for NSE library <code>target</code> for details.)
 -- @see ssl-cert-intaddr.nse
 
 author = {"Josh Amishav-Zlatin", "nnposter"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "vuln", "discovery", "safe" }
 
 portrule = shortport.http

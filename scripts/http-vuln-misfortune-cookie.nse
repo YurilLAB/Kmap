@@ -1,7 +1,7 @@
 description = [[Detects the RomPager 4.07 Misfortune Cookie vulnerability by safely exploiting it.]]
 
 author = "Andrew Orr"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "intrusive"}
 
 ---

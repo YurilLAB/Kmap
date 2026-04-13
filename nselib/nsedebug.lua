@@ -4,7 +4,7 @@
 -- This module contains various handy functions for debugging. These should
 -- never be used for actual results, only during testing.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local coroutine = require "coroutine"
 local debug = require "debug"

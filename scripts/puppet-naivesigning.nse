@@ -42,7 +42,7 @@ References:
 ---
 
 author = "Wong Wai Tuck"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "vuln"}
 
 portrule = shortport.port_or_service( {8140} , "puppet", "tcp", "open")

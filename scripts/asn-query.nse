@@ -40,7 +40,7 @@ server (your default DNS server, or whichever one you specified with the
 -- |_     Peer AS: 174 2914 6461
 
 author = {"jah", "Michael Pattrick"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "external", "safe"}
 
 

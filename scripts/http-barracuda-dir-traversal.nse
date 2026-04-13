@@ -77,7 +77,7 @@ http://www.exploit-db.com/exploits/15130/
 --
 
 author = "Brendan Coles"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "exploit", "auth"}
 
 

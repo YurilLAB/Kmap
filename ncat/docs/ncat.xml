@@ -1096,7 +1096,7 @@
     it better by sending bug reports or even writing patches.  If Ncat
     doesn't behave the way you expect, first upgrade to the latest
     version available from <ulink
-    url="https://kmap.org"/>.  If the problem persists,
+    url="https://github.com/YurilLAB/Kmap"/>.  If the problem persists,
     do some research to determine whether it has already been
     discovered and addressed.  Try Googling the error message or
     browsing the <citetitle>kmap-dev</citetitle> archives at <ulink
@@ -1104,17 +1104,17 @@
     <indexterm><primary><citetitle>kmap-dev</citetitle> mailing list</primary></indexterm>
     Read this full manual page as
     well.  If nothing comes of this, mail a bug report to
-    <email>dev@kmap.org</email>.  Please include everything
+    <email>https://github.com/YurilLAB/Kmap/issues</email>.  Please include everything
     you have learned about the problem, as well as what version of
     Ncat you are running and what operating system version it is
     running on.  Problem reports and Ncat usage questions sent to
-    dev@kmap.org are far more likely to be answered than
+    https://github.com/YurilLAB/Kmap/issues are far more likely to be answered than
     those sent to Fyodor directly.</para>
 
     <para>Code patches to fix bugs are even better than bug reports.
     Basic instructions for creating patch files with your changes are
     available at <ulink
-    url="https://svn.kmap.org/kmap/HACKING" />.  Patches may
+    url="https://github.com/YurilLAB/Kmap/HACKING" />.  Patches may
     be sent to <citetitle>kmap-dev</citetitle> (recommended) or to Fyodor directly.</para>
   </refsect1>
 
@@ -1126,7 +1126,7 @@
         <para>Chris Gibson <email>chris@linuxops.net</email></para>
       </listitem>
       <listitem>
-        <para>Gordon Lyon (Fyodor)<email>fyodor@kmap.org</email>
+        <para>Gordon Lyon (Fyodor)<email>https://github.com/YurilLAB/Kmap/issues</email>
         (<ulink url="http://insecure.org" />)</para>
       </listitem>
       <listitem>
@@ -1153,7 +1153,7 @@
   <para>Ncat is (C) 2005&ndash;2022 Kmap Software LLC. It is distributed
   as free and open source software under the same license terms as our
   Kmap software.  Precise terms and further details are available
-  <man>from <ulink url="https://kmap.org/man/man-legal.html"/>.</man>
+  <man>from <ulink url="https://github.com/YurilLAB/Kmap/man/man-legal.html"/>.</man>
   <notman>in <xref linkend="kmap-copyright"/>.</notman></para>
 </refsect2>
 
@@ -1180,7 +1180,7 @@ run it. This also allows you to audit the software for security holes
 <para>Source code also allows you to port Kmap (which includes Ncat)
 to new platforms, fix bugs, and add new features.  You are highly
 encouraged to send your changes to
-<email>dev@kmap.org</email> for possible incorporation into
+<email>https://github.com/YurilLAB/Kmap/issues</email> for possible incorporation into
 the main distribution.  By sending these changes to Fyodor or one of
 the Insecure.Org development mailing lists, it is assumed that you are
 offering the Kmap Project (Kmap Software LLC) the unlimited,
@@ -1200,7 +1200,7 @@ contributions, just say so when you send them.</para>
 <para>This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the Kmap Public Source
-License for more details at <ulink url="https://kmap.org/npsl/" />,
+License for more details at <ulink url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE" />,
 or in the <filename>LICENSE</filename> file
 included with Kmap.</para>
 </refsect2>

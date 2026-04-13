@@ -37,7 +37,7 @@ argument or <code>-e</code> Kmap option to define which interface to use.
 
 author = "Nick Nikolaou"
 categories = {"broadcast", "discovery", "safe"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 
 local interface_info

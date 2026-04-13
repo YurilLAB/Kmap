@@ -1,14 +1,14 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet href="file:///usr/share/kmap/kmap.xsl" type="text/xsl"?>
-<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:47:13 2009 as: kmap -oX complex.xml -sV -sC -O -&#45;script=default,whois -&#45;version-light -sS -sU -p T:1-100,U:1-100 scanme.kmap.org -->
-<kmaprun scanner="kmap" args="kmap -oX complex.xml -sV -sC -O -&#45;script=default,whois -&#45;version-light -sS -sU -p T:1-100,U:1-100 scanme.kmap.org" start="1247269633" startstr="Fri Jul 10 17:47:13 2009" version="4.90RC2" xmloutputversion="1.03">
+<!-- Kmap 4.90RC2 scan initiated Fri Jul 10 17:47:13 2009 as: kmap -oX complex.xml -sV -sC -O -&#45;script=default,whois -&#45;version-light -sS -sU -p T:1-100,U:1-100 scanme.nmap.org -->
+<kmaprun scanner="kmap" args="kmap -oX complex.xml -sV -sC -O -&#45;script=default,whois -&#45;version-light -sS -sU -p T:1-100,U:1-100 scanme.nmap.org" start="1247269633" startstr="Fri Jul 10 17:47:13 2009" version="4.90RC2" xmloutputversion="1.03">
 <scaninfo type="syn"  protocol="tcp" numservices="100" services="1-100" />
 <scaninfo type="udp"  protocol="udp" numservices="100" services="1-100" />
 <verbose level="0" />
 <debugging level="0" />
 <host starttime="1247269633" endtime="1247269755"><status state="up" reason="echo-reply"/>
 <address addr="64.13.134.52" addrtype="ipv4" />
-<hostnames><hostname name="scanme.kmap.org" type="PTR" /></hostnames>
+<hostnames><hostname name="scanme.nmap.org" type="PTR" /></hostnames>
 <ports><extraports state="open|filtered" count="99">
 <extrareasons reason="no-responses" count="99"/>
 </extraports>

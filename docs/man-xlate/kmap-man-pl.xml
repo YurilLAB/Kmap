@@ -35,7 +35,7 @@
     <web>
       <note><para>
           Dokument ten opisuje Kmap wersji 3.95. Najnowsza dokumentacja jest dostępna w języku angielskim na
-          <ulink url="https://kmap.org/book/man.html" />.</para></note>
+          <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
     </web>
 
     <para>Kmap (ang. <quote>Network Mapper</quote>) jest narz&#281;dziem open source
@@ -93,10 +93,10 @@
 
 <example id="man-ex-repscan"><title>Przyk&#322;adowe wyniki skanowania Kmapa</title>
 <screen format="linespecific">
-# kmap -A -T4 scanme.kmap.org playground
+# kmap -A -T4 scanme.nmap.org playground
 
-Starting kmap ( https://kmap.org/ )
-Interesting ports on scanme.kmap.org (205.217.153.62):
+Starting kmap ( https://github.com/YurilLAB/Kmap/ )
+Interesting ports on scanme.nmap.org (205.217.153.62):
 (The 1663 ports scanned but not shown below are in state: filtered)
 PORT    STATE  SERVICE VERSION
 22/tcp  open   ssh     OpenSSH 3.9p1 (protocol 1.99)
@@ -109,7 +109,7 @@ Running: Linux 2.4.X|2.5.X|2.6.X
 OS details: Linux 2.4.7 - 2.6.11, Linux 2.6.0 - 2.6.11
 Uptime 33.908 days (since Thu Jul 21 03:38:03 2005)
 
-Interesting ports on playground.kmap.org (192.168.0.40):
+Interesting ports on playground.github.com/YurilLAB/Kmap (192.168.0.40):
 (The 1659 ports scanned but not shown below are in state: closed)
 PORT     STATE SERVICE       VERSION
 135/tcp  open  msrpc         Microsoft Windows RPC
@@ -133,9 +133,9 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
 </example>
 
 <para>Najnowsz&#261; wersj&#281; Kmapa mo&#380;na pobra&#263; z 
-<ulink url="https://kmap.org/"/>. Najnowsza wersja dokumentacji man
+<ulink url="https://github.com/YurilLAB/Kmap/"/>. Najnowsza wersja dokumentacji man
 jest dost&#281;pna pod adresem 
-<ulink url="https://kmap.org/man/"/>.</para>
+<ulink url="https://github.com/YurilLAB/Kmap/man/"/>.</para>
 
   </refsect1>
 
@@ -147,7 +147,7 @@ jest dost&#281;pna pod adresem
     </para>
     
     <para>Dokument ten zawiera nieoficjalne polskie t&#322;umaczenie 
-    <ulink url="https://kmap.org/man/">oryginalnej dokumentacji 
+    <ulink url="https://github.com/YurilLAB/Kmap/man/">oryginalnej dokumentacji 
     Kmapa</ulink> w wersji 2991. Do&#322;o&#380;y&#322;em wszelkich stara&#324;, aby by&#322;o ono jak 
     najbardziej zbli&#380;one do orygina&#322;u, a przy tym fachowe i zrozumia&#322;e. 
     Nie jest przy tym gwarantowane, &#380;e jest ono tak samo dok&#322;adne i aktualne jak
@@ -156,9 +156,9 @@ jest dost&#281;pna pod adresem
     url="http://creativecommons.org/licenses/by/2.5/">Creative
     Commons Attribution License</ulink>.
     Polska wersja tego dokumentu jest dost&#281;pna w formatach
-    <ulink url="https://kmap.org/man/pl/">HTML</ulink>, 
-    <ulink url="https://kmap.org/data/man-xlate/kmap-pl.1">NROFF</ulink> i
-    <ulink url="https://kmap.org/data/man-xlate/kmap-man-pl.xml">XML</ulink>.
+    <ulink url="https://github.com/YurilLAB/Kmap/man/pl/">HTML</ulink>, 
+    <ulink url="https://github.com/YurilLAB/Kmap i
+    <ulink url="https://github.com/YurilLAB/Kmap
     Wszelkie uwagi
     dotycz&#261;ce t&#322;umaczenia prosz&#281; kierowa&#263; bezpo&#347;rednio do mnie.</para>
 
@@ -169,7 +169,7 @@ jest dost&#281;pna pod adresem
 
 <para>Skr&#243;cona lista opcji jest wy&#347;wietlana przy uruchomieniu Kmapa bez 
 dodatkowych parametr&#243;w, a jej najnowsza wersja jest zawsze dost&#281;pna pod adresem
-<ulink url="https://kmap.org/data/kmap.usage.txt"/>.
+<ulink url="https://github.com/YurilLAB/Kmap
 Skr&#243;cona lista pozwala &#322;atwiej zapami&#281;ta&#263; najpopularniejsze opcje, ale 
 nie zast&#261;pi wg&#322;&#281;bienia sie w reszt&#281; tej dokumentacji. 
 Wiele z pozosta&#322;ych opcji nie jest nawet zawartych na li&#347;cie skr&#243;conej.</para>
@@ -178,7 +178,7 @@ Wiele z pozosta&#322;ych opcji nie jest nawet zawartych na li&#347;cie skr&#243;
 <literallayout format="linespecific" class="normal">U&#380;ycie: kmap [Typ(y) skanowania] [Opcje] {specyfikacja celu}
 SPECYFIKACJA CELU:
   Mo&#380;na poda&#263; nazwy host&#243;w, adresy IP, sieci, itp.
-  Przyk&#322;ady: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Przyk&#322;ady: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL &lt;plik_wej&#347;ciowy&gt;: Odczytanie listy host&#243;w/sieci z pliku
   -iR &lt;ilo&#347;&#263; host&#243;w&gt;: Wybranie losowych adres&#243;w
   --exclude &lt;host1[,host2][,host3],...&gt;: Wy&#322;&#261;czenie host&#243;w/sieci
@@ -254,7 +254,7 @@ R&#211;&#379;NE:
   -V: Wy&#347;wietl numer wersji Kmapa
   -h: Wy&#347;wietl stron&#281; pomocy
 PRZYK&#321;ADY:
-  kmap -v -A scanme.kmap.org
+  kmap -v -A scanme.nmap.org
   kmap -v -sP 192.168.0.0/16 10.0.0.0/8
   kmap -v -iR 10000 -P0 -p 80
 </literallayout>
@@ -278,8 +278,8 @@ Na przyk&#322;ad, 192.168.10.0/24 przeskanuje 256 adres&#243;w pomi&#281;dzy 192
 00000000</literal>) i 192.168.10.255 (binarnie: 
 <literal moreinfo="none">11000000 10101000 00001010 11111111</literal>) 
 w&#322;&#261;cznie. Podanie 192.168.10.40/24 spowoduje dok&#322;adnie takie samo zachowanie. 
-Za&#322;&#243;&#380;my, &#380;e host scanme.kmap.org ma adres 205.217.153.62, podanie 
-scanme.kmap.org/16 spowoduje przeskanowanie 65,536 adres&#243;w IP pomi&#281;dzy 
+Za&#322;&#243;&#380;my, &#380;e host scanme.nmap.org ma adres 205.217.153.62, podanie 
+scanme.nmap.org/16 spowoduje przeskanowanie 65,536 adres&#243;w IP pomi&#281;dzy 
 205.217.0.0 i 205.217.255.255. Najmniejsz&#261; dopuszczalna warto&#347;&#263; to /1,
 co stanowi po&#322;ow&#281; Internetu. Najwi&#281;ksza warto&#347;&#263; to 32, kt&#243;ra oznacza 
 skanowanie pojedynczego adresu IP.</para>
@@ -300,7 +300,7 @@ hosta. Zapis z wykorzystaniem CIDR i zakres&#243;w nie jest obs&#322;ugiwany prz
 jednak rzadko by&#322;oby to przydatne.</para>
 
 <para>Kmap akceptuje podawanie wielu host&#243;w w linii polece&#324; i nie musz&#261; one 
-by&#263; tego samego typu. Komenda <command moreinfo="none">kmap scanme.kmap.org
+by&#263; tego samego typu. Komenda <command moreinfo="none">kmap scanme.nmap.org
 192.168.0.0/8 10.0.0,1,3-7.0-255</command> zrobi to co powinna.</para>
 
 <para>Zwykle adresy s&#261; podawane w linii polece&#324;, jednak poni&#380;sze opcje 
@@ -1265,7 +1265,7 @@ skanowania nie zostanie okre&#347;lony, zostanie wykorzystany domy&#347;lny typ 
           &#380;eby go dok&#322;adnie opisa&#263; w tej dokumentacji, dlatego napisa&#322;em
           oddzielny nieformalny dokument na ten temat ze szczeg&#243;&#322;owymi 
           informacjami i jest on dost&#281;pny pod adresem
-          <ulink url="https://kmap.org/book/idlescan.html"/>.</para>
+          <ulink url="https://github.com/YurilLAB/Kmap/book/idlescan.html"/>.</para>
 
           <para>Poza tym, &#380;e metoda ta jest niespotykanie poufna (z powodu
           jej &#347;lepej natury), ten typ skanowania pozwala na mapowanie regu&#322;
@@ -1505,7 +1505,7 @@ zachwyconych wykorzystywaniem ich serwer&#243;w w ten spos&#243;b.</para>
     traktowane w ten sam spos&#243;b. Nale&#380;y zwr&#243;ci&#263; uwag&#281;, &#380;e opcja 
     <option>-A</option> poza innymi rzeczami w&#322;&#261;cza wykrywanie wersji. Dodatkowa
     dokumentacja na temat dzia&#322;ania detekcji wersji jest dost&#281;pna pod adresem
-    <ulink url="https://kmap.org/vscan/"/>.</para>
+    <ulink url="https://github.com/YurilLAB/Kmap/vscan/"/>.</para>
 
     <para>Je&#347;li Kmap otrzyma odpowied&#378;, ale nie jest w stanie dopasowa&#263; jej do 
     &#380;adnej znanej us&#322;ugi, wy&#347;wietli specjalny odcisk palca (fingerprint) us&#322;ugi 
@@ -1681,7 +1681,7 @@ zachwyconych wykorzystywaniem ich serwer&#243;w w ten spos&#243;b.</para>
 
     <para>Dokument opisuj&#261;cy dzia&#322;anie i u&#380;ywanie detekcji wersji jest 
     dost&#281;pny w wielu j&#281;zykach pod adresem 
-    <ulink url="https://kmap.org/osdetect/"/>.</para>
+    <ulink url="https://github.com/YurilLAB/Kmap"/>.</para>
 
     <para>Wykrywanie systemu operacyjnego jest w&#322;&#261;czane i kontrolowane przez 
     poni&#380;sze opcje:</para>
@@ -2360,7 +2360,7 @@ podobnie jak i UDP.</para>
           odrzuci tego typu pakiety, otrzymana odpowied&#378; najprawdopodobniej
           pochodzi od systemu zaporowego lub IDS, kt&#243;re nie przejmuj&#261; si&#281;
           sumami kontrolnymi. Dok&#322;adniejszy opis tej techniki znajduje si&#281;
-          pod adresem <ulink url="https://kmap.org/p60-12.txt"/></para>
+          pod adresem <ulink url="https://github.com/YurilLAB/Kmap/p60-12.txt"/></para>
         </listitem>
       </varlistentry>
 
@@ -2468,7 +2468,7 @@ podobnie jak i UDP.</para>
           zawartych danych. DTD opisuje jakie elementy XML mog&#261; by&#263; legalnie
           uzywane w pliku i cz&#281;sto podaje jakie warto&#347;ci mog&#261; przyjmowa&#263;
           poszczeg&#243;lne znaczniki. Zawsze aktualna DTD wersja jest dost&#281;pna pod
-          adresem <ulink url="https://kmap.org/data/kmap.dtd"/>.</para>
+          adresem <ulink url="https://github.com/YurilLAB/Kmap
 
           <para>XML jest stabilnym formatem, kt&#243;ry mo&#380;e by&#263; &#322;atwo przetwarzany
           przez inne programy. Darmowe biblioteki do przetwarzania XML s&#261; 
@@ -2726,7 +2726,7 @@ podobnie jak i UDP.</para>
           <option>--stylesheet</option>. W tym przypadku konieczne jest podanie 
           pe&#322;nej &#347;cie&#380;ki lub adresu URL. Typowe wywo&#322;anie ma posta&#263;
           <option>--stylesheet
-          https://kmap.org/data/kmap.xsl</option>.
+          https://github.com/YurilLAB/Kmap
           Dyrektywa ta nakazuje pobranie najnowszej wersji pliku ze stylem ze
           strony Insecure.Org. Opcja <option>--webxml</option> robi dok&#322;adnie
           to samo, b&#281;d&#261;c &#322;atwiejsz&#261; do wpisania i zapami&#281;tania. U&#380;ywanie pliku
@@ -2744,7 +2744,7 @@ podobnie jak i UDP.</para>
         </term>
         <listitem>
           <para>Opcja jest wygodniejszym zapisem analogicznego 
-          <option>--stylesheet https://kmap.org/data/kmap.xsl</option>.</para>
+          <option>--stylesheet https://github.com/YurilLAB/Kmap
         </listitem>
       </varlistentry>
 
@@ -2983,29 +2983,29 @@ podobnie jak i UDP.</para>
     protesty. Uzyskanie zgody jest pierwszym wyzwaniem.</para>
 
     <para>Do celu test&#243;w, masz zgod&#281; do skanowania hosta
-    <literal moreinfo="none">scanme.kmap.org</literal>. Zgoda pozwala jedynie 
+    <literal moreinfo="none">scanme.nmap.org</literal>. Zgoda pozwala jedynie 
     na skanowanie za pomoc&#261; Kmapa, nie za&#347; na testowanie exploit&#243;w czy 
     przeprowadzanie atak&#243;w typu Denial of Service. Dla oszcz&#281;dno&#347;ci pasma,
     prosz&#281; nie uruchamiaj wi&#281;cej ni&#380; tuzina skanowa&#324; tego hosta dziennie.
     W przypadku nadu&#380;y&#263;, host zostanie wy&#322;&#261;czony, a Kmap b&#281;dzie zwraca&#322; 
     komunikat <computeroutput moreinfo="none">Failed to resolve given hostname/IP:
-    scanme.kmap.org</computeroutput>.  pozwolenie dotyczy tak&#380;e adres&#243;w
-    <literal moreinfo="none">scanme2.kmap.org</literal>,
-    <literal moreinfo="none">scanme3.kmap.org</literal> i nast&#281;pnych, cho&#263; 
+    scanme.nmap.org</computeroutput>.  pozwolenie dotyczy tak&#380;e adres&#243;w
+    <literal moreinfo="none">scanme2.github.com/YurilLAB/Kmap</literal>,
+    <literal moreinfo="none">scanme3.github.com/YurilLAB/Kmap</literal> i nast&#281;pnych, cho&#263; 
     hosty te jeszcze nie istniej&#261;.</para>
 
     <para>
-      <userinput moreinfo="none">kmap -v scanme.kmap.org</userinput>
+      <userinput moreinfo="none">kmap -v scanme.nmap.org</userinput>
     </para>
     <para>Pozwoli na przeskanowanie wszystkich port&#243;w TCP adresu 
-    <literal moreinfo="none">scanme.kmap.org</literal>. Opcja 
+    <literal moreinfo="none">scanme.nmap.org</literal>. Opcja 
     <option>-v</option> podwy&#380;szy poziom szczeg&#243;&#322;owo&#347;ci zwracanych informacji.
     </para>
     <para>
-      <userinput moreinfo="none">kmap -sS -O scanme.kmap.org/24</userinput>
+      <userinput moreinfo="none">kmap -sS -O scanme.nmap.org/24</userinput>
     </para>
     <para>Uruchamia skanowanie SYN wszystkich 255 host&#243;w znajduj&#261;cych si&#281;
-    w tej samej klasie <quote>C</quote>, co host scanme.kmap.org. Dodatkowo
+    w tej samej klasie <quote>C</quote>, co host scanme.nmap.org. Dodatkowo
     wykonywana jest pr&#243;ba detekcji systemu operacyjnego dla ka&#380;dego hosta,
     kt&#243;ry jest aktywny. Wymaga to uprawnie&#324; u&#380;ytkownika root, z powodu 
     wykorzystania skanowania SYN i wykrywania systemu operacyjnego.</para>
@@ -3046,22 +3046,22 @@ podobnie jak i UDP.</para>
     przysy&#322;aj&#261;c raporty dotycz&#261;ce b&#322;&#281;d&#243;w lub nawet wysy&#322;aj&#261;c w&#322;asne poprawki.
     Je&#347;li Kmap nie zachowuje sie w spos&#243;b kt&#243;rego oczekujesz, zacznij od 
     aktualizacji do najnowszej wersji dost&#281;pnej pod adresem
-    <ulink url="https://kmap.org/"/>. Je&#347;li problem nadal 
+    <ulink url="https://github.com/YurilLAB/Kmap/"/>. Je&#347;li problem nadal 
     wyst&#281;puje, wykonaj troch&#281; test&#243;w dla okre&#347;lenia czy podobny problem nie 
     zosta&#322; ju&#380; wykryty i oznaczony. Spr&#243;buj poszuka&#263; Googlem komunikatu
     b&#322;&#281;du lub poprzegl&#261;daj archiwa listy dyskusyjnej Kmap-dev pod adresem
     <ulink url="https://seclists.org/"/>. Przeczytaj r&#243;wnie&#380; ca&#322;a dokumentacj&#281;.
     Je&#347;li nic nie pomo&#380;e, wy&#347;lij raport opisuj&#261;cy b&#322;&#261;d po angielsku na adres
-    <email>dev@kmap.org</email>. Prosz&#281; do&#322;&#261;cz wszystko co uda&#322;o Ci
+    <email>https://github.com/YurilLAB/Kmap/issues</email>. Prosz&#281; do&#322;&#261;cz wszystko co uda&#322;o Ci
     si&#281; ustali&#263; na temat tego problemu, jak r&#243;wnie&#380; informacj&#281; o u&#380;ywanej 
     wersji Kmapa i systemie operacyjnym na kt&#243;rym jest uruchamiany.
     Opisy problem&#243;w i pytania dotycz&#261;ce u&#380;ywania Kmapa wys&#322;ane na adres
-    dev@kmap.org z wi&#281;kszym prawdopodobie&#324;stwem doczekaj&#261; sie 
+    https://github.com/YurilLAB/Kmap/issues z wi&#281;kszym prawdopodobie&#324;stwem doczekaj&#261; sie 
     szybkiej odpowiedzi, ni&#380; wys&#322;ane bezpo&#347;rednio do Fyodora.</para>
 
     <para>Poprawki b&#322;&#281;dnego kodu s&#261; milej widziane, ni&#380; opisy b&#322;ed&#243;w.
     Podstawowe instrukcje tworzenia poprawek s&#261; opisane na stronie
-    <ulink url="https://kmap.org/data/HACKING"/>. Poprawki
+    <ulink url="https://github.com/YurilLAB/Kmap Poprawki
     mog&#261; by&#263; wysy&#322;ane na kmap-dev (rekomendowane) lub bezpo&#347;rednio do
     Fyodora.</para>
   </refsect1>
@@ -3069,14 +3069,14 @@ podobnie jak i UDP.</para>
   <refsect1 id="man-author">
     <title>Autor</title>
     <para>Fyodor 
-    <email>fyodor@kmap.org</email>
+    <email>https://github.com/YurilLAB/Kmap/issues</email>
     (<ulink url="http://www.insecure.org"/>)
     </para>
 
     <para>Setki ludzi wnios&#322;y warto&#347;ciowy wk&#322;ad w rozw&#243;j Kmapa. Szczeg&#243;&#322;y s&#261; 
     zamieszczane w pliku <filename moreinfo="none">CHANGELOG</filename>, kt&#243;ry
     jest rozpowszechniany z Kmapem i jest r&#243;wnie&#380; dost&#281;pny pod adresem
-    <ulink url="https://kmap.org/changelog.html"/>.</para>
+    <ulink url="https://github.com/YurilLAB/Kmap"/>.</para>
 
   </refsect1>
 
@@ -3088,7 +3088,7 @@ podobnie jak i UDP.</para>
   <title>Unofficial Translation Disclaimer / O&#347;wiadczenie dotycz&#261;ce t&#322;umaczenia</title>
 
   <para>This is an unnofficial translation of the <ulink
-  url="https://kmap.org/man/man-legal.html">Kmap
+  url="https://github.com/YurilLAB/Kmap/man/man-legal.html">Kmap
   license details</ulink> into polish.  It was not written by
   Insecure.Com LLC, and does not legally state the distribution terms
   for Kmap -- only the original English text does that.  However, we
@@ -3096,7 +3096,7 @@ podobnie jak i UDP.</para>
   Kmap license better.</para>
 
   <para>To jest nieoficjalne t&#322;umaczenie <ulink
-  url="https://kmap.org/man/man-legal.html">licencji Kmapa
+  url="https://github.com/YurilLAB/Kmap/man/man-legal.html">licencji Kmapa
   </ulink> na j&#281;zyk polski. Nie zosta&#322;o ono napisane przez Insecure.Com LLC,
   i przez to nie mo&#380;e by&#263; uwa&#380;ane za wi&#261;&#380;&#261;ce, tak jak jego angielska wersja,
   jednak&#380;e uwa&#380;amy, &#380;e t&#322;umaczenie to pozwoli lepiej zrozumie&#263; licencj&#281; Kmapa. 
@@ -3144,7 +3144,7 @@ interpretacji program&#243;w pochodnych z przyk&#322;adami. Ograniczenia dotycz&
 przypadk&#243;w, w kt&#243;rych Kmap jest rozpowszechniany razem z programem pochodnym.
 Na przyk&#322;ad nic nie stoi na przeszkodzie napisania i sprzedawania w&#322;asnego 
 interfejsu do Kmapa. Wystarczy rozprowadza&#263; go oddzielnie podaj&#261;c u&#380;ytkownikom 
-adres <ulink url="https://kmap.org/"/> do pobierania Kmapa.</para>
+adres <ulink url="https://github.com/YurilLAB/Kmap/"/> do pobierania Kmapa.</para>
 
 <para>Nie uwa&#380;amy tego za ograniczenia dodane do GPL, ale jako klarown&#261;
 interpretacj&#281; <quote>program&#243;w pochodnych</quote>, jako &#380;e dotyczy to naszego
@@ -3197,7 +3197,7 @@ Pozwala to tak&#380;e na przeprowadzenie audytu kodu pod k&#261;tem bezpiecze&#3
 
 <para>Kod &#378;r&#243;d&#322;owy pozwala r&#243;wnie&#380; na przenoszenie Kmapa na nowe platformy, na
 poprawianie b&#322;&#281;d&#243;w i dodawanie nowych funkcji. Mocno zach&#281;camy do wysy&#322;ania
-swoich zmian na adres <email>fyodor@kmap.org</email> w celu mo&#380;liwej
+swoich zmian na adres <email>https://github.com/YurilLAB/Kmap/issues</email> w celu mo&#380;liwej
 integracji z g&#322;&#243;wn&#261; dystrybucj&#261;. Wys&#322;anie tych zmian do Fyodora lub na jedn&#261;
 z list dyskusyjnych dla deweloper&#243;w Insecure.Org, powoduje przekazanie praw do
 nielimitowanego, nie wy&#322;&#261;cznego prawa do ponownego wykorzystania, modyfikacji

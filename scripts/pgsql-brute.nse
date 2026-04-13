@@ -33,7 +33,7 @@ Performs password guessing against PostgreSQL.
 --  o SSL can be denied per host or network level
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 

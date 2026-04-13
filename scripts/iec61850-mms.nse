@@ -42,7 +42,7 @@ Output contains following attributes:
 
 
 author = "Dennis Rösch, Max Helbig"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive", "version"}
 
 -- Helpers

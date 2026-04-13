@@ -46,7 +46,7 @@ http://wiki.apache.org/couchdb/HTTP_database_API.
 -- Modified 07/02/2010 - v0.2 - added test if auth is enabled, compacted output a bit (mhs)
 
 author = "Martin Holst Swende"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 portrule = shortport.port_or_service({5984})
 -- Some lazy shortcuts

@@ -2,7 +2,7 @@
 -- Library methods for handling LDAP.
 --
 -- @author Patrik Karlsson
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- Credit goes out to Martin Swende who provided me with the initial code that got me started writing this.
 --

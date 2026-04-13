@@ -37,7 +37,7 @@ servers (this bug was fixed in Oracle's October 2009 Critical Patch Update).
 -- Revised 21/07/2010 - v0.3 - removed references to smb in get_random_string
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "auth"}
 
 

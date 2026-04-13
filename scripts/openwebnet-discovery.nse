@@ -49,7 +49,7 @@ References:
 --  <elem key="Burglar Alarm">12</elem>
 
 author = "Rewanth Cool"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(20000, "openwebnet")

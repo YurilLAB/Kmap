@@ -36,7 +36,7 @@
     <note><para>
         Ez a dokumentum leírja az Kmap változata X. A legfrissebb dokumentáció
         elérhető angolul
-        <ulink url="https://kmap.org/book/man.html" />.</para></note>
+        <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
     </web>
     <para>Az Kmap (<quote>Network Mapper</quote>) egy hálózatfelderítésre és biztonsági 
     ellenőrzésre használható, nyílt forráskódú eszköz.  Nagy hálózatok gyors 
@@ -88,10 +88,10 @@
 
 <example id="man-ex-repscan"><title>Egy jellegzetes Kmap letapogatás</title>
 <screen format="linespecific">
-# kmap -A -T4 scanme.kmap.org playground
+# kmap -A -T4 scanme.nmap.org playground
 
-Starting kmap ( https://kmap.org )
-Interesting ports on scanme.kmap.org (205.217.153.62):
+Starting kmap ( https://github.com/YurilLAB/Kmap )
+Interesting ports on scanme.nmap.org (205.217.153.62):
 (The 1663 ports scanned but not shown below are in state: filtered)
 PORT    STATE  SERVICE VERSION
 22/tcp  open   ssh     OpenSSH 3.9p1 (protocol 1.99)
@@ -104,7 +104,7 @@ Running: Linux 2.4.X|2.5.X|2.6.X
 OS details: Linux 2.4.7 - 2.6.11, Linux 2.6.0 - 2.6.11
 Uptime 33.908 days (since Thu Jul 21 03:38:03 2005)
 
-Interesting ports on playground.kmap.org (192.168.0.40):
+Interesting ports on playground.github.com/YurilLAB/Kmap (192.168.0.40):
 (The 1659 ports scanned but not shown below are in state: closed)
 PORT     STATE SERVICE       VERSION
 135/tcp  open  msrpc         Microsoft Windows RPC
@@ -126,8 +126,8 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
 </screen>
 </example>
 
-<para>Az Kmap legújabb változata a <ulink url="https://kmap.org"></ulink> címről tölthető le.  A legfrissebb kézikönyv 
-a <ulink url="https://kmap.org/man/"></ulink> címről tölthető le.</para>
+<para>Az Kmap legújabb változata a <ulink url="https://github.com/YurilLAB/Kmap"></ulink> címről tölthető le.  A legfrissebb kézikönyv 
+a <ulink url="https://github.com/YurilLAB/Kmap/man/"></ulink> címről tölthető le.</para>
 
   </refsect1>
 
@@ -135,7 +135,7 @@ a <ulink url="https://kmap.org/man/"></ulink> címről tölthető le.</para>
     <title>Megjegyzés a fordításhoz</title>
 
   <para>Az Kmap Referencia Útmutató jelen magyar változatát Mlatilik Zsolt készítette 
-  a 6184-es <ulink url="https://kmap.org/book/man.html">eredeti angol változat</ulink> 
+  a 6184-es <ulink url="https://github.com/YurilLAB/Kmap">eredeti angol változat</ulink> 
   alapján <email>drmac68@freemail.hu</email>. A fordítást annak reményében készítettem, 
   hogy megkönnyítse a magyar nyelvű felhasználók számára a program használatát. 
   Nem tudom garantálni, hogy ez a leírás olyan teljes vagy naprakész, mint az eredeti 
@@ -147,7 +147,7 @@ a <ulink url="https://kmap.org/man/"></ulink> címről tölthető le.</para>
 
 <para>Ez az összefoglaló akkor jelenik meg, amikor az Kmap programot
 paraméterek nélkül indítjuk el. A legfrissebb változata a
-<ulink url="https://kmap.org/data/kmap.usage.txt"></ulink> címen érhető el.
+<ulink url="https://github.com/YurilLAB/Kmap címen érhető el.
 Ez a lista segít emlékezni a legáltalánosabb paraméterekre, de nem helyettesíti
 az útmutatóban található részletes dokumentációt. Néhány rejtett paraméter szintén
 nem található meg ebben a listában.</para>
@@ -155,11 +155,11 @@ nem található meg ebben a listában.</para>
 <para>
 <?dbfo-need height="1in"?>
 <literallayout format="linespecific" class="normal">
-Kmap 4.53 ( https://kmap.org )
+Kmap 4.53 ( https://github.com/YurilLAB/Kmap )
 Használat: kmap [Letapogatási típus(ok)] [Paraméterek] {Célpont meghatározások}
 CÉLPONT MEGHATÁROZÁSOK:
   Átadhatók állomásnevek, IP címek, hálózatok, stb.
-  Pl.: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Pl.: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL &lt;fájlnév&gt;: A cél állomásnevek/hálózatok listája
   -iR &lt;állomások száma&gt;: Véletlen célpontok kiválasztása
   --exclude &lt;állomás1[,állomás2][,állomás3],...&gt;: Állomások/hálózatok kihagyása
@@ -257,7 +257,7 @@ VEGYES:
   -V: Az Kmap változat kiírása
   -h: Ennek a rövid összefoglalónak a megjelenítése.
 PÉLDÁK:
-  kmap -v -A scanme.kmap.org
+  kmap -v -A scanme.nmap.org
   kmap -v -sP 192.168.0.0/16 10.0.0.0/8
   kmap -v -iR 10000 -PN -p 80
 NÉZD MEG A MAN OLDALAKAT A TOVÁBBI PARAMÉTEREKHEZ, LEÍRÁSOKHOZ ÉS PÉLDÁKHOZ
@@ -284,7 +284,7 @@ Például a 192.168.10.0/24 címzéssel letapogatható a 192.168.10.0 (bináris:
 00001010 00000000</literal>) és a 192.168.10.255 (bináris: <literal moreinfo="none">11000000 10101000
 00001010 11111111</literal>) címek közötti 256 állomás.
 A 192.168.10.40/24 címzést szintén ugyanezt az eredményt adja. Megadva a 
-scanme.kmap.org állomást az IP címe 205.217.153.62. Így a scanme.kmap.org/16 
+scanme.nmap.org állomást az IP címe 205.217.153.62. Így a scanme.nmap.org/16 
 címzéssel 65,536 IP cím tapogatható le a 205.217.0.0 és a 205.217.255.255 címek
 között. A legkisebb megadható érték a /1, mellyel az Internet fele tapogatható le. 
 A legnagyobb megadható érték a 32, mellyel a megadott állomás vagy IP cím tapogatható
@@ -308,7 +308,7 @@ ezek itt ritkán hasznosak.</para>
 
 <para>Az Kmap a parancssorban többféle célpont meghatározást elfogad és ezeknek 
 nem kell azonosaknak lenniük.  Az <command moreinfo="none">kmap 
-scanme.kmap.org 192.168.0.0/16 10.0.0,1,3-7.0-255</command> parancs erre mutat egy példát.</para>
+scanme.nmap.org 192.168.0.0/16 10.0.0,1,3-7.0-255</command> parancs erre mutat egy példát.</para>
 
 <para>Bár a célpontok meghatározása általában a parancssorban történik, a következő paraméterek szintén használhatóak a célpontok megadására:</para>
 
@@ -1386,7 +1386,7 @@ helyett. Ha nem ad meg alaptípust, a SYN letapogatást fogja használni.</para>
 	  lennie és meg kell felelnie bizonyos követelményeknek). Ez az elbűvölő 
 	  letapogatás túl bonyolult ahhoz, hogy ebben a leírásban részletesen is 
 	  foglalkozhassunk vele, ezért írtam egy részletes leírást róla, mely a 
-	  <ulink url="https://kmap.org/idlescan.html"></ulink> címen olvasható.</para>
+	  <ulink url="https://github.com/YurilLAB/Kmap/idlescan.html"></ulink> címen olvasható.</para>
 
           <para>Amellett, hogy különösen rejtett, ezzel a letapogatással kihasználható 
 	  a gépek közötti, IP alapú bizalmi viszony. A nyitott kapuk ebben az 
@@ -1633,7 +1633,7 @@ kihasználni.</para>
     a kapu állapotát. A <literal moreinfo="none">nyitott|szűrt</literal> TCP kapukat 
     hasonló módon kezeli. Jegyezze meg, hogy az Kmap <option>-A</option> paramétere 
     más dolgok mellett a változat érzékelést is engedélyezi. A változat érzékelés 
-    működéséről, használatáról és paraméterezéséről a <ulink url="https://kmap.org/vscan/"></ulink> 
+    működéséről, használatáról és paraméterezéséről a <ulink url="https://github.com/YurilLAB/Kmap/vscan/"></ulink> 
     címen talál részletes leírást.</para>
 
     <para>Ha az Kmap kap ugyan választ egy szolgáltatástól, de az adatbázis alapján 
@@ -1818,7 +1818,7 @@ kihasználni.</para>
     támadással szemben.</para>
 
     <para>Az operációs rendszer érzékelésének működésével, használatával és 
-    testreszabásával kapcsolatban a <ulink url="https://kmap.org/osdetect/"></ulink> 
+    testreszabásával kapcsolatban a <ulink url="https://github.com/YurilLAB/Kmap"></ulink> 
     címen talál egy leírást.</para>
 
     <para>Az operációs rendszer érzékelése és vezérlése a következő paraméterekkel 
@@ -1905,7 +1905,7 @@ kihasználni.</para>
 	<para> 
 	Az Kmap parancsfájl motor (NSE) egyesíti az Kmap hatékony hálózatkezelését 
 	a <ulink url="http://lua.org">Lua</ulink> könnyűsúlyú parancsnyelv 
-	sokoldalúságával, így kínálva számtalan lehetőséget. A <ulink url="https://kmap.org/nse/"></ulink> 
+	sokoldalúságával, így kínálva számtalan lehetőséget. A <ulink url="https://github.com/YurilLAB/Kmap/nse/"></ulink> 
 	címen bőséges dokumentációt talál az NSE-ről (beleértve a programozói 
 	felületet is). Az NSE célja, hogy hatékony környezetet biztosítson az 
 	Kmap képességeinek kiterjesztéséhez és a felhasználók számára egyszerűbbé 
@@ -1976,7 +1976,7 @@ kihasználni.</para>
     egy <literal moreinfo="none">nse</literal> kiterjesztéssel. Bár jelenleg nem 
     szükséges követnie ezt a szokást, ez a jövőben változhat. Az Kmap figyelmeztetni 
     fogja, ha egy fájlnak más a kiterjesztése. Az NSE-ről további bőséges dokumentációt 
-    találhat (beleértve a programozói felület leírását) a <ulink url="https://kmap.org/nse/"></ulink> 
+    találhat (beleértve a programozói felület leírását) a <ulink url="https://github.com/YurilLAB/Kmap/nse/"></ulink> 
     címen.
     </para>
    
@@ -2802,7 +2802,7 @@ mértékben támogatja ezt a paramétert.</para>
 	  elküldeni a célpont felé. Mivel elméletileg minden állomás IP verme az 
 	  ilyen csomagokat helyesen eldobja, ezért bármilyen válasz tűzfalra vagy 
 	  IDS rendszerre utal, melyek nem foglalkoznak az ellenőrző összeg 
-	  vizsgálatával. További részletek erről a technikáról a <ulink url="https://kmap.org/p60-12.txt"></ulink> 
+	  vizsgálatával. További részletek erről a technikáról a <ulink url="https://github.com/YurilLAB/Kmap/p60-12.txt"></ulink> 
 	  címen.</para>
         </listitem>
       </varlistentry>
@@ -2921,7 +2921,7 @@ felülírná. A paraméterek leírása az alábbiakban található.</para>
 	  készült, de segítséget nyújt az embereknek is az Kmap XML kimenetének 
 	  értelmezésében. A DTD leírja a formátum érvényes elemeit és gyakran 
           felsorolja a tulajdonságokat és azok értékeit is. A legfrissebb változat 
-	  mindig megtalálható a <ulink url="https://kmap.org/data/kmap.dtd"></ulink> 
+	  mindig megtalálható a <ulink url="https://github.com/YurilLAB/Kmap 
 	  címen.</para>
 
           <para>XML egy stabil formátumot kínál, mely programból könnyen 
@@ -3227,7 +3227,7 @@ kapuk csak egy számként jelennek meg, ha túl sok van belőlük.
 	  megjeleníti az eredményeket. Ha más stíluslapot akar használni, adja 
 	  meg azt a <option>--stylesheet</option> kapcsoló után. A teljes útvonalat 
 	  vagy címet meg kell adnia. Egy megszokott hivatkozás a <option>--stylesheet
-          https://kmap.org/data/kmap.xsl</option>. Ez arra utasítja a böngészőt, 
+          https://github.com/YurilLAB/Kmap Ez arra utasítja a böngészőt, 
 	  hogy az Insecure.org címről töltse be a legfrissebb stíluslapot. A 
 	  <option>--webxml</option> paraméterrel ugyanezt a hatást érheti el, csak 
 	  kevesebbet kell gépelni és megjegyezni. Az Insecure.org címről letöltött 
@@ -3246,7 +3246,7 @@ kapuk csak egy számként jelennek meg, ha túl sok van belőlük.
         </term>
         <listitem>
 
-          <para>Ez egy kényelmesebb megvalósítása a <option>--stylesheet https://kmap.org/data/kmap.xsl</option> 
+          <para>Ez egy kényelmesebb megvalósítása a <option>--stylesheet https://github.com/YurilLAB/Kmap 
 	  kapcsolónak.</para>
         </listitem>
       </varlistentry>
@@ -3571,26 +3571,26 @@ kapuk csak egy számként jelennek meg, ha túl sok van belőlük.
     ellenére néhány rendszergazda nem veszi szívesen a kéretlen letapogatásokat 
     és panaszt emelhet. A legjobb előzetesen megszerezni a szükséges engedélyeket.</para>
 
-    <para>Tesztelési célból kipróbálhatja a <literal moreinfo="none">scanme.kmap.org</literal> 
+    <para>Tesztelési célból kipróbálhatja a <literal moreinfo="none">scanme.nmap.org</literal> 
     állomást. Ez az engedély kizárólag az Kmap programmal történő letapogatásra 
     vonatkozik és nem terjed ki ártó kódok kipróbálására vagy szolgáltatásmegtagadási 
     (DOS) támadások végrehajtására. A hálózat kapacításának megőrzése érdekében 
     kérjük, hogy ne indítson napi néhány tucatnál több letapogatást. Ha valaki 
     visszaélne ezzel az ingyenes tesztelési lehetőséggel, a tulajdonosok leállítják 
     a rendszert és az Kmap a következő hibaüzenettel fog visszatérni: 
-    <computeroutput moreinfo="none">Failed to resolve given hostname/IP:scanme.kmap.org</computeroutput>. 
-    Ugyanezek az engedélyek vonatkoznak a <literal moreinfo="none">scanme2.kmap.org</literal>, 
-    <literal moreinfo="none">scanme3.kmap.org</literal> és a további állomásokra is, 
+    <computeroutput moreinfo="none">Failed to resolve given hostname/IP:scanme.nmap.org</computeroutput>. 
+    Ugyanezek az engedélyek vonatkoznak a <literal moreinfo="none">scanme2.github.com/YurilLAB/Kmap</literal>, 
+    <literal moreinfo="none">scanme3.github.com/YurilLAB/Kmap</literal> és a további állomásokra is, 
     bár ezek jelenleg még nem üzemelnek.</para>
 
     <para>
-      <command moreinfo="none">kmap -v scanme.kmap.org</command>
+      <command moreinfo="none">kmap -v scanme.nmap.org</command>
     </para>
     <para>Ezzel a paranccsal letapogatható az összes foglalt TCP kapu a 
-    <literal moreinfo="none">scanme.kmap.org</literal> állomáson. A <option>-v</option>
+    <literal moreinfo="none">scanme.nmap.org</literal> állomáson. A <option>-v</option>
     paraméter engedélyezi a bőbeszédű üzemmódot.</para>
     <para>
-      <command moreinfo="none">kmap -sS -O scanme.kmap.org/24</command>
+      <command moreinfo="none">kmap -sS -O scanme.nmap.org/24</command>
     </para>
     <para>Elindít egy lopakodó SYN letapogatást minden olyan állomáson, mely a 
     Scanme állomás <quote>C osztályú</quote> címterében található és elérhető. 
@@ -3634,19 +3634,19 @@ kapuk csak egy számként jelennek meg, ha túl sok van belőlük.
     <para>Akárcsak a program készítője, az Kmap sem tökéletes. De segíthet jobbá 
     tenni, ha elküldi a felfedezett hibák leírását, vagy javítást készít hozzájuk. 
     Ha az Kmap nem az elvárásai szerint működik, először mindig szerezze be a legfrissebb 
-    változatot a <ulink url="https://kmap.org"></ulink> címről. Ha a probléma továbbra 
+    változatot a <ulink url="https://github.com/YurilLAB/Kmap"></ulink> címről. Ha a probléma továbbra 
     is fennáll, nézzen utána, hogy felfedezték-e már mások is. Keressen rá a 
     Google-ban a hibaüzenetre vagy böngéssze át az Kmap fejlesztői listát a 
     <ulink url="https://seclists.org/"></ulink> címen. Olvassa végig ezt a leírást 
-    is. Ha nem talál semmit, küldjön egy hibajelentést az <email>dev@kmap.org</email> 
+    is. Ha nem talál semmit, küldjön egy hibajelentést az <email>https://github.com/YurilLAB/Kmap/issues</email> 
     címre. Írjon le mindent, amit a hibával kapcsolatban tapasztalt. Adja meg 
     pontosan a használt Kmap változatot és a futtató operációs rendszer változatát 
-    is. Az dev@kmap.org címre küldött hibajelzések és az Kmap használatával 
+    is. Az https://github.com/YurilLAB/Kmap/issues címre küldött hibajelzések és az Kmap használatával 
     kapcsolatos kérdések valószínűleg gyorsabban megválaszolásra kerülnek, mintha 
     azokat közvetlenül a program készítőjének (Fyodor) küldené.</para>
 
     <para>A hibajavítások sokkal hasznosabbak, mint a hibajelentések. A hibajavítások 
-    elkészítésével kapcsolatban tanácsokat kaphat a <ulink url="https://kmap.org/data/HACKING"></ulink> 
+    elkészítésével kapcsolatban tanácsokat kaphat a <ulink url="https://github.com/YurilLAB/Kmap 
     címen. A hibajavítások elküldhetők az kmap-dev listára (ez a javasolt), vagy 
     közvetlenül a készítőnek is.</para>
   </refsect1>
@@ -3654,14 +3654,14 @@ kapuk csak egy számként jelennek meg, ha túl sok van belőlük.
   <refsect1 id="man-author">
     <title>Szerző</title>
     <para>Fyodor 
-    <email>fyodor@kmap.org</email>
+    <email>https://github.com/YurilLAB/Kmap/issues</email>
     (<ulink url="https://insecure.org"></ulink>)
     </para>
 
     <para>Az évek során emberek százai járultak hozzá értékes munkájukkal az Kmap 
     programhoz. Ezek részletezése megtalálható a <filename moreinfo="none">CHANGELOG</filename> 
     fájlban, mely az Kmap program terjesztése mellett elérhető a 
-    <ulink url="https://kmap.org/changelog.html"></ulink> címen is.</para>
+    <ulink url="https://github.com/YurilLAB/Kmap"></ulink> címen is.</para>
 
   </refsect1>
 
@@ -3712,7 +3712,7 @@ kapcsolatban. Ezek a korlátozások kizárólag akkor érvényesek, ha Ön való
 továbbértékesíti az Kmap programot. Például semmi nem tiltja, hogy Ön kezelő felületet 
 készítsen az Kmap programhoz és azt üzleti céllal forgalmazza. Terjessze a programot 
 önállóan és hívja fel a felhasználók figyelmét, hogy az Kmap programot külön 
-kell letölteniük a <ulink url="https://kmap.org"></ulink> címről.</para>
+kell letölteniük a <ulink url="https://github.com/YurilLAB/Kmap"></ulink> címről.</para>
 
 <para>A program készítői nem gondolják, hogy a fentiek további korlátozásokat 
 adnának a GPL-hez, kizárólag annak tisztázására szolgálnak, hogyan értelmezik a 
@@ -3761,14 +3761,14 @@ elsőbbséget élveznek a fentiekkel szemben.</para>
       <title>Unofficial Translation Disclaimer / Nem hivatalos fordítói nyilatkozat</title>
 
       <para>This is an unnofficial translation of the <ulink
-      url="https://kmap.org/book/man-legal.html">Kmap
+      url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE">Kmap
       license details</ulink> into hungarian.  It was not written by
       Insecure.Com LLC, and does not legally state the distribution terms
       for Kmap -- only the original English text does that.  However, we
       hope that this translation helps hungarian speakers understand the
       Kmap license better.</para>
 
-      <para>Ez az <ulink url="https://kmap.org/book/man-legal.html">Kmap licenc 
+      <para>Ez az <ulink url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE">Kmap licenc 
       részletek</ulink> nem hivatalos magyar fordítása. Ezt nem az Insecure.Com LLC 
       készítette és nem tartalmazza az Kmap hivatalos terjesztési irányelveit. 
       Ezeket kizárólag az eredeti angol nyelvű szöveg tartalmazza. Azonban reméljük, 
@@ -3786,7 +3786,7 @@ nem találtak egyet sem).</para>
 
 <para>A forráskód segítségével az Kmap átvihető új rendszerekre, kijavíthatók a 
 hibák és új képességekkel is bővíthető a program. Bátorítunk mindenkit, hogy az 
-általa készített változtatásokat küldje el a <email>fyodor@kmap.org</email> 
+általa készített változtatásokat küldje el a <email>https://github.com/YurilLAB/Kmap/issues</email> 
 címre, hogy azok bekerülhessenek a fő terjesztésbe. Azzal, hogy ezeket a módosításokat 
 elküldi Fyodornak vagy valamely Insecure.Org fejlesztői listának, Ön korlátozás 
 nélküli, nem-kizárólagos jogot biztosít Fyodornak és az Insecure.Com LLC-nek a kód 

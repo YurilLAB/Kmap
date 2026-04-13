@@ -129,7 +129,7 @@ o Treat the input to the escape function in xml.cc as UTF-8, not just
   byte->rune and rune->byte functions as in
   http://plan9.bell-labs.com/sys/doc/utf.html.
 
-o We should probably redo the Kmap header (e.g. on https://kmap.org) to
+o We should probably redo the Kmap header (e.g. on https://github.com/YurilLAB/Kmap) to
   make it more attractive.  Or, at a minimum we should update the
   screenshots and think about which links we really need (some of those
   pages aren't really updated any more).
@@ -170,7 +170,7 @@ o Maybe we should add an analysis or reporting or intelligence (or
   different name) for our NSE scripts which don't send any packets, but
   simply analyze Kmap's existing data and report when useful.
 
-o Install some sort of svnview webapp for svn.kmap.org which is
+o Install some sort of svnview webapp for svn.github.com/YurilLAB/Kmap which is
   wrapped in Insecure chrome, allows people to click link for direct
   file download, probably shows revision history and allows users to
   see older versions, etc.
@@ -475,7 +475,7 @@ o Scanning through proxies
      servers.  Whoever does this should probably start by reading the
      code for the main port scanning engine (ultra_scan()) and also
      the version detection code (service_scan()).  And the version
-     detection paper at https://kmap.org/book/vscan.html.  If you
+     detection paper at https://github.com/YurilLAB/Kmap/book/vscan.html.  If you
      understand all that, you may be ready for this project :).  This
      is important, because it is easy to do poorly.  The tough part is
      high performance and clean code which is general enough that all
@@ -499,10 +499,10 @@ o [Web] Consider adding training/introduction videos to the Kmap site
    that far): http://www.splunk.com/product
 
 o The Zekmap translation system
-  (https://kmap.org/book/zekmap-lang.html) has been pretty successful
+  (https://github.com/YurilLAB/Kmap/book/zekmap-lang.html) has been pretty successful
   so far.  We should consider doing the same for Kmap.  After all, we
   already have the reference guide in 16 languages at
-  https://kmap.org/docs.html.  We should definitely try to use the same
+  https://github.com/YurilLAB/Kmap/docs.html.  We should definitely try to use the same
   translation methods for Zekmap as we do for Kmap.  In fact, maybe we
   can create a combined PO file Kmap, Zekmap, Ncat, and Ndiff so that
   they can all be translated and maintained together. Something to

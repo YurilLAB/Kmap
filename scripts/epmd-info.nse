@@ -27,7 +27,7 @@ Connects to Erlang Port Mapper Daemon (epmd) and retrieves a list of nodes with 
 -- </table>
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service (4369, "epmd")

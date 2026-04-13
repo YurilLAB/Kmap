@@ -13,7 +13,7 @@ Determines whether the server supports SSLv2, what ciphers it supports and tests
 CVE-2015-3197, CVE-2016-0703 and CVE-2016-0800 (DROWN)
 ]]
 author = "Bertrand Bonnefoy-Claudet <bertrand@cryptosense.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 -- We can use the set of ciphers detected by sslv2.nse to avoid 1 handshake
 dependencies = {"sslv2"}
 categories = {"intrusive", "vuln"}

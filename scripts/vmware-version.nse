@@ -18,7 +18,7 @@ The same script as VMware Fingerprinter from VASTO created by Claudio Criscione,
 ----------------------------------------------------------
 
 author = "Alexey Tyurin"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "version"}
 
 local http = require "http"

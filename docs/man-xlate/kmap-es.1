@@ -115,8 +115,8 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88\&.392 seconds
 .\}
 .PP
 Puede obtener la versión más reciente de Kmap en
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. La versión más reciente de la página de manual está disponible en
-\m[blue]\fB\%https://kmap.org/man/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. La versión más reciente de la página de manual está disponible en
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/man/\fR\m[]\&.
 .SH "NOTAS DE LA TRADUCCIÓN"
 .PP
 Esta edición de la Guía de referencia de Kmap ha sido traducida de la versión 3137 de la
@@ -177,7 +177,7 @@ Nótese que éste glosario difiere en algunos términos del utilizado para otras
 .SH "RESUMEN DE OPCIONES"
 .PP
 Cuando se ejecuta Kmap sin parámetros se muestra este resumen de opciones\&. Puede encontrar siempre la última versión en
-\m[blue]\fB\%https://kmap.org/data/kmap.usage.txt\fR\m[]\&. Aunque ayuda a recordar las opciones más habituales no es un sustituto de la documentación en detalle que acompaña al resto de este manual\&. Algunas de las opciones menos conocidas no se incluyen aquí\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap Aunque ayuda a recordar las opciones más habituales no es un sustituto de la documentación en detalle que acompaña al resto de este manual\&. Algunas de las opciones menos conocidas no se incluyen aquí\&.
 .PP
 .if n \{\
 .RS 4
@@ -713,7 +713,7 @@ abierto|filtrado\&. Kmap se comportará igual que para el sondeo tipo base, con 
 \fB\-sI <sistema zombi [:puerto_sonda]>\fR (Sondeo ocioso)
 .RS 4
 Este es un método de sondeo avanzado que le permite hacer un sondeo de puertos TCP a ciegas de verdad (lo que significa que no se envía ningún paquete al sistema objetivo desde su dirección IP real)\&. En lugar de ésto se utiliza un ataque con un canal alternativo que se aprovecha de la generación de la secuencia de los identificadores de fragmentación IP del sistema zombi para obtener información de los puertos abiertos en el objetivo\&. Los sistemas IDS mostrarán que el sondeo lo está realizando el sistema zombi que especifique (que debe estar vivo y cumplir algunos requisitos)\&. Este tipo de sondeo tan fascinante es demasiado complejo como para describirlo por completo en esta guía de referencia por lo que escribí y publiqué un documento informal que contiene todos los detalles, el documento está disponible en
-\m[blue]\fB\%https://kmap.org/book/idlescan.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/book/idlescan.html\fR\m[]\&.
 .sp
 Además de ser extraordinariamente sigiloso (debido a su funcionamiento a ciegas), este tipo de sondeo permite determinar las relaciones basadas en IP entre distintos sistemas\&. El listado de puertos muestra los puertos abiertos
 \fIdesde la perspectiva del sistema zombi\&.\fR
@@ -817,7 +817,7 @@ open|filtered
 se tratan de forma similar\&. Tenga en cuenta que la opción
 \fB\-A\fR
 de Kmap actualiza la detección de versiones entre otras cosas\&. Puede encontrar un documento describiendo el funcionamiento, modo de uso, y particularización de la detección de versiones en
-\m[blue]\fB\%https://kmap.org/vscan/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/vscan/\fR\m[]\&.
 .PP
 Cuando Kmap obtiene una respuesta de un servicio pero no encuentra una definición coincidente en la base de datos se imprimirá una firma especial y un URL para que la envíe si sabe lo que está ejecutándose detrás de ese puerto\&. Por favor, tómese unos minutos para enviar esta información para ayudar a todo el mundo\&. Gracias a estos envíos Kmap tiene ahora alrededor de 3\&.000 patrones para más de 350 protocolos distintos como smtp, ftp, http, etc\&.
 .PP
@@ -890,7 +890,7 @@ La detección de sistema operativo activa, en cualquier caso, una serie de prueb
 \(lqincremental\(rq, lo que significa que incrementan el campo ID en la cabecera IP para cada paquete que envían\&. Esto hace que sean vulnerables a algunos ataques avanzados de obtención de información y de falseo de dirección\&.
 .PP
 Puede encontrar un trabajo traducido a una docena de idiomas que detalla el modo de funcionamiento, utilización y ajuste de la detección de versiones en
-\m[blue]\fB\%https://kmap.org/osdetect/\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .PP
 La detección de sistema operativo se activa y controla con las siguientes opciones:
 .PP
@@ -1193,7 +1193,7 @@ Cisco\&.
 \fB\-\-badsum\fR (Envía paquetes con sumas de comprobación TCP/UDP erróneas)
 .RS 4
 Esta opción le indica a Kmap que debe generar sumas de comprobación inválidas para los paquetes que se envíen a los equipos objetivos\&. Cualquier respuesta que se reciba vendrá de un cortafuegos o un IDS que no comprobó la suma, dado que la mayoría de las pilas IP descartan estos paquetes\&. Para obtener más información de esta técnica puede consultar
-\m[blue]\fB\%https://kmap.org/p60-12.txt\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/p60-12.txt\fR\m[]
 .RE
 .SH "SALIDA"
 .PP
@@ -1258,7 +1258,7 @@ salida interactiva\&.
 Solicita que la
 salida en XML
 se redirigida al archivo especificado\&. Kmap incluye un DTD que pueden utilizar los intérpretes de XML para validar la salida XML\&. Aunque está dirigida a que la utilicen programas, también puede ayudar a que una persona interprete la salida de Kmap\&. El DTD define los elementos legales del formato, y generalmente enumera los atributos y valores que pueden tener\&. La última versión está siempre disponible en
-\m[blue]\fB\%https://kmap.org/data/kmap.dtd\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap
 .sp
 XML ofrece un formato estable que es fácilmente interpretado por cualquier programa\&. Hay intérpretes libres de XML para los lenguajes de ordenador más importantes, incluyendo C/C++, Perl, Python, y Java\&. La gente ha escrito librerías para la mayoría de estos lenguajes que manejan específicamente la salida de Kmap\&. Por ejemplo
 \m[blue]\fBKmap::Scanner\fR\m[]\&\s-2\u[9]\d\s+2
@@ -1569,12 +1569,12 @@ Esto sondea 4096 IPs para buscar cualquier servidor web (sin enviar sondas ICMP)
 .SH "FALLOS"
 .PP
 Al igual que su autor, Kmap no es perfecto\&. Pero tu puedes ayudar a hacerlo mejor enviando informes de fallo o incluso escribiendo parches\&. Si Kmap no se comporta como tú esperas, primero actualiza a la última versión disponible en
-\m[blue]\fB\%https://kmap.org/\fR\m[]\&. Si el problema persiste, investiga para determinar si la causa ya ha sido descubierta y solucionada\&. Busca en Google el mensaje de error o navega en los archivos de Kmap\-dev en
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]\&. Si el problema persiste, investiga para determinar si la causa ya ha sido descubierta y solucionada\&. Busca en Google el mensaje de error o navega en los archivos de Kmap\-dev en
 \m[blue]\fB\%https://seclists.org/\fR\m[]\&. También deberías leer este manual completo\&. Si esto no te ayuda, envía un informe de error en inglés a
 <dev@kmap\&.org>\&. Por favor, incluya todo lo que haya visto del problema, así como qué versión de Kmap está utilizando y sobre qué versión del sistema operativo está trabajando\&. Hay muchas más probabilidades de que un informe de fallo o una pregunta sobre el uso de Kmap se contesten si se envían a dev@kmap\&.org que si se envían directamente a Fyodor\&.
 .PP
 Es mejor enviar parches para arreglar el código que un informe de error\&. Puedes encontrar las instrucciones básicas para crear parches con sus cambios en
-\m[blue]\fB\%https://kmap.org/data/HACKING\fR\m[]\&. Puede enviar los parches a kmap\-dev (recomendado) o directamente a Fyodor\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap Puede enviar los parches a kmap\-dev (recomendado) o directamente a Fyodor\&.
 .SH "AUTOR"
 .PP
 Fyodor
@@ -1584,7 +1584,7 @@ Fyodor
 Cientos de personas han realizado valiosas contribuciones a Kmap a lo largo de los años\&. Sus nombres se detallan en el archivo
 CHANGELOG
 que se distribuye conjuntamente con Kmap y que está también disponible en
-\m[blue]\fB\%https://kmap.org/changelog.html\fR\m[]\&.
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap\fR\m[]\&.
 .SH "NOTAS LEGALES"
 .SS "Unofficial Translation Disclaimer / Descargo de traducción no oficial"
 .PP
@@ -1669,7 +1669,7 @@ Enlaza a una librería o ejecuta un programa que hace cualquiera de las cosas de
 Se debe considerar que el término
 \(lqKmap\(rq
 incluye las porciones o trabajos derivados de Kmap\&. Esta lista no es exclusiva, su único objetivo es clarificar la interpretación de trabajos derivados con algunos ejemplos comunes\&. Estas restricciones no se aplican cuando redistribuye Kmap\&. Por ejemplo, nada le impide escribir y vender una interfaz propietaria a Kmap\&. Sólo debe distribuirla de forma separada e indicar a sus usuarios que vayan a
-\m[blue]\fB\%https://kmap.org/\fR\m[]
+\m[blue]\fB\%https://github.com/YurilLAB/Kmap/\fR\m[]
 para obtener Kmap\&.
 .PP
 No consideramos que las restricciones sean añadidos a la GPL, sino simplemente una forma de clarificar cómo interpretamos el término
@@ -1731,7 +1731,7 @@ Control de exportación de los EEUU: Insecure\&.Com LLC cree que Kmap se encuent
 .IP " 1." 4
 versión original en inglés
 .RS 4
-\%https://kmap.org/man/
+\%https://github.com/YurilLAB/Kmap/man/
 .RE
 .IP " 2." 4
 Licencia Creative Commons Atribución
@@ -1741,7 +1741,7 @@ Licencia Creative Commons Atribución
 .IP " 3." 4
 Deteccion Remota de SO via Reconocimiento de Pila TCP/IP
 .RS 4
-\%https://kmap.org/kmap-fingerprinting-article-mx.html
+\%https://github.com/YurilLAB/Kmap/kmap-fingerprinting-article-mx.html
 .RE
 .IP " 4." 4
 RFC 1122
@@ -1786,7 +1786,7 @@ en Wikipedia
 .IP "12." 4
 Kmap license details
 .RS 4
-\%https://kmap.org/man/man-legal.html
+\%https://github.com/YurilLAB/Kmap/man/man-legal.html
 .RE
 .IP "13." 4
 Fundación Apache Software Foundation

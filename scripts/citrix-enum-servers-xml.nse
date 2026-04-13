@@ -25,7 +25,7 @@ service.
 -- Revised 12/02/2009 - v0.2 - Use stdnse.format_ouput for output
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

@@ -23,7 +23,7 @@ number of requests and make lookups quicker.
 ---
 
 author = "Jiayi Ye"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"external", "safe"}
 
 -- from Tor 0.2.9 auth_dirs.inc

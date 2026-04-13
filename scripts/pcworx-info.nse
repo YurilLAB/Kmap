@@ -35,7 +35,7 @@ http://digitalbond.com
 --<elem key="Firmware Time">09:39:02</elem>
 
 author = "Stephen Hilt (Digital Bond)"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery"}
 
 portrule = shortport.port_or_service(1962, "pcworx", "tcp")

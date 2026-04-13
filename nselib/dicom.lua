@@ -25,7 +25,7 @@
 -- @args dicom.calling_aet Calling Application Entity Title. Default: ECHOSCU
 -- 
 -- @author Paulino Calderon <paulino@calderonpale.com>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 ---
 
 local kmap = require "kmap"

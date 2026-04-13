@@ -66,7 +66,7 @@
 -- When multiple versions exists for a specific RPC program the library
 -- always attempts to connect using the highest available version.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 --

@@ -27,7 +27,7 @@ determined by matching the error message against a database of known software.
 -- 69/udp open  tftp
 -- | tftp-version:
 -- |   If you know the name or version of the software running on this port, please submit
--- it to dev@kmap.org along with the following information:
+-- it to https://github.com/YurilLAB/Kmap/issues along with the following information:
 -- |     opcode: 5
 -- |     errcode: 1
 -- |     length: 20
@@ -47,7 +47,7 @@ determined by matching the error message against a database of known software.
 --
 --@xmloutput
 --<table key="If you know the name or version of the software running on this port, please
---submit it to dev@kmap.org along with the following information">
+--submit it to https://github.com/YurilLAB/Kmap/issues along with the following information">
 --  <elem key="opcode">5</elem>
 --  <elem key="errcode">2</elem>
 --  <elem key="length">21</elem>
@@ -56,7 +56,7 @@ determined by matching the error message against a database of known software.
 --</table>
 --
 author = "Mak Kolybabi <mak@kolybabi.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "safe", "version"}
 
 portrule = shortport.version_port_or_service(69, "tftp", "udp")
@@ -272,7 +272,7 @@ action = function(host, port)
 
   if not sw then
     kmap.set_port_version(host, port, "hardmatched")
-    return {["If you know the name or version of the software running on this port, please submit it to dev@kmap.org along with the following information"]= pkt}
+    return {["If you know the name or version of the software running on this port, please submit it to https://github.com/YurilLAB/Kmap/issues along with the following information"]= pkt}
   end
 
   -- Our goal is to avoid printing output when run with -sV unless it differs.

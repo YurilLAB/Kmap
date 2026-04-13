@@ -19,7 +19,7 @@ _ENV = stdnse.module("mqtt", stdnse.seeall)
 -- should not be difficult.
 --
 -- @author "Mak Kolybabi <mak@kolybabi.com>"
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 MQTT = {
   -- Types of control packets

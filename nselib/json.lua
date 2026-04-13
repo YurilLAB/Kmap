@@ -11,7 +11,7 @@
 -- @author Martin Holst Swende
 -- @author David Fifield
 -- @author Patrick Donnelly
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 -- Version 0.4
 -- Created 01/25/2010 - v0.1 - created by Martin Holst Swende <martin@swende.se>

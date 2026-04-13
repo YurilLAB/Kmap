@@ -11,21 +11,21 @@ Discovers hostnames that resolve to the target's IP address by querying the onli
 
 ---
 -- @usage
--- kmap --script hostmap-robtex -sn -Pn scanme.kmap.org
+-- kmap --script hostmap-robtex -sn -Pn scanme.nmap.org
 --
 -- @output
 -- | hostmap-robtex:
 -- |   hosts:
--- |_    scanme.kmap.org
+-- |_    scanme.nmap.org
 --
 -- @xmloutput
 -- <table key="hosts">
---  <elem>kmap.org</elem>
+--  <elem>github.com/YurilLAB/Kmap</elem>
 -- </table>
 ---
 
 author = "Arturo 'Buanzo' Busleiman"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {
   "discovery",
   "safe",

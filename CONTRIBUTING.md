@@ -5,7 +5,7 @@
  * [Code Repository](#repo)
  * [Bug Reports](#bug)
  * [Pull Requests](#pr)
- * [issues.kmap.org redirector](#issues)
+ * [github.com/YurilLAB/Kmap/issues redirector](#issues)
  * [The HACKING file](#hacking)
 
 ## <a name="intro"></a>Introduction
@@ -14,7 +14,7 @@ This file serves as a supplement to the [HACKING file](HACKING). It contains inf
 
 ## <a name="repo"></a>Code Repository
 
-The authoritative code repository is still the Subversion repository at [https://svn.kmap.org/kmap](https://svn.kmap.org/kmap). The Github repository is synchronized once per hour. All commits are made directly to Subversion, so Github is a read-only mirror.
+The authoritative code repository is still the Subversion repository at [https://github.com/YurilLAB/Kmap](https://github.com/YurilLAB/Kmap). The Github repository is synchronized once per hour. All commits are made directly to Subversion, so Github is a read-only mirror.
 
 ## <a name="bug"></a>Bug Reports
 
@@ -25,7 +25,7 @@ Kmap uses Github Issues to keep track of bug reports. Please be sure to include 
 Kmap welcomes your code contribution in the form of a Github Pull Request. Since the Github repository is currently read-only, we cannot merge directly from the PR. Instead, we will convert your PR into a patch and apply it to the Subversion repository. We will be sure to properly credit you in the CHANGELOG file, and the commit message will reference the PR number.
 
 Because not all Kmap committers use Github daily, it is helpful to send a
-notification email to [dev@kmap.org](mailto:dev@kmap.org) referencing the PR and including a short
+notification email to [https://github.com/YurilLAB/Kmap/issues](mailto:https://github.com/YurilLAB/Kmap/issues) referencing the PR and including a short
 description of the functionality of the patch.
 
 Using pull requests has several advantages over emailed patches:
@@ -39,9 +39,9 @@ changes.
 [seclists.org](http://seclists.org/) mail archive URL, especially when the discussion spans more than
 one quarter year.
 
-## <a name="issues"></a>issues.kmap.org redirector
+## <a name="issues"></a>github.com/YurilLAB/Kmap/issues redirector
 
-For convenience, you may use [issues.kmap.org](http://issues.kmap.org) to redirect to issues (bug reports and pull requests) by number (e.g. [http://issues.kmap.org/34](http://issues.kmap.org/34)) or to link to the new-issue page: [http://issues.kmap.org/new](http://issues.kmap.org/new).
+For convenience, you may use [github.com/YurilLAB/Kmap/issues](https://github.com/YurilLAB/Kmap/issues to redirect to issues (bug reports and pull requests) by number (e.g. [https://github.com/YurilLAB/Kmap/issues or to link to the new-issue page: [https://github.com/YurilLAB/Kmap/issues
 
 ## <a name="hacking"></a>The HACKING file
 

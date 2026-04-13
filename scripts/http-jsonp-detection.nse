@@ -42,7 +42,7 @@ References : https://securitycafe.ro/2017/01/18/practical-jsonp-injection/
 ---
 
 author = {"Vinamra Bhatia"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"safe", "vuln", "discovery"}
 
 portrule = shortport.http

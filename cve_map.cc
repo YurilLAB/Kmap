@@ -252,9 +252,9 @@ static std::vector<ProductQuery> normalize_service(
   if (prod.find("drupal") != std::string::npos)
     return {{"drupal", "", true}};
 
-  /* Joomla */
+  /* Joomla — DB has entries under both "joomla!" and "joomla" */
   if (prod.find("joomla") != std::string::npos)
-    return {{"joomla!", "", true}};
+    return {{"joomla!", "", true}, {"joomla", "", true}};
 
   /* Microsoft Exchange */
   if (prod.find("exchange") != std::string::npos)

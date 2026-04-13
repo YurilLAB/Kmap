@@ -66,7 +66,7 @@
 -- on both Linux and Windows. For details regarding what versions where tested
 -- please consult the matrix below.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- @args tns.sid specifies the Oracle instance to connect to

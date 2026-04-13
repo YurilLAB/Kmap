@@ -8,7 +8,7 @@
 -- the function result. On failure, they return false and an error message.
 -- @author Kris Katterjohn 03/2008
 -- @author jah 08/2008
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local io = require "io"
 local kmap = require "kmap"

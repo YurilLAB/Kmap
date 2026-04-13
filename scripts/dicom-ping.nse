@@ -37,7 +37,7 @@ For this script we only send the A-ASSOCIATE request and look for the success co
 ---
 
 author = "Paulino Calderon <calderon()calderonpale.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "default", "safe", "auth"}
 
 local shortport = require "shortport"

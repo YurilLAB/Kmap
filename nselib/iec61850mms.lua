@@ -6,7 +6,7 @@
 --
 -- @author Dennis Rösch
 -- @author Max Helbig
--- @license Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @license Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"

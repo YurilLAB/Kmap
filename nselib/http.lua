@@ -76,7 +76,7 @@
 --  all = http.pipeline_add('/monkeys', nil, all, 'HEAD')
 --
 --  -- Perform all three requests as parallel as Kmap is able to
---  local results = http.pipeline_go('kmap.org', 80, all)
+--  local results = http.pipeline_go('github.com/YurilLAB/Kmap', 80, all)
 --</code>
 --
 -- At this point, <code>results</code> is an array with three elements.
@@ -98,7 +98,7 @@
 --
 -- @args http.useragent The value of the User-Agent header field sent with
 -- requests. By default it is
--- <code>"Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)"</code>.
+-- <code>"Mozilla/5.0 (compatible; Kmap Scripting Engine; https://github.com/YurilLAB/Kmap/book/nse.html)"</code>.
 -- A value of the empty string disables sending the User-Agent header field.
 --
 -- @args http.pipeline If set, it represents the number of HTTP requests that'll be
@@ -157,7 +157,7 @@ local have_ssl, openssl = pcall(require,'openssl')
 --Use zlib if we have it
 local have_zlib, zlib = pcall(require,'zlib')
 
-USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Kmap Scripting Engine; https://kmap.org/book/nse.html)"
+USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Kmap Scripting Engine; https://github.com/YurilLAB/Kmap/book/nse.html)"
 local host_header = stdnse.get_script_args('http.host')
 local MAX_REDIRECT_COUNT = 5
 local MAX_BODY_SIZE = tonumber(stdnse.get_script_args('http.max-body-size')) or 2*1024*1024

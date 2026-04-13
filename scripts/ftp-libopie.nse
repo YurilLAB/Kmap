@@ -6,7 +6,7 @@ local vulns = require "vulns"
 description = [[
 Checks if an FTPd is prone to CVE-2010-1938 (OPIE off-by-one stack overflow),
 a vulnerability discovered by Maksymilian Arciemowicz and Adam "pi3" Zabrocki.
-See the advisory at https://kmap.org/r/fbsd-sa-opie.
+See the advisory at https://github.com/YurilLAB/Kmap/r/fbsd-sa-opie.
 Be advised that, if launched against a vulnerable host, this script will crash the FTPd.
 ]]
 
@@ -34,7 +34,7 @@ Be advised that, if launched against a vulnerable host, this script will crash t
 
 
 author = "Ange Gutek"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln","intrusive"}
 
 

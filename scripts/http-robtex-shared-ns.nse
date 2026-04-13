@@ -29,7 +29,7 @@ The target must be specified by DNS name, not IP address.
 --
 
 author = "Arturo 'Buanzo' Busleiman"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "external"}
 
 prerule = function() return true end

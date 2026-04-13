@@ -2,7 +2,7 @@
 -- This Real Time Streaming Protocol (RTSP) library implements only a minimal
 -- subset of the protocol needed by the current scripts.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @author Patrik Karlsson <patrik@cqure.net>
 --
 -- The library contains the following classes:

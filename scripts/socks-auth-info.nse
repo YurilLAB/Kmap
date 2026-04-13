@@ -34,7 +34,7 @@ types:
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "default"}
 
 portrule = shortport.port_or_service({1080, 9050}, {"socks", "socks5", "tor-socks"})

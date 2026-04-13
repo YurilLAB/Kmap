@@ -7,7 +7,7 @@
 -- * http://www.unicode.org/Public/idna/10.0.0/
 --
 -- @author Rewanth Cool
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local stdnse = require "stdnse"
 

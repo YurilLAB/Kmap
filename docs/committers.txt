@@ -1,6 +1,6 @@
 This is a list of fine folks who help bring you Kmap! But not an
 exclusive list, as many people who contribute greatly to Kmap are not
-committers.  See the CHANGELOG (https://kmap.org/changelog.html) for a
+committers.  See the CHANGELOG (https://github.com/YurilLAB/Kmap) for a
 broader list of contributions.
 
 These people have earned commit access to the Kmap SVN repository and
@@ -39,11 +39,11 @@ bmenrigh   - Brandon Enright specializes in large-scale scanning and math/crypto
 batrick    - Patrick Donnelly is a Lua expert and specializes in NSE internals
 
 ithilgore  - Ithilgore wrote the Ncrack authentication cracker
-             (https://kmap.org/ncrack/)
+             (https://github.com/YurilLAB/Kmap)
 
 luis       - Luis MartinGarcia wrote and maintains the Nping tool for packet
              generation, response analysis, and response time
-             measurement (https://kmap.org/nping/)
+             measurement (https://github.com/YurilLAB/Kmap)
 
 majek04    - Marek Majkowski wrote a lot of low-level code and several
              NSE scripts

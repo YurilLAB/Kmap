@@ -64,7 +64,7 @@ the server is vulnerable.
 -- |_      http://www.openssl.org/news/secadv_20140605.txt
 
 author = "Claudiu Perta <claudiu.perta@gmail.com>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "vuln", "safe" }
 dependencies = {"https-redirect"}
 

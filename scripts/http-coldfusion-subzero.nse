@@ -33,7 +33,7 @@ This was based on the exploit 'ColdSub-Zero.pyFusion v2'.
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit"}
 
 local http = require "http"

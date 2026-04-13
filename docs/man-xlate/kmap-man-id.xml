@@ -39,7 +39,7 @@
       <note><para>
           Dokumen ini menjelaskan versi Kmap 4.85BETA7. Dokumentasi terbaru tersedia
           dalam bahasa Inggris di
-          <ulink url="https://kmap.org/book/man.html" />.</para></note>
+          <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
     </web>
     <para>Kmap (<quote>Network Mapper</quote>) merupakan sebuah tool open source untuk 
     eksplorasi dan audit keamanan jaringan. Ia dirancang untuk memeriksa jaringan
@@ -94,10 +94,10 @@
 <example id="man-ex-repscan"><title>Sebuah gambaran pemeriksaan Kmap</title>
 <indexterm significance="normal"><primary><option>-A</option></primary><secondary>example of</secondary></indexterm>
 <screen format="linespecific">
-# kmap -A -T4 scanme.kmap.org
+# kmap -A -T4 scanme.nmap.org
 
-Starting Kmap ( https://kmap.org )
-Interesting ports on scanme.kmap.org (64.13.134.52):
+Starting Kmap ( https://github.com/YurilLAB/Kmap )
+Interesting ports on scanme.nmap.org (64.13.134.52):
 Not shown: 994 filtered ports
 PORT    STATE  SERVICE VERSION
 22/tcp  open   ssh     OpenSSH 4.3 (protocol 2.0)
@@ -116,14 +116,14 @@ HOP RTT   ADDRESS
 [Cut first seven hops for brevity]
 8   10.59 so-4-2-0.mpr3.pao1.us.above.net (64.125.28.142)
 9   11.00 metro0.sv.svcolo.com (208.185.168.173)
-10  9.93  scanme.kmap.org (64.13.134.52)
+10  9.93  scanme.nmap.org (64.13.134.52)
 
 Kmap done: 1 IP address (1 host up) scanned in 17.00 seconds
 </screen>
 </example>
 
-<para>Versi terbaru Kmap dapat diperoleh dari <ulink url="https://kmap.org"/>.  Versi terbaru man page
-tersedia di <ulink url="https://kmap.org/book/man.html"/>.</para>
+<para>Versi terbaru Kmap dapat diperoleh dari <ulink url="https://github.com/YurilLAB/Kmap"/>.  Versi terbaru man page
+tersedia di <ulink url="https://github.com/YurilLAB/Kmap"/>.</para>
 
   </refsect1>
 
@@ -132,7 +132,7 @@ tersedia di <ulink url="https://kmap.org/book/man.html"/>.</para>
 
   <para>Edisi bahasa Indonesia Kmap Reference Guide ini
   diterjemahkan dari versi [12855] <ulink
-  url="https://kmap.org/book/man.html">versi Inggris</ulink> 
+  url="https://github.com/YurilLAB/Kmap">versi Inggris</ulink> 
   oleh Tedi Heriyanto.  Meskipun kami berharap bahwa hal ini akan
   membuat Kmap lebih dapat diakses oleh para pengguna bahasa Indonesia di seluruh dunia, 
   namun kami tidak dapat menjamin bahwa terjemahanan ini lengkap atau
@@ -147,7 +147,7 @@ tersedia di <ulink url="https://kmap.org/book/man.html"/>.</para>
 
 <para>Ringkasan opsi ini ditampilkan ketika Kmap dijalankan
 tanpa argumen, dan versi terakhir selalu tersedia di
-<ulink url="https://kmap.org/data/kmap.usage.txt"/>.
+<ulink url="https://github.com/YurilLAB/Kmap
 Ia membantu mengingat opsi-opsi umum, namun ia bukanlah
 pengganti dokumentasi lengkap dalam halaman-halaman berikut manual ini. 
 Bahkan beberapa opsi tersembunyi tidak disertakan di sini.</para>
@@ -157,11 +157,11 @@ Bahkan beberapa opsi tersembunyi tidak disertakan di sini.</para>
 <indexterm class="startofrange" id="kmap-usage-indexterm" significance="normal"><primary sortas="#">summary of options</primary></indexterm>
 <indexterm class="startofrange" id="kmap-usage-kmap-indexterm" significance="normal"><primary>command-line options</primary><secondary>of Kmap</secondary></indexterm>
 <?dbfo-need height="1in"?>
-<literallayout format="linespecific" class="normal">Kmap 4.85BETA7 ( https://kmap.org )
+<literallayout format="linespecific" class="normal">Kmap 4.85BETA7 ( https://github.com/YurilLAB/Kmap )
 Usage: kmap [Scan Type(s)] [Options] {target specification}
 TARGET SPECIFICATION:
   Can pass hostnames, IP addresses, networks, etc.
-  Ex: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL &lt;inputfilename&gt;: Input from list of hosts/networks
   -iR &lt;num hosts&gt;: Choose random targets
   --exclude &lt;host1[,host2][,host3],...&gt;: Exclude hosts/networks
@@ -259,10 +259,10 @@ MISC:
   -V: Print version number
   -h: Print this help summary page.
 EXAMPLES:
-  kmap -v -A scanme.kmap.org
+  kmap -v -A scanme.nmap.org
   kmap -v -sP 192.168.0.0/16 10.0.0.0/8
   kmap -v -iR 10000 -PN -p 80
-SEE THE MAN PAGE (https://kmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES
+SEE THE MAN PAGE (https://github.com/YurilLAB/Kmap) FOR MORE OPTIONS AND EXAMPLES
 </literallayout>
 
 <indexterm class="endofrange" startref="kmap-usage-kmap-indexterm" significance="normal"/>
@@ -289,9 +289,9 @@ host antara 192.168.10.0 (biner: <literal moreinfo="none">11000000 10101000
 00001010 00000000</literal>) dan 192.168.10.255 (biner: <literal moreinfo="none">11000000 10101000
 00001010 11111111</literal>), inklusif.
 192.168.10.40/24 akan memeriksa target-target yang sama.  Misalkan host
-<literal moreinfo="none">scanme.kmap.org</literal><indexterm significance="normal"><primary><literal moreinfo="none">scanme.kmap.org</literal></primary></indexterm>
+<literal moreinfo="none">scanme.nmap.org</literal><indexterm significance="normal"><primary><literal moreinfo="none">scanme.nmap.org</literal></primary></indexterm>
 memiliki alamat IP 64.13.134.52, spesifikasi
-scanme.kmap.org/16 akan memeriksa sebanyak 65.536 alamat IP antara
+scanme.nmap.org/16 akan memeriksa sebanyak 65.536 alamat IP antara
 64.13.0.0 dan 64.13.255.255.  Nilai terkecil yang diijinkan adalah /0,
 yang akan memeriksa seluruh Internet.  Nilai terbesar adalah /32, yang hanya
 akan memeriksa host atau alamat IP yang disebutkan karena seluruh bit alamat tetap.</para>
@@ -318,7 +318,7 @@ untuk IPv6 karena mereka jarang bermanfaat.</para>
 
 <para>Kmap menerima spesifikasi banyak host pada perintah baris,
 dan mereka tidak perlu dalam jenis yang sama.  Perintah <command moreinfo="none">kmap
-scanme.kmap.org 192.168.0.0/8 10.0.0,1,3-7.-</command> melakukan
+scanme.nmap.org 192.168.0.0/8 10.0.0,1,3-7.-</command> melakukan
 apa yang anda harapkan.</para>
 
 <para>Meskipun target biasanya dispesifikasikan pada perintah baris, opsi berikut juga
@@ -1419,7 +1419,7 @@ Jika anda tidak menspesifikasikan tipe dasar, akan digunakan SYN scan.</para>
           <man>
           Jenis scan menarik ini terlalu kompleks untuk dijelaskan dalam panduan
           referensi ini, sehingga saya menulis dan menaruh paper informal dengan
-          detil penuh di <ulink url="https://kmap.org/book/idlescan.html"/>.
+          detil penuh di <ulink url="https://github.com/YurilLAB/Kmap/book/idlescan.html"/>.
           </man>
           <notman>
           Full details of this fascinating scan type are in
@@ -1726,7 +1726,7 @@ sysadmin mungkin tidak akan menghargai anda menggunakan server mereka dengan car
     <man>
     Sebuah paper yang mendokumentasikan cara kerja, penggunaan, dan kustomisasi
     deteksi versi tersedia di
-    <ulink url="https://kmap.org/book/vscan.html"/>.
+    <ulink url="https://github.com/YurilLAB/Kmap/book/vscan.html"/>.
     </man>
     <notman>
     Deteksi versi dijelaskan secara rinci dalam <xref linkend="vscan"/>.
@@ -1923,7 +1923,7 @@ sysadmin mungkin tidak akan menghargai anda menggunakan server mereka dengan car
     <man>
     Sebuah paper yang mendokumentasikan cara kerja, penggunaan, dan kustomisasi deteksi SO
     tersedia di
-    <ulink url="https://kmap.org/book/osdetect.html"/>.
+    <ulink url="https://github.com/YurilLAB/Kmap/book/osdetect.html"/>.
     </man>
     <notman>
     Deteksi SO dibahas dalam <xref linkend="osdetect"/>.
@@ -2025,12 +2025,12 @@ sysadmin mungkin tidak akan menghargai anda menggunakan server mereka dengan car
     Untuk mencerminkan penggunaan yang berbeda dan untuk memudahkan pilihan skrip
     yang diinginkan, setiap skrip berisi field yang mengasosiasikannya dengan satu atau lebih kategori.  Kategori yang ada saat ini adalah
 <literal moreinfo="none">safe</literal>, <literal moreinfo="none">intrusive</literal>, <literal moreinfo="none">malware</literal>, <literal moreinfo="none">version</literal>, <literal moreinfo="none">discovery</literal>, <literal moreinfo="none">vuln</literal>, <literal moreinfo="none">auth</literal>, and <literal moreinfo="none">default</literal>.  These are all described
-    <man>at <ulink url="https://kmap.org/book/nse-usage.html#nse-categories"/>.</man>
+    <man>at <ulink url="https://github.com/YurilLAB/Kmap/book/nse-usage.html#nse-categories"/>.</man>
     <notman>in <xref linkend="nse-categories"/>.</notman></para>
 
     
     <para>Kmap Scripting Engine dijelaskan lebih rinci
-<man>di <ulink url="https://kmap.org/book/nse.html"/></man>
+<man>di <ulink url="https://github.com/YurilLAB/Kmap/book/nse.html"/></man>
 <notman>in <xref linkend="nse"/></notman> dan dikendalikan oleh opsi-opsi berikut ini:</para>
 
 	<variablelist>
@@ -2076,7 +2076,7 @@ Jika diberikan nama file individual, ekstensi file tidak perlu harus
 
 <para>Skrip Kmap secara baku disimpan dalam subdirektori <filename moreinfo="none">scripts</filename>
 direktori data Kmap
-<man>(lihat <ulink url="https://kmap.org/book/data-files.html"/>).</man>
+<man>(lihat <ulink url="https://github.com/YurilLAB/Kmap/book/data-files.html"/>).</man>
 <notman>(see <xref linkend="data-files"/>).</notman> Demi efisiensi,
 skrip diindeks dalam database yang disimpan dalam
 <filename moreinfo="none">scripts/script.db</filename>.<indexterm significance="normal"><primary><filename moreinfo="none">script.db</filename></primary></indexterm>
@@ -3004,7 +3004,7 @@ mendukung opsi secara penuh, demikian pula scan UDP.</para>
   paket yang dikirimkan ke host target.  Karena secara virtual seluruh
   stack IP host akan secara tepat men-drop paket ini, sembarang respon yang diterima
   adalah kemungkinan berasal dari firewall atau IDS yang tidak peduli untuk memverifikasi
-  checksum.  Detil lebih lanjut mengenai teknik ini, dapat dilihat pada <ulink url="https://kmap.org/p60-12.html"/></para>
+  checksum.  Detil lebih lanjut mengenai teknik ini, dapat dilihat pada <ulink url="https://github.com/YurilLAB/Kmap/p60-12.html"/></para>
         </listitem>
       </varlistentry>
 
@@ -3135,7 +3135,7 @@ file output daripada menghapusnya.  Seluruh opsi ini dijelaskan di bawah.</para>
           ia dapat juga membantu manusia menginterpretasikan output XML Kmap.
           DTD mendefinisikan elemen legal format, dan seringkali merinci atribut
           dan nilai yang dapat mereka terima.
-          Versi terakhir selalu tersedia di <ulink url="https://kmap.org/data/kmap.dtd"/>.</para>
+          Versi terakhir selalu tersedia di <ulink url="https://github.com/YurilLAB/Kmap
 
           <para>XML memberikan format stabil yang dapat secara mudah
           diparse oleh software. Parser XML yang bebas tersedia untuk bahasa
@@ -3221,7 +3221,7 @@ info</literal>, dan <literal moreinfo="none">Version info</literal>.</para>
 
 <para>Sebagaimana dengan output XML, man page ini tidak memungkinkan untuk mendokumentasi
 seluruh format.  Rincian lebih lanjut mengenai format output grepable Kmap tersedia 
-<man>dari <ulink url="https://kmap.org/book/output-formats-grepable-output.html"/>.</man>
+<man>dari <ulink url="https://github.com/YurilLAB/Kmap/book/output-formats-grepable-output.html"/>.</man>
 <notman>dalam <xref linkend="output-formats-grepable-output"/>.</notman>
 </para>
         </listitem>
@@ -3511,7 +3511,7 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
           <option>--stylesheet</option>.  Anda harus memberikan nama path atau URL lengkap.
           Cara pemanggilan umum adalah
           <option>--stylesheet
-          https://kmap.org/data/kmap.xsl</option>.  Cara ini memberitahu
+          https://github.com/YurilLAB/Kmap  Cara ini memberitahu
           browser untuk memuat versi terakhir stylesheet dari Kmap.Org.  
 	  Opsi <option>--webxml</option> melakukan hal yang sama dengan cara yang lebih singkat.
           Memuatkan XSL dari Kmap.Org memudahkan melihat hasil pada mesin yang tidak memiliki
@@ -3530,7 +3530,7 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
         <listitem>
 
           <para>Opsi kenyamanan ini adalah sekedar alias bagi
-          <option significance="preferred">--stylesheet https://kmap.org/data/kmap.xsl</option>.</para>
+          <option significance="preferred">--stylesheet https://github.com/YurilLAB/Kmap
         </listitem>
       </varlistentry>
 
@@ -3868,28 +3868,28 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
     Pendekatan terbaik adalah memperoleh ijin terlebih dulu.</para>
 
     <para>Untuk tujuan pengujian, anda memperoleh ijin untuk memeriksa host
-    <literal moreinfo="none">scanme.kmap.org</literal>.  Ijin ini hanya mencakup
+    <literal moreinfo="none">scanme.nmap.org</literal>.  Ijin ini hanya mencakup
     pemeriksaan dengan Kmap dan tidak menguji eksploit atau serangan denial of service.
     Untuk menghemat bandwidth, mohon tidak menggunakan lebih dari selusin scan
     terhadap host tersebut per hari. Jika layanan target scanning gratis ini disalahgunakan,
     ia akan dinonaktifkan dan Kmap akan melaporkan
     <computeroutput moreinfo="none">Failed to resolve given hostname/IP:
-    scanme.kmap.org</computeroutput>.  Ijin ini juga berlaku untuk host-host
-    <literal moreinfo="none">scanme2.kmap.org</literal>,
-    <literal moreinfo="none">scanme3.kmap.org</literal>, dan seterusnya, meskipun host-host
+    scanme.nmap.org</computeroutput>.  Ijin ini juga berlaku untuk host-host
+    <literal moreinfo="none">scanme2.github.com/YurilLAB/Kmap</literal>,
+    <literal moreinfo="none">scanme3.github.com/YurilLAB/Kmap</literal>, dan seterusnya, meskipun host-host
     ini belum ada.</para>
 
     <para>
       <indexterm significance="normal"><primary><option>-v</option></primary><secondary>example of</secondary></indexterm>
-      <command moreinfo="none">kmap -v scanme.kmap.org</command>
+      <command moreinfo="none">kmap -v scanme.nmap.org</command>
     </para>
     <para>Opsi ini memeriksa seluruh port TCP reserved pada mesin
-    <literal moreinfo="none">scanme.kmap.org</literal> . Opsi <option>-v</option>
+    <literal moreinfo="none">scanme.nmap.org</literal> . Opsi <option>-v</option>
     mengaktifkan mode verbose.</para>
     <para>
       <indexterm significance="normal"><primary><option>-sS</option></primary><secondary>example of</secondary></indexterm>
       <indexterm significance="normal"><primary><option>-O</option></primary><secondary>example of</secondary></indexterm>
-      <command moreinfo="none">kmap -sS -O scanme.kmap.org/24</command>
+      <command moreinfo="none">kmap -sS -O scanme.nmap.org/24</command>
     </para>
     <para>Meluncurkan scan stealth SYN terhadap setiap mesin yang up dari 
     256 IP pada jaringan berukuran <quote>kelas C</quote> tempat 
@@ -3938,30 +3938,30 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
     <para>Seperti penulisnya, Kmap tidaklah sempurna.  Namun anda dapat membantu
     membuatnya lebih baik dengan mengirimkan laporan bug atau bahkan menulis patch. Jika
     Kmap tidak berlaku sesuai yang anda harapkan, pertama upgrade ke versi terakhir
-    yang tersedia dari <ulink url="https://kmap.org"/>.  Jika masalah masih tetap,
+    yang tersedia dari <ulink url="https://github.com/YurilLAB/Kmap"/>.  Jika masalah masih tetap,
     lakukan riset untuk menentukan apakah ia telah ditemukan dan diselesaikan.
     Cobalah mencari pesan kesalahan pada halaman pencarian kami <ulink url="https://insecure.org/search.html"/> atau di Google.  Juga cobalah
     membrowsing arsip <citetitle>kmap-dev</citetitle> di <ulink url="https://seclists.org/"/>.<indexterm significance="normal"><primary><citetitle>kmap-dev</citetitle> mailing list</primary></indexterm>
     Bacalah juga halaman manual ini dengan baik.
     Jika masih belum selesai juga, kirimkan laporan bug ke
-    <email>dev@kmap.org</email>.  Mohon sertakan semua yang
+    <email>https://github.com/YurilLAB/Kmap/issues</email>.  Mohon sertakan semua yang
     anda telah pelajari mengenai masalah, dan juga versi Kmap dan sistem operasi
     yang anda gunakan. Laporan kesalahan dan pertanyaan penggunaan Kmap yang dikirim ke
-    <email>dev@kmap.org</email> akan lebih mungkin dijawab daripada yang dikirimkan
+    <email>https://github.com/YurilLAB/Kmap/issues</email> akan lebih mungkin dijawab daripada yang dikirimkan
     secara langsung ke Fyodor.  Jika anda berlangganan ke list kmap-dev
     sebelum posting, pesan anda akan melewati moderasi dan akan lewat dengan lebih cepat.
-    Berlangganan di <ulink url="https://kmap.org/mailman/listinfo/dev"/>.</para>
+    Berlangganan di <ulink url="https://github.com/YurilLAB/Kmap/mailman/listinfo/dev"/>.</para>
 
     <para>Patch code untuk memperbaiki bug adalah lebih baik daripada laporan kesalahan.
     Instruksi dasar untuk membuat file patch dengan perubahan anda tersedia di
-    <ulink url="https://kmap.org/data/HACKING"/>.  Patch dapat dikirim ke 
+    <ulink url="https://github.com/YurilLAB/Kmap  Patch dapat dikirim ke 
     <citetitle>kmap-dev</citetitle> (direkomendasikan) atau langsun ke Fyodor.</para>
   </refsect1>
 
   <refsect1 id="man-author">
     <title>Penulis</title>
     <para>Fyodor 
-    <email>fyodor@kmap.org</email>
+    <email>https://github.com/YurilLAB/Kmap/issues</email>
     (<ulink url="https://insecure.org"/>)
     </para>
 
@@ -3969,7 +3969,7 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
     Hal ini dirinci dalam file
     <filename moreinfo="none">CHANGELOG</filename><indexterm significance="normal"><primary>changelog</primary></indexterm>
     yang didistribusikan bersama Kmap
-    dan juga tersedia dari <ulink url="https://kmap.org/changelog.html"/>.</para>
+    dan juga tersedia dari <ulink url="https://github.com/YurilLAB/Kmap"/>.</para>
 
   </refsect1>
 
@@ -3980,7 +3980,7 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
   <title>Unofficial Translation Disclaimer / Disklaimer Terjemahan Tidak Resmi</title>
 
   <para>This is an unnofficial translation of the <ulink
-  url="https://kmap.org/book/man-legal.html">Kmap
+  url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE">Kmap
   license details</ulink> into Indonesian.  It was not written by
   Insecure.Com LLC, and does not legally state the distribution terms
   for Kmap -- only the original English text does that.  However, we
@@ -3988,7 +3988,7 @@ banyaknya permintaan.  Berikan <option>--open</option> untuk hanya melihat port
   Kmap license better.</para>
 
 <para>Ini merupakan terjemahan tidak resmi dari <ulink
-  url="https://kmap.org/book/man-legal.html">Kmap
+  url="https://github.com/YurilLAB/Kmap/blob/master/LICENSE">Kmap
   license details</ulink> ke dalam bahasa Indonesia.  Ia tidak ditulis oleh
   Insecure.Com LLC, dan tidak secara legal menyatakan syarat distribusi
   untuk Kmap -- hanya teks berbahasa Inggris aslinya yang melakukan hal itu.
@@ -4079,7 +4079,7 @@ run it. This also allows you to audit the software for security holes
 
 <para>Source code also allows you to port Kmap to new platforms, fix
 bugs, and add new features. You are highly encouraged to send your
-changes to <email>fyodor@kmap.org</email> for possible
+changes to <email>https://github.com/YurilLAB/Kmap/issues</email> for possible
 incorporation into the main distribution. By sending these changes to
 Fyodor or one of the Insecure.Org development mailing lists, it is
 assumed that you are offering Fyodor and Insecure.Com LLC the

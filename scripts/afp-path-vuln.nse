@@ -65,7 +65,7 @@ For additional information:
 -- Revised 21/10/2011 - v0.4 - Use the vulnerability library vulns.lua
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit", "intrusive", "vuln"}
 
 

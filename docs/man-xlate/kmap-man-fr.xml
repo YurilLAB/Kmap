@@ -34,7 +34,7 @@
       <web>
       <note><para>
           Ce document décrit Kmap version 4.50. La dernière documentation est disponible en anglais à
-          <ulink url="https://kmap.org/book/man.html" />.</para></note>
+          <ulink url="https://github.com/YurilLAB/Kmap" />.</para></note>
       </web>
       <para>
 										Kmap (<quote>Network Mapper</quote>) est un outil open source d'exploration réseau et d'audit de sécurité. Il a été conçu pour rapidement scanner de grands réseaux, mais il fonctionne aussi très bien sur une cible unique. Kmap innove en utilisant des paquets IP bruts (raw packets) pour déterminer quels sont les hôtes actifs sur le réseau, quels services (y compris le nom de l'application et la version) ces hôtes offrent, quels systèmes d'exploitation (et leurs versions) ils utilisent, quels types de dispositifs de filtrage/pare-feux sont utilisés, ainsi que des douzaines d'autres caractéristiques. Kmap est généralement utilisé pour les audits de sécurité mais de nombreux gestionnaires des systèmes et de  réseau l'apprécient pour des tâches de routine comme les inventaires de réseau, la gestion des mises à jour planifiées ou la surveillance des hôtes et des services actifs. 
@@ -64,10 +64,10 @@
       <example id="man-ex-repscan" >
         <title>Un scan Kmap représentatif</title>
         <screen format="linespecific" >
-# kmap -A -T4 scanme.kmap.org playground
+# kmap -A -T4 scanme.nmap.org playground
 
-Starting kmap ( https://kmap.org/ )
-Interesting ports on scanme.kmap.org (205.217.153.62):
+Starting kmap ( https://github.com/YurilLAB/Kmap/ )
+Interesting ports on scanme.nmap.org (205.217.153.62):
 (The 1663 ports scanned but not shown below are in state: filtered)
 PORT    STATE  SERVICE VERSION
 22/tcp  open   ssh     OpenSSH 3.9p1 (protocol 1.99)
@@ -80,7 +80,7 @@ Running: Linux 2.4.X|2.5.X|2.6.X
 OS details: Linux 2.4.7 - 2.6.11, Linux 2.6.0 - 2.6.11
 Uptime 33.908 days (since Thu Jul 21 03:38:03 2005)
 
-Interesting ports on playground.kmap.org (192.168.0.40):
+Interesting ports on playground.github.com/YurilLAB/Kmap (192.168.0.40):
 (The 1659 ports scanned but not shown below are in state: closed)
 PORT     STATE SERVICE       VERSION
 135/tcp  open  msrpc         Microsoft Windows RPC
@@ -103,15 +103,15 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
       </example>
       <para>
 										La plus récente version de Kmap peut être obtenue à l'url 
-										<ulink url="https://kmap.org/" /> 
+										<ulink url="https://github.com/YurilLAB/Kmap/" /> 
 										. La plus récente version du manuel est disponible à 
-										<ulink url="https://kmap.org/man/" /> 
+										<ulink url="https://github.com/YurilLAB/Kmap/man/" /> 
 										. 
 										</para>
     </refsect1>
     <refsect1 id="translation" >
       <title>Notes de Traduction</title>
-      <para>Cette édition Francaise du Guide de référence de Kmap a été traduite à partir de la version [2991] de la <ulink url="https://kmap.org/man/" >version originale
+      <para>Cette édition Francaise du Guide de référence de Kmap a été traduite à partir de la version [2991] de la <ulink url="https://github.com/YurilLAB/Kmap/man/" >version originale
 										en Anglais</ulink> par Romuald THION <email>romuald.thion@insa-lyon.fr</email> et 4N9e Gutek <email>4n9e@futurezone.biz</email>. Elle a été relue et corrigée par Ghislaine Landry <email>g-landry@rogers.com</email>. Ce travail peut être modifié et redistribué selon les termes de la license <ulink url="http://creativecommons.org/licenses/by/2.5/" >Creative Commons Attribution License</ulink>.</para>
       <para>Mise a jour au 19 dec 2007.</para>
     </refsect1>
@@ -119,7 +119,7 @@ Kmap finished: 2 IP addresses (2 hosts up) scanned in 88.392 seconds
       <title>Résumé des options</title>
       <para>
 									Ce résumé des options est affiché quand Kmap est exécuté sans aucun argument; la plus récente version est toujours disponible sur 
-									<ulink url="https://kmap.org/data/kmap.usage.txt" /> 
+									<ulink url="https://github.com/YurilLAB/Kmap /> 
 									. Il sert d'aide-mémoire des options les plus fréquemment utilisées, mais ne remplace pas la documentation bien plus détaillée de la suite de ce manuel. Les options obscures n'y sont pas incluses. 
 									</para>
       <para>
@@ -129,7 +129,7 @@ Utilisation: kmap [Type(s) de scan] [Options] {spécifications des cibles}
 
 SPÉCIFICATIONS DES CIBLES:
 Les cibles peuvent être spécifiées par des noms d'hôtes, des adresses IP, des adresses de réseaux, etc.
-Exemple: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0-255.0-255.1-254
+Exemple: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0-255.0-255.1-254
 -iL &lt;inputfilename>: Lit la liste des hôtes/réseaux cibles à partir du fichier
 -iR &lt;num hosts>: Choisit les cibles au hasard
 --exclude &lt;host1[,host2][,host3],...>: Exclut des hôtes/réseaux du scan 
@@ -235,7 +235,7 @@ DIVERS:
 -h: Affiche ce résumé de l'aide
 
 EXEMPLES:
-kmap -v -A scanme.kmap.org
+kmap -v -A scanme.nmap.org
 kmap -v -sP 192.168.0.0/16 10.0.0.0/8
 kmap -v -iR 10000 -P0 -p 80				
 										</literallayout>
@@ -244,11 +244,11 @@ kmap -v -iR 10000 -P0 -p 80
     <refsect1 id="man-target-specification" >
       <title>Spécification des cibles</title>
       <para>Tout ce qui n'est pas une option (ou l'argument d'une option) dans la ligne de commande de Kmap est considéré comme une spécification d'hôte cible. Le cas le plus simple est de spécifier une adresse IP cible ou un nom d'hôte à scanner.</para>
-      <para>  Si vous désirez scanner un réseau entier d'hôtes consécutifs, Kmap supporte l'adressage du style CIDR. Vous pouvez ajouter / <replaceable>numbits</replaceable> à une adresse IP ou à un nom d'hôte de référence et Kmap scannera toutes les adresses IP dont les <replaceable>numbits</replaceable> bits de poids fort sont les mêmes que la cible de référence. Par exemple, 192.168.10.0/24 scannerait les 256 hôtes entre 192.168.10.0 (en binaire: <literal moreinfo="none" >11000000 10101000 00001010 00000000</literal>) et 192.168.10.255 (en binaire:<literal moreinfo="none" >11000000 10101000 00001010 11111111</literal>) inclusivement. 192.168.10.40/24 ferait donc aussi la même chose. Étant donné que l'hôte scanme.kmap.org est à l'adresse IP 205.217.153.62, scanme.kmap.org/16 scannerait les 65 536 adresses IP entre 205.217.0.0 et 205.217.255.255. La plus petite valeur autorisée est /1 qui scanne la moitié d'Internet. La plus grande valeur autorisée est 32, ainsi Kmap ne scanne que la cible de référence car tous les bits de l'adresse sont fixés. 
+      <para>  Si vous désirez scanner un réseau entier d'hôtes consécutifs, Kmap supporte l'adressage du style CIDR. Vous pouvez ajouter / <replaceable>numbits</replaceable> à une adresse IP ou à un nom d'hôte de référence et Kmap scannera toutes les adresses IP dont les <replaceable>numbits</replaceable> bits de poids fort sont les mêmes que la cible de référence. Par exemple, 192.168.10.0/24 scannerait les 256 hôtes entre 192.168.10.0 (en binaire: <literal moreinfo="none" >11000000 10101000 00001010 00000000</literal>) et 192.168.10.255 (en binaire:<literal moreinfo="none" >11000000 10101000 00001010 11111111</literal>) inclusivement. 192.168.10.40/24 ferait donc aussi la même chose. Étant donné que l'hôte scanme.nmap.org est à l'adresse IP 205.217.153.62, scanme.nmap.org/16 scannerait les 65 536 adresses IP entre 205.217.0.0 et 205.217.255.255. La plus petite valeur autorisée est /1 qui scanne la moitié d'Internet. La plus grande valeur autorisée est 32, ainsi Kmap ne scanne que la cible de référence car tous les bits de l'adresse sont fixés. 
 										</para>
       <para>La notation CIDR est concise mais pas toujours des plus pratiques. Par exemple, vous voudriez scanner 192.168.0.0/16 mais éviter toutes les adresses se terminant par .0 ou .255 car se sont souvent des adresses de diffusion (broadcast). Kmap permet de le faire grâce à l'adressage par intervalles. Plutôt que de spécifier une adresse IP normale, vous pouvez spécifier pour chaque octet de l'IP une liste d'intervalles séparés par des virgules. Par exemple, 192.168.0-255.1-254 évitera toutes les adresses se terminant par .0 ou .255. Les intervalles ne sont pas limités aux octets finals: 0-255.0-255.13.37 exécutera un scan de toutes les adresses IP se terminant par 13.37. Ce genre de spécifications peut s'avérer utile pour des statistiques sur Internet ou pour les chercheurs.</para>
       <para>Les adresses IPv6 ne peuvent être spécifiées que par une adresse IPv6 pleinement qualifiée ou un nom d'hôte. L'adressage CIDR ou par intervalles n'est pas géré avec IPv6 car les adresses ne sont que rarement utiles.</para>
-      <para>Kmap accepte les spécifications de plusieurs hôtes à la ligne de commande, sans qu'elles soient nécessairement de même type. La commande <command moreinfo="none" >kmap scanme.kmap.org 192.168.0.0/8 10.0.0,1,3-7.0-255</command> fait donc ce à quoi vous vous attendez. </para>
+      <para>Kmap accepte les spécifications de plusieurs hôtes à la ligne de commande, sans qu'elles soient nécessairement de même type. La commande <command moreinfo="none" >kmap scanme.nmap.org 192.168.0.0/8 10.0.0,1,3-7.0-255</command> fait donc ce à quoi vous vous attendez. </para>
       <para>Même si les cibles sont souvent spécifiées dans les lignes de commandes, les options suivantes sont également disponibles pour sélectionner des cibles :</para>
       <variablelist>
         <varlistentry>
@@ -597,7 +597,7 @@ kmap -v -iR 10000 -P0 -p 80
           <term>
             <option>-sI &lt;zombie host[:probeport]></option>(Scan passif -- idlescan)</term>
           <listitem>
-            <para>Cette méthode de scan avancé permet de faire un véritable scan de port TCP en aveugle, (dans le sens où aucun paquet n'est envoyé directement à la cible depuis votre vraie adresse IP). En effet, la technique employée consiste à récolter des informations sur les ports ouverts de la cible en utilisant un exploit basé sur la prédictibilité de la génération des identifiants de fragmentation IP de l'hôte relais (le zombie). Les systèmes IDS considéreront que le scan provient de la machine zombie que vous avez spécifié (qui doit remplir certains critères). Le mécanisme de cette incroyable technique est trop complexe pour être expliqué en détail dans ce guide; un papier informel a été posté pour rendre compte de tous ces détails:<ulink url="https://kmap.org/book/idlescan.html" />.</para>
+            <para>Cette méthode de scan avancé permet de faire un véritable scan de port TCP en aveugle, (dans le sens où aucun paquet n'est envoyé directement à la cible depuis votre vraie adresse IP). En effet, la technique employée consiste à récolter des informations sur les ports ouverts de la cible en utilisant un exploit basé sur la prédictibilité de la génération des identifiants de fragmentation IP de l'hôte relais (le zombie). Les systèmes IDS considéreront que le scan provient de la machine zombie que vous avez spécifié (qui doit remplir certains critères). Le mécanisme de cette incroyable technique est trop complexe pour être expliqué en détail dans ce guide; un papier informel a été posté pour rendre compte de tous ces détails:<ulink url="https://github.com/YurilLAB/Kmap/book/idlescan.html" />.</para>
             <para>En plus de son incroyable furtivité (en raison du caractère aveugle de la technique), ce type de scan permet de déterminer les relations de confiance entre les machines. La liste des ports ouverts est établie <emphasis>du point de vue de l'hôte zombie.</emphasis> Ainsi, vous pouvez essayer de scanner une cible en utilisant différents zombies pour lesquels vous pensez qu'il existe une relation de confiance entre eux et la cible (d'après les règles des dispositifs de filtrage).</para>
             <para>Vous pouvez ajouter les deux points (:) suivis d'un numéro de port de l'hôte zombie si vous souhaitez tester les changements d'identifiants IP sur un port particulier du zombie. Par défaut, Kmap utilisera le port utilisé pour les pings tcp (le port 80).</para>
           </listitem>
@@ -653,7 +653,7 @@ kmap -v -iR 10000 -P0 -p 80
       <title>Détection de services et de versions</title>
       <para>Supposons que Kmap vous ai signalé que les ports 25/tcp, 80/tcp et 53/udp d'une machine distante sont ouverts. En utilisant sa base de données <filename moreinfo="none" >kmap-services</filename>d'environ 2 200 services bien connus, Kmap indique que ces ports correspondent probablement à un serveur de messagerie (SMTP), un serveur Web (HTTP) et un serveur de noms (DNS), respectivement. Cette consultation est souvent pertinente -- une vaste majorité des démons écoutant sur le port 25, étant bien des serveurs de messagerie. Cependant, en sécurité, il ne faudrait pas trop parier là-dessus ! Les gens peuvent lancer des services sur des ports bizarres et ils le font effectivement.</para>
       <para>Même si Kmap a raison, et que les serveurs hypothétiques du dessus sont bien des serveurs SMTP, HTTP et DNS, ce n'est pas très utile. Lors d'audit de sécurité (ou bien lors de simples inventaires de réseau) de votre entreprise ou de clients, vous voulez réellement savoir de quels serveurs de messagerie et de noms il s'agit, ainsi que leurs versions. Connaître avec précision le numéro de version aide considérablement à déterminer à quels exploits un serveur est vulnérable. La détection de version vous permet d'obtenir une telle information.</para>
-      <para>Après avoir découvert les ports TCP ou UDP par une des méthodes de scan, la détection de version interroge ces ports pour savoir quelle version tourne actuellement. La base de données <filename moreinfo="none" >kmap-service-probes</filename> contient les tests à effectuer selon les services, ainsi que les chaînes de caractères auxquelles comparer les réponses. Kmap essaie de déterminer le protocole (p. ex.: ftp, ssh, telnet, http), le nom de l'application (p. ex.: ISC Bind, Appache httpd, Solaris telnetd), le numéro de version, le nom d'hôte, le type d'équipement (p. ex.: imprimante, routeur), la famille d'OS (p. ex.: Windows, Linux) et quelquefois des détails divers (p. ex.: si un serveur X accepte ou non des connexions, la version du protocole SSH, le nom d'utilisateur KaZaA). Bien sûr, la plupart des services ne fournissent pas autant d'informations. Si Kmap a été compilé avec le support de OpenSSL, il se connectera aux serveurs SSL pour déduire le service écoutant derrière la couche de cryptage. Quand des services RPC sont découverts, la moulinette RPC de Kmap (<option>-sR</option>) est automatiquement utilisée pour déterminer le programme RPC et sa version. Des ports peuvent rester dans l'état <literal moreinfo="none" >ouvert|filtré</literal>  lorsqu'un scan de ports UDP a été incapable de déterminer si le port était ouvert ou fermé. La détection de version tentera d'obtenir une réponse de ces ports (comme s'ils étaient ouverts), et changera l'état à ouvert si elle y parvient. Les ports TCP <literal moreinfo="none" >ouverts|filtré</literal> sont traités de la même façon. Notez que l'option<option>-A</option>de Kmap active notamment la détection de version. Un papier documentant le fonctionnement, l'utilisation et la personnalisation de la détection de version est disponible à <ulink url="https://kmap.org/vscan/" />.</para>
+      <para>Après avoir découvert les ports TCP ou UDP par une des méthodes de scan, la détection de version interroge ces ports pour savoir quelle version tourne actuellement. La base de données <filename moreinfo="none" >kmap-service-probes</filename> contient les tests à effectuer selon les services, ainsi que les chaînes de caractères auxquelles comparer les réponses. Kmap essaie de déterminer le protocole (p. ex.: ftp, ssh, telnet, http), le nom de l'application (p. ex.: ISC Bind, Appache httpd, Solaris telnetd), le numéro de version, le nom d'hôte, le type d'équipement (p. ex.: imprimante, routeur), la famille d'OS (p. ex.: Windows, Linux) et quelquefois des détails divers (p. ex.: si un serveur X accepte ou non des connexions, la version du protocole SSH, le nom d'utilisateur KaZaA). Bien sûr, la plupart des services ne fournissent pas autant d'informations. Si Kmap a été compilé avec le support de OpenSSL, il se connectera aux serveurs SSL pour déduire le service écoutant derrière la couche de cryptage. Quand des services RPC sont découverts, la moulinette RPC de Kmap (<option>-sR</option>) est automatiquement utilisée pour déterminer le programme RPC et sa version. Des ports peuvent rester dans l'état <literal moreinfo="none" >ouvert|filtré</literal>  lorsqu'un scan de ports UDP a été incapable de déterminer si le port était ouvert ou fermé. La détection de version tentera d'obtenir une réponse de ces ports (comme s'ils étaient ouverts), et changera l'état à ouvert si elle y parvient. Les ports TCP <literal moreinfo="none" >ouverts|filtré</literal> sont traités de la même façon. Notez que l'option<option>-A</option>de Kmap active notamment la détection de version. Un papier documentant le fonctionnement, l'utilisation et la personnalisation de la détection de version est disponible à <ulink url="https://github.com/YurilLAB/Kmap/vscan/" />.</para>
       <para>Lorsque Kmap reçoit une réponse d'un service mais ne parvient pas à le faire correspondre à un service de sa base de données, il affiche une empreinte et une adresse URL où vous pouvez l'envoyer si vous êtes sûr de ce qui tourne sur ce port. Prendre quelques minutes pour faire cette soumission permettra à tout le monde de bénéficier de votre découverte. Grâce à ces soumissions, Kmap dispose d'environ 3 000 empreintes de référence liées à plus de 350 protocoles, comme smtp, ftp et http.</para>
       <para>La détection de version est activée et contrôlée grâce aux options suivantes: </para>
       <variablelist>
@@ -712,20 +712,20 @@ kmap -v -iR 10000 -P0 -p 80
   <refsect1 id='man-os-detection'>
     <title>Détection d'OS</title>
     <para>Cette section n'a pas été traduite en français. Veuillez vous référer
-      à <ulink url="https://kmap.org/book/man-os-detection.html">la
+      à <ulink url="https://github.com/YurilLAB/Kmap/book/man-os-detection.html">la
         documentation en anglais</ulink>.</para>
   </refsect1>
 <!--</refentry>
 										</article>-->    
 										<refsect1 id="man-nse" >
 										<title>Kmap Scripting Engine (NSE)</title>
-										<para>Le moteur de scripts de Kmap (Kmap Scripting Engine -NSE) allie l'efficacité avec laquelle Kmap traite le réseau avec la souplesse d'un langage léger comme  Lua, fournissant ainsi une infinité d'opportunités. Une documentation plus complète du NSE (y compris ses API) peut être obtenue sur  <ulink url="https://kmap.org/nse"/>. Le but du NSE est de fournir à Kmap une infrastructure flexible afin d'étendre ses capacités et ainsi offrir à ses utilisateurs une facon simple de créer leurs propres tests personnalisés. Le cadre d'usage du NSE englobe (mais encore une fois n'est pas limité à) :</para>
+										<para>Le moteur de scripts de Kmap (Kmap Scripting Engine -NSE) allie l'efficacité avec laquelle Kmap traite le réseau avec la souplesse d'un langage léger comme  Lua, fournissant ainsi une infinité d'opportunités. Une documentation plus complète du NSE (y compris ses API) peut être obtenue sur  <ulink url="https://github.com/YurilLAB/Kmap/nse"/>. Le but du NSE est de fournir à Kmap une infrastructure flexible afin d'étendre ses capacités et ainsi offrir à ses utilisateurs une facon simple de créer leurs propres tests personnalisés. Le cadre d'usage du NSE englobe (mais encore une fois n'est pas limité à) :</para>
 										<para><emphasis>Détection de version évoluée </emphasis>(catégorie <literal>version</literal>) - Alors que Kmap propose déja son système de détection de Service et de Version qui est inégalé en termes d'efficacité et de couverture, cette puissance trouve sa limite lorsqu'il s'agit de services qui demandent des tests plus complexes. La version 2 du Protocole Skype par exemple peut être identifié en envoyant deux paquets de tests pour lesquels le système n'est pas prévu d'origine: un simple script NSE peut alors faire le travail et mettre ainsi à jour les informations sur le service tournant sur le port.</para>
 										<para><emphasis>Détection de Malware</emphasis> (catégories <literal>malware</literal> et <literal>backdoor</literal>)- Que ce soit les attaquants ou les vers, ils laissent souvent des portes dérobées, par exemple sous la forme de serveurs SMTP écoutant sur des ports inhabituels, le plus souvent utilisés par les spammers pour le relais de leurs mails, ou sous forme de serveur FTP donnant des accès à des données critiques aux crackers. Quelques lignes de code Lua peut aider à identifier facilement ces pièges. </para>
 										<para><emphasis>Détection de vulnérabilités</emphasis> (catégorie <literal>vulnerability</literal>)- Le NSE permet de détecter les risques allant par exemple des mots de passe par défaut sur Apache au test de capacité d'agir en tant que relais pour un serveur SMTP concernant les mails en provenance de domaines divers.</para>
 										<para><emphasis>Découverte du Réseau et Collecte d'Informations</emphasis> (catégories <literal>safe</literal>, <literal>intrusive</literal> et <literal>discovery</literal>) - En vous fournissant un langage de scripts et une API réseau asynchrone vraiment efficace d'une part et la collecte d'informations durant les étapes ultérieures du scan d'autre part, le NSE est concu pour écrire des programmes clients adaptés aux services en écoute sur la machine cible. Ces clients peuvent collecter des informations comme : liste des partages NFS/SMB/RPC disponibles, le nombre de canaux d'un réseau IRC ou les utilisateurs actuellement connectés.</para>
 										<para>Afin de refléter ces différents usages et pour simplifier le choix des scripts à employer, chaque script contient un champ qui l'associe a une ou plusieurs de ces catégories. Pour maintenir le lien entre scripts et catégories un fichier appelé script.db est installé avec les scripts distribués. Ainsi si par exemple vous voulez voir si une machine est infectée par un ver Kmap vous donne un script que vous pouvez facilement utiliser par la commande <literal>kmap --script=malware ip-cible</literal> afin d'analyser les résultats après coup.Les scripts de  version sont systématiquement lancés de facon implicite lorsqu'un scan de scripts est invoqué. Le fichier <literal>script.db</literal> est lui même un script Lua et peut être mis à jour via l'option <option>--script-updatedb</option>.</para>
-										<para>Un script NSE est simplement un code Lua qui a (parmis quelques champs d'information comme le nom, l'identifiant et la catégorie) 2 fonctions: un test dans le cas où le script en particulier doit être lancé contre une cible et un port spécifiques (appelés hostrule et portrule respectivement) et une action qui doit être menée si le test est positif. Les scripts ont acces à la plupart des informations collectées par Kmap durant les étapes précédentes. Pour chaque hôte ceci inclus l'adresse IP, le nom de l'hôte et (si disponible) le système d'exploitation. Si un script est destiné à un port en particulier, il a accès au numéro du port, son protocole (tcp, udp ou ssl), le service tournant derrière ce port et des informations optionnelles en provenance d'un scan de version. Par convention les scripts NSE ont une extension .nse. Toutefois vous n'avez pas besoin de suivre cette recommandation pour le moment, ceci pouvant changer dans l'avenir. Kmap donnera une mise en garde si un fichier a une autre extension. Une documentation plus exhaustive sur le NSE comprenant une description de son API peut être obtenue sur <ulink url="https://kmap.org/nse/"/>.</para>
+										<para>Un script NSE est simplement un code Lua qui a (parmis quelques champs d'information comme le nom, l'identifiant et la catégorie) 2 fonctions: un test dans le cas où le script en particulier doit être lancé contre une cible et un port spécifiques (appelés hostrule et portrule respectivement) et une action qui doit être menée si le test est positif. Les scripts ont acces à la plupart des informations collectées par Kmap durant les étapes précédentes. Pour chaque hôte ceci inclus l'adresse IP, le nom de l'hôte et (si disponible) le système d'exploitation. Si un script est destiné à un port en particulier, il a accès au numéro du port, son protocole (tcp, udp ou ssl), le service tournant derrière ce port et des informations optionnelles en provenance d'un scan de version. Par convention les scripts NSE ont une extension .nse. Toutefois vous n'avez pas besoin de suivre cette recommandation pour le moment, ceci pouvant changer dans l'avenir. Kmap donnera une mise en garde si un fichier a une autre extension. Une documentation plus exhaustive sur le NSE comprenant une description de son API peut être obtenue sur <ulink url="https://github.com/YurilLAB/Kmap/nse/"/>.</para>
       <variablelist>
         <varlistentry>
           <term>
@@ -1536,7 +1536,7 @@ le temps supplémentaire que cela suppose.</para>
   les paquets envoyés aux hôtes cibles.  Comme virtuellement toutes  
   les piles IP des hôtes rejettent ces paquets, toute réponse recue 
   doivent venir d'un pare-feu ou d'un IDS qui ne se préoccuppe pas de 
-  vérifier les sommes de contrôle.  Pour plus de détails sur cette technique, voir <ulink url="https://kmap.org/p60-12.txt" />
+  vérifier les sommes de contrôle.  Pour plus de détails sur cette technique, voir <ulink url="https://github.com/YurilLAB/Kmap/p60-12.txt" />
             </para>
           </listitem>
         </varlistentry>
@@ -1675,7 +1675,7 @@ le temps supplémentaire que cela suppose.</para>
 									cette procédure peut aussi aider à interpréter la sortie XML
 									de Kmap. Le DTD définit les éléments légaux du format
 									et énumère souvent les attributs et les valeurs qu'ils peuvent prendre.
-									La dernière version est toujours disponible sur <ulink url="https://kmap.org/data/kmap.dtd" />.</para>
+									La dernière version est toujours disponible sur <ulink url="https://github.com/YurilLAB/Kmap />.</para>
             <para>Le XML offre un format stable facilement traitable
 									au moyen d'un logiciel. Des outils de traitement XML sont offerts gratuitement dans tous les grands
 									langages de programmation, y compris C/C++, Perl, Python et
@@ -1932,7 +1932,7 @@ le temps supplémentaire que cela suppose.</para>
 									feuille de style différente, spécifiez là en argument à
 									<option>--stylesheet</option>. Vous devez donner le chemin ou l'adresse URL
 									complète. <option>--stylesheet
-										https://kmap.org/data/kmap.xsl</option> est une utilisation classique qui indique au navigateur de charger la dernière version de la feuille de style
+										https://github.com/YurilLAB/Kmap est une utilisation classique qui indique au navigateur de charger la dernière version de la feuille de style
 									de Insecure.Org. Cette procédure rend plus facile le visionnage des résultats sur une machine qui ne 
 									dispose pas de Kmap (et donc de 
 									<filename moreinfo="none" >kmap.xsl</filename>) . Par conséquent, l'adresse URL
@@ -1945,7 +1945,7 @@ le temps supplémentaire que cela suppose.</para>
             <option>--webxml</option> (Charge la feuille de style depuis Insecure.org)
 							</term>
           <listitem>
-            <para>Cette option est seulement un alias pour <literal>--stylesheet https://kmap.org/data/kmap.xsl</literal>.</para>
+            <para>Cette option est seulement un alias pour <literal>--stylesheet https://github.com/YurilLAB/Kmap
           </listitem>
         </varlistentry>
         <varlistentry>
@@ -2212,23 +2212,23 @@ le temps supplémentaire que cela suppose.</para>
 						n'apprécient pas les scans non sollicités de leur réseau et peuvent
 						s'en plaindre. La meilleure approche est donc d'obtenir d'abord leur autorisation.</para>
       <para>Pour des raisons de tests, vous avez l'autorisation de scanner l'hôte
-						<literal moreinfo="none" >scanme.kmap.org</literal>. Cette permission inclus seulement
+						<literal moreinfo="none" >scanme.nmap.org</literal>. Cette permission inclus seulement
 						les scans avec Kmap et non pas l'essai d'exploits ou d'attaques de Denis de 
 						Service. Afin de préserver la bande passante, veuillez ne lancer qu'une douzaine
 						de scans sur cet hôte au maximum par jour. En cas d'abus de ce libre service
 						de cible de scan, il serait fermé et Kmap afficherait le message suivant : <computeroutput moreinfo="none" >Failed to resolve given hostname/IP:
-							scanme.kmap.org</computeroutput>. Ces permissions s'appliquent aussi à l'hôte
-						<literal moreinfo="none" >scanme2.kmap.org</literal>, à
-						<literal moreinfo="none" >scanme3.kmap.org</literal>, et ainsi de suite, même si ces hôtes
+							scanme.nmap.org</computeroutput>. Ces permissions s'appliquent aussi à l'hôte
+						<literal moreinfo="none" >scanme2.github.com/YurilLAB/Kmap</literal>, à
+						<literal moreinfo="none" >scanme3.github.com/YurilLAB/Kmap</literal>, et ainsi de suite, même si ces hôtes
 						n'existent présentement pas.</para>
       <para>
-        <userinput moreinfo="none" >kmap -v scanme.kmap.org</userinput>
+        <userinput moreinfo="none" >kmap -v scanme.nmap.org</userinput>
       </para>
       <para>Cette option scanne tous les ports réservés TCP sur la machine
-						<literal moreinfo="none" >scanme.kmap.org</literal> . L'option <option>-v</option>
+						<literal moreinfo="none" >scanme.nmap.org</literal> . L'option <option>-v</option>
 						active le mode verbeux.</para>
       <para>
-        <userinput moreinfo="none" >kmap -sS -O scanme.kmap.org/24</userinput>
+        <userinput moreinfo="none" >kmap -sS -O scanme.nmap.org/24</userinput>
       </para>
       <para>Lance un scan furtif (stealth SYN scan) contre chaque machine active parmi
 						les 255 machines du réseau de <quote>classe C</quote> sur lequel
@@ -2272,26 +2272,26 @@ le temps supplémentaire que cela suppose.</para>
       <title>Bogues</title>
       <para>Comme son auteur, Kmap n'est pas parfait. Mais vous pouvez aider à l'améliorer en envoyant les rapports de bogues ou même en écrivant des programmes de correction. Si Kmap
 						ne satisfait pas à vos attentes, mettez-le d'abord à jour en utilisant la dernière version
-						disponible sur <ulink url="https://kmap.org/" />. Si le problème persiste,
+						disponible sur <ulink url="https://github.com/YurilLAB/Kmap/" />. Si le problème persiste,
 						faites quelques recherches afin de déterminer s'il a déjà été remarqué et
 						signalé. Essayez pour cela de mettre l'erreur en argument sur Google
 						ou parcourez les archives de Kmap-dev sur <ulink url="https://seclists.org/" />. Lisez ce manuel en entier quoiqu'il en
 						soit. Si rien ne semble fonctionner, envoyez un rapport de bogue à
-						<email>dev@kmap.org</email>. Veillez à inclure tout ce que vous avez
+						<email>https://github.com/YurilLAB/Kmap/issues</email>. Veillez à inclure tout ce que vous avez
 						appris au sujet de ce bogue ainsi que la version de Kmap concernée
 						et le système d'exploitation que vous utilisez.
 						Les rapports de problèmes et les questions sur l'utilisation de Kmap envoyés à
-						dev@kmap.org ont plus de chance de trouver une réponse que ceux
+						https://github.com/YurilLAB/Kmap/issues ont plus de chance de trouver une réponse que ceux
 						envoyés à Fyodor directement.</para>
       <para>Les codes de programmes de correction destinés à régler des bogues sont encore meilleurs que les rapports de bogues.
 						Les instructions de base pour créer des fichiers de programmes de correction avec vos modifications
-						sont disponibles sur <ulink url="https://kmap.org/data/HACKING" />. Les programmes de correction peuvent
+						sont disponibles sur <ulink url="https://github.com/YurilLAB/Kmap />. Les programmes de correction peuvent
 						être envoyés à kmap-dev (recommandé) ou à Fyodor directement.</para>
     </refsect1>
     <refsect1 id="man-author" >
       <title>Auteur</title>
       <para>Fyodor 
-						<email>fyodor@kmap.org</email>
+						<email>https://github.com/YurilLAB/Kmap/issues</email>
 						(<ulink url="http://www.insecure.org" />)
 					</para>
       <para>Traduction française :</para>
@@ -2310,7 +2310,7 @@ le temps supplémentaire que cela suppose.</para>
       <para>Des centaines de personnes ont apporté de précieuses contributions à Kmap
 						au cours des années. Celles-ci sont détaillées dans le fichier
 						<filename moreinfo="none" >CHANGELOG</filename> qui est distribué avec Kmap
-						mais aussi disponible sur <ulink url="https://kmap.org/changelog.html" />.</para>
+						mais aussi disponible sur <ulink url="https://github.com/YurilLAB/Kmap" />.</para>
     </refsect1>
     <refsect1 id="man-legal" >
       <title>Dispositions légales</title>
@@ -2360,7 +2360,7 @@ le temps supplémentaire que cela suppose.</para>
 							Ces restrictions s'appliquent seulement lorsque vous redistribuez Kmap.
 							Par exemple, rien ne vous empêche d'écrire et de vendre une interface graphique 
 							propriétaire pour Kmap. Distribuez-la seulement en entier
-							et assurez-vous de diriger les gensvers le lien <ulink url="https://kmap.org/" /> de façon à télécharger Kmap.</para>
+							et assurez-vous de diriger les gensvers le lien <ulink url="https://github.com/YurilLAB/Kmap/" /> de façon à télécharger Kmap.</para>
         <para>Nous ne considérons pas ce document comme étant un ajout à la licence
 							GPL, mais simplement une clarification de la façon dont nous interprétons <quote>les travaux
 								dérivés</quote> qui s'appliquent à notre produit Kmap sous licence GPL. Ceci est semblable
@@ -2398,7 +2398,7 @@ le temps supplémentaire que cela suppose.</para>
 							(aucune n'a été trouvée à ce jour).</para>
         <para>Le code source vous permet aussi d'utiliser Kmap sur de nouvelles plateformes, de régler
 							des bogues et d'ajouter de nouvelles fonctionnalités. Vous êtes fortement encouragés à présenter
-							vos modifications à <email>fyodor@kmap.org</email> dans le but de les intégrer dans la distribution principale. Lorsque vous envoyez ces changements à
+							vos modifications à <email>https://github.com/YurilLAB/Kmap/issues</email> dans le but de les intégrer dans la distribution principale. Lorsque vous envoyez ces changements à
 							Fyodor ou à l'une des listes de développement d'Insecure.Org,
 							il est recommandé que vous cédiez à Fyodor et à Insecure.Com LLC le droit illimité
 							et non exclusif de réutiliser, de modifier et de concéder de nouveau une licence pour le code. Kmap sera toujours disponible en Open Source et ce, principalement en raison de l'impossibilité de concéder de nouveau une licence pour le code, ce qui a occasionné des problèmes dévastateurs

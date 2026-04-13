@@ -5,7 +5,7 @@
 --
 -- @class module
 -- @name re
--- @copyright 2008-2010 Lua.org, PUC-Rio. (https://svn.kmap.org/kmap/docs/licenses/MIT)
+-- @copyright 2008-2010 Lua.org, PUC-Rio. (https://github.com/YurilLAB/Kmap/docs/licenses/MIT)
 
 --- Compiles the given string and returns an equivalent LPeg pattern.
 --

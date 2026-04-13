@@ -18,7 +18,7 @@ Performs brute force password auditing against the Netbus backdoor ("remote admi
 -- |_netbus-brute: password123
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"brute", "intrusive"}
 
 

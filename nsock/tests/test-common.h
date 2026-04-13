@@ -1,6 +1,6 @@
 /*
  * Nsock regression test suite
- * Same license as kmap -- see https://kmap.org/book/man-legal.html
+ * Same license as kmap -- see https://github.com/YurilLAB/Kmap/blob/master/LICENSE
  */
 
 

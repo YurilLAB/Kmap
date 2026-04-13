@@ -34,7 +34,7 @@ Gets system information from an Idera Uptime Infrastructure Monitor agent.
 
 author = "Daniel Miller"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"safe", "default"}
 

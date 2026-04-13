@@ -29,7 +29,7 @@ Retrieves a list of Git projects, owners and descriptions from a gitweb (web int
 --       (default: /)
 
 author = "riemann"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

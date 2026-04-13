@@ -121,7 +121,7 @@ For more information about Ganglia, see:
 -- Created 2015-07-30 - v0.2 - Added Support for SLAXML by Gyanendra Mishra
 
 author = {"Brendan Coles", "Gyanendra Mishra"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 portrule = shortport.port_or_service ({8649,8651}, "ganglia", {"tcp"})

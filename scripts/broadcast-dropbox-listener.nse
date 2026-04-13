@@ -38,7 +38,7 @@ output.
 -- 1047/tcp open  neod1
 
 author = {"Ron Bowes", "Mak Kolybabi", "Andrew Orr", "Russ Tait Milne"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"broadcast", "safe"}
 
 

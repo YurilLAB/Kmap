@@ -30,7 +30,7 @@ mounts, etc.) from the Novell NetWare Core Protocol (NCP) service.
 -- Created 04/26/2011 - v0.1 - created by Patrik Karlsson
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 

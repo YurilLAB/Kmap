@@ -44,7 +44,7 @@ Reference:
 -- @args http-axis2-dir-traversal.basepath Basepath to the services page. Default: <code>/axis2/services/</code>
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"vuln", "intrusive", "exploit"}
 
 

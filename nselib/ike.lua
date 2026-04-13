@@ -20,7 +20,7 @@
 --An a implementation resembling 'ike-scan' could be built.
 --
 --@author Jesper Kueckelhahn
---@license Same as Kmap--See https://kmap.org/book/man-legal.html
+--@license Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local _G = require "_G"
 local kmap = require "kmap"

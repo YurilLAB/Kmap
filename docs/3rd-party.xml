@@ -44,7 +44,7 @@
     <package>
       <name>Kmap</name>
       <version>&kmap_version;</version>
-      <url>https://kmap.org/</url>
+      <url>https://github.com/YurilLAB/Kmap/</url>
       <license>&kmap_license;</license>
       <file name="kmap-&kmap_version;.tar.bz2">
         <alt name="kmap-&kmap_version;.tgz" />
@@ -87,13 +87,13 @@
     <package>
       <name>Some NSE scripts and libraries</name>
       <version>&kmap_version;</version>
-      <url>https://kmap.org/nsedoc/</url>
+      <url>https://github.com/YurilLAB/Kmap/nsedoc/</url>
       <license>&license_bsd_simplified;</license>
     </package>
     <package>
       <name>Ncat</name>
       <version>&kmap_version;</version>
-      <url>https://kmap.org/ncat</url>
+      <url>https://github.com/YurilLAB/Kmap/ncat</url>
       <license>&kmap_license;</license>
       <file name="kmap-&kmap_version;.tar.bz2">
         <alt name="kmap-&kmap_version;.tgz" />
@@ -121,7 +121,7 @@
     <package>
       <name>Nping</name>
       <version>0.&kmap_version;</version>
-      <url>https://kmap.org/nping</url>
+      <url>https://github.com/YurilLAB/Kmap</url>
       <license>&kmap_license;</license>
       <file name="kmap-&kmap_version;.tar.bz2">
         <alt name="kmap-&kmap_version;.tgz" />
@@ -149,7 +149,7 @@
     <package>
       <name>Zekmap</name>
       <version>&kmap_version;</version>
-      <url>https://kmap.org/zekmap</url>
+      <url>https://github.com/YurilLAB/Kmap/zekmap</url>
       <license>&kmap_license;</license>
       <file name="kmap-&kmap_version;.tar.bz2">
         <alt name="kmap-&kmap_version;.tgz" />
@@ -173,7 +173,7 @@
     <package>
       <name>Ndiff</name>
       <version>&kmap_version;</version>
-      <url>https://kmap.org/ndiff</url>
+      <url>https://github.com/YurilLAB/Kmap/ndiff</url>
       <license>&kmap_license;</license>
       <file name="kmap-&kmap_version;.tar.bz2">
         <alt name="kmap-&kmap_version;.tgz" />
@@ -211,8 +211,8 @@
     </package>
     <package id="base3264_lua">
       <name>base32 and base64 Lua libraries</name>
-      <url>https://kmap.org/nsedoc/lib/base32.html</url>
-      <url>https://kmap.org/nsedoc/lib/base64.html</url>
+      <url>https://github.com/YurilLAB/Kmap/nsedoc/lib/base32.html</url>
+      <url>https://github.com/YurilLAB/Kmap/nsedoc/lib/base64.html</url>
       <copyright>Patrick Joseph Donnelly</copyright>
       <license>&license_mit;</license>
     </package>

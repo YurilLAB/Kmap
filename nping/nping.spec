@@ -7,8 +7,8 @@ Summary:        Network packet generation, response analysis and response time m
 
 Group:          Applications/Internet
 License:        GPLv2 with exceptions
-URL:            https://kmap.org/nping/
-Source0:        https://kmap.org/%{name}/dist/%{name}-%{version}%{prerelease}/%{name}-%{version}%{prerelease}.tar.gz
+URL:            https://github.com/YurilLAB/Kmap
+Source0:        https://github.com/YurilLAB/Kmap/%{name}/dist/%{name}-%{version}%{prerelease}/%{name}-%{version}%{prerelease}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 

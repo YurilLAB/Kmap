@@ -93,7 +93,7 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
 ---
 
 author = {"Icaro Torres", "Vinamra Bhatia"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service({80,443}, "http", "tcp")

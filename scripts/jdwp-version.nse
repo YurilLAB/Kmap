@@ -13,7 +13,7 @@ Documentation for JDWP is available at
 http://java.sun.com/javase/6/docs/technotes/guides/jpda/jdwp-spec.html
 ]]
 author = "Michael Schierl <schierlm@gmx.de>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"version"}
 
 ---

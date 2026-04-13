@@ -2,7 +2,7 @@
 -- Bit manipulation library.
 --
 -- @author Patrick Donnelly <batrick@batbytes.com>
--- @copyright Same as Kmap -- see https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap -- see https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 -- @see https://www.lua.org/manual/5.3/manual.html#3.4.2
 --
 -- @class module

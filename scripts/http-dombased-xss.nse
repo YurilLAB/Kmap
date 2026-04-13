@@ -39,7 +39,7 @@ http://www.webappsec.org/projects/articles/071105.shtml
 
 categories = {"intrusive", "exploit", "vuln"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local http = require "http"
 local shortport = require "shortport"

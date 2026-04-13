@@ -44,7 +44,7 @@ Maps a WAN port on the router to a local port on the client using the NAT Port M
 -- @see nat-pmp-info.nse
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 

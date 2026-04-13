@@ -15,18 +15,18 @@
  * release or source code control revision is contained in the LICENSE
  * file distributed with that version of Kmap or source code control
  * revision. More Kmap copyright/legal information is available from
- * https://kmap.org/book/man-legal.html, and further information on the
- * NPSL license itself can be found at https://kmap.org/npsl/ . This
+ * https://github.com/YurilLAB/Kmap/blob/master/LICENSE, and further information on the
+ * NPSL license itself can be found at https://github.com/YurilLAB/Kmap/blob/master/LICENSE . This
  * header summarizes some key points from the Kmap license, but is no
  * substitute for the actual license text.
  *
  * Kmap is generally free for end users to download and use themselves,
- * including commercial use. It is available from https://kmap.org.
+ * including commercial use. It is available from https://github.com/YurilLAB/Kmap.
  *
  * The Kmap license generally prohibits companies from using and
  * redistributing Kmap in commercial products, but we sell a special Kmap
  * OEM Edition with a more permissive license and special features for
- * this purpose. See https://kmap.org/oem/
+ * this purpose. See https://github.com/YurilLAB/Kmap
  *
  * If you have received a written Kmap license agreement or contract
  * stating terms other than these (such as an Kmap OEM license), you may
@@ -44,8 +44,8 @@
  *
  * Source code also allows you to port Kmap to new platforms, fix bugs, and
  * add new features. You are highly encouraged to submit your changes as a
- * Github PR or by email to the dev@kmap.org mailing list for possible
- * incorporation into the main distribution. Unless you specify otherwise, it
+ * Github PR at https://github.com/YurilLAB/Kmap for possible incorporation
+ * into the main distribution. Unless you specify otherwise, it
  * is understood that you are offering us very broad rights to use your
  * submissions as described in the Kmap Public Source License Contributor
  * Agreement. This is important because we fund the project by selling licenses
@@ -57,7 +57,7 @@
  * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,
  * indemnification and commercial support are all available through the
- * Npcap OEM program--see https://kmap.org/oem/
+ * Kmap project -- see https://github.com/YurilLAB/Kmap
  *
  ***************************************************************************/
 

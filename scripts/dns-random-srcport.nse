@@ -17,7 +17,7 @@ server. In addition your IP address will be sent along with the
 porttest query to the DNS server running on the target.
 ]]
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 author = [[
 Script: Brandon Enright <bmenrigh@ucsd.edu>

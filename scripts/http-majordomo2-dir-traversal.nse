@@ -38,7 +38,7 @@ For more information about this vulnerability:
 --
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "vuln", "exploit"}
 
 

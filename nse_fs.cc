@@ -1,6 +1,6 @@
 /*
 ** Note: this is a port of LuaFileSystem for the
-** Kmap project (https://kmap.org).
+** Kmap project (https://github.com/YurilLAB/Kmap).
 ** Many functions have been removed, because we only really
 ** need: dir, mkdir, rmdir and possibly link.
  */

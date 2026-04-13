@@ -1,7 +1,7 @@
 ---
 -- Utility functions for manipulating and comparing IP addresses.
 --
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local math = require "math"
 local stdnse = require "stdnse"

@@ -12,7 +12,7 @@ local table = require "table"
 --   http://www.irvineunderground.org
 --
 -- This file is released under the Kmap license; see:
---  https://kmap.org/book/man-legal.html
+--  https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @args http-fingerprints.nikto-db-path Looks at the given path for nikto database.
 --       The database is expected to be a CSV file structured as nikto "db_tests".
@@ -86,7 +86,7 @@ local table = require "table"
 -- The text to output if this match happens. If the 'match' field contains captures, these
 -- captures can be used with \1, \2, etc.
 --
--- If you have any questions, feel free to email dev@kmap.org or contact Ron Bowes!
+-- If you have any questions, feel free to email https://github.com/YurilLAB/Kmap/issues or contact Ron Bowes!
 --
 -- CHANGELOG:
 -- Added 120 new signatures taken from exploit-db.com archives from July 2009 to July 2011 [Paulino Calderon]

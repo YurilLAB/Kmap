@@ -79,7 +79,7 @@ owns.
 
 
 author = {"Brandon Enright", "Ron Bowes"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 -- Current version of this script was based entirely on Implementing CIFS, by
 -- Christopher R. Hertel.

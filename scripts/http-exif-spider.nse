@@ -23,7 +23,7 @@ taken, and the embedded geotag information.
 -- relative to the scanned host eg. /default.html (default: /)
 
 author = "Ron Bowes"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive"}
 
 local shortport = require 'shortport'

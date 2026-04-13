@@ -50,7 +50,7 @@ Then, send some payload to create the new mail account.
 ---
 
 author = {"Paul AMAR <aos.paul@gmail.com>", "Ron Bowes"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit","vuln","intrusive"}
 
 portrule = shortport.http

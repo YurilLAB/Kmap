@@ -36,7 +36,7 @@ http://www.kb.cert.org/vuls/id/362332
 -- <elem key="Boot line">lanswitchCmm:</elem>
 
 author = "Daniel Miller"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "safe", "version", "discovery", "vuln"}
 
 

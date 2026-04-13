@@ -64,7 +64,7 @@ Extracts information from a Quake3 game server and other games which use the sam
 -- |_    sv_privateClients: 0
 
 author = "Toni Ruottu"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe", "version"}
 
 

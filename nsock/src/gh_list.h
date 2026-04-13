@@ -9,7 +9,7 @@
  * Foundation; Version 2. This guarantees your right to use, modify, and
  * redistribute this software under certain conditions. If this license is
  * unacceptable to you, Kmap Software LLC may be willing to sell alternative
- * licenses (contact sales@kmap.com ).
+ * licenses (contact https://github.com/YurilLAB/Kmap ).
  *
  * As a special exception to the GPL terms, Kmap Software LLC grants permission
  * to link the code of this program with any version of the OpenSSL library
@@ -29,7 +29,7 @@
  *
  * Source code also allows you to port Kmap to new platforms, fix bugs, and add
  * new features. You are highly encouraged to send your changes to the
- * dev@kmap.org mailing list for possible incorporation into the main
+ * https://github.com/YurilLAB/Kmap/issues mailing list for possible incorporation into the main
  * distribution. By sending these changes to Fyodor or one of the Insecure.Org
  * development mailing lists, or checking them into the Kmap source code
  * repository, it is understood (unless you specify otherwise) that you are

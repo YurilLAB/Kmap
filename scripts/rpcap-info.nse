@@ -34,7 +34,7 @@ setup to require authentication or not and also supports IP restrictions.
 -- @see rpcap-brute.nse
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 dependencies = {"rpcap-brute"}
 

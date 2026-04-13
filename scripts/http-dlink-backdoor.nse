@@ -32,7 +32,7 @@ Reference: http://www.devttys0.com/2013/10/reverse-engineering-a-d-link-backdoor
 ---
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit","vuln"}
 
 local http = require "http"

@@ -2,7 +2,7 @@
 -- Functions for the SSH-2 protocol.
 --
 -- @author Sven Klemm <sven@c3d2.de>
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local base64 = require "base64"
 local string = require "string"

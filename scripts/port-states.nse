@@ -33,7 +33,7 @@ ports and port ranges that were found in each state.
 -- </table>
 
 author = "Daniel Miller"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = { "safe" }
 
 -- the hostrule iterates over open ports for the host

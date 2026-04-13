@@ -58,7 +58,7 @@ the target server. This script could help identifying these web pages.
 
 
 author = "Ange Gutek"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 

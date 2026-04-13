@@ -75,7 +75,7 @@ Wildcard records are listed as "*A" and "*AAAA" for IPv4 and IPv6 respectively.
 
 author = "Cirrus"
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"intrusive", "discovery"}
 

@@ -55,7 +55,7 @@ strings to determine whether the payloads were successful.
 
 categories = {"intrusive", "exploit", "vuln"}
 author = "George Chatzisofroniou"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 local http = require "http"
 local io = require "io"

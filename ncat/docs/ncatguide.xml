@@ -177,7 +177,7 @@ the tool? Many of these examples suppose a Unix environment. -->
       <indexterm><primary>GET HTTP method</primary></indexterm>
       <indexterm><primary><option>-C</option> (Ncat option)</primary><secondary>example of</secondary></indexterm>
 <screen>
-$ <userinput>ncat -C scanme.kmap.org 80</userinput>
+$ <userinput>ncat -C scanme.nmap.org 80</userinput>
 <userinput>GET / HTTP/1.0
 
 </userinput>HTTP/1.1 200 OK
@@ -199,7 +199,7 @@ Content-Type: text/html; charset=UTF-8
 
     <para>
     Here we have instructed Ncat to connect to the host
-    scanme.kmap.org<indexterm><primary>scanme.kmap.org</primary></indexterm>
+    scanme.nmap.org<indexterm><primary>scanme.nmap.org</primary></indexterm>
     on port 80, the port for HTTP. The <option>-C</option> option turns
     on CRLF<indexterm><primary>CRLF</primary></indexterm> replacement,
     which replaces any line endings you type with CRLF. CRLF line
@@ -209,7 +209,7 @@ Content-Type: text/html; charset=UTF-8
     <para>
     <userinput>GET / HTTP/1.0</userinput> requests the root document of
     the server; we are retrieving the same document named by the URL
-    http://scanme.kmap.org:80/. The web server responds with a status code
+    http://scanme.nmap.org:80/. The web server responds with a status code
     (<computeroutput>HTTP/1.1 200 OK</computeroutput>), followed by the
     HTTP header and the text of the web page. If you try this with other
     web servers, note that many of them are actually virtual hosts and you
@@ -467,7 +467,7 @@ Content-Type: text/html; charset=UTF-8
     <indexterm><primary><option>--ssl</option> (Ncat option)</primary><secondary>example of</secondary></indexterm>
 <screen>
 $ <userinput>ncat -v --listen --ssl</userinput>
-Ncat ( https://kmap.org/ncat )
+Ncat ( https://github.com/YurilLAB/Kmap/ncat )
 Generating a temporary 2048-bit RSA key. Use --ssl-key and --ssl-cert to use a <continuation/>permanent one.
 SHA-1 fingerprint: F0:13:BF:FB:2D:AA:76:88:22:60:3E:17:93:29:3E:0E:6B:92:C0:2F
 </screen>
@@ -612,7 +612,7 @@ SHA-1 fingerprint: F0:13:BF:FB:2D:AA:76:88:22:60:3E:17:93:29:3E:0E:6B:92:C0:2F
   some other ones - in Kmap's source code package, in
   <literal>ncat/scripts</literal> directory - the latest versions of the
   scripts can be found in the
-  <ulink role="hidepdf" url="https://svn.kmap.org/kmap/ncat/scripts/">Kmap project public SVN repository</ulink>.
+  <ulink role="hidepdf" url="https://github.com/YurilLAB/Kmap/ncat/scripts/">Kmap project public SVN repository</ulink>.
   Here are the contents of the hello-luaexec.lua file, if you would prefer
   to create the file yourself:
   </para>
@@ -632,7 +632,7 @@ print("Hello, world!")
   <para>
   Now, anyone that connects to our server will see the "Hello, world"
   message. For a script with a bit more capabilities, have a look at
-<ulink role="hidepdf" url="https://svn.kmap.org/kmap/ncat/scripts/conditional.lua">conditional.lua</ulink>.
+<ulink role="hidepdf" url="https://github.com/YurilLAB/Kmap/ncat/scripts/conditional.lua">conditional.lua</ulink>.
   It shows how to create a simple menu, receive some data from the user
   repeatedly and react according to her decisions. You might want to start
   off your experiments with Lua by making changes to this script. Also see
@@ -810,7 +810,7 @@ NCAT_PROTO "TCP"
   <option>-x</option>.<indexterm><primary><option>-x</option> (Ncat option)</primary><see><option>--hex-dump</option></see></indexterm>
   Let's see what happens if we accidentally speak SMTP to an SSH server:
 <screen>
-$ <userinput>ncat -C --hex-dump ssh-hex.log scanme.kmap.org 22</userinput>
+$ <userinput>ncat -C --hex-dump ssh-hex.log scanme.nmap.org 22</userinput>
 SSH-2.0-OpenSSH_4.3
 <userinput>HELO example.com</userinput>
 Protocol mismatch.
@@ -841,7 +841,7 @@ Protocol mismatch.
   options. Each of these takes a comma-separated list of host
   specifications. The syntax is almost identical to that recognized by Kmap for
   targets
-  (see <ulink url="https://kmap.org/book/man-target-specification.html">the section called <quote>Target Specification</quote></ulink>).
+  (see <ulink url="https://github.com/YurilLAB/Kmap/book/man-target-specification.html">the section called <quote>Target Specification</quote></ulink>).
   <!-- (see <xref linkend="host-discovery-specify-targets"/>). -->
   This includes IPv4 and IPv6 addresses, hostnames, IPv4 octet ranges,
   and CIDR netmasks. In Ncat (unlike Kmap), CIDR netmasks are supported for IPv6
@@ -1871,7 +1871,7 @@ host1$ <userinput>ncat --send-only host2 &lt; log.txt</userinput>
   <indexterm><primary><option>--script</option></primary><secondary>example of</secondary></indexterm>
 <screen>
 # <userinput>kmap -sSU -p 13 --script=daytime localhost</userinput>
-Starting Kmap ( https://kmap.org )
+Starting Kmap ( https://github.com/YurilLAB/Kmap )
 
 Kmap scan report for localhost (127.0.0.1)
 PORT   STATE SERVICE

@@ -39,7 +39,7 @@ a Versant object database.
 
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 portrule = shortport.port_or_service(5019, "versant", "tcp")

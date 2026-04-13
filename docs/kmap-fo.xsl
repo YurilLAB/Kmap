@@ -654,7 +654,7 @@ Remote Operating System Detection
 	<xsl:when test="count(../osmatch)=0">
 	<fo:block font-family="sans-serif" font-size="10pt" font-weight="bold">
 	Cannot determine exact operating system.  Fingerprint provided below.
-	If you know what OS is running on it, see https://kmap.org/submit/
+	If you know what OS is running on it, see https://github.com/YurilLAB/Kmap/submit/
 	</fo:block>
 
 	<fo:table>

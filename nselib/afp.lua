@@ -86,7 +86,7 @@
 -- Consult the documentation of each function to learn more about their respective return values.
 --
 --@author Patrik Karlsson <patrik@cqure.net>
---@copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+--@copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 --
 -- @args afp.username The username to use for authentication.
 -- @args afp.password The password to use for authentication.

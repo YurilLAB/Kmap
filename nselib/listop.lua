@@ -7,7 +7,7 @@
 -- functional languages to Lua using Lua's central data structure, the table, as
 -- a base for its list operations. Highlights include a <code>map</code>
 -- function applying a given function to each element of a list.
--- @copyright Same as Kmap--See https://kmap.org/book/man-legal.html
+-- @copyright Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE
 
 local stdnse = require "stdnse"
 local table = require "table"

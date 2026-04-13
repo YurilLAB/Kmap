@@ -26,7 +26,7 @@ optional directory of an Apache JServ Protocol server and returns the server res
 portrule = shortport.port_or_service(8009, 'ajp13', 'tcp')
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe"}
 
 local arg_path   = stdnse.get_script_args(SCRIPT_NAME .. '.path') or "/"

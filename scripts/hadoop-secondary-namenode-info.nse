@@ -48,7 +48,7 @@ Information gathered:
 -- <elem key="Checkpoint Size">12345678 MB</elem>
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See https://kmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://github.com/YurilLAB/Kmap/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 

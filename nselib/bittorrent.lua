@@ -20,7 +20,7 @@
 -- <code>torrent.nodes</code> tables respectively
 --
 -- @author Gorjan Petrovski
--- @license "Same as Kmap--See https://kmap.org/book/man-legal.html"
+-- @license "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 --
 
 -- The usage of the library would be first to initialize a new Torrent

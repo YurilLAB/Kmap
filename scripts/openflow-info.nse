@@ -30,7 +30,7 @@ For additional information:
 -- |_    1.5.X
 
 author = {"Jay Smith", "Mak Kolybabi <mak@kolybabi.com>"}
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "safe"}
 
 -- OpenFlow versions released:

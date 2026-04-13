@@ -31,7 +31,7 @@ http://cassandra.apache.org/
 -- Created 14/09/2012 - v0.1 - created by Vlatko Kosturjak <kost@linux.hr>
 
 author = "Vlatko Kosturjak"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 
 dependencies = {"cassandra-brute"}

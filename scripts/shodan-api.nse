@@ -14,7 +14,7 @@ local openssl = stdnse.silent_require "openssl"
 local apiKey = ""
 
 author = "Glenn Wilkinson <glenn@sensepost.com> (idea: Charl van der Walt <charl@sensepost.com>)"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "safe", "external"}
 
 description = [[
@@ -33,7 +33,7 @@ include the -sn -Pn -n flags.
 --  kmap --script shodan-api --script-args 'shodan-api.target=x.y.z.a,shodan-api.apikey=SHODANAPIKEY'
 --
 -- @output
--- | shodan-api: Report for 2600:3c01::f03c:91ff:fe18:bb2f (scanme.kmap.org)
+-- | shodan-api: Report for 2600:3c01::f03c:91ff:fe18:bb2f (scanme.nmap.org)
 -- | PORT	PROTO	PRODUCT      VERSION
 -- | 80   tcp   Apache httpd
 -- | 3306 tcp   MySQL        5.5.40-0+wheezy1
@@ -46,7 +46,7 @@ include the -sn -Pn -n flags.
 --
 --@xmloutput
 -- <table key="hostnames">
---   <elem>scanme.kmap.org</elem>
+--   <elem>scanme.nmap.org</elem>
 -- </table>
 -- <table key="ports">
 --   <table>

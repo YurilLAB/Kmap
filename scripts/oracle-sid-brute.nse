@@ -36,7 +36,7 @@ author, Alexander Kornbrust (http://seclists.org/kmap-dev/2009/q4/645).
 -- Revised 12/14/2009 - v0.3 - Fixed ugly file_exist kludge
 
 author = "Patrik Karlsson"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive", "brute"}
 
 

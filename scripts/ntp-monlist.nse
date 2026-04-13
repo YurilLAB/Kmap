@@ -8,7 +8,7 @@ local string = require "string"
 local table = require "table"
 
 author = "jah"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 description = [[
 Obtains and prints an NTP server's monitor data.

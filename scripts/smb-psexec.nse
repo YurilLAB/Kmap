@@ -396,7 +396,7 @@ Running a script happens in several stages:
 And that's how it works!
 
 Please post any questions, or suggestions for better modules, to
-dev@kmap.org.
+https://github.com/YurilLAB/Kmap/issues.
 
 And, as usual, since this tool can be dangerous and can easily be viewed as
 a malicious tool -- use this responsibly, and don't break any laws with it.
@@ -527,14 +527,14 @@ Some ideas for later versions (TODO):
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"intrusive"}
 dependencies = {"smb-brute"}
 
 
 
 -- Where we tell the user to get kmap_service.exe if it's not installed.
-local KMAP_SERVICE_EXE_DOWNLOAD = "https://kmap.org/psexec/kmap_service.exe"
+local KMAP_SERVICE_EXE_DOWNLOAD = "https://github.com/YurilLAB/Kmap/psexec/kmap_service.exe"
 
 
 hostrule = function(host)
@@ -1388,9 +1388,9 @@ local function parse_output(config, data)
         -- Go to the next module, and make sure it exists
         mod = config.enabled_modules[module_num + 1]
         if(mod == nil) then
-          stdnse.debug1("Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to dev@kmap.org", module_num)
+          stdnse.debug1("Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to https://github.com/YurilLAB/Kmap/issues", module_num)
           stdnse.debug1("--\n" .. string.gsub("%%", "%%", data) .. "\n--")
-          return false, "Server's response wasn't formatted properly; if you can reproduce, place report to dev@kmap.org"
+          return false, "Server's response wasn't formatted properly; if you can reproduce, place report to https://github.com/YurilLAB/Kmap/issues"
         end
 
         -- Save this result

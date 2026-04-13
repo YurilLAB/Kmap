@@ -41,7 +41,7 @@ It uses STATS, LUSERS, and other queries to obtain this information.
 
 author = {"Doug Hoyte", "Patrick Donnelly"}
 
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 
 categories = {"default", "discovery", "safe"}
 

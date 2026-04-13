@@ -70,7 +70,7 @@ Reference:
 --       <code>smtp-vuln-cve2010-4344.exploit</code> argument.
 
 author = "Djalal Harouni"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"exploit", "intrusive", "vuln"}
 
 

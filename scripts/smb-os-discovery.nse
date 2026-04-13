@@ -76,7 +76,7 @@ will speed up the script on targets that do not allow guest access.
 -- <elem key="forest_dns">test.local</elem>
 
 author = "Ron Bowes"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"default", "discovery", "safe"}
 dependencies = {"smb-brute"}
 

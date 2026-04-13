@@ -7,12 +7,12 @@ now definitive. Howerever, comments and suggestions are still welcome.
 
 
 
-Nping 0.01a ( https://kmap.org/nping )
+Nping 0.01a ( https://github.com/YurilLAB/Kmap )
 Usage: nping [Probe mode] [Options] {target specification}
 
 TARGET SPECIFICATION:
   Targets may be specified as hostnames, IP addresses, networks, etc.
-  Ex: scanme.kmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
+  Ex: scanme.nmap.org, microsoft.com/24, 192.168.0.1; 10.0.0-255.1-254
   -iL <inputfilename>: Read targets from list of hosts or networks
 PROBE MODES:
   --tcp-connect     : Unprivileged TCP connect probe mode.
@@ -110,7 +110,7 @@ OUTPUT:
   --quiet         : Sets verbosity and debug level to zero. (Same as -v0 -d0)
   --debug         : Sets verbosity and debug to their highest level.
 EXAMPLES:
-  nping scanme.kmap.org
+  nping scanme.nmap.org
   nping --tcp --dest-port 80  --ttl 2 192.168.1.1
   nping --debug --icmp -I17 --delay 2s microsoft.com
 
@@ -132,7 +132,7 @@ option.
 
 E.g:  nping --tcp --dest-port random 192.168.1.1
       nping --udp --source-port random  --source-mac random 207.46.197.32
-      nping --arp --sender-ip random --ttl random scanme.kmap.org
+      nping --arp --sender-ip random --ttl random scanme.nmap.org
 
 
 In places where a MAC address is expected, it is possible to especify a MAC 

@@ -32,7 +32,7 @@ for the filename is given on the command line.
 -- @see smb-vuln-ms10-061.nse
 
 author = "Mak Kolybabi"
-license = "Same as Kmap--See https://kmap.org/book/man-legal.html"
+license = "Same as Kmap--See https://github.com/YurilLAB/Kmap/blob/master/LICENSE"
 categories = {"discovery", "intrusive"}
 
 
