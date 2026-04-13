@@ -234,6 +234,14 @@
     <ClCompile Include="..\traceroute.cc" />
     <ClCompile Include="..\utils.cc" />
     <ClCompile Include="..\xml.cc" />
+    <ClCompile Include="..\default_creds.cc" />
+    <ClCompile Include="..\web_recon.cc" />
+    <ClCompile Include="..\cve_map.cc" />
+    <ClCompile Include="..\output_json.cc" />
+    <ClCompile Include="..\sqlite\sqlite3.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <PreprocessorDefinitions>SQLITE_THREADSAFE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="winfix.cc">
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Sync</ExceptionHandling>
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Sync</ExceptionHandling>
@@ -292,6 +300,11 @@
     <ClInclude Include="..\traceroute.h" />
     <ClInclude Include="..\utils.h" />
     <ClInclude Include="..\xml.h" />
+    <ClInclude Include="..\default_creds.h" />
+    <ClInclude Include="..\web_recon.h" />
+    <ClInclude Include="..\cve_map.h" />
+    <ClInclude Include="..\output_json.h" />
+    <ClInclude Include="..\color.h" />
     <ClInclude Include="winfix.h" />
   </ItemGroup>
   <ItemGroup>

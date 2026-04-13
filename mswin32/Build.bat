@@ -102,9 +102,9 @@ if errorlevel 1 (
 )
 del "%NPCAP_ZIP%" 2>nul
 
-:: Install OpenSSL - Use kmap's SVN repository
-echo Downloading OpenSSL from kmap SVN repository...
-set OPENSSL_SVN_URL=https://svn.kmap.org/kmap-mswin32-aux/OpenSSL
+:: Install OpenSSL - Use nmap's SVN repository (upstream build dependency)
+echo Downloading OpenSSL from nmap SVN repository...
+set OPENSSL_SVN_URL=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
 
 :: Check if svn is available
 where svn >nul 2>&1
@@ -123,9 +123,9 @@ echo SVN not available, downloading OpenSSL headers manually...
 mkdir "%KMAP_AUX_DIR%\OpenSSL\include\openssl" 2>nul
 mkdir "%KMAP_AUX_DIR%\OpenSSL\lib" 2>nul
 
-:: Download from kmap SVN via HTTP
-set SVN_BASE=https://svn.kmap.org/kmap-mswin32-aux/OpenSSL
-echo Downloading OpenSSL files from kmap repository...
+:: Download from nmap SVN via HTTP
+set SVN_BASE=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
+echo Downloading OpenSSL files from nmap repository...
 
 :: Use PowerShell to recursively download the directory structure
 powershell -Command "$ErrorActionPreference='SilentlyContinue'; $wc=New-Object System.Net.WebClient; $wc.DownloadFile('%SVN_BASE%/include/openssl/ssl.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/crypto.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\crypto.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/opensslconf.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\opensslconf.h')"
