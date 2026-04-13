@@ -309,7 +309,7 @@ static const CredPair builtin_creds[] = {
   {"mssql", "sa",      "P@ssw0rd"},      /* Complex password variant */
   {"mssql", "sa",      "abc123"},        /* Common weak password */
   {"mssql", "sa",      "pass"},          /* Common weak password */
-  {"mssql", "sa",      "1234"},          /* Numeric default */
+  {"mssql", "sa",      "12345"},          /* Numeric default */
   {"mssql", "sa",      "Welcome1"},      /* Welcome variant */
 
   /* ---- MongoDB (16 entries) ----
@@ -491,15 +491,15 @@ static bool probe_ftp(const char *ip, uint16_t port,
   if (fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms) <= 0) {
     close_fd(fd); return false;
   }
-  // Send USER
+  /* Send USER — bail if connection drops */
   std::string cmd = "USER " + user + "\r\n";
-  fd_send(fd, cmd.c_str(), cmd.size());
+  if (!fd_send(fd, cmd.c_str(), cmd.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
-  fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
+  if (fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms) <= 0) { close_fd(fd); return false; }
 
-  // Send PASS
+  /* Send PASS */
   cmd = "PASS " + pass + "\r\n";
-  fd_send(fd, cmd.c_str(), cmd.size());
+  if (!fd_send(fd, cmd.c_str(), cmd.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
@@ -541,7 +541,7 @@ static bool probe_http_basic(const char *ip, uint16_t port,
   std::string bare_req =
     std::string("GET / HTTP/1.0\r\nHost: ") + ip +
     "\r\nConnection: close\r\n\r\n";
-  fd_send(fd, bare_req.c_str(), bare_req.size());
+  if (!fd_send(fd, bare_req.c_str(), bare_req.size())) { close_fd(fd); return false; }
   char buf[512]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
@@ -559,7 +559,7 @@ static bool probe_http_basic(const char *ip, uint16_t port,
     "\r\nAuthorization: Basic " + encoded +
     "\r\nConnection: close\r\n\r\n";
 
-  fd_send(fd, auth_req.c_str(), auth_req.size());
+  if (!fd_send(fd, auth_req.c_str(), auth_req.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
   n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
@@ -618,7 +618,9 @@ static bool probe_mssql(const char *ip, uint16_t port,
     0x0E, 0x00, 0x00, 0x00, 0x00, 0x00,  /* SQL Server 2017 version */
     0x02                            /* ENCRYPT_NOT_SUP */
   };
-  fd_send(fd, reinterpret_cast<const char *>(prelogin), sizeof(prelogin));
+  if (!fd_send(fd, reinterpret_cast<const char *>(prelogin), sizeof(prelogin))) {
+    close_fd(fd); return false;
+  }
 
   char prebuf[256]{};
   int pn = fd_recv(fd, prebuf, sizeof(prebuf) - 1, timeout_ms);
@@ -702,8 +704,10 @@ static bool probe_mssql(const char *ip, uint16_t port,
     static_cast<uint8_t>(total & 0xFF),
     0x00, 0x00, 0x01, 0x00
   };
-  fd_send(fd, reinterpret_cast<const char *>(hdr), 8);
-  fd_send(fd, reinterpret_cast<const char *>(body.data()), body.size());
+  if (!fd_send(fd, reinterpret_cast<const char *>(hdr), 8) ||
+      !fd_send(fd, reinterpret_cast<const char *>(body.data()), body.size())) {
+    close_fd(fd); return false;
+  }
 
   char respbuf[1024]{};
   int n = fd_recv(fd, respbuf, sizeof(respbuf) - 1, timeout_ms);
@@ -728,18 +732,18 @@ static bool probe_telnet(const char *ip, uint16_t port,
   if (fd < 0) return false;
 
   char buf[1024]{};
-  // Read banner / negotiate
+  /* Read banner / negotiate — ignore failure (some telnet servers are slow) */
   fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
 
-  // Look for login prompt — send username
+  /* Send username */
   std::string cmd = user + "\r\n";
-  fd_send(fd, cmd.c_str(), cmd.size());
+  if (!fd_send(fd, cmd.c_str(), cmd.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
   fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
 
-  // Send password
+  /* Send password */
   cmd = pass + "\r\n";
-  fd_send(fd, cmd.c_str(), cmd.size());
+  if (!fd_send(fd, cmd.c_str(), cmd.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
@@ -840,7 +844,7 @@ static bool probe_mysql(const char *ip, uint16_t port,
   pkt[0] = plen; pkt[1] = 0; pkt[2] = 0; pkt[3] = 1; /* seq=1 */
   memcpy(pkt + 4, resp, off);
 
-  fd_send(fd, reinterpret_cast<char *>(pkt), off + 4);
+  if (!fd_send(fd, reinterpret_cast<char *>(pkt), off + 4)) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
   n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
@@ -876,7 +880,9 @@ static bool probe_postgresql(const char *ip, uint16_t port,
   msg[2] = static_cast<uint8_t>((total >>  8) & 0xff);
   msg[3] = static_cast<uint8_t>(total & 0xff);
 
-  fd_send(fd, reinterpret_cast<const char *>(msg.data()), msg.size());
+  if (!fd_send(fd, reinterpret_cast<const char *>(msg.data()), msg.size())) {
+    close_fd(fd); return false;
+  }
   char buf[256]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
 
@@ -967,7 +973,9 @@ static bool probe_mongodb(const char *ip, uint16_t port,
     0x65,0x72,0x00,0x01,0x00,0x00,0x00,0x00
   };
 
-  fd_send(fd, reinterpret_cast<const char *>(ismaster_msg), sizeof(ismaster_msg));
+  if (!fd_send(fd, reinterpret_cast<const char *>(ismaster_msg), sizeof(ismaster_msg))) {
+    close_fd(fd); return false;
+  }
   char buf[256]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);

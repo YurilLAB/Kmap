@@ -287,7 +287,7 @@ static std::string http_get(const char *ip, uint16_t port,
   int fd = tcp_connect_wr(ip, port, timeout_ms);
   if (fd < 0) return "";
   std::string req = build_request(path, ip);
-  send_all(fd, req.c_str(), req.size());
+  if (!send_all(fd, req.c_str(), req.size())) { close_fd_wr(fd); return ""; }
   std::string resp = recv_response(fd, timeout_ms);
   close_fd_wr(fd);
   return resp;
