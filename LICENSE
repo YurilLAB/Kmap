@@ -1,5 +1,5 @@
 Kmap Public Source License Version 0.95
-For more information on this license, see https://kmap.org/npsl/
+For more information on this license, see 
 
 0. Preamble
 
@@ -7,8 +7,7 @@ The intent of this license is to establish freedom to share and change
 the software regulated by this license under the open source model. It
 also includes a Contributor Agreement and disclaims any warranty on
 Covered Software. Companies wishing to use or incorporate Covered
-Software within their own products may find that our Kmap OEM product
-(https://kmap.org/oem/) better suits their needs. Open source
+Software within their own products may find that our Kmap OEM product better suits their needs. Open source
 developers who wish to incorporate parts of Covered Software into free
 software with conflicting licenses may write Licensor to request a
 waiver of terms.
@@ -265,8 +264,7 @@ than this license. Therefore anyone wishing to use or redistribute
 both pieces of software must comply with both licenses. Since Npcap
 does not allow for redistribution without special permission, the
 official Kmap Windows builds which include Npcap may not be
-redistributed without special permission. Such permission can be
-requested by email to sales@kmap.com.
+redistributed without special permission.
 
 11. Permission to link with OpenSSL
 
