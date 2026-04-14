@@ -284,7 +284,8 @@ static void write_host_section(FILE *fp, const std::string &ip,
             fprintf(fp, "    [%s] %s -> %s\n",
                     status.c_str(), path.c_str(), redir.c_str());
           else if (!title.empty())
-            fprintf(fp, "    [%s] %s\n", status.c_str(), path.c_str());
+            fprintf(fp, "    [%s] %s  \"%s\"\n",
+                    status.c_str(), path.c_str(), title.c_str());
           else
             fprintf(fp, "    [%s] %s\n", status.c_str(), path.c_str());
         }

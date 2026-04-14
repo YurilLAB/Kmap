@@ -463,7 +463,13 @@ void run_cve_map(std::vector<Target*>& Targets, float min_score) {
         ver_display += ver;
       }
 
-      auto queries = normalize_service(svc, prod);
+      std::vector<ProductQuery> queries;
+      try {
+        queries = normalize_service(svc, prod);
+      } catch (...) {
+        /* String operation failure in normalization -- skip this port */
+        continue;
+      }
       if (queries.empty()) continue;
 
       PortCveResults pr;

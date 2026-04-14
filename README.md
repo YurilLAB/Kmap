@@ -50,7 +50,7 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 |---|---|---|
 | Default credential probing | `--default-creds` | Tests open services against 280+ built-in credential pairs |
 | HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 180+ high-value paths |
-| CVE cross-reference | `--cve-map` | Queries bundled 10,000+ CVE database for detected service versions |
+| CVE cross-reference | `--cve-map` | Queries bundled 10,100+ CVE database for detected service versions |
 | Scan report | `--report <file>` | Generates a styled `.txt` or `.md` report with all findings |
 | Web screenshots | `--screenshot` | Captures PNG screenshots of discovered web ports |
 | Internet-scale scanning | `--net-scan` | Full pipeline: discover, enrich, and report across the entire IPv4 space |
@@ -245,7 +245,7 @@ kmap --cve-map --cve-min-score 9.0 10.0.0.1
 kmap --cve-map --cve-min-score 4.0 10.0.0.1
 ```
 
-**Database:** `kmap-cve.db` — 10,000+ CVEs from 2021–2026, CVSS >= 7.0 (HIGH and CRITICAL). Covers: OpenSSH, nginx, Apache HTTP, MySQL, PostgreSQL, Redis, Elasticsearch, MSSQL, MongoDB, Samba, Jenkins, GitLab, Confluence, Jira, Exchange, vCenter, WebLogic, Struts, Log4j, OpenSSL, PHP, WordPress, Drupal, and more.
+**Database:** `kmap-cve.db` — 10,100+ CVEs from 2006–2026, all verified against the NIST National Vulnerability Database (NVD). Covers: OpenSSH, nginx, Apache HTTP, lighttpd, IIS, MySQL, MariaDB, PostgreSQL, Redis, Elasticsearch, MSSQL, MongoDB, Samba, Jenkins, GitLab, Confluence, Jira, Exchange, vCenter, WebLogic, Struts, Log4j, OpenSSL, PHP, vsftpd, ProFTPD, WordPress, Drupal, and more. New CVEs can be bulk-imported via `scripts/add_cves.py` or `--import-cves`.
 
 **Example output:**
 ```
@@ -569,7 +569,7 @@ Kmap/
 ├── color.h               ANSI color helpers
 ├── sqlite/               SQLite 3.53.0 amalgamation
 ├── third-party/nlohmann/ nlohmann/json single-header library
-├── kmap-cve.db           CVE database (10,000+ entries, ~5MB)
+├── kmap-cve.db           CVE database (10,100+ entries, ~5MB)
 └── scripts/
     ├── update_cves.py    Download CVEs from NVD JSON 2.0 feeds
     └── add_cves.py       Insert additional CVE records

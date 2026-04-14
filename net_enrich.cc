@@ -27,6 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -59,7 +60,12 @@ extern KmapOps o;
  * Low-level TCP helpers — same pattern as default_creds.cc
  * ----------------------------------------------------------------------- */
 
-static int enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
+/* Use intptr_t for socket handles to avoid SOCKET-to-int truncation
+   on 64-bit Windows (SOCKET is UINT_PTR = 64 bits on Win64). */
+typedef intptr_t kmap_fd_t;
+#define KMAP_INVALID_FD ((kmap_fd_t)-1)
+
+static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
   int af;
   socklen_t slen;
@@ -78,17 +84,17 @@ static int enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
     sa6->sin6_port   = htons(port);
     slen = sizeof(struct sockaddr_in6);
   } else {
-    return -1;
+    return KMAP_INVALID_FD;
   }
 
 #ifdef WIN32
   SOCKET fd = socket(af, SOCK_STREAM, 0);
-  if (fd == INVALID_SOCKET) return -1;
+  if (fd == INVALID_SOCKET) return KMAP_INVALID_FD;
   u_long nb = 1;
   ioctlsocket(fd, FIONBIO, &nb);
 #else
   int fd = socket(af, SOCK_STREAM, 0);
-  if (fd < 0) return -1;
+  if (fd < 0) return KMAP_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
@@ -107,7 +113,7 @@ static int enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return KMAP_INVALID_FD;
   }
 
   int sockerr = 0;
@@ -120,7 +126,7 @@ static int enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return KMAP_INVALID_FD;
   }
 
 #ifdef WIN32
@@ -129,37 +135,49 @@ static int enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK);
 #endif
-  return static_cast<int>(fd);
+  return static_cast<kmap_fd_t>(fd);
 }
 
-static void enrich_close_fd(int fd) {
+static void enrich_close_fd(kmap_fd_t fd) {
 #ifdef WIN32
-  closesocket(fd);
+  closesocket(static_cast<SOCKET>(fd));
 #else
-  close(fd);
+  close(static_cast<int>(fd));
 #endif
 }
 
-static bool enrich_fd_send(int fd, const char *buf, size_t len) {
+static bool enrich_fd_send(kmap_fd_t fd, const char *buf, size_t len) {
   size_t sent = 0;
   while (sent < len) {
-    int n = send(fd, buf + sent, static_cast<int>(len - sent), 0);
+#ifdef WIN32
+    int n = send(static_cast<SOCKET>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#else
+    int n = send(static_cast<int>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#endif
     if (n <= 0) return false;
     sent += static_cast<size_t>(n);
   }
   return true;
 }
 
-static int enrich_fd_recv(int fd, char *buf, size_t len, int timeout_ms) {
+static int enrich_fd_recv(kmap_fd_t fd, char *buf, size_t len, int timeout_ms) {
   fd_set rset;
   FD_ZERO(&rset);
-  FD_SET(fd, &rset);
+#ifdef WIN32
+  FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+  FD_SET(static_cast<int>(fd), &rset);
+#endif
   struct timeval tv;
   tv.tv_sec  = timeout_ms / 1000;
   tv.tv_usec = (timeout_ms % 1000) * 1000;
   if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
     return -1;
-  return static_cast<int>(recv(fd, buf, static_cast<int>(len), 0));
+#ifdef WIN32
+  return static_cast<int>(recv(static_cast<SOCKET>(fd), buf, static_cast<int>(len), 0));
+#else
+  return static_cast<int>(recv(static_cast<int>(fd), buf, static_cast<int>(len), 0));
+#endif
 }
 
 /* -----------------------------------------------------------------------
@@ -228,34 +246,17 @@ static std::string json_escape(const std::string &s) {
  * ----------------------------------------------------------------------- */
 
 struct BannerResult {
-  std::string service;  /* e.g. "ssh", "http", "ftp", "smtp", "mysql" */
-  std::string version;  /* e.g. "OpenSSH 8.2p1", "nginx 1.18.0" */
-};
-
-/* Known banner patterns: prefix → (service, version_prefix_to_strip) */
-struct BannerPattern {
-  const char *prefix;
-  const char *service;
-  bool        extract_version;  /* true = rest of first line is version */
-};
-
-static const BannerPattern banner_patterns[] = {
-  {"SSH-",           "ssh",     true },
-  {"220 ",           "ftp",     true },  /* FTP greeting */
-  {"220-",           "ftp",     true },
-  {"* OK ",          "imap",    true },
-  {"+OK ",           "pop3",    true },
-  {"EHLO",           "smtp",    false},
-  {"220 ",           "smtp",    true },  /* SMTP also starts with 220 */
-  {nullptr,          nullptr,   false}
+  std::string service;       /* e.g. "ssh", "http", "ftp", "smtp", "mysql" */
+  std::string version;       /* e.g. "OpenSSH 8.2p1", "nginx 1.18.0" */
+  std::string http_response; /* raw HTTP response if banner grab did an HTTP probe */
 };
 
 /* Try to grab a banner by just reading what the server sends after connect */
 static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
   BannerResult result;
 
-  int fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
-  if (fd < 0)
+  kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
+  if (fd == KMAP_INVALID_FD)
     return result;
 
   char buf[ENRICH_BANNER_MAX]{};
@@ -292,6 +293,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
   /* Check for HTTP response */
   if (banner.size() >= 8 && banner.substr(0, 4) == "HTTP") {
     result.service = "http";
+    result.http_response = banner; /* carry forward to avoid re-connecting */
 
     /* Parse Server header for version */
     size_t spos = banner_lower.find("\nserver:");
@@ -597,42 +599,57 @@ static int extract_status(const std::string &resp) {
   return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
 }
 
-static WebResult probe_http(const char *ip, int port, int timeout_ms) {
+/* probe_http — if cached_response is non-empty, reuse it instead of
+   making a new TCP connection (avoids the double-connect from grab_banner). */
+static WebResult probe_http(const char *ip, int port, int timeout_ms,
+                            const std::string &cached_response = "") {
   WebResult wr;
 
-  int fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
-  if (fd < 0) return wr;
-
-  char host_hdr[256];
-  snprintf(host_hdr, sizeof(host_hdr), "%s:%d", ip, port);
-
-  std::string req = std::string("GET / HTTP/1.0\r\nHost: ") + host_hdr
-                  + "\r\nUser-Agent: Kmap\r\nConnection: close\r\n\r\n";
-
-  if (!enrich_fd_send(fd, req.c_str(), req.size())) {
-    enrich_close_fd(fd);
-    return wr;
-  }
-
-  /* Read response (up to 64K) */
   std::string response;
-  response.reserve(4096);
-  char chunk[4096];
-  while (response.size() < 65536) {
-    fd_set rset;
-    FD_ZERO(&rset);
-    FD_SET(fd, &rset);
-    struct timeval tv;
-    tv.tv_sec  = timeout_ms / 1000;
-    tv.tv_usec = (timeout_ms % 1000) * 1000;
-    if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
-      break;
-    int n = static_cast<int>(recv(fd, chunk, sizeof(chunk), 0));
-    if (n <= 0) break;
-    response.append(chunk, static_cast<size_t>(n));
-  }
+  if (!cached_response.empty()) {
+    response = cached_response;
+  } else {
+    kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
+    if (fd == KMAP_INVALID_FD) return wr;
 
-  enrich_close_fd(fd);
+    char host_hdr[256];
+    snprintf(host_hdr, sizeof(host_hdr), "%s:%d", ip, port);
+
+    std::string req = std::string("GET / HTTP/1.0\r\nHost: ") + host_hdr
+                    + "\r\nUser-Agent: Kmap\r\nConnection: close\r\n\r\n";
+
+    if (!enrich_fd_send(fd, req.c_str(), req.size())) {
+      enrich_close_fd(fd);
+      return wr;
+    }
+
+    /* Read response (up to 64K) */
+    response.reserve(4096);
+    char chunk[4096];
+    while (response.size() < 65536) {
+      fd_set rset;
+      FD_ZERO(&rset);
+#ifdef WIN32
+      FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+      FD_SET(static_cast<int>(fd), &rset);
+#endif
+      struct timeval tv;
+      tv.tv_sec  = timeout_ms / 1000;
+      tv.tv_usec = (timeout_ms % 1000) * 1000;
+      if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
+        break;
+#ifdef WIN32
+      int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
+#else
+      int n = static_cast<int>(recv(static_cast<int>(fd), chunk, sizeof(chunk), 0));
+#endif
+      if (n <= 0) break;
+      response.append(chunk, static_cast<size_t>(n));
+    }
+
+    enrich_close_fd(fd);
+  }
 
   if (response.empty()) return wr;
 
@@ -736,9 +753,10 @@ int enrich_single_host(const char *ip,
       out_cves[i] = cves_to_json(cves);
     }
 
-    /* Step 3: HTTP recon on web ports */
+    /* Step 3: HTTP recon on web ports — reuse response from banner grab
+       if it already did an HTTP probe (avoids double TCP connection) */
     if (is_http_port(ports[i], br.service)) {
-      WebResult wr = probe_http(ip, ports[i], timeout_ms);
+      WebResult wr = probe_http(ip, ports[i], timeout_ms, br.http_response);
       out_web_titles[i]  = wr.title;
       out_web_servers[i] = wr.server;
       out_web_headers[i] = wr.headers_json;
@@ -840,7 +858,8 @@ int run_enrichment(const char *data_dir, int batch_size) {
           protos.push_back(h.proto);
         }
 
-        /* Run enrichment */
+        /* Run enrichment — isolated per-host so one failure
+           does not abort the entire shard */
         std::vector<std::string> services, versions, cves_json;
         std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
 
@@ -852,6 +871,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
                                     web_headers, web_paths);
         if (rc != 0) {
           /* Mark as enriched with empty data so we don't retry forever */
+          if (o.verbose)
+            log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, marking as done\n",
+                      ip.c_str());
           for (size_t j = 0; j < ports.size(); j++) {
             net_db_update_enrichment(db, ip.c_str(), ports[j],
                                      "", "", "", "", "", "", "");
@@ -859,17 +881,18 @@ int run_enrichment(const char *data_dir, int batch_size) {
           continue;
         }
 
-        /* Write enrichment results back to DB */
+        /* Write enrichment results back to DB — check bounds to avoid
+           out-of-range access if output vectors are somehow short */
         for (size_t j = 0; j < ports.size(); j++) {
           net_db_update_enrichment(
             db, ip.c_str(), ports[j],
-            services[j].c_str(),
-            versions[j].c_str(),
-            cves_json[j].c_str(),
-            web_titles[j].c_str(),
-            web_servers[j].c_str(),
-            web_headers[j].c_str(),
-            web_paths[j].c_str());
+            j < services.size()    ? services[j].c_str()    : "",
+            j < versions.size()    ? versions[j].c_str()    : "",
+            j < cves_json.size()   ? cves_json[j].c_str()   : "",
+            j < web_titles.size()  ? web_titles[j].c_str()  : "",
+            j < web_servers.size() ? web_servers[j].c_str()  : "",
+            j < web_headers.size() ? web_headers[j].c_str()  : "",
+            j < web_paths.size()   ? web_paths[j].c_str()   : "");
         }
 
         processed++;

@@ -207,6 +207,8 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       cve_db_path = cve_buf;
 
     int enriched_count = 0;
+    int enrich_errors = 0;
+    net_db_begin(wl_db);
     for (const auto &ip_str : unenriched) {
       auto host_ports = net_db_get_host(wl_db, ip_str.c_str());
       if (host_ports.empty()) continue;
@@ -221,12 +223,24 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       std::vector<std::string> services, versions, cves_out;
       std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
 
-      enrich_single_host(ip_str.c_str(), port_nums, protos,
+      int erc = enrich_single_host(ip_str.c_str(), port_nums, protos,
                          cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
                          5000, services, versions, cves_out,
                          web_titles, web_servers, web_headers, web_paths);
 
-      net_db_begin(wl_db);
+      if (erc != 0) {
+        /* Enrichment failed for this host -- mark as enriched with empty
+           data so it doesn't retry, and continue to next host */
+        log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, skipping\n",
+                  ip_str.c_str());
+        for (size_t i = 0; i < port_nums.size(); i++) {
+          net_db_update_enrichment(wl_db, ip_str.c_str(), port_nums[i],
+                                   "", "", "", "", "", "", "");
+        }
+        enrich_errors++;
+        continue;
+      }
+
       for (size_t i = 0; i < port_nums.size(); i++) {
         net_db_update_enrichment(wl_db, ip_str.c_str(), port_nums[i],
           i < services.size() ? services[i].c_str() : "",
@@ -237,10 +251,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           i < web_headers.size() ? web_headers[i].c_str() : "",
           i < web_paths.size() ? web_paths[i].c_str() : "");
       }
-      net_db_commit(wl_db);
       enriched_count++;
     }
-    log_write(LOG_STDOUT, "  Enriched %d hosts\n", enriched_count);
+    net_db_commit(wl_db);
+    log_write(LOG_STDOUT, "  Enriched %d hosts", enriched_count);
+    if (enrich_errors > 0)
+      log_write(LOG_STDOUT, " (%d failed)", enrich_errors);
+    log_write(LOG_STDOUT, "\n");
   }
 
   /* Generate diff */
@@ -290,6 +307,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
   std::string diff_path = wl_dir + "/diff_" + datebuf + ".txt";
   FILE *diff_fp = fopen(diff_path.c_str(), "w");
+  if (!diff_fp) {
+    log_write(LOG_STDOUT, "  WARNING: cannot create diff report %s, skipping\n",
+              diff_path.c_str());
+  }
   if (diff_fp) {
     fprintf(diff_fp, "================================================================================\n");
     fprintf(diff_fp, "                    WATCHLIST DIFF — %s\n", datebuf);
@@ -341,6 +362,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   /* Write full report */
   std::string full_path = wl_dir + "/full_" + datebuf + ".txt";
   FILE *full_fp = fopen(full_path.c_str(), "w");
+  if (!full_fp) {
+    log_write(LOG_STDOUT, "  WARNING: cannot create full report %s, skipping\n",
+              full_path.c_str());
+  }
   if (full_fp) {
     fprintf(full_fp, "================================================================================\n");
     fprintf(full_fp, "                    WATCHLIST FULL REPORT — %s\n", datebuf);

@@ -413,8 +413,13 @@ static std::vector<LoadedCred> load_creds(const char *creds_file) {
 /* -----------------------------------------------------------------------
  * Low-level TCP connect helper (blocking, timeout via select)
  * Supports both IPv4 and IPv6 targets.
+ * Use intptr_t for socket handles to avoid SOCKET-to-int truncation
+ * on 64-bit Windows (SOCKET is UINT_PTR = 64 bits on Win64).
  * ----------------------------------------------------------------------- */
-static int tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
+typedef intptr_t cred_fd_t;
+#define CRED_INVALID_FD ((cred_fd_t)-1)
+
+static cred_fd_t tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
   int af;
   socklen_t slen;
@@ -438,12 +443,12 @@ static int tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 
 #ifdef WIN32
   SOCKET fd = socket(af, SOCK_STREAM, 0);
-  if (fd == INVALID_SOCKET) return -1;
+  if (fd == INVALID_SOCKET) return CRED_INVALID_FD;
   u_long nb = 1;
   ioctlsocket(fd, FIONBIO, &nb);
 #else
   int fd = socket(af, SOCK_STREAM, 0);
-  if (fd < 0) return -1;
+  if (fd < 0) return CRED_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
@@ -462,7 +467,7 @@ static int tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return CRED_INVALID_FD;
   }
 
   /* Verify the connection actually succeeded (not just select woke on error) */
@@ -475,7 +480,7 @@ static int tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return CRED_INVALID_FD;
   }
 
 #ifdef WIN32
@@ -484,37 +489,49 @@ static int tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #else
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK);
 #endif
-  return static_cast<int>(fd);
+  return static_cast<cred_fd_t>(fd);
 }
 
-static void close_fd(int fd) {
+static void close_fd(cred_fd_t fd) {
 #ifdef WIN32
-  closesocket(fd);
+  closesocket(static_cast<SOCKET>(fd));
 #else
-  close(fd);
+  close(static_cast<int>(fd));
 #endif
 }
 
-static bool fd_send(int fd, const char *buf, size_t len) {
+static bool fd_send(cred_fd_t fd, const char *buf, size_t len) {
   size_t sent = 0;
   while (sent < len) {
-    int n = send(fd, buf + sent, static_cast<int>(len - sent), 0);
+#ifdef WIN32
+    int n = send(static_cast<SOCKET>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#else
+    int n = send(static_cast<int>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#endif
     if (n <= 0) return false;
     sent += static_cast<size_t>(n);
   }
   return true;
 }
 
-static int fd_recv(int fd, char *buf, size_t len, int timeout_ms) {
+static int fd_recv(cred_fd_t fd, char *buf, size_t len, int timeout_ms) {
   fd_set rset;
   FD_ZERO(&rset);
-  FD_SET(fd, &rset);
+#ifdef WIN32
+  FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+  FD_SET(static_cast<int>(fd), &rset);
+#endif
   struct timeval tv;
   tv.tv_sec  = timeout_ms / 1000;
   tv.tv_usec = (timeout_ms % 1000) * 1000;
   if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
     return -1;
-  return static_cast<int>(recv(fd, buf, static_cast<int>(len), 0));
+#ifdef WIN32
+  return static_cast<int>(recv(static_cast<SOCKET>(fd), buf, static_cast<int>(len), 0));
+#else
+  return static_cast<int>(recv(static_cast<int>(fd), buf, static_cast<int>(len), 0));
+#endif
 }
 
 /* -----------------------------------------------------------------------
@@ -525,8 +542,8 @@ static int fd_recv(int fd, char *buf, size_t len, int timeout_ms) {
 static bool probe_ftp(const char *ip, uint16_t port,
                       const std::string &user, const std::string &pass,
                       int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   char buf[512]{};
   if (fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms) <= 0) {
@@ -576,8 +593,8 @@ static bool probe_http_basic(const char *ip, uint16_t port,
                               const std::string &user, const std::string &pass,
                               int timeout_ms) {
   /* Step 1: confirm 401 without credentials */
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   std::string bare_req =
     std::string("GET / HTTP/1.0\r\nHost: ") + ip +
@@ -592,7 +609,7 @@ static bool probe_http_basic(const char *ip, uint16_t port,
 
   /* Step 2: try with credentials */
   fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  if (fd == CRED_INVALID_FD) return false;
 
   std::string encoded = base64_encode(user + ":" + pass);
   std::string auth_req =
@@ -645,8 +662,8 @@ static std::vector<uint8_t> to_utf16le(const std::string &s) {
 static bool probe_mssql(const char *ip, uint16_t port,
                          const std::string &user, const std::string &pass,
                          int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   /* ---- TDS Pre-Login packet ----
    * Body layout: 2 options × 5 bytes each + 1 terminator + version(6) + encrypt(1) = 18 bytes
@@ -772,8 +789,8 @@ static bool probe_mssql(const char *ip, uint16_t port,
 static bool probe_telnet(const char *ip, uint16_t port,
                          const std::string &user, const std::string &pass,
                          int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   char buf[1024]{};
   /* Read banner / negotiate — ignore failure (some telnet servers are slow) */
@@ -816,8 +833,8 @@ static bool probe_telnet(const char *ip, uint16_t port,
 static bool probe_mysql(const char *ip, uint16_t port,
                         const std::string &user, const std::string &pass,
                         int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   char buf[512]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
@@ -910,8 +927,8 @@ static bool probe_mysql(const char *ip, uint16_t port,
 static bool probe_postgresql(const char *ip, uint16_t port,
                               const std::string &user, const std::string &pass,
                               int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   /* StartupMessage: length(4) + protocol 3.0(4) + "user\0<user>\0\0" */
   std::vector<uint8_t> msg;
@@ -1005,8 +1022,8 @@ static bool probe_postgresql(const char *ip, uint16_t port,
 static bool probe_mongodb(const char *ip, uint16_t port,
                           const std::string & /*user*/, const std::string & /*pass*/,
                           int timeout_ms) {
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   // Minimal MongoDB wire protocol: OP_QUERY for isMaster
   static const uint8_t ismaster_msg[] = {
@@ -1040,15 +1057,19 @@ static bool probe_ssh(const char *ip, uint16_t port,
                       const std::string &user, const std::string &pass,
                       int timeout_ms) {
 #ifdef HAVE_LIBSSH2
-  int fd = tcp_connect(ip, port, timeout_ms);
-  if (fd < 0) return false;
+  cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
+  if (fd == CRED_INVALID_FD) return false;
 
   LIBSSH2_SESSION *session = libssh2_session_init();
   if (!session) { close_fd(fd); return false; }
   libssh2_session_set_timeout(session, timeout_ms);
 
   bool ok = false;
-  if (libssh2_session_handshake(session, fd) == 0) {
+#ifdef WIN32
+  if (libssh2_session_handshake(session, static_cast<SOCKET>(fd)) == 0) {
+#else
+  if (libssh2_session_handshake(session, static_cast<int>(fd)) == 0) {
+#endif
     ok = (libssh2_userauth_password(session, user.c_str(), pass.c_str()) == 0);
   }
   libssh2_session_disconnect(session, "bye");
@@ -1137,7 +1158,20 @@ void run_default_creds(std::vector<Target *> &targets,
 
       for (const LoadedCred &c : creds) {
         if (c.service != svc) continue;
-        if (probe_service(svc, ip, port->portno, c.username, c.password, timeout_ms)) {
+        /* Wrap each probe attempt so a crash/exception on one
+           credential pair does not abort the whole scan */
+        bool found = false;
+        try {
+          found = probe_service(svc, ip, port->portno, c.username, c.password, timeout_ms);
+        } catch (...) {
+          /* Probe threw an unexpected exception (e.g., bad_alloc,
+             string operation failure) -- log and continue */
+          log_write(LOG_STDOUT,
+            "  WARNING: default-creds probe exception for %s:%d/%s user=%s\n",
+            ip, port->portno, svc.c_str(), c.username.c_str());
+          continue;
+        }
+        if (found) {
           CredResult r{};
           r.service  = svc;
           r.portno   = port->portno;

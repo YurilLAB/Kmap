@@ -141,8 +141,13 @@ static const char *builtin_paths[] = {
 
 /* -----------------------------------------------------------------------
  * Low-level TCP helpers — IPv4 and IPv6 aware.
+ * Use intptr_t for socket handles to avoid SOCKET-to-int truncation
+ * on 64-bit Windows (SOCKET is UINT_PTR = 64 bits on Win64).
  * ----------------------------------------------------------------------- */
-static int tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
+typedef intptr_t wr_fd_t;
+#define WR_INVALID_FD ((wr_fd_t)-1)
+
+static wr_fd_t tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
   int af;
   socklen_t slen;
@@ -166,11 +171,11 @@ static int tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
 
 #ifdef WIN32
   SOCKET fd = socket(af, SOCK_STREAM, 0);
-  if (fd == INVALID_SOCKET) return -1;
+  if (fd == INVALID_SOCKET) return WR_INVALID_FD;
   u_long nb = 1; ioctlsocket(fd, FIONBIO, &nb);
 #else
   int fd = socket(af, SOCK_STREAM, 0);
-  if (fd < 0) return -1;
+  if (fd < 0) return WR_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
@@ -183,7 +188,7 @@ static int tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return WR_INVALID_FD;
   }
   /* Verify connect() succeeded */
   int sockerr = 0; socklen_t errlen = sizeof(sockerr);
@@ -194,44 +199,57 @@ static int tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
 #else
     close(fd);
 #endif
-    return -1;
+    return WR_INVALID_FD;
   }
 #ifdef WIN32
   nb = 0; ioctlsocket(fd, FIONBIO, &nb);
 #else
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK);
 #endif
-  return static_cast<int>(fd);
+  return static_cast<wr_fd_t>(fd);
 }
 
-static void close_fd_wr(int fd) {
+static void close_fd_wr(wr_fd_t fd) {
 #ifdef WIN32
-  closesocket(fd);
+  closesocket(static_cast<SOCKET>(fd));
 #else
-  close(fd);
+  close(static_cast<int>(fd));
 #endif
 }
 
-static bool send_all(int fd, const char *buf, size_t len) {
+static bool send_all(wr_fd_t fd, const char *buf, size_t len) {
   size_t sent = 0;
   while (sent < len) {
-    int n = send(fd, buf + sent, static_cast<int>(len - sent), 0);
+#ifdef WIN32
+    int n = send(static_cast<SOCKET>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#else
+    int n = send(static_cast<int>(fd), buf + sent, static_cast<int>(len - sent), 0);
+#endif
     if (n <= 0) return false;
     sent += static_cast<size_t>(n);
   }
   return true;
 }
 
-static std::string recv_response(int fd, int timeout_ms, size_t max_bytes = 65536) {
+static std::string recv_response(wr_fd_t fd, int timeout_ms, size_t max_bytes = 65536) {
   std::string response;
   response.reserve(4096);
   char chunk[4096];
   while (response.size() < max_bytes) {
-    fd_set rset; FD_ZERO(&rset); FD_SET(fd, &rset);
+    fd_set rset; FD_ZERO(&rset);
+#ifdef WIN32
+    FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+    FD_SET(static_cast<int>(fd), &rset);
+#endif
     struct timeval tv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
     if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
       break;
-    int n = static_cast<int>(recv(fd, chunk, sizeof(chunk), 0));
+#ifdef WIN32
+    int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
+#else
+    int n = static_cast<int>(recv(static_cast<int>(fd), chunk, sizeof(chunk), 0));
+#endif
     if (n <= 0) break;
     response.append(chunk, static_cast<size_t>(n));
   }
@@ -304,8 +322,8 @@ static std::string build_request(const char *path, const char *host) {
  * ----------------------------------------------------------------------- */
 static std::string http_get(const char *ip, uint16_t port,
                             const char *path, int timeout_ms) {
-  int fd = tcp_connect_wr(ip, port, timeout_ms);
-  if (fd < 0) return "";
+  wr_fd_t fd = tcp_connect_wr(ip, port, timeout_ms);
+  if (fd == WR_INVALID_FD) return "";
   std::string req = build_request(path, ip);
   if (!send_all(fd, req.c_str(), req.size())) { close_fd_wr(fd); return ""; }
   std::string resp = recv_response(fd, timeout_ms);
@@ -337,11 +355,11 @@ static std::string https_get(const char *ip, uint16_t port,
   SSL_CTX *ctx = get_ssl_ctx();
   if (!ctx) return "";
 
-  int fd = tcp_connect_wr(ip, port, timeout_ms);
-  if (fd < 0) return "";
+  wr_fd_t fd = tcp_connect_wr(ip, port, timeout_ms);
+  if (fd == WR_INVALID_FD) return "";
 
   SSL *ssl = SSL_new(ctx);
-  SSL_set_fd(ssl, fd);
+  SSL_set_fd(ssl, static_cast<int>(fd));
   /* SNI must be a hostname, not an IP — skip for bare IPs (RFC 6066) */
   { struct in_addr dummy4; struct in6_addr dummy6;
     if (inet_pton(AF_INET, ip, &dummy4) != 1 &&
@@ -397,7 +415,12 @@ static std::string https_get(const char *ip, uint16_t port,
   char chunk[4096];
   while (true) {
     /* Timeout guard to prevent blocking on slow/malicious servers */
-    fd_set rset; FD_ZERO(&rset); FD_SET(fd, &rset);
+    fd_set rset; FD_ZERO(&rset);
+#ifdef WIN32
+    FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+    FD_SET(static_cast<int>(fd), &rset);
+#endif
     struct timeval rtv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
     if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &rtv) <= 0)
       break;
@@ -562,9 +585,17 @@ void run_web_recon(std::vector<Target *> &targets,
 
       if (!is_http && !is_https) continue;
 
-      WebReconResult result = probe_web_port(ip, port->portno, is_https, paths);
-      TargetWebData *data = get_or_create_web_data(t);
-      data->results.push_back(std::move(result));
+      /* Per-port isolation: if probing one port fails, continue to others */
+      try {
+        WebReconResult result = probe_web_port(ip, port->portno, is_https, paths);
+        TargetWebData *data = get_or_create_web_data(t);
+        data->results.push_back(std::move(result));
+      } catch (...) {
+        log_write(LOG_STDOUT,
+          "  WARNING: web-recon exception for %s:%d, skipping port\n",
+          ip, port->portno);
+        continue;
+      }
     }
   }
 }
@@ -685,6 +716,7 @@ void run_screenshot_capture(std::vector<Target *> &targets,
     log_write(LOG_STDOUT, "Screenshot: using %s\n", browser.c_str());
 
     int captured = 0;
+    int screenshot_errors = 0;
     for (Target *t : targets) {
         const char *ip = t->targetipstr();
         Port *port = nullptr;
@@ -736,13 +768,19 @@ void run_screenshot_capture(std::vector<Target *> &targets,
 
             log_write(LOG_STDOUT, "  Capturing %s -> %s\n", url.c_str(), outfile.c_str());
             int rc = system(cmd.c_str());
-            if (rc == 0)
+            if (rc == 0) {
                 captured++;
-            else
-                log_write(LOG_STDOUT, "  WARNING: Screenshot failed for %s (exit %d)\n",
+            } else {
+                screenshot_errors++;
+                log_write(LOG_STDOUT, "  WARNING: Screenshot failed for %s (exit %d), continuing\n",
                           url.c_str(), rc);
+                /* Continue to next URL -- one failure should not stop the batch */
+            }
         }
     }
 
-    log_write(LOG_STDOUT, "Screenshots: %d captured in %s/\n", captured, dir.c_str());
+    log_write(LOG_STDOUT, "Screenshots: %d captured in %s/", captured, dir.c_str());
+    if (screenshot_errors > 0)
+        log_write(LOG_STDOUT, " (%d failed)", screenshot_errors);
+    log_write(LOG_STDOUT, "\n");
 }

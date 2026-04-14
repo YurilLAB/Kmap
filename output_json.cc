@@ -348,7 +348,16 @@ void json_finalize() {
         return;
     }
 
-    ofs << g_doc.dump(2) << "\n";
+    try {
+        ofs << g_doc.dump(2) << "\n";
+    } catch (...) {
+        fprintf(stderr, "KMAP WARNING: Failed to write JSON output to %s (serialization error).\n",
+                g_filename.c_str());
+    }
+    if (ofs.fail()) {
+        fprintf(stderr, "KMAP WARNING: Write error on JSON output file %s (disk full?).\n",
+                g_filename.c_str());
+    }
     ofs.close();
 
     /* Release memory. */
@@ -783,6 +792,10 @@ void report_finalize() {
     if (!ofs.is_open()) {
         fprintf(stderr, "KMAP WARNING: Could not open report file %s for writing.\n",
                 rpt_filename.c_str());
+        /* Non-fatal: clean up and continue so the rest of scan output
+           is not disrupted. */
+        rpt_hosts.clear();
+        rpt_filename.clear();
         return;
     }
 
@@ -791,6 +804,10 @@ void report_finalize() {
     else
         write_txt_report(ofs);
 
+    if (ofs.fail()) {
+        fprintf(stderr, "KMAP WARNING: Write error on report file %s (disk full?).\n",
+                rpt_filename.c_str());
+    }
     ofs.close();
 
     log_write(LOG_STDOUT, "Report written to %s\n", rpt_filename.c_str());

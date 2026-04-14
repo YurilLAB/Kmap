@@ -111,6 +111,8 @@ void net_db_close(sqlite3 *db) {
 
 int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
                        const char *proto, int64_t timestamp) {
+  if (!db) return -1;
+
   static const char *sql =
     "INSERT OR IGNORE INTO hosts (ip, port, proto, first_seen, last_seen) "
     "VALUES (?, ?, ?, ?, ?)";
@@ -141,6 +143,8 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *cves_json,
                              const char *web_title, const char *web_server,
                              const char *web_headers, const char *web_paths) {
+  if (!db) return -1;
+
   static const char *sql =
     "UPDATE hosts SET service=?, version=?, cves=?, web_title=?, "
     "web_server=?, web_headers=?, web_paths=?, enriched=1, "
@@ -175,6 +179,8 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
 
 std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit) {
   std::vector<std::string> ips;
+  if (!db) return ips;
+
   static const char *sql =
     "SELECT DISTINCT ip FROM hosts WHERE enriched=0 LIMIT ?";
 
@@ -194,6 +200,8 @@ std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit) {
 
 std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
   std::vector<NetHost> hosts;
+  if (!db || !ip) return hosts;
+
   static const char *sql =
     "SELECT ip, port, proto, first_seen, last_seen, service, version, "
     "cves, web_title, web_server, web_headers, web_paths, enriched "
@@ -232,6 +240,7 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
 }
 
 int64_t net_db_count(sqlite3 *db) {
+  if (!db) return -1;
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM hosts", -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
@@ -243,6 +252,7 @@ int64_t net_db_count(sqlite3 *db) {
 }
 
 int64_t net_db_count_unenriched(sqlite3 *db) {
+  if (!db) return -1;
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM hosts WHERE enriched=0",
                          -1, &stmt, nullptr) != SQLITE_OK)
@@ -259,9 +269,21 @@ int64_t net_db_count_unenriched(sqlite3 *db) {
  * ----------------------------------------------------------------------- */
 
 void net_db_begin(sqlite3 *db) {
-  sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+  if (!db) return;
+  char *errmsg = nullptr;
+  int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &errmsg);
+  if (rc != SQLITE_OK && errmsg) {
+    fprintf(stderr, "net-scan: WARNING: BEGIN TRANSACTION failed: %s\n", errmsg);
+    sqlite3_free(errmsg);
+  }
 }
 
 void net_db_commit(sqlite3 *db) {
-  sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+  if (!db) return;
+  char *errmsg = nullptr;
+  int rc = sqlite3_exec(db, "COMMIT", nullptr, nullptr, &errmsg);
+  if (rc != SQLITE_OK && errmsg) {
+    fprintf(stderr, "net-scan: WARNING: COMMIT failed: %s\n", errmsg);
+    sqlite3_free(errmsg);
+  }
 }

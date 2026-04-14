@@ -199,6 +199,7 @@ struct ScanCheckpoint {
   uint64_t next_index;     /* next IP index to scan */
   uint64_t packets_sent;
   uint64_t hosts_found;
+  uint64_t seed;           /* permutation seed — must match on resume */
   time_t   last_save;
 };
 
@@ -210,10 +211,11 @@ static bool save_checkpoint(const char *data_dir, const ScanCheckpoint &cp) {
   std::string path = checkpoint_path(data_dir);
   FILE *f = fopen(path.c_str(), "w");
   if (!f) return false;
-  fprintf(f, "%llu\n%llu\n%llu\n%lld\n",
+  fprintf(f, "%llu\n%llu\n%llu\n%llu\n%lld\n",
           (unsigned long long)cp.next_index,
           (unsigned long long)cp.packets_sent,
           (unsigned long long)cp.hosts_found,
+          (unsigned long long)cp.seed,
           (long long)cp.last_save);
   fclose(f);
   return true;
@@ -223,15 +225,16 @@ static bool load_checkpoint(const char *data_dir, ScanCheckpoint &cp) {
   std::string path = checkpoint_path(data_dir);
   FILE *f = fopen(path.c_str(), "r");
   if (!f) return false;
-  unsigned long long ni, ps, hf;
+  unsigned long long ni, ps, hf, sd;
   long long ls;
-  if (fscanf(f, "%llu\n%llu\n%llu\n%lld", &ni, &ps, &hf, &ls) != 4) {
+  if (fscanf(f, "%llu\n%llu\n%llu\n%llu\n%lld", &ni, &ps, &hf, &sd, &ls) != 5) {
     fclose(f);
     return false;
   }
   cp.next_index = ni;
   cp.packets_sent = ps;
   cp.hosts_found = hf;
+  cp.seed = sd;
   cp.last_save = static_cast<time_t>(ls);
   fclose(f);
   return true;
@@ -250,8 +253,9 @@ struct RateLimiter {
 
 static int64_t now_usec() {
 #ifdef WIN32
-  LARGE_INTEGER freq, counter;
-  QueryPerformanceFrequency(&freq);
+  static LARGE_INTEGER freq = {};
+  if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+  LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
   return (int64_t)((double)counter.QuadPart / (double)freq.QuadPart * 1000000.0);
 #else
@@ -419,14 +423,17 @@ int fast_syn_scan(const char *data_dir,
   cp.next_index = 0;
   cp.packets_sent = 0;
   cp.hosts_found = 0;
+  cp.seed = 0;
   cp.last_save = time(nullptr);
 
+  bool resumed = false;
   if (resume) {
     if (load_checkpoint(data_dir, cp)) {
       log_write(LOG_STDOUT, "net-scan: Resuming from index %llu (%llu packets sent, %llu hosts found)\n",
                 (unsigned long long)cp.next_index,
                 (unsigned long long)cp.packets_sent,
                 (unsigned long long)cp.hosts_found);
+      resumed = true;
     } else {
       log_write(LOG_STDOUT, "net-scan: No checkpoint found, starting fresh\n");
     }
@@ -442,12 +449,23 @@ int fast_syn_scan(const char *data_dir,
   memset(&sa_new, 0, sizeof(sa_new));
   sa_new.sa_handler = sigint_handler;
   sigaction(SIGINT, &sa_new, &sa_old);
+#else
+  SetConsoleCtrlHandler([](DWORD) -> BOOL {
+    scan_interrupted = 1;
+    return TRUE;
+  }, TRUE);
 #endif
   scan_interrupted = 0;
 
-  /* Seed for IP permutation */
-  uint64_t seed = static_cast<uint64_t>(time(nullptr)) ^ PERMUTE_OFFSET;
-  if (resume) seed = PERMUTE_OFFSET; /* deterministic for resume */
+  /* Seed for IP permutation — stored in checkpoint so resume uses
+     the same permutation order as the original scan. */
+  uint64_t seed;
+  if (resumed && cp.seed != 0) {
+    seed = cp.seed;
+  } else {
+    seed = static_cast<uint64_t>(time(nullptr)) ^ PERMUTE_OFFSET;
+    cp.seed = seed;
+  }
 
   log_write(LOG_STDOUT, "\nnet-scan: Starting discovery scan\n");
   log_write(LOG_STDOUT, "  Rate:       %d pps\n", rate_pps);
@@ -472,10 +490,8 @@ int fast_syn_scan(const char *data_dir,
    * for a home-machine scanner at 25k pps is adequate.  The rate
    * limiter controls the pace. */
 
-  uint64_t total_probes = IP_SPACE * ports.size();
-  /* But we only iterate unique IPs, then probe each port */
-
-  for (uint64_t idx = cp.next_index; idx < IP_SPACE && !scan_interrupted; idx++) {
+  uint64_t idx = cp.next_index;
+  for (; idx < IP_SPACE && !scan_interrupted; idx++) {
     uint32_t ip = permute_ip(idx, seed);
 
     /* Skip excluded IPs */
@@ -542,8 +558,8 @@ int fast_syn_scan(const char *data_dir,
     if (db) net_db_commit(db);
   }
 
-  /* Save final checkpoint */
-  cp.next_index = scan_interrupted ? cp.next_index : IP_SPACE;
+  /* Save final checkpoint — use actual loop position, not stale value */
+  cp.next_index = scan_interrupted ? idx : IP_SPACE;
   cp.last_save = time(nullptr);
   save_checkpoint(data_dir, cp);
 
@@ -565,6 +581,8 @@ int fast_syn_scan(const char *data_dir,
   /* Restore signal handler */
 #ifndef WIN32
   sigaction(SIGINT, &sa_old, nullptr);
+#else
+  SetConsoleCtrlHandler(nullptr, FALSE);
 #endif
 
   close_all_shards(shards);

@@ -189,6 +189,86 @@ NEW_CVES = [
      'OpenSSL DoS via processing of specially crafted ASN.1 object identifiers.'),
     ('CVE-2024-0727', 'openssl', 'openssl', None, '3.2.0', 7.5, 'HIGH',
      'OpenSSL NULL pointer dereference in PKCS12 parsing allows DoS.'),
+
+    # --- Lighttpd (new — was 0 CVEs in DB) ---
+    ('CVE-2014-2323', 'lighttpd', 'lighttpd', None, '1.4.34', 9.8, 'CRITICAL',
+     'Lighttpd SQL injection in mod_mysql_vhost via hostname in Host header allows arbitrary SQL execution.'),
+    ('CVE-2018-19052', 'lighttpd', 'lighttpd', None, '1.4.51', 7.5, 'HIGH',
+     'Lighttpd path traversal in mod_alias when alias with trailing slash maps to directory without trailing slash.'),
+    ('CVE-2015-3200', 'lighttpd', 'lighttpd', None, '1.4.35', 7.5, 'HIGH',
+     'Lighttpd log injection via specially crafted HTTP basic authentication credentials containing newlines.'),
+    ('CVE-2013-4508', 'lighttpd', 'lighttpd', None, '1.4.34', 7.5, 'HIGH',
+     'Lighttpd uses weak SSL ciphers when SNI is enabled, compromising session confidentiality.'),
+    ('CVE-2013-4559', 'lighttpd', 'lighttpd', None, '1.4.34', 7.5, 'HIGH',
+     'Lighttpd does not check return values of setuid/setgid/setgroups allowing privilege escalation.'),
+    ('CVE-2013-4560', 'lighttpd', 'lighttpd', None, '1.4.34', 5.0, 'MEDIUM',
+     'Lighttpd use-after-free vulnerability on FAM stat cache engine failure causes DoS.'),
+    ('CVE-2007-3949', 'lighttpd', 'lighttpd', None, '1.4.16', 8.3, 'HIGH',
+     'Lighttpd trailing slash URL bypass circumvents mod_access deny rules for protected paths.'),
+
+    # --- IIS (new — was 0 CVEs in DB) ---
+    ('CVE-2021-31166', 'iis', 'microsoft', None, None, 9.8, 'CRITICAL',
+     'Windows HTTP Protocol Stack (http.sys) RCE affects IIS. Wormable unauthenticated remote code execution via crafted packets.'),
+    ('CVE-2015-1635', 'iis', 'microsoft', None, None, 9.8, 'CRITICAL',
+     'HTTP.sys RCE in IIS allows unauthenticated remote code execution via crafted HTTP request with Range header.'),
+    ('CVE-2017-7269', 'iis', 'microsoft', None, None, 9.8, 'CRITICAL',
+     'IIS 6.0 WebDAV buffer overflow in ScStoragePathFromUrl allows unauthenticated remote code execution.'),
+    ('CVE-2022-21907', 'iis', 'microsoft', None, None, 9.8, 'CRITICAL',
+     'HTTP Protocol Stack (http.sys) RCE, wormable vulnerability affecting IIS on Windows Server.'),
+    ('CVE-2020-0645', 'iis', 'microsoft', None, None, 7.5, 'HIGH',
+     'IIS tampering vulnerability when improperly processing malformed request headers allows security bypass.'),
+    ('CVE-2016-0152', 'iis', 'microsoft', None, None, 7.8, 'HIGH',
+     'IIS mishandles library loading allowing local privilege escalation through crafted application.'),
+
+    # --- PHP (additional — was 1 CVE in DB) ---
+    ('CVE-2012-1823', 'php', 'php_group', None, '5.3.12', 9.8, 'CRITICAL',
+     'PHP-CGI query string parameter injection allows remote code execution when configured as CGI.'),
+    ('CVE-2016-7479', 'php', 'php_group', None, '7.0.14', 9.8, 'CRITICAL',
+     'PHP use-after-free during unserialization of properties hash table resizing allows remote code execution.'),
+    ('CVE-2019-11043', 'php', 'php_group', None, '7.3.11', 9.8, 'CRITICAL',
+     'PHP-FPM buffer underflow in env_path_info allows remote code execution via crafted URL.'),
+    ('CVE-2023-3824', 'php', 'php_group', None, '8.2.9', 9.8, 'CRITICAL',
+     'PHP heap buffer overflow in phar_dir_read during PHAR archive parsing enables RCE.'),
+    ('CVE-2024-2756', 'php', 'php_group', None, '8.3.5', 8.1, 'HIGH',
+     'PHP __Host-/__Secure- cookie prefix bypass allows session fixation attacks.'),
+    ('CVE-2023-3247', 'php', 'php_group', None, '8.2.8', 7.5, 'HIGH',
+     'PHP SOAP missing error check in php_libxml_ctx_error allows XML parsing bypass.'),
+
+    # --- vsftpd (additional — was 2 CVEs in DB) ---
+    ('CVE-2011-2523', 'vsftpd', 'beez182', '2.3.4', '2.3.4', 10.0, 'CRITICAL',
+     'vsftpd 2.3.4 backdoor: malicious code opens a shell on port 6200/tcp when triggered by :) in username.'),
+    ('CVE-2015-1419', 'vsftpd', 'vsftpd_project', None, '3.0.2', 5.0, 'MEDIUM',
+     'vsftpd deny_file parsing bypass allows restricted file access when configuration uses {}.'),
+    ('CVE-2008-2375', 'vsftpd', 'vsftpd_project', None, '2.0.6', 7.1, 'HIGH',
+     'vsftpd memory leak from invalid authentication attempts when using PAM causes denial of service.'),
+
+    # --- OpenSSH (additional — expanding from 9 CVEs) ---
+    ('CVE-2006-5051', 'openssh', 'openbsd', None, '4.4', 8.1, 'HIGH',
+     'OpenSSH signal handler race condition causes double-free, potential RCE when GSSAPI authentication enabled.'),
+    ('CVE-2016-10009', 'openssh', 'openbsd', None, '7.4', 7.3, 'HIGH',
+     'OpenSSH ssh-agent untrusted search path allows loading arbitrary PKCS#11 modules via agent forwarding.'),
+    ('CVE-2016-10012', 'openssh', 'openbsd', None, '7.4', 7.8, 'HIGH',
+     'OpenSSH shared memory manager buffer overflow in pre-authentication compression code path.'),
+    ('CVE-2016-10708', 'openssh', 'openbsd', None, '7.4', 7.5, 'HIGH',
+     'OpenSSH NULL pointer dereference via out-of-sequence NEWKEYS message causing sshd crash.'),
+    ('CVE-2016-6515', 'openssh', 'openbsd', None, '7.3', 7.5, 'HIGH',
+     'OpenSSH auth_password has no length limit allowing DoS via CPU exhaustion with very long passwords.'),
+    ('CVE-2020-15778', 'openssh', 'openbsd', None, '8.3p1', 7.8, 'HIGH',
+     'OpenSSH scp command injection via filenames with backtick characters allows arbitrary command execution.'),
+    ('CVE-2023-25136', 'openssh', 'openbsd', None, '9.2p1', 9.8, 'CRITICAL',
+     'OpenSSH pre-authentication double-free in options.kex_algorithms allows potential unauthenticated RCE.'),
+
+    # --- MongoDB (additional) ---
+    ('CVE-2024-1351', 'mongodb', 'mongodb', None, '7.0.5', 9.1, 'CRITICAL',
+     'MongoDB Server authentication bypass via crafted commands allows unauthorized access.'),
+    ('CVE-2023-1409', 'mongodb', 'mongodb', None, '6.0.4', 7.5, 'HIGH',
+     'MongoDB TLS certificate verification bypass when peer certificate has non-matching hostname.'),
+
+    # --- MariaDB (additional) ---
+    ('CVE-2022-27449', 'mariadb', 'mariadb', None, '10.7.3', 7.5, 'HIGH',
+     'MariaDB Server crash in sql/item_func.cc via crafted query leads to denial of service.'),
+    ('CVE-2022-27447', 'mariadb', 'mariadb', None, '10.7.3', 7.5, 'HIGH',
+     'MariaDB Server use-after-free in Binary_string::free_buffer leads to crash.'),
 ]
 
 
@@ -216,6 +296,7 @@ def main():
         'postgresql', 'samba', 'struts', 'jenkins', 'gitlab',
         'confluence', 'jira', 'exchange_server', 'vcenter_server',
         'weblogic_server', 'drupal', 'openssl', 'proftpd',
+        'lighttpd', 'iis', 'php', 'vsftpd', 'mongodb', 'mariadb',
     ]
     c.execute(
         'SELECT product, COUNT(*) FROM cves WHERE product IN ({}) GROUP BY product ORDER BY product'.format(
