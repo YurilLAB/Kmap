@@ -737,8 +737,11 @@ static bool probe_mssql(const char *ip, uint16_t port,
   body.insert(body.end(), app_u16.begin(), app_u16.end());
   body.insert(body.end(), db_u16.begin(), db_u16.end());
 
+  /* Verify body size matches expected length */
+  if (body.size() != body_len) { close_fd(fd); return false; }
+
   /* TDS packet header for Login7 */
-  uint32_t total = 8 + body_len;
+  uint32_t total = 8 + static_cast<uint32_t>(body.size());
   uint8_t hdr[8] = {
     0x10, 0x01,
     static_cast<uint8_t>((total >> 8) & 0xFF),
@@ -864,13 +867,14 @@ static bool probe_mysql(const char *ip, uint16_t port,
 #endif
 
   /* Build HandshakeResponse41 */
-  uint8_t resp[128]{};
+  uint8_t resp[256]{};
   resp[0] = 0x85; resp[1] = 0xa6; resp[2] = 0x03; resp[3] = 0x00; /* CLIENT flags */
   resp[4] = 0x00; resp[5] = 0x00; resp[6] = 0x00; resp[7] = 0x01; /* max packet */
   resp[8] = 0x21; /* utf8 charset */
   /* resp[9..31] = zeros (filler) */
   size_t off = 32;
-  size_t ulen = std::min(user.size(), static_cast<size_t>(16));
+  size_t ulen = std::min(user.size(), static_cast<size_t>(32)); /* MySQL max: 32 */
+  if (off + ulen + 1 + 21 > sizeof(resp)) { close_fd(fd); return false; }
   memcpy(resp + off, user.c_str(), ulen);
   off += ulen + 1; /* username + null terminator (zero from {} init) */
   if (has_token) {
@@ -880,9 +884,12 @@ static bool probe_mysql(const char *ip, uint16_t port,
     resp[off++] = 0x00;            /* empty password */
   }
 
-  uint8_t pkt[136]{};
-  uint8_t plen = static_cast<uint8_t>(off);
-  pkt[0] = plen; pkt[1] = 0; pkt[2] = 0; pkt[3] = 1; /* seq=1 */
+  /* MySQL packet header: 3-byte LE length + 1-byte sequence */
+  uint8_t pkt[264]{};
+  pkt[0] = static_cast<uint8_t>(off & 0xFF);
+  pkt[1] = static_cast<uint8_t>((off >> 8) & 0xFF);
+  pkt[2] = static_cast<uint8_t>((off >> 16) & 0xFF);
+  pkt[3] = 1; /* sequence number */
   memcpy(pkt + 4, resp, off);
 
   if (!fd_send(fd, reinterpret_cast<char *>(pkt), off + 4)) { close_fd(fd); return false; }
