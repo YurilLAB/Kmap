@@ -276,6 +276,18 @@ Screenshots are saved as `<ip>_<port>.png` (e.g., `10.0.0.1_443.png`). Requires 
 | `--report <file>` | Generate scan report (`.txt` or `.md` format based on extension) |
 | `--screenshot` | Capture PNG screenshots of discovered web ports |
 | `--screenshot-dir <dir>` | Output directory for screenshots (default: `kmap-screenshots`) |
+| `--net-scan` | Internet-scale scanning pipeline (discover + enrich + report) |
+| `--discover-only` | Only run the SYN scan discovery phase |
+| `--enrich-only` | Only enrich existing shard databases |
+| `--report-only` | Only generate findings from enriched data |
+| `--resume` | Resume an interrupted net-scan |
+| `--rate <pps>` | Discovery packets per second (default: 25000) |
+| `--watchlist <file>` | Scan targets from file with change detection |
+| `--net-query` | Search collected scan data |
+| `--nq-port <port>` | Query filter: port number |
+| `--nq-service <name>` | Query filter: service name |
+| `--nq-cve <id>` | Query filter: CVE ID |
+| `--nq-min-cvss <score>` | Query filter: minimum CVSS score |
 
 ---
 
@@ -290,6 +302,13 @@ Kmap/
 ├── default_creds.cc      --default-creds probe engine
 ├── web_recon.cc          --web-recon HTTP/S recon engine
 ├── cve_map.cc            --cve-map CVE lookup engine
+├── net_scan.cc           --net-scan pipeline orchestrator
+├── fast_syn.cc           High-speed SYN scanner for internet-scale discovery
+├── net_db.cc             Sharded SQLite database manager
+├── net_enrich.cc         Enrichment pipeline (service + CVE + web recon)
+├── net_report.cc         Findings report generator (72,348 IPs per file)
+├── net_query.cc          CLI query engine for searching collected data
+├── exclude.conf          Default IP exclusion ranges
 ├── color.h               ANSI color helpers
 ├── sqlite/               SQLite 3.53.0 amalgamation
 ├── third-party/nlohmann/ nlohmann/json single-header library

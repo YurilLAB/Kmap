@@ -238,6 +238,12 @@
     <ClCompile Include="..\web_recon.cc" />
     <ClCompile Include="..\cve_map.cc" />
     <ClCompile Include="..\output_json.cc" />
+    <ClCompile Include="..\net_scan.cc" />
+    <ClCompile Include="..\net_db.cc" />
+    <ClCompile Include="..\fast_syn.cc" />
+    <ClCompile Include="..\net_enrich.cc" />
+    <ClCompile Include="..\net_report.cc" />
+    <ClCompile Include="..\net_query.cc" />
     <ClCompile Include="..\sqlite\sqlite3.c">
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>SQLITE_THREADSAFE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -303,6 +309,12 @@
     <ClInclude Include="..\default_creds.h" />
     <ClInclude Include="..\web_recon.h" />
     <ClInclude Include="..\cve_map.h" />
+    <ClInclude Include="..\net_scan.h" />
+    <ClInclude Include="..\net_db.h" />
+    <ClInclude Include="..\fast_syn.h" />
+    <ClInclude Include="..\net_enrich.h" />
+    <ClInclude Include="..\net_report.h" />
+    <ClInclude Include="..\net_query.h" />
     <ClInclude Include="..\output_json.h" />
     <ClInclude Include="..\color.h" />
     <ClInclude Include="winfix.h" />

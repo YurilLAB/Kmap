@@ -141,6 +141,16 @@ KmapOps::~KmapOps() {
     free(screenshot_dir);
     screenshot_dir = NULL;
   }
+  if (net_exclude_file) { free(net_exclude_file); net_exclude_file = NULL; }
+  if (net_data_dir) { free(net_data_dir); net_data_dir = NULL; }
+  if (net_findings_dir) { free(net_findings_dir); net_findings_dir = NULL; }
+  if (net_watchlist) { free(net_watchlist); net_watchlist = NULL; }
+  if (nq_service) { free(nq_service); nq_service = NULL; }
+  if (nq_cve) { free(nq_cve); nq_cve = NULL; }
+  if (nq_web_title) { free(nq_web_title); nq_web_title = NULL; }
+  if (nq_web_server) { free(nq_web_server); nq_web_server = NULL; }
+  if (nq_ip_range) { free(nq_ip_range); nq_ip_range = NULL; }
+  if (nq_output) { free(nq_output); nq_output = NULL; }
 
 #ifndef NOLUA
   if (scriptversion || script)
@@ -309,6 +319,26 @@ void KmapOps::Initialize() {
   report_file      = nullptr;
   screenshot       = false;
   screenshot_dir   = nullptr;
+  net_scan         = false;
+  net_discover_only = false;
+  net_enrich_only  = false;
+  net_report_only  = false;
+  net_resume       = false;
+  net_rate         = 25000;
+  net_exclude_file = nullptr;
+  net_data_dir     = nullptr;
+  net_findings_dir = nullptr;
+  net_watchlist    = nullptr;
+  net_query        = false;
+  nq_port          = -1;
+  nq_service       = nullptr;
+  nq_cve           = nullptr;
+  nq_min_cvss      = -1.0f;
+  nq_web_title     = nullptr;
+  nq_web_server    = nullptr;
+  nq_ip_range      = nullptr;
+  nq_output        = nullptr;
+  nq_count         = false;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;

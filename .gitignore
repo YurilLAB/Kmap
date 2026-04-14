@@ -33,6 +33,9 @@ stamp-h1
 /nsock/include/nsock_config.h
 /nsock/tests/tests_main
 /tests/
+/Findings/
+/kmap-data/
+/kmap-screenshots/
 /zekmap/build/
 /zekmap/INSTALLED_FILES
 TAGS

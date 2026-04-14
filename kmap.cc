@@ -143,6 +143,7 @@
 #include "default_creds.h"
 #include "web_recon.h"
 #include "cve_map.h"
+#include "net_scan.h"
 
 /* global options */
 extern char *optarg;
@@ -304,6 +305,22 @@ static void printusage() {
          "  --report <file>: Generate scan report (.txt or .md format)\n"
          "  --screenshot: Capture screenshots of discovered web ports\n"
          "  --screenshot-dir <dir>: Output directory for screenshots (default: kmap-screenshots)\n"
+         "  --net-scan: Internet-scale scanning pipeline (discover + enrich + report)\n"
+         "  --discover-only: Only run the discovery (SYN scan) phase\n"
+         "  --enrich-only: Only run the enrichment phase on existing data\n"
+         "  --report-only: Only generate findings reports from enriched data\n"
+         "  --resume: Resume an interrupted net-scan\n"
+         "  --rate <pps>: Packets per second for discovery (default: 25000)\n"
+         "  --exclude-file <file>: Additional IP ranges to exclude\n"
+         "  --data-dir <dir>: Shard database directory (default: kmap-data)\n"
+         "  --findings-dir <dir>: Findings output directory (default: Findings)\n"
+         "  --watchlist <file>: Scan targets from file and generate diff report\n"
+         "  --net-query: Search collected scan data\n"
+         "  --nq-port <port>: Filter query by port number\n"
+         "  --nq-service <name>: Filter query by service name\n"
+         "  --nq-cve <id>: Filter query by CVE ID\n"
+         "  --nq-min-cvss <score>: Filter query by minimum CVSS score\n"
+         "  --nq-count: Show count instead of listing results\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
          "  -d: Increase debugging level (use -dd or more for greater effect)\n"
          "  --reason: Display the reason a port is in a particular state\n"
@@ -660,6 +677,26 @@ void parse_options(int argc, char **argv) {
     {"report", required_argument, 0, 0},
     {"screenshot", no_argument, 0, 0},
     {"screenshot-dir", required_argument, 0, 0},
+    {"net-scan", no_argument, 0, 0},
+    {"discover-only", no_argument, 0, 0},
+    {"enrich-only", no_argument, 0, 0},
+    {"report-only", no_argument, 0, 0},
+    {"resume", no_argument, 0, 0},
+    {"rate", required_argument, 0, 0},
+    {"exclude-file", required_argument, 0, 0},
+    {"data-dir", required_argument, 0, 0},
+    {"findings-dir", required_argument, 0, 0},
+    {"watchlist", required_argument, 0, 0},
+    {"net-query", no_argument, 0, 0},
+    {"nq-port", required_argument, 0, 0},
+    {"nq-service", required_argument, 0, 0},
+    {"nq-cve", required_argument, 0, 0},
+    {"nq-min-cvss", required_argument, 0, 0},
+    {"nq-web-title", required_argument, 0, 0},
+    {"nq-web-server", required_argument, 0, 0},
+    {"nq-ip-range", required_argument, 0, 0},
+    {"nq-output", required_argument, 0, 0},
+    {"nq-count", no_argument, 0, 0},
     {0, 0, 0, 0}
   };
 
@@ -988,6 +1025,64 @@ void parse_options(int argc, char **argv) {
           o.servicescan = true;
         } else if (strcmp(long_options[option_index].name, "screenshot-dir") == 0) {
           o.screenshot_dir = strdup(optarg);
+        /* --net-scan options */
+        } else if (strcmp(long_options[option_index].name, "net-scan") == 0) {
+          o.net_scan = true;
+        } else if (strcmp(long_options[option_index].name, "discover-only") == 0) {
+          o.net_scan = true;
+          o.net_discover_only = true;
+        } else if (strcmp(long_options[option_index].name, "enrich-only") == 0) {
+          o.net_scan = true;
+          o.net_enrich_only = true;
+        } else if (strcmp(long_options[option_index].name, "report-only") == 0) {
+          o.net_scan = true;
+          o.net_report_only = true;
+        } else if (strcmp(long_options[option_index].name, "resume") == 0) {
+          o.net_scan = true;
+          o.net_resume = true;
+        } else if (strcmp(long_options[option_index].name, "rate") == 0) {
+          o.net_rate = atoi(optarg);
+          if (o.net_rate < 100) o.net_rate = 100;
+          if (o.net_rate > 10000000) o.net_rate = 10000000;
+        } else if (strcmp(long_options[option_index].name, "exclude-file") == 0) {
+          o.net_exclude_file = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "data-dir") == 0) {
+          o.net_data_dir = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "findings-dir") == 0) {
+          o.net_findings_dir = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "watchlist") == 0) {
+          o.net_scan = true;
+          o.net_watchlist = strdup(optarg);
+        /* --net-query options */
+        } else if (strcmp(long_options[option_index].name, "net-query") == 0) {
+          o.net_query = true;
+        } else if (strcmp(long_options[option_index].name, "nq-port") == 0) {
+          o.net_query = true;
+          o.nq_port = atoi(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-service") == 0) {
+          o.net_query = true;
+          o.nq_service = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-cve") == 0) {
+          o.net_query = true;
+          o.nq_cve = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-min-cvss") == 0) {
+          o.net_query = true;
+          o.nq_min_cvss = (float)atof(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-web-title") == 0) {
+          o.net_query = true;
+          o.nq_web_title = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-web-server") == 0) {
+          o.net_query = true;
+          o.nq_web_server = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-ip-range") == 0) {
+          o.net_query = true;
+          o.nq_ip_range = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-output") == 0) {
+          o.net_query = true;
+          o.nq_output = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-count") == 0) {
+          o.net_query = true;
+          o.nq_count = true;
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
           exit(0);
@@ -2048,6 +2143,18 @@ int kmap_main(int argc, char *argv[]) {
   /* --import-cves: run import and exit before any scanning */
   if (o.import_cves_file) {
     int rc = import_cves(o.import_cves_file, o.import_cves_db);
+    exit(rc);
+  }
+
+  /* --net-scan: run internet-scale scan pipeline and exit */
+  if (o.net_scan) {
+    int rc = run_net_scan();
+    exit(rc);
+  }
+
+  /* --net-query: search collected scan data and exit */
+  if (o.net_query) {
+    int rc = run_net_query_cli();
     exit(rc);
   }
 

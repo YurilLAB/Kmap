@@ -290,6 +290,28 @@ class KmapOps {
   /* --screenshot options */
   bool screenshot;        /* Capture screenshots of web ports */
   char *screenshot_dir;   /* Directory for screenshots (default: kmap-screenshots) */
+  /* --net-scan options */
+  bool net_scan;            /* Enable net-scan mode */
+  bool net_discover_only;   /* Only run discovery phase */
+  bool net_enrich_only;     /* Only run enrichment phase */
+  bool net_report_only;     /* Only run report generation */
+  bool net_resume;          /* Resume interrupted scan */
+  int  net_rate;            /* Packets per second (default 25000) */
+  char *net_exclude_file;   /* Custom exclusion list */
+  char *net_data_dir;       /* Shard database directory */
+  char *net_findings_dir;   /* Findings output directory */
+  char *net_watchlist;      /* Watchlist targets file */
+  /* --net-query options */
+  bool net_query;           /* Enable query mode */
+  int  nq_port;             /* Filter by port (-1 = unset) */
+  char *nq_service;         /* Filter by service name */
+  char *nq_cve;             /* Filter by CVE ID */
+  float nq_min_cvss;        /* Filter by min CVSS (-1 = unset) */
+  char *nq_web_title;       /* Filter by web title */
+  char *nq_web_server;      /* Filter by server header */
+  char *nq_ip_range;        /* Filter by IP range */
+  char *nq_output;          /* Export results to file */
+  bool nq_count;            /* Count mode */
   int ttl; // Time to live
   bool badsum;
   char *datadir;
