@@ -301,6 +301,9 @@ static void printusage() {
          "  --cve-min-score <score>: Minimum CVSS score to report (default: 7.0)\n"
          "  --import-cves <file>: Import CVEs from file into database (txt/csv/md/db)\n"
          "  --import-cves-db <path>: Custom target database path (default: kmap-cve.db)\n"
+         "  --report <file>: Generate scan report (.txt or .md format)\n"
+         "  --screenshot: Capture screenshots of discovered web ports\n"
+         "  --screenshot-dir <dir>: Output directory for screenshots (default: kmap-screenshots)\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
          "  -d: Increase debugging level (use -dd or more for greater effect)\n"
          "  --reason: Display the reason a port is in a particular state\n"
@@ -654,6 +657,9 @@ void parse_options(int argc, char **argv) {
     {"cve-min-score", required_argument, 0, 0},
     {"import-cves", required_argument, 0, 0},
     {"import-cves-db", required_argument, 0, 0},
+    {"report", required_argument, 0, 0},
+    {"screenshot", no_argument, 0, 0},
+    {"screenshot-dir", required_argument, 0, 0},
     {0, 0, 0, 0}
   };
 
@@ -974,6 +980,14 @@ void parse_options(int argc, char **argv) {
           o.import_cves_file = strdup(optarg);
         } else if (strcmp(long_options[option_index].name, "import-cves-db") == 0) {
           o.import_cves_db = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "report") == 0) {
+          o.report_file = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "screenshot") == 0) {
+          o.screenshot = true;
+          o.web_recon = true;
+          o.servicescan = true;
+        } else if (strcmp(long_options[option_index].name, "screenshot-dir") == 0) {
+          o.screenshot_dir = strdup(optarg);
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
           exit(0);
@@ -2370,8 +2384,12 @@ int kmap_main(int argc, char *argv[]) {
       run_default_creds(Targets, o.creds_file, o.creds_timeout_ms);
     if (o.web_recon)
       run_web_recon(Targets, o.web_paths_file);
+    if (o.screenshot)
+      run_screenshot_capture(Targets, o.screenshot_dir);
     if (o.cve_map)
       run_cve_map(Targets, o.cve_min_score);
+    if (o.report_file)
+      report_initialize(o.report_file);
 
     for (targetno = 0; targetno < Targets.size(); targetno++) {
       currenths = Targets[targetno];
@@ -2418,6 +2436,8 @@ int kmap_main(int argc, char *argv[]) {
         xml_newline();
         if (o.json_output_file)
           json_write_host(currenths);
+        if (o.report_file)
+          report_write_host(currenths);
       }
     }
     log_flush_all();

@@ -29,6 +29,11 @@ struct PortCredResults {
   std::vector<CredResult> hits; // usually 0 or 1 entry
 };
 
+/* Per-target credential storage (attached to Target via attribute map) */
+struct TargetCredData {
+  std::vector<PortCredResults> results;
+};
+
 /*
  * Run default credential checks against all open ports on all targets.
  * Modifies each Target's userdata to attach PortCredResults.

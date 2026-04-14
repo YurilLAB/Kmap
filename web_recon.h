@@ -39,6 +39,11 @@ struct WebReconResult {
   std::vector<WebPath> paths; // probed path results (non-404 only)
 };
 
+/* Per-target web recon storage (attached to Target via attribute map) */
+struct TargetWebData {
+  std::vector<WebReconResult> results;
+};
+
 /*
  * Run web recon against all HTTP/HTTPS ports on all targets.
  * extra_paths_file: optional file with additional paths to probe (one per line).
@@ -48,5 +53,13 @@ void run_web_recon(std::vector<Target *> &targets,
 
 /* Print web recon results for a single host to normal output. */
 void print_web_recon_output(const Target *t);
+
+/*
+ * Capture screenshots of HTTP/HTTPS ports on all targets.
+ * Uses a headless browser (Chrome, Chromium, Edge, or Firefox).
+ * out_dir: directory to save PNGs (default: "kmap-screenshots").
+ */
+void run_screenshot_capture(std::vector<Target *> &targets,
+                            const char *out_dir);
 
 #endif /* KMAP_WEB_RECON_H */

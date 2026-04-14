@@ -2571,6 +2571,13 @@ void printfinaloutput() {
                      o.TimeSinceStart(&tv));
     json_finalize();
   }
+  if (o.report_file) {
+    report_write_stats(static_cast<int>(o.numhosts_up),
+                       static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                       static_cast<int>(o.numhosts_scanned),
+                       o.TimeSinceStart(&tv));
+    report_finalize();
+  }
 
   log_flush_all();
 }

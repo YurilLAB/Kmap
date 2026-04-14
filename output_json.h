@@ -86,4 +86,23 @@ void json_write_stats(int up, int down, int total, float elapsed);
    json_initialize() and release all associated resources. */
 void json_finalize();
 
+/* -----------------------------------------------------------------------
+ * Scan report output (--report)
+ *
+ * Generates a styled .txt or .md report depending on the file extension.
+ * ----------------------------------------------------------------------- */
+
+/* Initialize the report file.  Extension determines format:
+   ".md" → Markdown, anything else → styled plain text. */
+void report_initialize(const char *filename);
+
+/* Record a single host's data into the report. */
+void report_write_host(const Target *t);
+
+/* Write summary statistics and finalize the report file. */
+void report_write_stats(int up, int down, int total, float elapsed);
+
+/* Flush and close the report file. */
+void report_finalize();
+
 #endif /* OUTPUT_JSON_H */

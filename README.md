@@ -17,8 +17,10 @@
 | Default credential probing | `--default-creds` | Tests open services against 175+ built-in credential pairs |
 | HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 95+ high-value paths |
 | CVE cross-reference | `--cve-map` | Queries bundled 10,000+ CVE database for detected service versions |
+| Scan report | `--report <file>` | Generates a styled .txt or .md report with all findings |
+| Web screenshots | `--screenshot` | Captures PNG screenshots of discovered web ports |
 
-All three features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
+All features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
 
 ---
 
@@ -39,6 +41,14 @@ kmap --cve-map 10.0.0.1
 
 # Run all three features together
 kmap --default-creds --web-recon --cve-map -p 22,80,443,3306,5432 10.0.0.1
+
+# Generate a scan report (txt or md format)
+kmap --report results.txt -sV 10.0.0.1
+kmap --report findings.md --default-creds --cve-map 10.0.0.1
+
+# Capture screenshots of web ports
+kmap --screenshot 10.0.0.1
+kmap --screenshot --screenshot-dir /tmp/screens 10.0.0.1
 
 # JSON output
 kmap -sV -oJ results.json 10.0.0.1
@@ -210,6 +220,51 @@ Severity is auto-derived from the CVSS score if not provided. Validation catches
 
 ---
 
+### `--report` — Scan Report Generator
+
+Generates a styled report combining all scan results into a single file. The output format is determined by the file extension.
+
+```bash
+# Plain text report
+kmap --report scan_results.txt -sV 10.0.0.1
+
+# Markdown report (great for sharing or rendering in GitHub/GitLab)
+kmap --report findings.md --default-creds --web-recon --cve-map 10.0.0.1
+```
+
+**Formats:**
+- **`.txt`** — Styled plain text with aligned columns and box separators
+- **`.md`** — Markdown with tables, headers, and links
+
+**Report includes:**
+- Scan date and target information (IP, hostname)
+- Port table with service/version info
+- Default credential findings (if `--default-creds` used)
+- Web recon results (if `--web-recon` used)
+- CVE map results (if `--cve-map` used)
+- Summary statistics (hosts, ports, creds found, CVEs, scan time)
+
+---
+
+### `--screenshot` — Web Page Screenshots
+
+Captures PNG screenshots of every discovered HTTP/HTTPS port using a headless browser. Auto-detects Chrome, Chromium, Edge, or Firefox.
+
+```bash
+# Capture to default directory (kmap-screenshots/)
+kmap --screenshot 10.0.0.1
+
+# Custom output directory
+kmap --screenshot --screenshot-dir /path/to/output 10.0.0.1
+
+# Combine with web recon for full picture
+kmap --screenshot --web-recon --report findings.md 10.0.0.1
+```
+
+Screenshots are saved as `<ip>_<port>.png` (e.g., `10.0.0.1_443.png`). Requires one of: Google Chrome, Chromium, Microsoft Edge, or Firefox installed on the system.
+
+---
+
 ## Additional Options
 
 | Option | Description |
@@ -218,6 +273,9 @@ Severity is auto-derived from the CVSS score if not provided. Validation catches
 | `--color=auto\|always\|never` | Terminal color (default: auto via `isatty` + `NO_COLOR`) |
 | `--import-cves <file>` | Import CVEs from text/CSV/SQLite file into the database |
 | `--import-cves-db <path>` | Target database for import (default: `kmap-cve.db`) |
+| `--report <file>` | Generate scan report (`.txt` or `.md` format based on extension) |
+| `--screenshot` | Capture PNG screenshots of discovered web ports |
+| `--screenshot-dir <dir>` | Output directory for screenshots (default: `kmap-screenshots`) |
 
 ---
 

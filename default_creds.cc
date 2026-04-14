@@ -1094,9 +1094,6 @@ static bool probe_service(const std::string &svc, const char *ip,
  * ----------------------------------------------------------------------- */
 
 /* We store results on the Target via a simple map keyed by portno */
-struct TargetCredData {
-  std::vector<PortCredResults> results;
-};
 
 static TargetCredData *get_or_create_cred_data(Target *t) {
   void *existing = t->attribute.get(CRED_RESULTS_KEY);

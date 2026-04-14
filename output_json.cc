@@ -355,3 +355,446 @@ void json_finalize() {
     g_doc  = nlohmann::json{};
     g_filename.clear();
 }
+
+/* =======================================================================
+ * Scan Report Generator (--report)
+ *
+ * Produces either styled plain text (.txt) or Markdown (.md) depending
+ * on the file extension.  Collects data from all hosts and writes
+ * everything at finalize time.
+ * ======================================================================= */
+
+#include "default_creds.h"
+#include "web_recon.h"
+#include "cve_map.h"
+
+#include <ctime>
+#include <sstream>
+#include <iomanip>
+
+/* Module state */
+static std::string rpt_filename;
+static bool        rpt_markdown = false;
+
+/* Accumulated host data for the report */
+struct RptPort {
+    int portno;
+    std::string proto;
+    std::string state;
+    std::string service;
+    std::string version;
+};
+struct RptHost {
+    std::string ip;
+    std::string hostname;
+    std::string status;
+    std::vector<RptPort> ports;
+    /* Feature data pointers — may be null */
+    const void *cred_data;
+    const void *web_data;
+    const void *cve_data;
+};
+static std::vector<RptHost> rpt_hosts;
+static int rpt_up = 0, rpt_down = 0, rpt_total = 0;
+static float rpt_elapsed = 0.0f;
+
+void report_initialize(const char *filename) {
+    rpt_filename = filename ? filename : "";
+    rpt_hosts.clear();
+    rpt_up = rpt_down = rpt_total = 0;
+    rpt_elapsed = 0.0f;
+    /* Detect markdown from extension */
+    rpt_markdown = false;
+    if (rpt_filename.size() > 3) {
+        std::string ext = rpt_filename.substr(rpt_filename.size() - 3);
+        if (ext == ".md") rpt_markdown = true;
+    }
+}
+
+void report_write_host(const Target *t) {
+    if (!t) return;
+    RptHost h;
+    h.ip = t->targetipstr();
+    if (t->HostName() && *t->HostName())
+        h.hostname = t->HostName();
+    h.status = (t->flags & HOST_UP) ? "up" : "down";
+
+    /* Collect ports */
+    const PortList &plist = t->ports;
+    Port pstore;
+    Port *cur = nullptr;
+    while ((cur = plist.nextPort(cur, &pstore, TCPANDUDPANDSCTP, 0)) != nullptr) {
+        if (plist.isIgnoredState(cur->state, nullptr))
+            continue;
+        RptPort rp;
+        rp.portno = cur->portno;
+        rp.proto  = IPPROTO2STR(cur->proto);
+        rp.state  = statenum2str(cur->state);
+        struct serviceDeductions sd;
+        plist.getServiceDeductions(cur->portno, cur->proto, &sd);
+        rp.service = sd.name    ? sd.name    : "";
+        rp.version = sd.product ? sd.product : "";
+        if (sd.version && sd.version[0]) {
+            if (!rp.version.empty()) rp.version += " ";
+            rp.version += sd.version;
+        }
+        h.ports.push_back(rp);
+    }
+
+    /* Grab feature data pointers */
+    h.cred_data = t->attribute.get("kmap_default_creds");
+    h.web_data  = t->attribute.get("kmap_web_recon");
+    h.cve_data  = t->attribute.get("kmap_cve_map");
+
+    rpt_hosts.push_back(std::move(h));
+}
+
+void report_write_stats(int up, int down, int total, float elapsed) {
+    rpt_up = up; rpt_down = down; rpt_total = total; rpt_elapsed = elapsed;
+}
+
+/* ---- Internal writers ---- */
+
+static std::string timestamp_str() {
+    time_t now = time(nullptr);
+    struct tm *tm = localtime(&now);
+    char buf[64];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+    return buf;
+}
+
+static void write_txt_report(std::ofstream &f) {
+    const std::string sep(80, '=');
+    const std::string thin(80, '-');
+
+    f << sep << "\n";
+    f << "                         KMAP SCAN REPORT\n";
+    f << sep << "\n";
+    f << "  Date:       " << timestamp_str() << "\n";
+    f << "  Targets:    " << rpt_total << " host(s) scanned\n";
+    f << "  Hosts up:   " << rpt_up << "\n";
+    f << sep << "\n\n";
+
+    for (const auto &h : rpt_hosts) {
+        f << sep << "\n";
+        f << "  TARGET: " << h.ip;
+        if (!h.hostname.empty()) f << " (" << h.hostname << ")";
+        f << "  [" << h.status << "]\n";
+        f << sep << "\n\n";
+
+        /* Port table */
+        if (!h.ports.empty()) {
+            f << "  PORT TABLE\n";
+            f << "  " << thin << "\n";
+            f << "  " << std::left << std::setw(14) << "PORT"
+              << std::setw(10) << "STATE"
+              << std::setw(16) << "SERVICE"
+              << "VERSION\n";
+            f << "  " << thin << "\n";
+            for (const auto &p : h.ports) {
+                std::string portstr = std::to_string(p.portno) + "/" + p.proto;
+                f << "  " << std::left << std::setw(14) << portstr
+                  << std::setw(10) << p.state
+                  << std::setw(16) << p.service
+                  << p.version << "\n";
+            }
+            f << "\n";
+        }
+
+        /* Default credentials */
+        if (h.cred_data) {
+            const auto *cd = static_cast<const std::vector<PortCredResults>*>(
+                &(static_cast<const TargetCredData *>(h.cred_data)->results));
+            if (cd && !cd->empty()) {
+                f << "  DEFAULT CREDENTIALS\n";
+                f << "  " << thin << "\n";
+                for (const auto &pcr : *cd) {
+                    for (const auto &r : pcr.hits) {
+                        if (r.found) {
+                            f << "  [!] " << pcr.portno << "/"
+                              << ((pcr.proto == IPPROTO_TCP) ? "tcp" : "udp")
+                              << " " << r.service << ": "
+                              << r.username << ":"
+                              << (r.password.empty() ? "(empty)" : r.password)
+                              << "  [FOUND]\n";
+                        }
+                    }
+                }
+                f << "\n";
+            }
+        }
+
+        /* Web recon */
+        if (h.web_data) {
+            const auto *wd = &(static_cast<const TargetWebData *>(h.web_data)->results);
+            if (wd && !wd->empty()) {
+                f << "  WEB RECON\n";
+                f << "  " << thin << "\n";
+                for (const auto &r : *wd) {
+                    f << "  Port " << r.portno << "/" << (r.is_https ? "https" : "http") << ":\n";
+                    if (!r.title.empty())
+                        f << "    Title:   " << r.title << "\n";
+                    if (!r.server.empty())
+                        f << "    Server:  " << r.server << "\n";
+                    if (!r.powered_by.empty())
+                        f << "    Tech:    " << r.powered_by << "\n";
+                    if (r.is_https && !r.tls.subject_cn.empty()) {
+                        f << "    TLS CN:  " << r.tls.subject_cn
+                          << (r.tls.self_signed ? " [self-signed]" : "") << "\n";
+                        if (!r.tls.not_after.empty())
+                            f << "    Expiry:  " << r.tls.not_after << "\n";
+                    }
+                    if (!r.robots_disallowed.empty()) {
+                        f << "    Robots:  ";
+                        for (size_t i = 0; i < r.robots_disallowed.size(); ++i)
+                            f << r.robots_disallowed[i]
+                              << (i + 1 < r.robots_disallowed.size() ? ", " : "");
+                        f << "\n";
+                    }
+                    for (const auto &wp : r.paths) {
+                        f << "    [" << wp.status_code << "] " << wp.path;
+                        if (!wp.redirect_to.empty())
+                            f << " -> " << wp.redirect_to;
+                        else if (!wp.title.empty())
+                            f << " - " << wp.title;
+                        f << "\n";
+                    }
+                }
+                f << "\n";
+            }
+        }
+
+        /* CVE map */
+        if (h.cve_data) {
+            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            if (cvd && !cvd->empty()) {
+                f << "  CVE MAP\n";
+                f << "  " << thin << "\n";
+                for (const auto &pr : *cvd) {
+                    f << "  " << pr.portno << "/" << pr.proto
+                      << " " << pr.service;
+                    if (!pr.version.empty())
+                        f << " (" << pr.version << ")";
+                    f << ":\n";
+                    for (const auto &cve : pr.cves) {
+                        char score[8];
+                        snprintf(score, sizeof(score), "%.1f", cve.cvss_score);
+                        f << "    " << cve.cve_id
+                          << "  CVSS:" << score
+                          << "  " << cve.severity << "\n";
+                        std::string desc = cve.description;
+                        if (desc.size() > 72) desc = desc.substr(0, 69) + "...";
+                        f << "      " << desc << "\n";
+                    }
+                }
+                f << "\n";
+            }
+        }
+    }
+
+    /* Summary */
+    f << sep << "\n";
+    f << "  SUMMARY\n";
+    f << sep << "\n";
+    f << "  Hosts scanned: " << rpt_total << "\n";
+    f << "  Hosts up:      " << rpt_up << "\n";
+    f << "  Hosts down:    " << rpt_down << "\n";
+
+    int total_ports = 0, total_creds = 0, total_cves = 0;
+    for (const auto &h : rpt_hosts) {
+        total_ports += static_cast<int>(h.ports.size());
+        if (h.cred_data) {
+            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            if (cd) for (const auto &pcr : *cd) total_creds += static_cast<int>(pcr.hits.size());
+        }
+        if (h.cve_data) {
+            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            if (cvd) for (const auto &pr : *cvd) total_cves += static_cast<int>(pr.cves.size());
+        }
+    }
+
+    f << "  Ports found:   " << total_ports << "\n";
+    if (total_creds > 0)
+        f << "  Creds found:   " << total_creds << "\n";
+    if (total_cves > 0)
+        f << "  CVEs found:    " << total_cves << "\n";
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%.2f", rpt_elapsed);
+    f << "  Scan time:     " << tbuf << "s\n";
+    f << sep << "\n";
+    f << "  Generated by Kmap - https://github.com/YurilLAB/Kmap\n";
+    f << sep << "\n";
+}
+
+static void write_md_report(std::ofstream &f) {
+    f << "# Kmap Scan Report\n\n";
+    f << "**Date:** " << timestamp_str() << "  \n";
+    f << "**Targets:** " << rpt_total << " host(s) scanned  \n";
+    f << "**Hosts up:** " << rpt_up << "\n\n";
+    f << "---\n\n";
+
+    for (const auto &h : rpt_hosts) {
+        f << "## Target: " << h.ip;
+        if (!h.hostname.empty()) f << " (" << h.hostname << ")";
+        f << "\n\n";
+        f << "**Status:** " << h.status << "\n\n";
+
+        /* Port table */
+        if (!h.ports.empty()) {
+            f << "### Port Table\n\n";
+            f << "| Port | State | Service | Version |\n";
+            f << "|------|-------|---------|--------|\n";
+            for (const auto &p : h.ports) {
+                f << "| " << p.portno << "/" << p.proto
+                  << " | " << p.state
+                  << " | " << p.service
+                  << " | " << p.version << " |\n";
+            }
+            f << "\n";
+        }
+
+        /* Default credentials */
+        if (h.cred_data) {
+            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            if (cd && !cd->empty()) {
+                f << "### Default Credentials Found\n\n";
+                f << "| Port | Service | Username | Password | Status |\n";
+                f << "|------|---------|----------|----------|--------|\n";
+                for (const auto &pcr : *cd) {
+                    for (const auto &r : pcr.hits) {
+                        if (r.found) {
+                            f << "| " << pcr.portno << "/"
+                              << ((pcr.proto == IPPROTO_TCP) ? "tcp" : "udp")
+                              << " | " << r.service
+                              << " | " << r.username
+                              << " | " << (r.password.empty() ? "(empty)" : r.password)
+                              << " | FOUND |\n";
+                        }
+                    }
+                }
+                f << "\n";
+            }
+        }
+
+        /* Web recon */
+        if (h.web_data) {
+            const auto *wd = &(static_cast<const TargetWebData *>(h.web_data)->results);
+            if (wd && !wd->empty()) {
+                f << "### Web Recon\n\n";
+                for (const auto &r : *wd) {
+                    f << "**Port " << r.portno << "/" << (r.is_https ? "https" : "http") << "**\n\n";
+                    if (!r.title.empty())  f << "- **Title:** " << r.title << "\n";
+                    if (!r.server.empty()) f << "- **Server:** " << r.server << "\n";
+                    if (!r.powered_by.empty()) f << "- **Tech:** " << r.powered_by << "\n";
+                    if (r.is_https && !r.tls.subject_cn.empty()) {
+                        f << "- **TLS CN:** " << r.tls.subject_cn
+                          << (r.tls.self_signed ? " (self-signed)" : "") << "\n";
+                        if (!r.tls.not_after.empty())
+                            f << "- **Expiry:** " << r.tls.not_after << "\n";
+                    }
+                    if (!r.robots_disallowed.empty()) {
+                        f << "- **Robots:** ";
+                        for (size_t i = 0; i < r.robots_disallowed.size(); ++i)
+                            f << "`" << r.robots_disallowed[i] << "`"
+                              << (i + 1 < r.robots_disallowed.size() ? ", " : "");
+                        f << "\n";
+                    }
+                    if (!r.paths.empty()) {
+                        f << "\n| Status | Path | Details |\n";
+                        f << "|--------|------|---------|\n";
+                        for (const auto &wp : r.paths) {
+                            f << "| " << wp.status_code << " | " << wp.path << " | ";
+                            if (!wp.redirect_to.empty())
+                                f << "-> " << wp.redirect_to;
+                            else if (!wp.title.empty())
+                                f << wp.title;
+                            f << " |\n";
+                        }
+                    }
+                    f << "\n";
+                }
+            }
+        }
+
+        /* CVE map */
+        if (h.cve_data) {
+            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            if (cvd && !cvd->empty()) {
+                f << "### CVE Map\n\n";
+                for (const auto &pr : *cvd) {
+                    f << "**" << pr.portno << "/" << pr.proto
+                      << " " << pr.service;
+                    if (!pr.version.empty())
+                        f << " (" << pr.version << ")";
+                    f << "**\n\n";
+                    f << "| CVE | CVSS | Severity | Description |\n";
+                    f << "|-----|------|----------|-------------|\n";
+                    for (const auto &cve : pr.cves) {
+                        char score[8];
+                        snprintf(score, sizeof(score), "%.1f", cve.cvss_score);
+                        std::string desc = cve.description;
+                        if (desc.size() > 60) desc = desc.substr(0, 57) + "...";
+                        f << "| " << cve.cve_id
+                          << " | " << score
+                          << " | " << cve.severity
+                          << " | " << desc << " |\n";
+                    }
+                    f << "\n";
+                }
+            }
+        }
+        f << "---\n\n";
+    }
+
+    /* Summary */
+    f << "## Summary\n\n";
+    int total_ports = 0, total_creds = 0, total_cves = 0;
+    for (const auto &h : rpt_hosts) {
+        total_ports += static_cast<int>(h.ports.size());
+        if (h.cred_data) {
+            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            if (cd) for (const auto &pcr : *cd) total_creds += static_cast<int>(pcr.hits.size());
+        }
+        if (h.cve_data) {
+            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            if (cvd) for (const auto &pr : *cvd) total_cves += static_cast<int>(pr.cves.size());
+        }
+    }
+    f << "| Metric | Value |\n";
+    f << "|--------|-------|\n";
+    f << "| Hosts scanned | " << rpt_total << " |\n";
+    f << "| Hosts up | " << rpt_up << " |\n";
+    f << "| Hosts down | " << rpt_down << " |\n";
+    f << "| Ports found | " << total_ports << " |\n";
+    if (total_creds > 0) f << "| Creds found | " << total_creds << " |\n";
+    if (total_cves > 0)  f << "| CVEs found | " << total_cves << " |\n";
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%.2f", rpt_elapsed);
+    f << "| Scan time | " << tbuf << "s |\n";
+    f << "\n---\n\n";
+    f << "*Generated by [Kmap](https://github.com/YurilLAB/Kmap)*\n";
+}
+
+void report_finalize() {
+    if (rpt_filename.empty())
+        return;
+
+    std::ofstream ofs(rpt_filename);
+    if (!ofs.is_open()) {
+        fprintf(stderr, "KMAP WARNING: Could not open report file %s for writing.\n",
+                rpt_filename.c_str());
+        return;
+    }
+
+    if (rpt_markdown)
+        write_md_report(ofs);
+    else
+        write_txt_report(ofs);
+
+    ofs.close();
+
+    log_write(LOG_STDOUT, "Report written to %s\n", rpt_filename.c_str());
+
+    rpt_hosts.clear();
+    rpt_filename.clear();
+}

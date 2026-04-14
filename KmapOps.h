@@ -285,6 +285,11 @@ class KmapOps {
   /* --import-cves options */
   char *import_cves_file; /* File to import CVEs from, or NULL */
   char *import_cves_db;   /* Custom target DB path, or NULL for default */
+  /* --report options */
+  char *report_file;      /* Output report file (.txt or .md), or NULL */
+  /* --screenshot options */
+  bool screenshot;        /* Capture screenshots of web ports */
+  char *screenshot_dir;   /* Directory for screenshots (default: kmap-screenshots) */
   int ttl; // Time to live
   bool badsum;
   char *datadir;

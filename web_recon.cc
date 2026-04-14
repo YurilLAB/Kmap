@@ -508,9 +508,6 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
 /* -----------------------------------------------------------------------
  * Storage on Target
  * ----------------------------------------------------------------------- */
-struct TargetWebData {
-  std::vector<WebReconResult> results;
-};
 
 static TargetWebData *get_or_create_web_data(Target *t) {
   void *existing = t->attribute.get(WEB_RECON_KEY);
@@ -609,4 +606,140 @@ void print_web_recon_output(const Target *t) {
                   wp.status_code, wp.path.c_str(), wp.redirect_to.c_str());
     }
   }
+}
+
+/* =======================================================================
+ * Screenshot Capture (--screenshot)
+ *
+ * Detects an installed headless browser (Chrome, Chromium, Edge, Firefox)
+ * and captures a screenshot of each discovered web port.
+ * ======================================================================= */
+
+#ifdef WIN32
+#include <direct.h>
+#define kmap_mkdir(d) _mkdir(d)
+#else
+#include <sys/stat.h>
+#define kmap_mkdir(d) mkdir(d, 0755)
+#endif
+
+/* Try to find a headless browser on the system.
+   Returns the full command prefix or empty string if none found. */
+static std::string find_browser() {
+#ifdef WIN32
+    /* Windows: check common Chrome/Edge install paths */
+    const char *candidates[] = {
+        "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"",
+        "\"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\"",
+        "\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\"",
+        "\"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe\"",
+        nullptr
+    };
+    for (const char **c = candidates; *c; ++c) {
+        /* Strip quotes and check if file exists */
+        std::string path = *c;
+        std::string unquoted = path.substr(1, path.size() - 2);
+        FILE *f = fopen(unquoted.c_str(), "r");
+        if (f) { fclose(f); return path; }
+    }
+#else
+    /* Unix: check PATH */
+    const char *candidates[] = {
+        "chromium-browser", "chromium", "google-chrome",
+        "google-chrome-stable", "chrome",
+        "/usr/bin/chromium-browser", "/usr/bin/chromium",
+        "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "firefox",
+        nullptr
+    };
+    for (const char **c = candidates; *c; ++c) {
+        std::string cmd = std::string("which '") + *c + "' >/dev/null 2>&1";
+        if (system(cmd.c_str()) == 0)
+            return std::string("'") + *c + "'";
+    }
+#endif
+    return "";
+}
+
+void run_screenshot_capture(std::vector<Target *> &targets,
+                            const char *out_dir) {
+    std::string dir = out_dir ? out_dir : "kmap-screenshots";
+
+    /* Create output directory */
+    kmap_mkdir(dir.c_str());
+
+    std::string browser = find_browser();
+    if (browser.empty()) {
+        log_write(LOG_STDOUT,
+            "WARNING: --screenshot: No headless browser found.\n"
+            "  Install Chrome, Chromium, or Edge for screenshot support.\n");
+        return;
+    }
+
+    bool is_firefox = (browser.find("firefox") != std::string::npos);
+
+    log_write(LOG_STDOUT, "Screenshot: using %s\n", browser.c_str());
+
+    int captured = 0;
+    for (Target *t : targets) {
+        const char *ip = t->targetipstr();
+        Port *port = nullptr;
+        Port portstore{};
+
+        while ((port = t->ports.nextPort(port, &portstore,
+                                          TCPANDUDPANDSCTP, PORT_OPEN)) != nullptr) {
+            struct serviceDeductions sd{};
+            t->ports.getServiceDeductions(port->portno, port->proto, &sd);
+            if (!sd.name) continue;
+
+            std::string svc = sd.name;
+            std::transform(svc.begin(), svc.end(), svc.begin(),
+                           [](unsigned char c){ return static_cast<char>(tolower(c)); });
+
+            bool is_http  = (svc.find("http") != std::string::npos);
+            bool is_https = (svc.find("https") != std::string::npos ||
+                             port->portno == 443 || port->portno == 8443);
+            if (!is_http && !is_https) continue;
+
+            std::string proto = is_https ? "https" : "http";
+            std::string url = proto + "://" + ip + ":" + std::to_string(port->portno) + "/";
+
+            /* Output filename: ip_port.png */
+            std::string safe_ip = ip;
+            for (char &c : safe_ip) if (c == ':') c = '_'; /* IPv6 colons */
+            std::string outfile = dir + "/" + safe_ip + "_" + std::to_string(port->portno) + ".png";
+
+            std::string cmd;
+            if (is_firefox) {
+                cmd = browser + " --screenshot \"" + outfile
+                    + "\" --window-size=1280,720 \"" + url + "\" 2>/dev/null";
+            } else {
+                /* Chrome/Chromium/Edge */
+                cmd = browser
+                    + " --headless --disable-gpu --no-sandbox"
+                    + " --screenshot=\"" + outfile + "\""
+                    + " --window-size=1280,720"
+                    + " --ignore-certificate-errors"
+                    + " \"" + url + "\" 2>/dev/null";
+            }
+
+#ifdef WIN32
+            /* Windows: redirect stderr to NUL */
+            size_t nulpos = cmd.rfind("2>/dev/null");
+            if (nulpos != std::string::npos)
+                cmd.replace(nulpos, 11, "2>NUL");
+#endif
+
+            log_write(LOG_STDOUT, "  Capturing %s -> %s\n", url.c_str(), outfile.c_str());
+            int rc = system(cmd.c_str());
+            if (rc == 0)
+                captured++;
+            else
+                log_write(LOG_STDOUT, "  WARNING: Screenshot failed for %s (exit %d)\n",
+                          url.c_str(), rc);
+        }
+    }
+
+    log_write(LOG_STDOUT, "Screenshots: %d captured in %s/\n", captured, dir.c_str());
 }

@@ -133,6 +133,14 @@ KmapOps::~KmapOps() {
     free(json_output_file);
     json_output_file = NULL;
   }
+  if (report_file) {
+    free(report_file);
+    report_file = NULL;
+  }
+  if (screenshot_dir) {
+    free(screenshot_dir);
+    screenshot_dir = NULL;
+  }
 
 #ifndef NOLUA
   if (scriptversion || script)
@@ -298,6 +306,9 @@ void KmapOps::Initialize() {
   cve_min_score    = 7.0f;
   import_cves_file = nullptr;
   import_cves_db   = nullptr;
+  report_file      = nullptr;
+  screenshot       = false;
+  screenshot_dir   = nullptr;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;
