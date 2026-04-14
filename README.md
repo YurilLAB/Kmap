@@ -4,9 +4,17 @@
 
 # Kmap
 
-**Kmap** is a fork of [nmap](https://nmap.org/) extended with active pentesting capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds three new offensive features designed for security assessments.
+**Kmap** is a fork of [nmap](https://nmap.org/) extended with active pentesting and internet-scale reconnaissance capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds offensive features designed for security assessments, vulnerability research, and asset monitoring.
 
 > **License:** Kmap inherits the Nmap Public Source License (NPSL). See `LICENSE` for full terms.
+
+---
+
+## Background
+
+In 2014, leaked NSA documents revealed programs like **TREASUREMAP** and **HACIENDA** — tools built to map every device on the internet, scan entire countries for open ports, and catalog vulnerable services at scale. Commercial platforms like [Shodan](https://www.shodan.io/), [Censys](https://censys.io/), and Rapid7's [Project Sonar](https://www.rapid7.com/research/project-sonar/) now do this openly, providing searchable databases of internet-wide scan data for security research.
+
+Kmap brings that same capability to individual security researchers and teams. Its `--net-scan` pipeline can discover, fingerprint, and catalog services across the entire public IPv4 address space — or monitor a targeted watchlist of client assets for changes — all from a single binary with no external dependencies.
 
 ---
 
@@ -14,17 +22,22 @@
 
 | Feature | Flag | What it does |
 |---|---|---|
-| Default credential probing | `--default-creds` | Tests open services against 175+ built-in credential pairs |
-| HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 95+ high-value paths |
+| Default credential probing | `--default-creds` | Tests open services against 280+ built-in credential pairs |
+| HTTP/S recon | `--web-recon` | Grabs titles, headers, TLS info, probes 180+ high-value paths |
 | CVE cross-reference | `--cve-map` | Queries bundled 10,000+ CVE database for detected service versions |
-| Scan report | `--report <file>` | Generates a styled .txt or .md report with all findings |
+| Scan report | `--report <file>` | Generates a styled `.txt` or `.md` report with all findings |
 | Web screenshots | `--screenshot` | Captures PNG screenshots of discovered web ports |
+| Internet-scale scanning | `--net-scan` | Full pipeline: discover, enrich, and report across the entire IPv4 space |
+| Watchlist monitoring | `--watchlist <file>` | Re-scan owned/client assets and detect changes |
+| Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS score |
 
-All features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
+All per-host features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
 
 ---
 
 ## Quick Start
+
+### Single-Target Scanning
 
 ```bash
 # Standard scan — all nmap features work unchanged
@@ -39,22 +52,47 @@ kmap --web-recon 10.0.0.1
 # Cross-reference detected service versions with CVE database
 kmap --cve-map 10.0.0.1
 
-# Run all three features together
+# Run all features together
 kmap --default-creds --web-recon --cve-map -p 22,80,443,3306,5432 10.0.0.1
 
-# Generate a scan report (txt or md format)
+# Generate a report
 kmap --report results.txt -sV 10.0.0.1
 kmap --report findings.md --default-creds --cve-map 10.0.0.1
 
-# Capture screenshots of web ports
+# Capture web screenshots
 kmap --screenshot 10.0.0.1
-kmap --screenshot --screenshot-dir /tmp/screens 10.0.0.1
 
 # JSON output
 kmap -sV -oJ results.json 10.0.0.1
 
 # Colored terminal output
 kmap --color=always -sV 10.0.0.1
+```
+
+### Internet-Scale Scanning
+
+```bash
+# Scan the entire public IPv4 space (discover + enrich + report)
+kmap --net-scan --rate 25000
+
+# Scan specific ports only
+kmap --net-scan --rate 25000 -p 22,80,443,3306,8080
+
+# Run phases independently
+kmap --net-scan --discover-only --rate 25000    # Fast SYN discovery only
+kmap --net-scan --enrich-only                    # Enrich existing data
+kmap --net-scan --report-only                    # Generate findings reports
+
+# Resume an interrupted scan
+kmap --net-scan --resume
+
+# Monitor your own / client assets with change detection
+kmap --net-scan --watchlist clients.txt
+
+# Search collected data
+kmap --net-query --nq-port 22 --nq-service openssh
+kmap --net-query --nq-cve CVE-2024-6387
+kmap --net-query --nq-min-cvss 9.0 --nq-count
 ```
 
 ---
@@ -147,7 +185,7 @@ kmap --web-recon --web-paths /path/to/extra-paths.txt 10.0.0.1
 - Page title, `Server`, `X-Powered-By`, `X-Generator` response headers
 - TLS certificate subject CN, issuer, expiry date, self-signed detection
 - `robots.txt` disallowed paths (often reveals hidden structure)
-- HTTP status codes for 95+ high-value paths: admin panels, config files, debug endpoints, backup files, API docs, framework-specific paths, Spring actuator endpoints, Docker/Kubernetes metadata, environment files
+- HTTP status codes for 180+ high-value paths: admin panels, config files, debug endpoints, backup files, API docs, framework-specific paths, Spring actuator endpoints, Docker/Kubernetes metadata, environment files
 
 **Example output:**
 ```
@@ -181,7 +219,7 @@ kmap --cve-map --cve-min-score 9.0 10.0.0.1
 kmap --cve-map --cve-min-score 4.0 10.0.0.1
 ```
 
-**Database:** `kmap-cve.db` — 10,000+ CVEs from 2021–2026, CVSS ≥ 7.0 (HIGH and CRITICAL). Covers: OpenSSH, nginx, Apache HTTP, MySQL, PostgreSQL, Redis, Elasticsearch, MSSQL, MongoDB, Samba, Jenkins, GitLab, Confluence, Jira, Exchange, vCenter, WebLogic, Struts, Log4j, OpenSSL, PHP, WordPress, Drupal, and more.
+**Database:** `kmap-cve.db` — 10,000+ CVEs from 2021–2026, CVSS >= 7.0 (HIGH and CRITICAL). Covers: OpenSSH, nginx, Apache HTTP, MySQL, PostgreSQL, Redis, Elasticsearch, MSSQL, MongoDB, Samba, Jenkins, GitLab, Confluence, Jira, Exchange, vCenter, WebLogic, Struts, Log4j, OpenSSL, PHP, WordPress, Drupal, and more.
 
 **Example output:**
 ```
@@ -265,29 +303,222 @@ Screenshots are saved as `<ip>_<port>.png` (e.g., `10.0.0.1_443.png`). Requires 
 
 ---
 
-## Additional Options
+## Internet-Scale Scanning (`--net-scan`)
+
+Kmap includes a built-in internet-scale scanning pipeline inspired by the same techniques used by the NSA's HACIENDA program and commercial platforms like Shodan and Censys. It scans the entire public IPv4 address space (~3.7 billion addresses), enriches discovered hosts with service detection, CVE cross-referencing, and web reconnaissance, then outputs structured findings reports.
+
+Everything runs from the same `kmap` binary with zero external dependencies. No masscan, no Python, no separate database server — just Kmap and its bundled SQLite.
+
+### How It Works
+
+The pipeline runs in three phases:
+
+```
+Phase 1: DISCOVER     Fast SYN scanner sweeps the IPv4 space
+    ↓                 Records open ports in sharded SQLite databases
+Phase 2: ENRICH       Connects to each discovered port
+    ↓                 Banner grab → service detection → CVE lookup → web recon
+Phase 3: REPORT       Reads enriched data
+    ↓                 Generates Findings/*.txt files (72,348 IPs per file)
+```
+
+**Discovery** uses a custom high-speed scanner with:
+- Randomized IP iteration (multiplicative-inverse permutation — avoids sequential sweeps that ISPs detect)
+- Token bucket rate limiter (default 25,000 pps, configurable)
+- Hard-coded exclusion of all private, reserved, multicast, and DoD ranges
+- Checkpoint/resume support (Ctrl+C saves progress, `--resume` continues)
+
+**Enrichment** connects to each discovered host and:
+- Grabs service banners and matches against known patterns (SSH, HTTP, FTP, MySQL, PostgreSQL, etc.)
+- Cross-references detected versions against the bundled CVE database
+- Performs HTTP reconnaissance on web ports (title, server header, interesting paths)
+- All probes have 5-second timeouts — blocked/rate-limited hosts are skipped, never stall the pipeline
+
+**Results** are stored in sharded SQLite databases (32 shards, split by `/5` IP prefix) and written to styled text reports.
+
+### Commands
+
+```bash
+# Full pipeline: discover → enrich → report
+kmap --net-scan --rate 25000
+
+# Scan only specific ports
+kmap --net-scan --rate 25000 -p 22,80,443,3306,8080
+
+# Run each phase independently
+kmap --net-scan --discover-only --rate 25000
+kmap --net-scan --enrich-only
+kmap --net-scan --report-only
+
+# Resume after interruption
+kmap --net-scan --resume
+
+# Use custom directories
+kmap --net-scan --data-dir /mnt/storage/kmap-data --findings-dir /mnt/storage/Findings
+
+# Add custom exclusion ranges
+kmap --net-scan --exclude-file my_excludes.txt
+```
+
+### Findings Output
+
+Reports are written to `Findings/` with exactly 72,348 IPs per file:
+
+```
+Findings/
+├── findings_0000001-0072348.txt
+├── findings_0072349-0144696.txt
+└── ...
+```
+
+Each file contains the full scan results per host:
+
+```
+================================================================================
+  TARGET: 93.184.216.34
+================================================================================
+
+  PORT TABLE
+  --------------------------------------------------------------------------
+  PORT          STATE     SERVICE         VERSION
+  80/tcp        open      http            nginx 1.18.0
+  443/tcp       open      https           nginx 1.18.0
+
+  CVE MAP
+  --------------------------------------------------------------------------
+  80/tcp http (nginx 1.18.0):
+    CVE-2021-23017  CVSS:7.7  HIGH
+      1-byte memory overwrite in nginx resolver...
+
+  WEB RECON
+  --------------------------------------------------------------------------
+  Port 443/https:
+    Title:   Example Domain
+    Server:  nginx/1.18.0
+    [200] /robots.txt
+```
+
+---
+
+## Watchlist Monitoring (`--watchlist`)
+
+Monitor your own and client assets for changes. Kmap scans the targets, compares against the previous scan, and generates a diff report showing what changed.
+
+```bash
+# Create a targets file
+echo "10.0.0.1" > clients.txt
+echo "192.168.1.0/24" >> clients.txt
+
+# Run watchlist scan
+kmap --net-scan --watchlist clients.txt
+```
+
+Output:
+
+```
+Findings/watchlist/
+├── full_2026-04-14.txt       Complete current state
+└── diff_2026-04-14.txt       Changes since last scan
+```
+
+The diff report highlights:
+- **New ports** opened since last scan
+- **Closed ports** that were previously open
+- **New CVEs** applicable to existing services
+- **Version changes** in detected software
+- **Title changes** on web pages
+
+---
+
+## Querying Scan Data (`--net-query`)
+
+Search across all collected scan data using filters. Works on the sharded databases populated by `--net-scan`.
+
+```bash
+# Find all hosts with OpenSSH on port 22
+kmap --net-query --nq-port 22 --nq-service openssh
+
+# Find everything with critical CVEs
+kmap --net-query --nq-min-cvss 9.0
+
+# Find specific CVE across all scanned hosts
+kmap --net-query --nq-cve CVE-2024-6387
+
+# Find web servers with a specific title
+kmap --net-query --nq-web-title "phpMyAdmin"
+
+# Count results
+kmap --net-query --nq-port 443 --nq-count
+
+# Export to file
+kmap --net-query --nq-port 3306 --nq-output mysql_hosts.txt
+
+# Narrow search to IP range
+kmap --net-query --nq-ip-range 93.184.0.0/16
+```
+
+---
+
+## All Options Reference
+
+### Scanning Features
 
 | Option | Description |
 |---|---|
-| `-oJ <file>` | JSON output (complements existing `-oN`, `-oX`, `-oG`) |
-| `--color=auto\|always\|never` | Terminal color (default: auto via `isatty` + `NO_COLOR`) |
-| `--import-cves <file>` | Import CVEs from text/CSV/SQLite file into the database |
-| `--import-cves-db <path>` | Target database for import (default: `kmap-cve.db`) |
-| `--report <file>` | Generate scan report (`.txt` or `.md` format based on extension) |
-| `--screenshot` | Capture PNG screenshots of discovered web ports |
-| `--screenshot-dir <dir>` | Output directory for screenshots (default: `kmap-screenshots`) |
-| `--net-scan` | Internet-scale scanning pipeline (discover + enrich + report) |
+| `--default-creds` | Test open services for default/common credentials |
+| `--creds-file <file>` | Custom credential wordlist (overrides built-in) |
+| `--creds-timeout <sec>` | Per-attempt timeout for credential checks (default: 3) |
+| `--web-recon` | HTTP/S reconnaissance on detected web ports |
+| `--web-paths <file>` | Additional paths to probe during web recon |
+| `--cve-map` | Cross-reference service versions with CVE database |
+| `--cve-min-score <score>` | Minimum CVSS score to report (default: 7.0) |
+| `--screenshot` | Capture PNG screenshots of web ports |
+| `--screenshot-dir <dir>` | Screenshot output directory (default: `kmap-screenshots`) |
+
+### Output Options
+
+| Option | Description |
+|---|---|
+| `-oJ <file>` | JSON output (complements `-oN`, `-oX`, `-oG`) |
+| `--report <file>` | Generate scan report (`.txt` or `.md` format) |
+| `--color=auto\|always\|never` | Terminal color (default: auto) |
+
+### CVE Database Management
+
+| Option | Description |
+|---|---|
+| `--import-cves <file>` | Import CVEs from text/CSV/SQLite file |
+| `--import-cves-db <path>` | Custom target database (default: `kmap-cve.db`) |
+
+### Internet-Scale Scanning
+
+| Option | Description |
+|---|---|
+| `--net-scan` | Run the full scanning pipeline (discover + enrich + report) |
 | `--discover-only` | Only run the SYN scan discovery phase |
 | `--enrich-only` | Only enrich existing shard databases |
 | `--report-only` | Only generate findings from enriched data |
 | `--resume` | Resume an interrupted net-scan |
-| `--rate <pps>` | Discovery packets per second (default: 25000) |
+| `--rate <pps>` | Discovery rate in packets per second (default: 25,000) |
+| `--exclude-file <file>` | Additional IP ranges to exclude from scanning |
+| `--data-dir <dir>` | Shard database directory (default: `kmap-data`) |
+| `--findings-dir <dir>` | Findings output directory (default: `Findings`) |
 | `--watchlist <file>` | Scan targets from file with change detection |
+
+### Data Query
+
+| Option | Description |
+|---|---|
 | `--net-query` | Search collected scan data |
-| `--nq-port <port>` | Query filter: port number |
-| `--nq-service <name>` | Query filter: service name |
-| `--nq-cve <id>` | Query filter: CVE ID |
-| `--nq-min-cvss <score>` | Query filter: minimum CVSS score |
+| `--nq-port <port>` | Filter by port number |
+| `--nq-service <name>` | Filter by service name |
+| `--nq-cve <id>` | Filter by CVE ID |
+| `--nq-min-cvss <score>` | Filter by minimum CVSS score |
+| `--nq-web-title <text>` | Filter by web page title |
+| `--nq-web-server <text>` | Filter by server header |
+| `--nq-ip-range <CIDR>` | Restrict search to IP range |
+| `--nq-output <file>` | Export query results to file |
+| `--nq-count` | Show count instead of listing results |
 
 ---
 
@@ -298,10 +529,10 @@ Kmap/
 ├── kmap.cc               Main entry point and argument parsing
 ├── KmapOps.h/cc          Global options struct
 ├── output.cc             Text/machine/XML output
-├── output_json.cc        JSON serializer (nlohmann/json 3.12.0)
+├── output_json.cc        JSON serializer + report generator
 ├── default_creds.cc      --default-creds probe engine
-├── web_recon.cc          --web-recon HTTP/S recon engine
-├── cve_map.cc            --cve-map CVE lookup engine
+├── web_recon.cc          --web-recon HTTP/S recon + screenshot engine
+├── cve_map.cc            --cve-map CVE lookup + import engine
 ├── net_scan.cc           --net-scan pipeline orchestrator
 ├── fast_syn.cc           High-speed SYN scanner for internet-scale discovery
 ├── net_db.cc             Sharded SQLite database manager
@@ -324,18 +555,34 @@ Kmap/
 
 - **CLI only** — Zenmap GUI removed
 - **Renamed throughout** — binary `kmap`, data files `kmap-*`, config `~/.kmap/`
-- **Three new features** — `--default-creds`, `--web-recon`, `--cve-map`
+- **Offensive features** — `--default-creds`, `--web-recon`, `--cve-map`, `--screenshot`
+- **Internet-scale scanning** — `--net-scan` with built-in SYN scanner, sharded database, enrichment pipeline
+- **Watchlist monitoring** — `--watchlist` with change detection and diff reports
+- **Data query** — `--net-query` for searching collected scan data
+- **Report generation** — `--report` for styled `.txt` / `.md` output
 - **JSON output** — `-oJ` via nlohmann/json
 - **Terminal colors** — `--color` with `NO_COLOR` env var support
 - **Full protocol authentication** — MySQL SHA1, PostgreSQL MD5, MSSQL TDS Login7 (when OpenSSL is available)
 - **IPv6 support** in all custom probes
 - **C++17** for modified source files
-- **Bundled SQLite** — no external DB dependency for CVE lookups
+- **Bundled SQLite** — no external DB dependency for CVE lookups or scan data
 
 All existing nmap scan types, NSE scripts, OS fingerprinting, timing profiles, decoys, and output formats work unchanged.
 
 ---
 
+## Responsible Scanning
+
+When using `--net-scan` for internet-wide scanning:
+
+- **Rate limit appropriately** — the default 25,000 pps is safe for most broadband connections. Start lower if unsure.
+- **Set up identification** — configure a reverse DNS PTR record on your scanning IP (e.g., `scanner.yourdomain.com`) and host a simple page explaining your research.
+- **Honor opt-outs** — maintain an abuse contact email and respect requests to exclude IP ranges.
+- **Know your jurisdiction** — network scanning laws vary by country. Ensure compliance with local regulations.
+- **Excluded by default** — Kmap automatically skips all RFC 1918 private addresses, loopback, multicast, link-local, documentation ranges, and US DoD address space.
+
+---
+
 ## Legal Notice
 
-Kmap is intended for authorized security testing only. Only scan networks and systems you own or have explicit written permission to test. Unauthorized use may violate computer crime laws. The authors assume no liability for misuse.
+Kmap is intended for authorized security testing and research only. Only scan networks and systems you own or have explicit written permission to test. Internet-wide scanning of public-facing services is legal in most jurisdictions (Shodan, Censys, and similar services operate commercially), but unauthorized access or exploitation is not. The authors assume no liability for misuse.
