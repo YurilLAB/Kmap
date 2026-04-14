@@ -396,6 +396,11 @@ static std::string https_get(const char *ip, uint16_t port,
   std::string response;
   char chunk[4096];
   while (true) {
+    /* Timeout guard to prevent blocking on slow/malicious servers */
+    fd_set rset; FD_ZERO(&rset); FD_SET(fd, &rset);
+    struct timeval rtv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
+    if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &rtv) <= 0)
+      break;
     int n = SSL_read(ssl, chunk, sizeof(chunk));
     if (n <= 0) break;
     response.append(chunk, static_cast<size_t>(n));
@@ -643,19 +648,17 @@ static std::string find_browser() {
         if (f) { fclose(f); return path; }
     }
 #else
-    /* Unix: check PATH */
-    const char *candidates[] = {
-        "chromium-browser", "chromium", "google-chrome",
-        "google-chrome-stable", "chrome",
+    /* Unix: check common absolute paths first, then PATH-relative names */
+    const char *abs_paths[] = {
         "/usr/bin/chromium-browser", "/usr/bin/chromium",
         "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+        "/usr/local/bin/chromium", "/usr/local/bin/google-chrome",
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "firefox",
+        "/usr/bin/firefox", "/usr/local/bin/firefox",
         nullptr
     };
-    for (const char **c = candidates; *c; ++c) {
-        std::string cmd = std::string("which '") + *c + "' >/dev/null 2>&1";
-        if (system(cmd.c_str()) == 0)
+    for (const char **c = abs_paths; *c; ++c) {
+        if (access(*c, X_OK) == 0)
             return std::string("'") + *c + "'";
     }
 #endif

@@ -196,11 +196,52 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
   log_write(LOG_STDOUT, "  Discovery: %d open ports found\n", found);
 
-  /* Enrich the watchlist hosts */
+  /* Enrich the watchlist hosts using the enrichment pipeline */
   log_write(LOG_STDOUT, "  Enriching watchlist hosts...\n");
-  /* Simple enrichment — mark all as enriched for now, full enrichment
-     uses the net_enrich module on the shard databases */
-  /* TODO: call run_enrichment_on_db(wl_db) when available */
+  {
+    std::vector<std::string> unenriched = net_db_get_unenriched(wl_db, 10000);
+    /* Locate CVE database */
+    char cve_buf[1024];
+    std::string cve_db_path;
+    if (kmap_fetchfile(cve_buf, sizeof(cve_buf), "kmap-cve.db") > 0)
+      cve_db_path = cve_buf;
+
+    int enriched_count = 0;
+    for (const auto &ip_str : unenriched) {
+      auto host_ports = net_db_get_host(wl_db, ip_str.c_str());
+      if (host_ports.empty()) continue;
+
+      std::vector<int> port_nums;
+      std::vector<std::string> protos;
+      for (const auto &h : host_ports) {
+        port_nums.push_back(h.port);
+        protos.push_back(h.proto);
+      }
+
+      std::vector<std::string> services, versions, cves_out;
+      std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
+
+      enrich_single_host(ip_str.c_str(), port_nums, protos,
+                         cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
+                         5000, services, versions, cves_out,
+                         web_titles, web_servers, web_headers, web_paths);
+
+      net_db_begin(wl_db);
+      for (size_t i = 0; i < port_nums.size(); i++) {
+        net_db_update_enrichment(wl_db, ip_str.c_str(), port_nums[i],
+          i < services.size() ? services[i].c_str() : "",
+          i < versions.size() ? versions[i].c_str() : "",
+          i < cves_out.size() ? cves_out[i].c_str() : "",
+          i < web_titles.size() ? web_titles[i].c_str() : "",
+          i < web_servers.size() ? web_servers[i].c_str() : "",
+          i < web_headers.size() ? web_headers[i].c_str() : "",
+          i < web_paths.size() ? web_paths[i].c_str() : "");
+      }
+      net_db_commit(wl_db);
+      enriched_count++;
+    }
+    log_write(LOG_STDOUT, "  Enriched %d hosts\n", enriched_count);
+  }
 
   /* Generate diff */
   std::string wl_dir = std::string(findings_dir) + "/watchlist";

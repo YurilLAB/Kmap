@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <signal.h>
@@ -281,9 +282,9 @@ static void rate_wait(RateLimiter &rl) {
     }
     /* Sleep briefly to avoid busy-waiting */
 #ifdef WIN32
-    Sleep(0);
+    Sleep(1);
 #else
-    usleep(10);
+    usleep(100);
 #endif
   }
 }
@@ -488,7 +489,7 @@ int fast_syn_scan(const char *data_dir,
       rate_wait(rl);
 
       /* Probe the port */
-      bool open = connect_probe(ip, port, 1500);
+      bool open = connect_probe(ip, port, 500);
       cp.packets_sent++;
 
       if (open) {

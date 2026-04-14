@@ -14,7 +14,7 @@
 
 struct WebPath {
   std::string path;
-  int         status_code;   // HTTP status (200, 301, etc.), 0 = error/timeout
+  int         status_code = 0;   // HTTP status (200, 301, etc.), 0 = error/timeout
   std::string redirect_to;   // non-empty if 3xx
   std::string title;         // page title if HTML
 };
@@ -23,7 +23,7 @@ struct TlsInfo {
   std::string subject_cn;
   std::string issuer;
   std::string not_after;     // expiry date string
-  bool        self_signed;
+  bool        self_signed = false;
   std::string protocol;      // "TLSv1.2", "TLSv1.3"
 };
 

@@ -405,7 +405,7 @@ void report_initialize(const char *filename) {
     rpt_elapsed = 0.0f;
     /* Detect markdown from extension */
     rpt_markdown = false;
-    if (rpt_filename.size() > 3) {
+    if (rpt_filename.size() >= 3) {
         std::string ext = rpt_filename.substr(rpt_filename.size() - 3);
         if (ext == ".md") rpt_markdown = true;
     }

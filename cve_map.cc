@@ -468,7 +468,8 @@ void run_cve_map(std::vector<Target*>& Targets, float min_score) {
 
       PortCveResults pr;
       pr.portno  = port->portno;
-      pr.proto   = (port->proto == IPPROTO_TCP) ? "tcp" : "udp";
+      pr.proto   = (port->proto == IPPROTO_TCP) ? "tcp"
+                 : (port->proto == IPPROTO_UDP) ? "udp" : "sctp";
       pr.service = svc;
       pr.version = ver_display;
 
