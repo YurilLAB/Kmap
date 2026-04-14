@@ -173,6 +173,37 @@ static std::string str_lower(const std::string &s) {
   return r;
 }
 
+/* Numeric version comparison — returns -1/0/1 for a<b, a==b, a>b.
+   Parses "2.4.49p1" → {2, 4, 49} and compares component-by-component. */
+static int ver_cmp_enrich(const std::string &a, const std::string &b) {
+  auto parse = [](const std::string &s) -> std::vector<int> {
+    std::vector<int> parts;
+    std::istringstream ss(s);
+    std::string tok;
+    while (std::getline(ss, tok, '.')) {
+      std::string digits;
+      for (char c : tok) {
+        if (isdigit(static_cast<unsigned char>(c))) digits += c;
+        else break;
+      }
+      if (!digits.empty()) {
+        try { parts.push_back(std::stoi(digits)); }
+        catch (...) {}
+      }
+    }
+    return parts;
+  };
+  auto va = parse(a), vb = parse(b);
+  size_t n = std::max(va.size(), vb.size());
+  for (size_t i = 0; i < n; i++) {
+    int ai = (i < va.size()) ? va[i] : 0;
+    int bi = (i < vb.size()) ? vb[i] : 0;
+    if (ai < bi) return -1;
+    if (ai > bi) return  1;
+  }
+  return 0;
+}
+
 /* Escape a string for JSON embedding (minimal: backslash and double-quote) */
 static std::string json_escape(const std::string &s) {
   std::string out;
@@ -470,12 +501,11 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
 
-    /* Version range filtering — same logic as cve_map.cc */
+    /* Version range filtering — uses numeric version comparison,
+       same algorithm as cve_map.cc's ver_cmp(). */
     if (!det_ver.empty() && (!vmin.empty() || !vmax.empty())) {
-      /* Simple lexicographic version comparison is imperfect but matches
-         the existing cve_map.cc approach for consistency. */
-      if (!vmin.empty() && det_ver < vmin) continue;
-      if (!vmax.empty() && det_ver > vmax) continue;
+      if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
+      if (!vmax.empty() && ver_cmp_enrich(det_ver, vmax) > 0) continue;
     }
 
     EnrichCve e;
