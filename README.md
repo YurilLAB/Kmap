@@ -12,9 +12,35 @@
 
 ## Background
 
-In 2014, leaked NSA documents revealed programs like **TREASUREMAP** and **HACIENDA** — tools built to map every device on the internet, scan entire countries for open ports, and catalog vulnerable services at scale. Commercial platforms like [Shodan](https://www.shodan.io/), [Censys](https://censys.io/), and Rapid7's [Project Sonar](https://www.rapid7.com/research/project-sonar/) now do this openly, providing searchable databases of internet-wide scan data for security research.
+### The NSA and Mapping the Internet
 
-Kmap brings that same capability to individual security researchers and teams. Its `--net-scan` pipeline can discover, fingerprint, and catalog services across the entire public IPv4 address space — or monitor a targeted watchlist of client assets for changes — all from a single binary with no external dependencies.
+In 2014, documents leaked by Edward Snowden revealed that the NSA and its Five Eyes partners had built classified programs to map and catalog the entire internet:
+
+- **TREASUREMAP** — An NSA program designed to build a near-real-time interactive map of every device on the global internet. The goal was to visualize the full network topology: routers, servers, endpoints, and the connections between them. Published by Der Spiegel, the leaked slides described it as mapping "any device, anywhere, all the time."
+
+- **HACIENDA** — A GCHQ (UK signals intelligence) program that performed port scanning of entire countries' IP address spaces. It systematically probed every public IP in targeted nations to identify open services, vulnerable software, and potential entry points. Essentially, it was nmap at nation-state scale.
+
+- **Equation Group** — Identified by Kaspersky Lab in 2015 and widely attributed to the NSA's Tailored Access Operations (TAO) unit, the Equation Group used the intelligence gathered by programs like TREASUREMAP and HACIENDA to deploy some of the most sophisticated cyber operations ever discovered. Their toolkit — later leaked by the Shadow Brokers in 2016–2017 — included exploits like EternalBlue, which went on to power the WannaCry ransomware outbreak.
+
+The pipeline was: **scan everything** (HACIENDA) → **map it** (TREASUREMAP) → **exploit it** (Equation Group tools).
+
+### Commercial Internet Mapping Today
+
+What the NSA did in secret, several companies now do openly and commercially:
+
+- **[Shodan](https://www.shodan.io/)** — The original "search engine for the internet of things." Continuously scans the entire IPv4 space and indexes banners, services, and device metadata. Founded in 2009.
+- **[Censys](https://censys.io/)** — Built by researchers at the University of Michigan using their ZMap scanner. Performs daily internet-wide scans and provides a searchable database of hosts, certificates, and services.
+- **[Rapid7 Project Sonar](https://www.rapid7.com/research/project-sonar/)** — An open research project that conducts internet-wide surveys across multiple protocols (HTTP, HTTPS, DNS, SSH, etc.) and publishes the datasets publicly.
+- **[Shadowserver Foundation](https://www.shadowserver.org/)** — A nonprofit that scans the internet to identify vulnerable and compromised systems, providing free daily reports to network operators worldwide.
+- **[BinaryEdge](https://www.binaryedge.io/)** — Real-time internet scanning platform focused on attack surface monitoring and vulnerability detection.
+
+These platforms prove that internet-wide scanning of public-facing services is a legitimate, legal, and valuable practice for security research, vulnerability management, and threat intelligence.
+
+### Where Kmap Fits
+
+Kmap brings internet-scale scanning capability to individual security researchers and small teams — without relying on third-party APIs or paid subscriptions. Its `--net-scan` pipeline can discover, fingerprint, and catalog services across the entire public IPv4 address space (~3.7 billion addresses), then enrich the results with CVE cross-referencing and web reconnaissance. For teams managing client infrastructure, the `--watchlist` mode provides continuous monitoring with change detection.
+
+Everything runs from a single `kmap` binary with no external dependencies — no Python scripts, no separate database servers, no masscan installation. Just Kmap and its bundled SQLite.
 
 ---
 
