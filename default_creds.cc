@@ -861,9 +861,9 @@ static bool probe_mysql(const char *ip, uint16_t port,
       pos += 7;
       int pdata_len = static_cast<int>(static_cast<unsigned char>(buf[pos])); pos++;
       pos += 10;  /* skip reserved */
-      int part2_len = std::max(13, pdata_len - 8);
+      int part2_len = (std::max)(13, pdata_len - 8);
       if (pos + part2_len <= n)
-        memcpy(scramble + 8, buf + pos, std::min(12, part2_len));
+        memcpy(scramble + 8, buf + pos, (std::min)(12, part2_len));
     }
   }
 

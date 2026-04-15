@@ -2785,8 +2785,12 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
 
   /* Ensure the log file ends with a newline */
   filestr[filelen - 1] = '\n';
+#ifdef WIN32
+  win32_mukmap(filestr, static_cast<int>(filelen));
+#else
   if (munmap(filestr, filelen) != 0)
     gh_perror("%s: error in munmap(%p, %ld)", __func__, filestr, filelen);
+#endif
 
   return 0;
 }

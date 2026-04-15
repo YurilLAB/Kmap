@@ -38,6 +38,10 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifdef __sun
+#include <netinet/in_systm.h>  /* Solaris: n_time for ip_icmp.h */
+#endif
+#include <netinet/ip.h>        /* struct ip — required before ip_icmp.h on BSD */
 #include <netinet/ip_icmp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
