@@ -109,8 +109,9 @@ static TraceResult trace_one_target(const char *target_ip, int max_hops,
   result.reached = false;
   result.hops_used = 0;
 
-  unsigned long dest = inet_addr(target_ip);
-  if (dest == INADDR_NONE) return result;
+  struct in_addr dest_addr;
+  if (inet_pton(AF_INET, target_ip, &dest_addr) != 1) return result;
+  unsigned long dest = dest_addr.s_addr;
 
   HANDLE icmp = IcmpCreateFile();
   if (icmp == INVALID_HANDLE_VALUE) return result;
