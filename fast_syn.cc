@@ -532,14 +532,45 @@ int fast_syn_scan(const char *data_dir,
       }
     }
 
-    /* Status update every 10 seconds */
+    /* Status update every 10 seconds with ETA */
     time_t now_time = time(nullptr);
     if (now_time - last_status >= 10) {
       double pct = (double)idx / (double)IP_SPACE * 100.0;
-      log_write(LOG_STDOUT, "  Progress: %.4f%% | Packets: %llu | Found: %llu open ports\r",
+
+      /* ETA calculation based on elapsed time and progress */
+      time_t elapsed = now_time - cp.last_save + 1; /* +1 avoid div by 0 */
+      uint64_t ips_done = idx - cp.next_index + 1;
+      double ips_per_sec = (elapsed > 0 && ips_done > 0)
+                           ? (double)ips_done / (double)elapsed : 0;
+      uint64_t ips_left = IP_SPACE - idx;
+      int64_t eta_sec = (ips_per_sec > 0)
+                        ? static_cast<int64_t>((double)ips_left / ips_per_sec)
+                        : -1;
+
+      /* Format ETA as d:hh:mm:ss or hh:mm:ss */
+      char eta_buf[32];
+      if (eta_sec < 0) {
+        snprintf(eta_buf, sizeof(eta_buf), "calculating...");
+      } else if (eta_sec > 86400) {
+        int days = static_cast<int>(eta_sec / 86400);
+        int hrs  = static_cast<int>((eta_sec % 86400) / 3600);
+        int mins = static_cast<int>((eta_sec % 3600) / 60);
+        snprintf(eta_buf, sizeof(eta_buf), "%dd %02d:%02d",
+                 days, hrs, mins);
+      } else {
+        int hrs  = static_cast<int>(eta_sec / 3600);
+        int mins = static_cast<int>((eta_sec % 3600) / 60);
+        int secs = static_cast<int>(eta_sec % 60);
+        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d",
+                 hrs, mins, secs);
+      }
+
+      log_write(LOG_STDOUT,
+        "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %s\r",
                 pct,
                 (unsigned long long)cp.packets_sent,
-                (unsigned long long)cp.hosts_found);
+                (unsigned long long)cp.hosts_found,
+                eta_buf);
       fflush(stdout);
       last_status = now_time;
     }

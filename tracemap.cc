@@ -45,6 +45,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
+/* BSD/macOS use ICMP_TIMXCEED instead of ICMP_TIME_EXCEEDED */
+#ifndef ICMP_TIME_EXCEEDED
+#define ICMP_TIME_EXCEEDED ICMP_TIMXCEED
+#endif
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>

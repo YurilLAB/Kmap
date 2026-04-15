@@ -839,6 +839,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
 
     int64_t processed = 0;
     int64_t enriched_start = total_hosts - unenriched_total;
+    time_t enrich_start_time = time(nullptr);
 
     /* Process in batches */
     while (true) {
@@ -911,18 +912,33 @@ int run_enrichment(const char *data_dir, int batch_size) {
 
       net_db_commit(db);
 
-      /* Progress output */
+      /* Progress output with ETA */
       int64_t done = enriched_start + processed;
       double pct = (total_hosts > 0)
                    ? (100.0 * static_cast<double>(done) /
                       static_cast<double>(total_hosts))
                    : 100.0;
+
+      /* ETA calculation */
+      time_t elapsed = time(nullptr) - enrich_start_time + 1;
+      double hosts_per_sec = (elapsed > 0 && processed > 0)
+                             ? (double)processed / (double)elapsed : 0;
+      int64_t hosts_left = unenriched_total - processed;
+      char eta_buf[32] = "...";
+      if (hosts_per_sec > 0 && hosts_left > 0) {
+        int64_t eta = static_cast<int64_t>((double)hosts_left / hosts_per_sec);
+        int hrs  = static_cast<int>(eta / 3600);
+        int mins = static_cast<int>((eta % 3600) / 60);
+        int secs = static_cast<int>(eta % 60);
+        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d", hrs, mins, secs);
+      }
+
       log_write(LOG_STDOUT,
-        "Enriching %s: %s / %s [%.1f%%]\n",
+        "Enriching %s: %s / %s [%.1f%%] ETA: %s\n",
         shard_name.c_str(),
         format_count(done).c_str(),
         format_count(total_hosts).c_str(),
-        pct);
+        pct, eta_buf);
     }
 
     net_db_close(db);

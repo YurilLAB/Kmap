@@ -9,6 +9,7 @@
 #ifndef NET_ENRICH_H
 #define NET_ENRICH_H
 
+#include <string>
 #include <vector>
 
 /* Run the full enrichment pipeline across all shard databases.

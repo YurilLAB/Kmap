@@ -153,6 +153,95 @@ extern KmapOps o;  /* option structure */
 
 static void display_kmap_version();
 
+/* Parse Kmap-specific long options (--default-creds, --net-scan, etc.).
+ * Extracted into a separate function to avoid hitting MSVC's
+ * "blocks nested too deeply" (C1061) limit in the main option parser.
+ * Returns true if the option was handled, false otherwise. */
+static bool parse_kmap_option(const char *name, const char *arg) {
+  /* --default-creds / --web-recon / --cve-map */
+  if (strcmp(name, "default-creds") == 0) {
+    o.default_creds = true; o.servicescan = true; return true;
+  } else if (strcmp(name, "creds-file") == 0) {
+    o.creds_file = strdup(arg); return true;
+  } else if (strcmp(name, "creds-timeout") == 0) {
+    o.creds_timeout_ms = atoi(arg) * 1000; return true;
+  } else if (strcmp(name, "web-recon") == 0) {
+    o.web_recon = true; o.servicescan = true; return true;
+  } else if (strcmp(name, "web-paths") == 0) {
+    o.web_paths_file = strdup(arg); return true;
+  } else if (strcmp(name, "cve-map") == 0) {
+    o.cve_map = true; o.servicescan = true; return true;
+  } else if (strcmp(name, "cve-min-score") == 0) {
+    o.cve_min_score = static_cast<float>(atof(arg)); return true;
+  } else if (strcmp(name, "import-cves") == 0) {
+    o.import_cves_file = strdup(arg); return true;
+  } else if (strcmp(name, "import-cves-db") == 0) {
+    o.import_cves_db = strdup(arg); return true;
+  } else if (strcmp(name, "report") == 0) {
+    o.report_file = strdup(arg); return true;
+  } else if (strcmp(name, "screenshot") == 0) {
+    o.screenshot = true; o.web_recon = true; o.servicescan = true; return true;
+  } else if (strcmp(name, "screenshot-dir") == 0) {
+    o.screenshot_dir = strdup(arg); return true;
+  /* --net-scan options */
+  } else if (strcmp(name, "net-scan") == 0) {
+    o.net_scan = true; return true;
+  } else if (strcmp(name, "discover-only") == 0) {
+    o.net_scan = true; o.net_discover_only = true; return true;
+  } else if (strcmp(name, "enrich-only") == 0) {
+    o.net_scan = true; o.net_enrich_only = true; return true;
+  } else if (strcmp(name, "report-only") == 0) {
+    o.net_scan = true; o.net_report_only = true; return true;
+  } else if (strcmp(name, "resume") == 0) {
+    o.net_scan = true; o.net_resume = true; return true;
+  } else if (strcmp(name, "rate") == 0) {
+    o.net_rate = atoi(arg); return true;
+  } else if (strcmp(name, "exclude-file") == 0) {
+    o.net_exclude_file = strdup(arg); return true;
+  } else if (strcmp(name, "data-dir") == 0) {
+    o.net_data_dir = strdup(arg); return true;
+  } else if (strcmp(name, "findings-dir") == 0) {
+    o.net_findings_dir = strdup(arg); return true;
+  } else if (strcmp(name, "watchlist") == 0) {
+    o.net_scan = true; o.net_watchlist = strdup(arg); return true;
+  /* --net-query options */
+  } else if (strcmp(name, "net-query") == 0) {
+    o.net_query = true; return true;
+  } else if (strcmp(name, "nq-port") == 0) {
+    o.net_query = true; o.nq_port = atoi(arg); return true;
+  } else if (strcmp(name, "nq-service") == 0) {
+    o.net_query = true; o.nq_service = strdup(arg); return true;
+  } else if (strcmp(name, "nq-cve") == 0) {
+    o.net_query = true; o.nq_cve = strdup(arg); return true;
+  } else if (strcmp(name, "nq-min-cvss") == 0) {
+    o.net_query = true; o.nq_min_cvss = static_cast<float>(atof(arg)); return true;
+  } else if (strcmp(name, "nq-web-title") == 0) {
+    o.net_query = true; o.nq_web_title = strdup(arg); return true;
+  } else if (strcmp(name, "nq-web-server") == 0) {
+    o.net_query = true; o.nq_web_server = strdup(arg); return true;
+  } else if (strcmp(name, "nq-ip-range") == 0) {
+    o.net_query = true; o.nq_ip_range = strdup(arg); return true;
+  } else if (strcmp(name, "nq-output") == 0) {
+    o.net_query = true; o.nq_output = strdup(arg); return true;
+  } else if (strcmp(name, "nq-count") == 0) {
+    o.net_query = true; o.nq_count = true; return true;
+  } else if (strcmp(name, "nq-asn") == 0) {
+    o.net_query = true; o.nq_asn = atoi(arg); return true;
+  } else if (strcmp(name, "nq-country") == 0) {
+    o.net_query = true; o.nq_country = strdup(arg); return true;
+  /* --tracemap options */
+  } else if (strcmp(name, "tracemap") == 0) {
+    o.tracemap_targets = strdup(arg); return true;
+  } else if (strcmp(name, "tm-output") == 0) {
+    o.tm_output = strdup(arg); return true;
+  } else if (strcmp(name, "tm-format") == 0) {
+    o.tm_format = strdup(arg); return true;
+  } else if (strcmp(name, "tm-max-hops") == 0) {
+    o.tm_max_hops = atoi(arg); return true;
+  }
+  return false;
+}
+
 /* A mechanism to save argv[0] for code that requires that. */
 static const char *program_name = NULL;
 
@@ -1000,112 +1089,9 @@ void parse_options(int argc, char **argv) {
           if (!Color::parse_mode(optarg, cmode))
             fatal("Invalid --color value '%s'. Use: always, never, or auto", optarg);
           Color::set_mode(cmode);
-        } else if (strcmp(long_options[option_index].name, "default-creds") == 0) {
-          o.default_creds  = true;
-          o.servicescan    = true; /* auto-enable -sV */
-        } else if (strcmp(long_options[option_index].name, "creds-file") == 0) {
-          o.creds_file = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "creds-timeout") == 0) {
-          o.creds_timeout_ms = atoi(optarg) * 1000;
-          if (o.creds_timeout_ms <= 0)
-            fatal("--creds-timeout must be a positive integer (seconds)");
-        } else if (strcmp(long_options[option_index].name, "web-recon") == 0) {
-          o.web_recon   = true;
-          o.servicescan = true; /* auto-enable -sV */
-        } else if (strcmp(long_options[option_index].name, "web-paths") == 0) {
-          o.web_paths_file = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "cve-map") == 0) {
-          o.cve_map     = true;
-          o.servicescan = true; /* auto-enable -sV for service detection */
-        } else if (strcmp(long_options[option_index].name, "cve-min-score") == 0) {
-          o.cve_min_score = (float)atof(optarg);
-          if (o.cve_min_score < 0.0f || o.cve_min_score > 10.0f)
-            fatal("--cve-min-score must be between 0.0 and 10.0");
-        } else if (strcmp(long_options[option_index].name, "import-cves") == 0) {
-          o.import_cves_file = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "import-cves-db") == 0) {
-          o.import_cves_db = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "report") == 0) {
-          o.report_file = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "screenshot") == 0) {
-          o.screenshot = true;
-          o.web_recon = true;
-          o.servicescan = true;
-        } else if (strcmp(long_options[option_index].name, "screenshot-dir") == 0) {
-          o.screenshot_dir = strdup(optarg);
-        /* --net-scan options */
-        } else if (strcmp(long_options[option_index].name, "net-scan") == 0) {
-          o.net_scan = true;
-        } else if (strcmp(long_options[option_index].name, "discover-only") == 0) {
-          o.net_scan = true;
-          o.net_discover_only = true;
-        } else if (strcmp(long_options[option_index].name, "enrich-only") == 0) {
-          o.net_scan = true;
-          o.net_enrich_only = true;
-        } else if (strcmp(long_options[option_index].name, "report-only") == 0) {
-          o.net_scan = true;
-          o.net_report_only = true;
-        } else if (strcmp(long_options[option_index].name, "resume") == 0) {
-          o.net_scan = true;
-          o.net_resume = true;
-        } else if (strcmp(long_options[option_index].name, "rate") == 0) {
-          o.net_rate = atoi(optarg);
-          if (o.net_rate < 100) o.net_rate = 100;
-          if (o.net_rate > 10000000) o.net_rate = 10000000;
-        } else if (strcmp(long_options[option_index].name, "exclude-file") == 0) {
-          o.net_exclude_file = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "data-dir") == 0) {
-          o.net_data_dir = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "findings-dir") == 0) {
-          o.net_findings_dir = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "watchlist") == 0) {
-          o.net_scan = true;
-          o.net_watchlist = strdup(optarg);
-        /* --net-query options */
-        } else if (strcmp(long_options[option_index].name, "net-query") == 0) {
-          o.net_query = true;
-        } else if (strcmp(long_options[option_index].name, "nq-port") == 0) {
-          o.net_query = true;
-          o.nq_port = atoi(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-service") == 0) {
-          o.net_query = true;
-          o.nq_service = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-cve") == 0) {
-          o.net_query = true;
-          o.nq_cve = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-min-cvss") == 0) {
-          o.net_query = true;
-          o.nq_min_cvss = (float)atof(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-web-title") == 0) {
-          o.net_query = true;
-          o.nq_web_title = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-web-server") == 0) {
-          o.net_query = true;
-          o.nq_web_server = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-ip-range") == 0) {
-          o.net_query = true;
-          o.nq_ip_range = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-output") == 0) {
-          o.net_query = true;
-          o.nq_output = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-count") == 0) {
-          o.net_query = true;
-          o.nq_count = true;
-        } else if (strcmp(long_options[option_index].name, "nq-asn") == 0) {
-          o.net_query = true;
-          o.nq_asn = atoi(optarg);
-        } else if (strcmp(long_options[option_index].name, "nq-country") == 0) {
-          o.net_query = true;
-          o.nq_country = strdup(optarg);
-        /* --tracemap options */
-        } else if (strcmp(long_options[option_index].name, "tracemap") == 0) {
-          o.tracemap_targets = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "tm-output") == 0) {
-          o.tm_output = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "tm-format") == 0) {
-          o.tm_format = strdup(optarg);
-        } else if (strcmp(long_options[option_index].name, "tm-max-hops") == 0) {
-          o.tm_max_hops = atoi(optarg);
+        } else if (parse_kmap_option(long_options[option_index].name, optarg)) {
+          /* Handled by parse_kmap_option() — Kmap-specific options
+             extracted to avoid MSVC C1061 "blocks nested too deeply" */
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
           exit(0);
