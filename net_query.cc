@@ -340,6 +340,14 @@ int run_net_query(const char *data_dir,
                   bool count_only) {
   if (!data_dir) return 1;
 
+  /* Validate port range if specified */
+  if (port != -1 && (port < 1 || port > 65535)) {
+    log_write(LOG_STDOUT,
+      "net-query: ERROR: --nq-port %d is out of range (must be 1-65535)\n",
+      port);
+    return 1;
+  }
+
   /* Parse IP range if provided */
   CidrRange cidr{};
   bool has_cidr = false;

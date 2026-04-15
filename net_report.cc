@@ -418,11 +418,28 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     return 0;
   }
 
-  /* Sort all IPs by their numeric value for consistent ordering */
-  std::sort(all_ips.begin(), all_ips.end(),
-    [](const IpEntry &a, const IpEntry &b) {
-      return ip_to_u32(a.ip.c_str()) < ip_to_u32(b.ip.c_str());
+  /* Sort all IPs by their numeric value for consistent ordering.
+   * Pre-compute numeric IPs to avoid re-parsing in every comparison. */
+  std::vector<uint32_t> ip_keys(all_ips.size());
+  for (size_t i = 0; i < all_ips.size(); i++)
+    ip_keys[i] = ip_to_u32(all_ips[i].ip.c_str());
+
+  /* Build an index array and sort it by the pre-computed keys */
+  std::vector<size_t> order(all_ips.size());
+  for (size_t i = 0; i < order.size(); i++) order[i] = i;
+  std::sort(order.begin(), order.end(),
+    [&ip_keys](size_t a, size_t b) {
+      return ip_keys[a] < ip_keys[b];
     });
+
+  /* Reorder all_ips in-place according to the sorted index */
+  {
+    std::vector<IpEntry> sorted;
+    sorted.reserve(all_ips.size());
+    for (size_t idx : order)
+      sorted.push_back(std::move(all_ips[idx]));
+    all_ips = std::move(sorted);
+  }
 
   int64_t total_hosts = static_cast<int64_t>(all_ips.size());
   log_write(LOG_STDOUT,

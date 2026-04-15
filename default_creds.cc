@@ -1132,9 +1132,23 @@ static TargetCredData *get_or_create_cred_data(Target *t) {
   return data;
 }
 
+/* Maximum credential timeout to prevent indefinite hangs */
+#define MAX_CREDS_TIMEOUT_MS 30000
+
 void run_default_creds(std::vector<Target *> &targets,
                        const char *creds_file,
                        int timeout_ms) {
+  /* Cap timeout at 30 seconds to prevent indefinite hangs on
+     unresponsive services or misconfigured --creds-timeout values */
+  if (timeout_ms <= 0)
+    timeout_ms = 3000; /* default */
+  if (timeout_ms > MAX_CREDS_TIMEOUT_MS) {
+    log_write(LOG_STDOUT,
+      "WARNING: --creds-timeout %dms exceeds maximum (%dms), capping.\n",
+      timeout_ms, MAX_CREDS_TIMEOUT_MS);
+    timeout_ms = MAX_CREDS_TIMEOUT_MS;
+  }
+
   std::vector<LoadedCred> creds = load_creds(creds_file);
   if (creds.empty()) return;
 

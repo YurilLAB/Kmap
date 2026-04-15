@@ -548,6 +548,9 @@ static TargetWebData *get_or_create_web_data(Target *t) {
 /* -----------------------------------------------------------------------
  * Public API
  * ----------------------------------------------------------------------- */
+/* Maximum number of paths to probe per host to avoid hour-long scans */
+#define WEB_RECON_MAX_PATHS 10000
+
 void run_web_recon(std::vector<Target *> &targets,
                    const char *extra_paths_file) {
   // Build path list
@@ -557,11 +560,25 @@ void run_web_recon(std::vector<Target *> &targets,
 
   if (extra_paths_file) {
     std::ifstream f(extra_paths_file);
-    std::string line;
-    while (std::getline(f, line)) {
-      if (!line.empty() && line[0] != '#')
-        paths.push_back(line);
+    if (!f.is_open()) {
+      log_write(LOG_STDOUT,
+        "WARNING: --web-paths: cannot open paths file: %s\n",
+        extra_paths_file);
+    } else {
+      std::string line;
+      while (std::getline(f, line)) {
+        if (!line.empty() && line[0] != '#')
+          paths.push_back(line);
+      }
     }
+  }
+
+  if (paths.size() > WEB_RECON_MAX_PATHS) {
+    log_write(LOG_STDOUT,
+      "WARNING: web-recon path list has %lu entries (max %d). "
+      "Capping to avoid excessive scan time.\n",
+      (unsigned long)paths.size(), WEB_RECON_MAX_PATHS);
+    paths.resize(WEB_RECON_MAX_PATHS);
   }
 
   for (Target *t : targets) {

@@ -405,6 +405,32 @@ int run_net_scan() {
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   const char *findings_dir = o.net_findings_dir ? o.net_findings_dir : "Findings";
 
+  /* Validate that data-dir is writable before starting scan */
+  {
+    std::string test_path = std::string(data_dir) + "/.kmap_write_test";
+    FILE *test_fp = fopen(test_path.c_str(), "w");
+    if (test_fp) {
+      fclose(test_fp);
+      remove(test_path.c_str());
+    } else {
+      /* Try creating the directory first, then re-test */
+#ifdef WIN32
+      _mkdir(data_dir);
+#else
+      mkdir(data_dir, 0755);
+#endif
+      test_fp = fopen(test_path.c_str(), "w");
+      if (test_fp) {
+        fclose(test_fp);
+        remove(test_path.c_str());
+      } else {
+        fprintf(stderr,
+          "net-scan: ERROR: --data-dir '%s' is not writable\n", data_dir);
+        return 1;
+      }
+    }
+  }
+
   /* Watchlist mode */
   if (o.net_watchlist) {
     return run_watchlist(o.net_watchlist, data_dir, findings_dir);

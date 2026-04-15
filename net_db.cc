@@ -12,6 +12,35 @@
 #include <cstring>
 #include <cstdlib>
 
+#ifdef WIN32
+#include <windows.h>
+#define net_db_sleep_ms(ms) Sleep(ms)
+#else
+#include <unistd.h>
+#define net_db_sleep_ms(ms) usleep((ms) * 1000)
+#endif
+
+/* -----------------------------------------------------------------------
+ * SQLITE_BUSY retry helper
+ *
+ * When multiple processes access the same shard concurrently,
+ * sqlite3_step() can return SQLITE_BUSY.  This wrapper retries
+ * up to NET_DB_BUSY_RETRIES times with NET_DB_BUSY_SLEEP_MS ms
+ * between attempts.
+ * ----------------------------------------------------------------------- */
+#define NET_DB_BUSY_RETRIES  3
+#define NET_DB_BUSY_SLEEP_MS 100
+
+static int sqlite3_step_retry(sqlite3_stmt *stmt) {
+  int rc = sqlite3_step(stmt);
+  for (int attempt = 0; rc == SQLITE_BUSY && attempt < NET_DB_BUSY_RETRIES; ++attempt) {
+    net_db_sleep_ms(NET_DB_BUSY_SLEEP_MS);
+    sqlite3_reset(stmt);
+    rc = sqlite3_step(stmt);
+  }
+  return rc;
+}
+
 /* -----------------------------------------------------------------------
  * IP helpers
  * ----------------------------------------------------------------------- */
@@ -151,7 +180,7 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
   sqlite3_bind_int64(stmt, 4, timestamp);
   sqlite3_bind_int64(stmt, 5, timestamp);
 
-  int rc = sqlite3_step(stmt);
+  int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
 
   if (rc == SQLITE_DONE) {
@@ -195,7 +224,7 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
   sqlite3_bind_int(stmt, 9, port);
 
-  int rc = sqlite3_step(stmt);
+  int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -225,7 +254,7 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
   bind_or_null(4, bgp_prefix);
   sqlite3_bind_text(stmt, 5, ip, -1, SQLITE_TRANSIENT);
 
-  int rc = sqlite3_step(stmt);
+  int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }

@@ -95,6 +95,20 @@ static std::string   g_filename;    // Where to write it at finalize time
 
 void json_initialize(const char *filename) {
     g_filename = filename ? filename : "";
+
+    /* Pre-flight check: verify the output file is writable now rather than
+       discovering the error only after a long scan has completed. */
+    if (!g_filename.empty()) {
+        FILE *test = fopen(g_filename.c_str(), "a");
+        if (!test) {
+            fprintf(stderr,
+                "KMAP WARNING: JSON output file %s is not writable. "
+                "Check path and permissions.\n", g_filename.c_str());
+        } else {
+            fclose(test);
+        }
+    }
+
     g_doc = {
         {"kmap",  nlohmann::json::object()},
         {"hosts", nlohmann::json::array()},

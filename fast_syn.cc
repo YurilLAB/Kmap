@@ -402,6 +402,14 @@ int fast_syn_scan(const char *data_dir,
     return 1;
   }
 
+  /* Validate rate — warn if unreasonably high */
+  if (rate_pps > 1000000) {
+    fprintf(stderr,
+      "net-scan: WARNING: --rate %d exceeds 1,000,000 pps; "
+      "this may overwhelm your network or trigger IDS alerts.\n",
+      rate_pps);
+  }
+
   /* Create data directory */
 #ifdef WIN32
   _mkdir(data_dir);
