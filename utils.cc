@@ -658,7 +658,7 @@ int win32_mukmap(char *filestr, int filelen) {
   if (gmap == 0)
     fatal("%s: no current mapping !\n", __func__);
   FlushViewOfFile(filestr, filelen);
-  UkmapViewOfFile(filestr);
+  UnmapViewOfFile(filestr);
   CloseHandle(gmap);
   gmap = NULL;
   return 0;

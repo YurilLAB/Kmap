@@ -63,6 +63,7 @@
 /* $Id$ */
 
 #include "output_json.h"
+#include "output.h"
 
 #include "third-party/nlohmann/json.hpp"
 
