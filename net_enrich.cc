@@ -17,6 +17,7 @@
 
 #include "net_enrich.h"
 #include "net_db.h"
+#include "asn_lookup.h"
 #include "KmapOps.h"
 #include "kmap.h"
 #include "output.h"
@@ -893,6 +894,15 @@ int run_enrichment(const char *data_dir, int batch_size) {
             j < web_servers.size() ? web_servers[j].c_str()  : "",
             j < web_headers.size() ? web_headers[j].c_str()  : "",
             j < web_paths.size()   ? web_paths[j].c_str()   : "");
+        }
+
+        /* ASN/GeoIP lookup — one per IP, applied to all ports */
+        AsnInfo asn_info = lookup_asn(ip.c_str(), 2000);
+        if (asn_info.asn > 0) {
+          net_db_update_asn(db, ip.c_str(), asn_info.asn,
+                            asn_info.as_name.c_str(),
+                            asn_info.country.c_str(),
+                            asn_info.bgp_prefix.c_str());
         }
 
         processed++;

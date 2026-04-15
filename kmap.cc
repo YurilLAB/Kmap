@@ -144,6 +144,7 @@
 #include "web_recon.h"
 #include "cve_map.h"
 #include "net_scan.h"
+#include "tracemap.h"
 
 /* global options */
 extern char *optarg;
@@ -697,6 +698,13 @@ void parse_options(int argc, char **argv) {
     {"nq-ip-range", required_argument, 0, 0},
     {"nq-output", required_argument, 0, 0},
     {"nq-count", no_argument, 0, 0},
+    {"nq-asn", required_argument, 0, 0},
+    {"nq-country", required_argument, 0, 0},
+    /* --tracemap options */
+    {"tracemap", required_argument, 0, 0},
+    {"tm-output", required_argument, 0, 0},
+    {"tm-format", required_argument, 0, 0},
+    {"tm-max-hops", required_argument, 0, 0},
     {0, 0, 0, 0}
   };
 
@@ -1083,6 +1091,21 @@ void parse_options(int argc, char **argv) {
         } else if (strcmp(long_options[option_index].name, "nq-count") == 0) {
           o.net_query = true;
           o.nq_count = true;
+        } else if (strcmp(long_options[option_index].name, "nq-asn") == 0) {
+          o.net_query = true;
+          o.nq_asn = atoi(optarg);
+        } else if (strcmp(long_options[option_index].name, "nq-country") == 0) {
+          o.net_query = true;
+          o.nq_country = strdup(optarg);
+        /* --tracemap options */
+        } else if (strcmp(long_options[option_index].name, "tracemap") == 0) {
+          o.tracemap_targets = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "tm-output") == 0) {
+          o.tm_output = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "tm-format") == 0) {
+          o.tm_format = strdup(optarg);
+        } else if (strcmp(long_options[option_index].name, "tm-max-hops") == 0) {
+          o.tm_max_hops = atoi(optarg);
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
           exit(0);
@@ -2155,6 +2178,14 @@ int kmap_main(int argc, char *argv[]) {
   /* --net-query: search collected scan data and exit */
   if (o.net_query) {
     int rc = run_net_query_cli();
+    exit(rc);
+  }
+
+  /* --tracemap: map network topology and exit */
+  if (o.tracemap_targets) {
+    int rc = run_tracemap(o.tracemap_targets, o.tm_output,
+                          o.tm_format ? o.tm_format : "txt",
+                          o.tm_max_hops, 2000);
     exit(rc);
   }
 

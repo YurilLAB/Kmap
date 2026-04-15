@@ -312,6 +312,13 @@ class KmapOps {
   char *nq_ip_range;        /* Filter by IP range */
   char *nq_output;          /* Export results to file */
   bool nq_count;            /* Count mode */
+  int  nq_asn;              /* Filter by ASN (-1 = unset) */
+  char *nq_country;         /* Filter by country code */
+  /* --tracemap options */
+  char *tracemap_targets;   /* Target IPs, CIDRs, or file path */
+  char *tm_output;          /* Output file (NULL = stdout) */
+  char *tm_format;          /* "txt", "dot", or "json" */
+  int  tm_max_hops;         /* Max TTL (default 30) */
   int ttl; // Time to live
   bool badsum;
   char *datadir;

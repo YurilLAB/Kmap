@@ -55,6 +55,10 @@ struct NetHost {
   std::string web_server;
   std::string web_headers;  /* JSON object */
   std::string web_paths;    /* JSON array */
+  uint32_t    asn;
+  std::string as_name;
+  std::string country;
+  std::string bgp_prefix;
   int         enriched;
 };
 
@@ -70,6 +74,12 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *cves_json,
                              const char *web_title, const char *web_server,
                              const char *web_headers, const char *web_paths);
+
+/* Update ASN/GeoIP data for all ports of an IP.
+   Returns 0 on success, -1 on error. */
+int net_db_update_asn(sqlite3 *db, const char *ip,
+                      uint32_t asn, const char *as_name,
+                      const char *country, const char *bgp_prefix);
 
 /* Fetch up to `limit` unenriched hosts (enriched=0) as distinct IPs.
    Returns a vector of IP strings. */

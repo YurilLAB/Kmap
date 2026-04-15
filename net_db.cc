@@ -63,13 +63,26 @@ static const char *SCHEMA_SQL =
   "  web_server    TEXT,"
   "  web_headers   TEXT,"
   "  web_paths     TEXT,"
+  "  asn           INTEGER DEFAULT 0,"
+  "  as_name       TEXT,"
+  "  country       TEXT,"
+  "  bgp_prefix    TEXT,"
   "  enriched      INTEGER DEFAULT 0,"
   "  PRIMARY KEY (ip, port)"
   ");"
   "CREATE INDEX IF NOT EXISTS idx_hosts_port     ON hosts(port);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_service  ON hosts(service);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_enriched ON hosts(enriched);"
-  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);";
+  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);"
+  "CREATE INDEX IF NOT EXISTS idx_hosts_asn      ON hosts(asn);"
+  "CREATE INDEX IF NOT EXISTS idx_hosts_country  ON hosts(country);";
+
+/* Migration SQL — adds ASN columns to existing databases */
+static const char *MIGRATE_ASN_SQL =
+  "ALTER TABLE hosts ADD COLUMN asn INTEGER DEFAULT 0;"
+  "ALTER TABLE hosts ADD COLUMN as_name TEXT;"
+  "ALTER TABLE hosts ADD COLUMN country TEXT;"
+  "ALTER TABLE hosts ADD COLUMN bgp_prefix TEXT;";
 
 sqlite3 *net_db_open(const std::string &path) {
   sqlite3 *db = nullptr;
@@ -97,6 +110,16 @@ sqlite3 *net_db_open(const std::string &path) {
     sqlite3_close(db);
     return nullptr;
   }
+
+  /* Migrate existing databases: add ASN columns if missing.
+   * ALTER TABLE ADD COLUMN is a no-op if the column already exists
+   * in SQLite >= 3.35, but older versions return an error — ignore it. */
+  sqlite3_exec(db, MIGRATE_ASN_SQL, nullptr, nullptr, nullptr);
+  /* Create ASN indexes (safe to call repeatedly) */
+  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_asn ON hosts(asn)",
+               nullptr, nullptr, nullptr);
+  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_country ON hosts(country)",
+               nullptr, nullptr, nullptr);
 
   return db;
 }
@@ -177,6 +200,36 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
+int net_db_update_asn(sqlite3 *db, const char *ip,
+                      uint32_t asn, const char *as_name,
+                      const char *country, const char *bgp_prefix) {
+  if (!db || !ip) return -1;
+
+  static const char *sql =
+    "UPDATE hosts SET asn=?, as_name=?, country=?, bgp_prefix=? "
+    "WHERE ip=?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  sqlite3_bind_int(stmt, 1, static_cast<int>(asn));
+  auto bind_or_null = [&](int idx, const char *val) {
+    if (val && val[0])
+      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+    else
+      sqlite3_bind_null(stmt, idx);
+  };
+  bind_or_null(2, as_name);
+  bind_or_null(3, country);
+  bind_or_null(4, bgp_prefix);
+  sqlite3_bind_text(stmt, 5, ip, -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
 std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit) {
   std::vector<std::string> ips;
   if (!db) return ips;
@@ -204,7 +257,8 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
 
   static const char *sql =
     "SELECT ip, port, proto, first_seen, last_seen, service, version, "
-    "cves, web_title, web_server, web_headers, web_paths, enriched "
+    "cves, web_title, web_server, web_headers, web_paths, "
+    "asn, as_name, country, bgp_prefix, enriched "
     "FROM hosts WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -232,7 +286,11 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.web_server  = col(9);
     h.web_headers = col(10);
     h.web_paths   = col(11);
-    h.enriched    = sqlite3_column_int(stmt, 12);
+    h.asn         = static_cast<uint32_t>(sqlite3_column_int(stmt, 12));
+    h.as_name     = col(13);
+    h.country     = col(14);
+    h.bgp_prefix  = col(15);
+    h.enriched    = sqlite3_column_int(stmt, 16);
     hosts.push_back(std::move(h));
   }
   sqlite3_finalize(stmt);

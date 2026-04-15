@@ -54,8 +54,10 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | Scan report | `--report <file>` | Generates a styled `.txt` or `.md` report with all findings |
 | Web screenshots | `--screenshot` | Captures PNG screenshots of discovered web ports |
 | Internet-scale scanning | `--net-scan` | Full pipeline: discover, enrich, and report across the entire IPv4 space |
+| ASN/GeoIP enrichment | (automatic) | Resolves every IP to its ASN, owner, country via Team Cymru DNS |
 | Watchlist monitoring | `--watchlist <file>` | Re-scan owned/client assets and detect changes |
-| Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS score |
+| Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS, ASN, country |
+| Network topology mapping | `--tracemap <targets>` | Maps network paths, detects gateways, ASN boundaries, hub routers |
 
 All per-host features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
 
@@ -543,8 +545,38 @@ kmap --net-query --nq-ip-range 93.184.0.0/16
 | `--nq-web-title <text>` | Filter by web page title |
 | `--nq-web-server <text>` | Filter by server header |
 | `--nq-ip-range <CIDR>` | Restrict search to IP range |
+| `--nq-asn <number>` | Filter by Autonomous System Number |
+| `--nq-country <CC>` | Filter by ISO country code (e.g. `US`, `DE`) |
 | `--nq-output <file>` | Export query results to file |
 | `--nq-count` | Show count instead of listing results |
+
+### Network Topology Mapping
+
+| Option | Description |
+|---|---|
+| `--tracemap <targets>` | Map network topology to target IPs, CIDRs, or file |
+| `--tm-output <file>` | Write topology to file (default: stdout) |
+| `--tm-format <fmt>` | Output format: `txt` (default), `dot` (Graphviz), `json` |
+| `--tm-max-hops <n>` | Maximum TTL hops (default: 30) |
+
+**Smart topology analysis features:**
+- **Hub detection** — Identifies routers traversed by the majority of paths (core infrastructure)
+- **ASN boundary detection** — Marks where traffic crosses network ownership boundaries (peering points)
+- **Gateway classification** — Identifies the first hop leaving your network
+- **Latency bottleneck detection** — Flags high-latency links (>50ms = long-haul, >100ms = potential congestion)
+- **DOT/Graphviz output** — Color-coded graph visualization with role-based node shapes and ASN boundary edges
+
+```bash
+# Map topology to multiple targets
+kmap --tracemap 8.8.8.8,1.1.1.1,93.184.216.34
+
+# Output as Graphviz DOT
+kmap --tracemap targets.txt --tm-format dot --tm-output topology.dot
+dot -Tpng topology.dot -o topology.png
+
+# JSON output for programmatic use
+kmap --tracemap 8.8.8.8 --tm-format json --tm-output topology.json
+```
 
 ---
 
@@ -565,6 +597,8 @@ Kmap/
 ├── net_enrich.cc         Enrichment pipeline (service + CVE + web recon)
 ├── net_report.cc         Findings report generator (72,348 IPs per file)
 ├── net_query.cc          CLI query engine for searching collected data
+├── asn_lookup.cc         ASN/GeoIP enrichment via Team Cymru DNS
+├── tracemap.cc           Network topology mapper with smart analysis
 ├── exclude.conf          Default IP exclusion ranges
 ├── color.h               ANSI color helpers
 ├── sqlite/               SQLite 3.53.0 amalgamation

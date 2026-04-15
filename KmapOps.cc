@@ -151,6 +151,10 @@ KmapOps::~KmapOps() {
   if (nq_web_server) { free(nq_web_server); nq_web_server = NULL; }
   if (nq_ip_range) { free(nq_ip_range); nq_ip_range = NULL; }
   if (nq_output) { free(nq_output); nq_output = NULL; }
+  if (nq_country) { free(nq_country); nq_country = NULL; }
+  if (tracemap_targets) { free(tracemap_targets); tracemap_targets = NULL; }
+  if (tm_output) { free(tm_output); tm_output = NULL; }
+  if (tm_format) { free(tm_format); tm_format = NULL; }
 
 #ifndef NOLUA
   if (scriptversion || script)
@@ -339,6 +343,12 @@ void KmapOps::Initialize() {
   nq_ip_range      = nullptr;
   nq_output        = nullptr;
   nq_count         = false;
+  nq_asn           = -1;
+  nq_country       = nullptr;
+  tracemap_targets = nullptr;
+  tm_output        = nullptr;
+  tm_format        = nullptr;
+  tm_max_hops      = 30;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;

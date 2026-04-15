@@ -244,6 +244,8 @@
     <ClCompile Include="..\net_enrich.cc" />
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
+    <ClCompile Include="..\asn_lookup.cc" />
+    <ClCompile Include="..\tracemap.cc" />
     <ClCompile Include="..\sqlite\sqlite3.c">
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>SQLITE_THREADSAFE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -315,6 +317,8 @@
     <ClInclude Include="..\net_enrich.h" />
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />
+    <ClInclude Include="..\asn_lookup.h" />
+    <ClInclude Include="..\tracemap.h" />
     <ClInclude Include="..\output_json.h" />
     <ClInclude Include="..\color.h" />
     <ClInclude Include="winfix.h" />
