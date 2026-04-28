@@ -23,11 +23,13 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstring>
 #include <cstdio>
 
 #ifndef WIN32
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -35,6 +37,7 @@
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -541,7 +544,8 @@ static TargetWebData *get_or_create_web_data(Target *t) {
   void *existing = t->attribute.get(WEB_RECON_KEY);
   if (existing) return static_cast<TargetWebData *>(existing);
   auto *data = new TargetWebData();
-  t->attribute.set(WEB_RECON_KEY, data);
+  t->attribute.set(WEB_RECON_KEY, data,
+                   [](void *p) { delete static_cast<TargetWebData *>(p); });
   return data;
 }
 
@@ -676,27 +680,22 @@ void print_web_recon_output(const Target *t) {
 #define kmap_mkdir(d) mkdir(d, 0755)
 #endif
 
-/* Try to find a headless browser on the system.
-   Returns the full command prefix or empty string if none found. */
+/* Try to find a headless browser on the system. Returns the unquoted
+ * executable path or empty string if none found. */
 static std::string find_browser() {
 #ifdef WIN32
-    /* Windows: check common Chrome/Edge install paths */
     const char *candidates[] = {
-        "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"",
-        "\"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\"",
-        "\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\"",
-        "\"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe\"",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
         nullptr
     };
     for (const char **c = candidates; *c; ++c) {
-        /* Strip quotes and check if file exists */
-        std::string path = *c;
-        std::string unquoted = path.substr(1, path.size() - 2);
-        FILE *f = fopen(unquoted.c_str(), "r");
-        if (f) { fclose(f); return path; }
+        FILE *f = fopen(*c, "r");
+        if (f) { fclose(f); return *c; }
     }
 #else
-    /* Unix: check common absolute paths first, then PATH-relative names */
     const char *abs_paths[] = {
         "/usr/bin/chromium-browser", "/usr/bin/chromium",
         "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
@@ -706,19 +705,105 @@ static std::string find_browser() {
         nullptr
     };
     for (const char **c = abs_paths; *c; ++c) {
-        if (access(*c, X_OK) == 0)
-            return std::string("'") + *c + "'";
+        if (access(*c, X_OK) == 0) return *c;
     }
 #endif
     return "";
+}
+
+/* Spawn the browser with the given argument vector. Returns the child's
+ * exit code, or -1 on spawn failure. No shell interpretation — the
+ * arguments are passed directly. */
+static int spawn_browser(const std::string &browser,
+                         const std::vector<std::string> &args) {
+#ifdef WIN32
+    /* Build a command line that CommandLineToArgvW will parse back to our
+     * original argv. See: https://docs.microsoft.com/cpp/cpp/parsing-cpp-command-line-arguments */
+    auto quote = [](const std::string &a) -> std::string {
+        if (!a.empty() && a.find_first_of(" \t\"") == std::string::npos)
+            return a;
+        std::string out = "\"";
+        size_t backslashes = 0;
+        for (char c : a) {
+            if (c == '\\') { backslashes++; continue; }
+            if (c == '"') { out.append(backslashes * 2 + 1, '\\'); backslashes = 0; }
+            else          { out.append(backslashes, '\\'); backslashes = 0; }
+            out += c;
+        }
+        out.append(backslashes * 2, '\\');
+        out += '"';
+        return out;
+    };
+    std::string cmdline = quote(browser);
+    for (const auto &a : args) { cmdline += ' '; cmdline += quote(a); }
+    std::vector<char> buf(cmdline.begin(), cmdline.end());
+    buf.push_back('\0');
+
+    STARTUPINFOA si{}; si.cb = sizeof(si);
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessA(browser.c_str(), buf.data(), nullptr, nullptr,
+                        FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
+        return -1;
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD ec = 0;
+    GetExitCodeProcess(pi.hProcess, &ec);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return (int)ec;
+#else
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        std::vector<char *> argv;
+        argv.push_back(const_cast<char *>(browser.c_str()));
+        for (const auto &a : args)
+            argv.push_back(const_cast<char *>(a.c_str()));
+        argv.push_back(nullptr);
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) { dup2(devnull, 2); close(devnull); }
+        execv(browser.c_str(), argv.data());
+        _exit(127);
+    }
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) return -1;
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    return -1;
+#endif
+}
+
+/* Reject directory paths that contain characters or sequences that could
+ * be interpreted as path-traversal or shell metachars by downstream tools. */
+static bool screenshot_dir_safe(const std::string &dir) {
+    if (dir.empty()) return false;
+    if (dir.find("..") != std::string::npos) return false;
+    for (unsigned char c : dir) {
+        if (c < 0x20 || c == 0x7f) return false;
+        if (c == '|' || c == ';' || c == '&' || c == '`' || c == '$' ||
+            c == '(' || c == ')' || c == '<' || c == '>' || c == '"' ||
+            c == '\'' || c == '\n' || c == '\r')
+            return false;
+    }
+    return true;
 }
 
 void run_screenshot_capture(std::vector<Target *> &targets,
                             const char *out_dir) {
     std::string dir = out_dir ? out_dir : "kmap-screenshots";
 
-    /* Create output directory */
-    kmap_mkdir(dir.c_str());
+    if (!screenshot_dir_safe(dir)) {
+        log_write(LOG_STDOUT,
+            "ERROR: --screenshot-dir '%s' contains unsafe characters — aborting screenshot capture.\n",
+            dir.c_str());
+        return;
+    }
+
+    /* Create output directory (tolerate EEXIST). */
+    if (kmap_mkdir(dir.c_str()) != 0 && errno != EEXIST) {
+        log_write(LOG_STDOUT,
+            "ERROR: --screenshot: cannot create directory '%s' (%s) — aborting.\n",
+            dir.c_str(), strerror(errno));
+        return;
+    }
 
     std::string browser = find_browser();
     if (browser.empty()) {
@@ -762,36 +847,30 @@ void run_screenshot_capture(std::vector<Target *> &targets,
             for (char &c : safe_ip) if (c == ':') c = '_'; /* IPv6 colons */
             std::string outfile = dir + "/" + safe_ip + "_" + std::to_string(port->portno) + ".png";
 
-            std::string cmd;
+            std::vector<std::string> args;
             if (is_firefox) {
-                cmd = browser + " --screenshot \"" + outfile
-                    + "\" --window-size=1280,720 \"" + url + "\" 2>/dev/null";
+                args.push_back("--screenshot");
+                args.push_back(outfile);
+                args.push_back("--window-size=1280,720");
+                args.push_back(url);
             } else {
-                /* Chrome/Chromium/Edge */
-                cmd = browser
-                    + " --headless --disable-gpu --no-sandbox"
-                    + " --screenshot=\"" + outfile + "\""
-                    + " --window-size=1280,720"
-                    + " --ignore-certificate-errors"
-                    + " \"" + url + "\" 2>/dev/null";
+                args.push_back("--headless");
+                args.push_back("--disable-gpu");
+                args.push_back("--no-sandbox");
+                args.push_back("--screenshot=" + outfile);
+                args.push_back("--window-size=1280,720");
+                args.push_back("--ignore-certificate-errors");
+                args.push_back(url);
             }
 
-#ifdef WIN32
-            /* Windows: redirect stderr to NUL */
-            size_t nulpos = cmd.rfind("2>/dev/null");
-            if (nulpos != std::string::npos)
-                cmd.replace(nulpos, 11, "2>NUL");
-#endif
-
             log_write(LOG_STDOUT, "  Capturing %s -> %s\n", url.c_str(), outfile.c_str());
-            int rc = system(cmd.c_str());
+            int rc = spawn_browser(browser, args);
             if (rc == 0) {
                 captured++;
             } else {
                 screenshot_errors++;
                 log_write(LOG_STDOUT, "  WARNING: Screenshot failed for %s (exit %d), continuing\n",
                           url.c_str(), rc);
-                /* Continue to next URL -- one failure should not stop the batch */
             }
         }
     }

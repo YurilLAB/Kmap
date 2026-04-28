@@ -78,9 +78,15 @@
 #include "libnetutil/netutil.h"
 #include "nbase.h"
 
+/* Feature-result headers for the additive Yuril-facing sections. */
+#include "cve_map.h"
+#include "default_creds.h"
+#include "web_recon.h"
+
 #include <fstream>
 #include <string>
 #include <cstdio>
+#include <cctype>
 
 /* -----------------------------------------------------------------------
  * Module-level state
@@ -252,15 +258,128 @@ static nlohmann::json build_os_json(const Target *t) {
     return os_obj;
 }
 
-void json_write_host(const Target *t) {
-    if (t == nullptr)
-        return;
+/* Build the CVE map sub-array for a host. Empty if --cve-map wasn't run
+   or no CVEs were matched above the configured CVSS threshold. */
+static nlohmann::json build_cves_json(const Target *t) {
+    nlohmann::json arr = nlohmann::json::array();
 
+    const void *raw = t->attribute.get("kmap_cve_map");
+    if (!raw)
+        return arr;
+
+    const auto *data = static_cast<const TargetCveData *>(raw);
+    for (const auto &pr : data->port_results) {
+        for (const auto &cve : pr.cves) {
+            nlohmann::json e;
+            e["cve_id"]      = cve.cve_id;
+            e["cvss_score"]  = static_cast<double>(cve.cvss_score);
+            e["severity"]    = cve.severity;
+            e["port"]        = pr.portno;
+            e["proto"]       = pr.proto;
+            e["service"]     = pr.service;
+            e["product"]     = pr.version;       /* combined product+version string */
+            if (!cve.vendor.empty())
+                e["vendor"]  = cve.vendor;
+            if (!cve.product.empty())
+                e["cpe_product"] = cve.product;
+            if (!cve.description.empty())
+                e["description"] = cve.description;
+            arr.push_back(std::move(e));
+        }
+    }
+    return arr;
+}
+
+/* Build the default-credentials sub-array for a host. Only entries where
+   a credential was actually found are emitted; misses are not useful for
+   downstream security consumers. */
+static nlohmann::json build_creds_json(const Target *t) {
+    nlohmann::json arr = nlohmann::json::array();
+
+    const void *raw = t->attribute.get("kmap_default_creds");
+    if (!raw)
+        return arr;
+
+    const auto *data = static_cast<const TargetCredData *>(raw);
+    for (const auto &pr : data->results) {
+        for (const auto &hit : pr.hits) {
+            if (!hit.found)
+                continue;
+            nlohmann::json e;
+            e["service"]  = hit.service;
+            e["port"]     = static_cast<int>(pr.portno);
+            e["proto"]    = (pr.proto == IPPROTO_UDP) ? "udp" : "tcp";
+            e["username"] = hit.username;
+            e["password"] = hit.password;
+            arr.push_back(std::move(e));
+        }
+    }
+    return arr;
+}
+
+/* Build the web-recon sub-array for a host. One entry per HTTP/S port
+   that was probed. */
+static nlohmann::json build_web_recon_json(const Target *t) {
+    nlohmann::json arr = nlohmann::json::array();
+
+    const void *raw = t->attribute.get("kmap_web_recon");
+    if (!raw)
+        return arr;
+
+    const auto *data = static_cast<const TargetWebData *>(raw);
+    for (const auto &r : data->results) {
+        nlohmann::json e;
+        e["port"]     = static_cast<int>(r.portno);
+        e["proto"]    = "tcp";
+        e["is_https"] = r.is_https;
+        if (!r.title.empty())       e["title"]       = r.title;
+        if (!r.server.empty())      e["server"]      = r.server;
+        if (!r.powered_by.empty())  e["powered_by"]  = r.powered_by;
+        if (!r.generator.empty())   e["generator"]   = r.generator;
+
+        if (!r.robots_disallowed.empty()) {
+            nlohmann::json robots = nlohmann::json::array();
+            for (const auto &p : r.robots_disallowed)
+                robots.push_back(p);
+            e["robots_disallowed"] = std::move(robots);
+        }
+
+        if (r.is_https) {
+            nlohmann::json tls;
+            if (!r.tls.subject_cn.empty()) tls["subject_cn"] = r.tls.subject_cn;
+            if (!r.tls.issuer.empty())     tls["issuer"]     = r.tls.issuer;
+            if (!r.tls.not_after.empty())  tls["not_after"]  = r.tls.not_after;
+            if (!r.tls.protocol.empty())   tls["protocol"]   = r.tls.protocol;
+            tls["self_signed"] = r.tls.self_signed;
+            if (!tls.empty())
+                e["tls"] = std::move(tls);
+        }
+
+        if (!r.paths.empty()) {
+            nlohmann::json paths = nlohmann::json::array();
+            for (const auto &p : r.paths) {
+                nlohmann::json pj;
+                pj["path"]   = p.path;
+                pj["status"] = p.status_code;
+                if (!p.redirect_to.empty()) pj["redirect_to"] = p.redirect_to;
+                if (!p.title.empty())       pj["title"]       = p.title;
+                paths.push_back(std::move(pj));
+            }
+            e["paths"] = std::move(paths);
+        }
+
+        arr.push_back(std::move(e));
+    }
+    return arr;
+}
+
+nlohmann::json build_host_json(const Target *t) {
     nlohmann::json host;
 
-    /* ------------------------------------------------------------------
-     * status
-     * ------------------------------------------------------------------ */
+    if (t == nullptr)
+        return host;
+
+    /* status */
     {
         nlohmann::json status;
         status["state"]  = (t->flags & HOST_UP) ? "up" : "down";
@@ -268,13 +387,10 @@ void json_write_host(const Target *t) {
         host["status"] = std::move(status);
     }
 
-    /* ------------------------------------------------------------------
-     * addresses
-     * ------------------------------------------------------------------ */
+    /* addresses (IP + MAC + vendor) */
     {
         nlohmann::json addrs = nlohmann::json::array();
 
-        /* IP address */
         {
             nlohmann::json a;
             a["addr"]     = std::string(t->targetipstr());
@@ -282,7 +398,6 @@ void json_write_host(const Target *t) {
             addrs.push_back(std::move(a));
         }
 
-        /* MAC address (present when target is on local ethernet) */
         const u8 *mac = t->MACAddress();
         if (mac) {
             char macbuf[32];
@@ -301,13 +416,10 @@ void json_write_host(const Target *t) {
         host["addresses"] = std::move(addrs);
     }
 
-    /* ------------------------------------------------------------------
-     * hostnames
-     * ------------------------------------------------------------------ */
+    /* hostnames (user-supplied + PTR) */
     {
         nlohmann::json names = nlohmann::json::array();
 
-        /* User-supplied name from the command line */
         if (t->TargetName() != nullptr) {
             nlohmann::json n;
             n["name"] = std::string(t->TargetName());
@@ -315,7 +427,6 @@ void json_write_host(const Target *t) {
             names.push_back(std::move(n));
         }
 
-        /* Reverse-DNS (PTR) name */
         if (t->HostName() && *t->HostName()) {
             nlohmann::json n;
             n["name"] = std::string(t->HostName());
@@ -326,21 +437,38 @@ void json_write_host(const Target *t) {
         host["hostnames"] = std::move(names);
     }
 
-    /* ------------------------------------------------------------------
-     * ports
-     * ------------------------------------------------------------------ */
     host["ports"] = build_ports_json(t);
 
-    /* ------------------------------------------------------------------
-     * OS detection
-     * ------------------------------------------------------------------ */
     {
         nlohmann::json os = build_os_json(t);
         if (!os.empty())
             host["os"] = std::move(os);
     }
 
-    g_doc["hosts"].push_back(std::move(host));
+    /* Additive sections: only emitted when the corresponding feature was
+       activated and produced results. Consumers that do not recognize
+       them can safely ignore them. */
+    {
+        auto cves = build_cves_json(t);
+        if (!cves.empty())
+            host["cves"] = std::move(cves);
+
+        auto creds = build_creds_json(t);
+        if (!creds.empty())
+            host["default_creds"] = std::move(creds);
+
+        auto web = build_web_recon_json(t);
+        if (!web.empty())
+            host["web_recon"] = std::move(web);
+    }
+
+    return host;
+}
+
+void json_write_host(const Target *t) {
+    if (t == nullptr)
+        return;
+    g_doc["hosts"].push_back(build_host_json(t));
 }
 
 void json_write_stats(int up, int down, int total, float elapsed) {
@@ -427,12 +555,30 @@ void report_initialize(const char *filename) {
     rpt_hosts.clear();
     rpt_up = rpt_down = rpt_total = 0;
     rpt_elapsed = 0.0f;
-    /* Detect markdown from extension */
+    /* Detect markdown from extension — case-insensitive, and only look at
+     * the basename so path components like "/.md_cache/out.txt" aren't misread. */
     rpt_markdown = false;
-    if (rpt_filename.size() >= 3) {
-        std::string ext = rpt_filename.substr(rpt_filename.size() - 3);
+    size_t sep = rpt_filename.find_last_of("/\\");
+    size_t dot = rpt_filename.find_last_of('.');
+    if (dot != std::string::npos
+        && (sep == std::string::npos || dot > sep)) {
+        std::string ext = rpt_filename.substr(dot);
+        for (char &c : ext) c = (char)tolower((unsigned char)c);
         if (ext == ".md") rpt_markdown = true;
     }
+}
+
+/* Escape a string for inclusion in a Markdown table cell. Replaces pipes and
+ * collapses newlines so the cell can't break the table structure. */
+static std::string md_cell(const std::string &s) {
+    std::string out;
+    out.reserve(s.size());
+    for (char c : s) {
+        if (c == '|') out += "\\|";
+        else if (c == '\n' || c == '\r') out += ' ';
+        else out += c;
+    }
+    return out;
 }
 
 void report_write_host(const Target *t) {
@@ -481,9 +627,14 @@ void report_write_stats(int up, int down, int total, float elapsed) {
 
 static std::string timestamp_str() {
     time_t now = time(nullptr);
-    struct tm *tm = localtime(&now);
+    struct tm tm_buf{};
+#ifdef WIN32
+    if (localtime_s(&tm_buf, &now) != 0) return "unknown";
+#else
+    if (!localtime_r(&now, &tm_buf)) return "unknown";
+#endif
     char buf[64];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
     return buf;
 }
 
@@ -669,10 +820,10 @@ static void write_md_report(std::ofstream &f) {
             f << "| Port | State | Service | Version |\n";
             f << "|------|-------|---------|--------|\n";
             for (const auto &p : h.ports) {
-                f << "| " << p.portno << "/" << p.proto
-                  << " | " << p.state
-                  << " | " << p.service
-                  << " | " << p.version << " |\n";
+                f << "| " << p.portno << "/" << md_cell(p.proto)
+                  << " | " << md_cell(p.state)
+                  << " | " << md_cell(p.service)
+                  << " | " << md_cell(p.version) << " |\n";
             }
             f << "\n";
         }
@@ -689,9 +840,9 @@ static void write_md_report(std::ofstream &f) {
                         if (r.found) {
                             f << "| " << pcr.portno << "/"
                               << ((pcr.proto == IPPROTO_TCP) ? "tcp" : "udp")
-                              << " | " << r.service
-                              << " | " << r.username
-                              << " | " << (r.password.empty() ? "(empty)" : r.password)
+                              << " | " << md_cell(r.service)
+                              << " | " << md_cell(r.username)
+                              << " | " << (r.password.empty() ? "(empty)" : md_cell(r.password))
                               << " | FOUND |\n";
                         }
                     }
@@ -727,11 +878,11 @@ static void write_md_report(std::ofstream &f) {
                         f << "\n| Status | Path | Details |\n";
                         f << "|--------|------|---------|\n";
                         for (const auto &wp : r.paths) {
-                            f << "| " << wp.status_code << " | " << wp.path << " | ";
+                            f << "| " << wp.status_code << " | " << md_cell(wp.path) << " | ";
                             if (!wp.redirect_to.empty())
-                                f << "-> " << wp.redirect_to;
+                                f << "-> " << md_cell(wp.redirect_to);
                             else if (!wp.title.empty())
-                                f << wp.title;
+                                f << md_cell(wp.title);
                             f << " |\n";
                         }
                     }
@@ -758,10 +909,10 @@ static void write_md_report(std::ofstream &f) {
                         snprintf(score, sizeof(score), "%.1f", cve.cvss_score);
                         std::string desc = cve.description;
                         if (desc.size() > 60) desc = desc.substr(0, 57) + "...";
-                        f << "| " << cve.cve_id
+                        f << "| " << md_cell(cve.cve_id)
                           << " | " << score
-                          << " | " << cve.severity
-                          << " | " << desc << " |\n";
+                          << " | " << md_cell(cve.severity)
+                          << " | " << md_cell(desc) << " |\n";
                     }
                     f << "\n";
                 }

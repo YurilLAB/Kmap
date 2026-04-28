@@ -141,6 +141,10 @@ KmapOps::~KmapOps() {
     free(screenshot_dir);
     screenshot_dir = NULL;
   }
+  if (yuril_export_dir) {
+    free(yuril_export_dir);
+    yuril_export_dir = NULL;
+  }
   if (net_exclude_file) { free(net_exclude_file); net_exclude_file = NULL; }
   if (net_data_dir) { free(net_data_dir); net_data_dir = NULL; }
   if (net_findings_dir) { free(net_findings_dir); net_findings_dir = NULL; }
@@ -323,6 +327,7 @@ void KmapOps::Initialize() {
   report_file      = nullptr;
   screenshot       = false;
   screenshot_dir   = nullptr;
+  yuril_export_dir = nullptr;
   net_scan         = false;
   net_discover_only = false;
   net_enrich_only  = false;

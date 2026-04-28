@@ -100,6 +100,7 @@
 #endif
 
 #include <fcntl.h>
+#include <climits>
 
 #ifdef HAVE_PWD_H
 #include <pwd.h>
@@ -140,6 +141,7 @@
 #include <vector>
 #include "color.h"
 #include "output_json.h"
+#include "yuril_export.h"
 #include "default_creds.h"
 #include "web_recon.h"
 #include "cve_map.h"
@@ -153,26 +155,62 @@ extern KmapOps o;  /* option structure */
 
 static void display_kmap_version();
 
+/* Parse an integer argument with bounds. Aborts on invalid input. */
+static int parse_int_arg(const char *name, const char *arg, int lo, int hi) {
+  if (!arg || !*arg) fatal("--%s requires a numeric argument", name);
+  char *end = nullptr;
+  long v = strtol(arg, &end, 10);
+  if (end == arg || *end != '\0')
+    fatal("--%s: '%s' is not a valid integer", name, arg);
+  if (v < lo || v > hi)
+    fatal("--%s: value %ld out of range [%d..%d]", name, v, lo, hi);
+  return (int)v;
+}
+
+/* Parse a float argument with bounds. Aborts on invalid input. */
+static double parse_float_arg(const char *name, const char *arg,
+                              double lo, double hi) {
+  if (!arg || !*arg) fatal("--%s requires a numeric argument", name);
+  char *end = nullptr;
+  double v = strtod(arg, &end);
+  if (end == arg || *end != '\0')
+    fatal("--%s: '%s' is not a valid number", name, arg);
+  if (v < lo || v > hi)
+    fatal("--%s: value %g out of range [%g..%g]", name, v, lo, hi);
+  return v;
+}
+
 /* Parse Kmap-specific long options (--default-creds, --net-scan, etc.).
  * Extracted into a separate function to avoid hitting MSVC's
  * "blocks nested too deeply" (C1061) limit in the main option parser.
  * Returns true if the option was handled, false otherwise. */
+static void auto_enable_sv(const char *reason) {
+  if (!o.servicescan) {
+    o.servicescan = true;
+    log_write(LOG_STDOUT,
+      "Auto-enabling service/version detection (-sV) for %s.\n", reason);
+  }
+}
+
 static bool parse_kmap_option(const char *name, const char *arg) {
   /* --default-creds / --web-recon / --cve-map */
   if (strcmp(name, "default-creds") == 0) {
-    o.default_creds = true; o.servicescan = true; return true;
+    o.default_creds = true; auto_enable_sv("--default-creds"); return true;
   } else if (strcmp(name, "creds-file") == 0) {
     o.creds_file = strdup(arg); return true;
   } else if (strcmp(name, "creds-timeout") == 0) {
-    o.creds_timeout_ms = atoi(arg) * 1000; return true;
+    o.creds_timeout_ms = parse_int_arg("creds-timeout", arg, 1, 3600) * 1000;
+    return true;
   } else if (strcmp(name, "web-recon") == 0) {
-    o.web_recon = true; o.servicescan = true; return true;
+    o.web_recon = true; auto_enable_sv("--web-recon"); return true;
   } else if (strcmp(name, "web-paths") == 0) {
     o.web_paths_file = strdup(arg); return true;
   } else if (strcmp(name, "cve-map") == 0) {
-    o.cve_map = true; o.servicescan = true; return true;
+    o.cve_map = true; auto_enable_sv("--cve-map"); return true;
   } else if (strcmp(name, "cve-min-score") == 0) {
-    o.cve_min_score = static_cast<float>(atof(arg)); return true;
+    o.cve_min_score = static_cast<float>(
+        parse_float_arg("cve-min-score", arg, 0.0, 10.0));
+    return true;
   } else if (strcmp(name, "import-cves") == 0) {
     o.import_cves_file = strdup(arg); return true;
   } else if (strcmp(name, "import-cves-db") == 0) {
@@ -180,22 +218,40 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "report") == 0) {
     o.report_file = strdup(arg); return true;
   } else if (strcmp(name, "screenshot") == 0) {
-    o.screenshot = true; o.web_recon = true; o.servicescan = true; return true;
+    o.screenshot = true; o.web_recon = true;
+    auto_enable_sv("--screenshot");
+    return true;
   } else if (strcmp(name, "screenshot-dir") == 0) {
     o.screenshot_dir = strdup(arg); return true;
+  } else if (strcmp(name, "yuril-export") == 0) {
+    /* Validate: reject empty and obvious path-traversal patterns.
+       Deeper validation (exists/writable) happens at write time. */
+    if (arg == nullptr || arg[0] == '\0')
+      fatal("--yuril-export requires a non-empty directory path");
+    if (strstr(arg, "..") != nullptr)
+      fatal("--yuril-export path must not contain '..' segments");
+    o.yuril_export_dir = strdup(arg);
+    return true;
   /* --net-scan options */
   } else if (strcmp(name, "net-scan") == 0) {
     o.net_scan = true; return true;
   } else if (strcmp(name, "discover-only") == 0) {
+    if (o.net_enrich_only || o.net_report_only)
+      fatal("--discover-only, --enrich-only, and --report-only are mutually exclusive");
     o.net_scan = true; o.net_discover_only = true; return true;
   } else if (strcmp(name, "enrich-only") == 0) {
+    if (o.net_discover_only || o.net_report_only)
+      fatal("--discover-only, --enrich-only, and --report-only are mutually exclusive");
     o.net_scan = true; o.net_enrich_only = true; return true;
   } else if (strcmp(name, "report-only") == 0) {
+    if (o.net_discover_only || o.net_enrich_only)
+      fatal("--discover-only, --enrich-only, and --report-only are mutually exclusive");
     o.net_scan = true; o.net_report_only = true; return true;
-  } else if (strcmp(name, "resume") == 0) {
+  } else if (strcmp(name, "net-resume") == 0) {
     o.net_scan = true; o.net_resume = true; return true;
   } else if (strcmp(name, "rate") == 0) {
-    o.net_rate = atoi(arg); return true;
+    o.net_rate = parse_int_arg("rate", arg, 1, 10000000);
+    return true;
   } else if (strcmp(name, "exclude-file") == 0) {
     o.net_exclude_file = strdup(arg); return true;
   } else if (strcmp(name, "data-dir") == 0) {
@@ -208,13 +264,18 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "net-query") == 0) {
     o.net_query = true; return true;
   } else if (strcmp(name, "nq-port") == 0) {
-    o.net_query = true; o.nq_port = atoi(arg); return true;
+    o.net_query = true;
+    o.nq_port = parse_int_arg("nq-port", arg, 1, 65535);
+    return true;
   } else if (strcmp(name, "nq-service") == 0) {
     o.net_query = true; o.nq_service = strdup(arg); return true;
   } else if (strcmp(name, "nq-cve") == 0) {
     o.net_query = true; o.nq_cve = strdup(arg); return true;
   } else if (strcmp(name, "nq-min-cvss") == 0) {
-    o.net_query = true; o.nq_min_cvss = static_cast<float>(atof(arg)); return true;
+    o.net_query = true;
+    o.nq_min_cvss = static_cast<float>(
+        parse_float_arg("nq-min-cvss", arg, 0.0, 10.0));
+    return true;
   } else if (strcmp(name, "nq-web-title") == 0) {
     o.net_query = true; o.nq_web_title = strdup(arg); return true;
   } else if (strcmp(name, "nq-web-server") == 0) {
@@ -226,7 +287,9 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "nq-count") == 0) {
     o.net_query = true; o.nq_count = true; return true;
   } else if (strcmp(name, "nq-asn") == 0) {
-    o.net_query = true; o.nq_asn = atoi(arg); return true;
+    o.net_query = true;
+    o.nq_asn = parse_int_arg("nq-asn", arg, 1, INT_MAX);
+    return true;
   } else if (strcmp(name, "nq-country") == 0) {
     o.net_query = true; o.nq_country = strdup(arg); return true;
   /* --tracemap options */
@@ -237,7 +300,8 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "tm-format") == 0) {
     o.tm_format = strdup(arg); return true;
   } else if (strcmp(name, "tm-max-hops") == 0) {
-    o.tm_max_hops = atoi(arg); return true;
+    o.tm_max_hops = parse_int_arg("tm-max-hops", arg, 1, 255);
+    return true;
   }
   return false;
 }
@@ -395,21 +459,32 @@ static void printusage() {
          "  --report <file>: Generate scan report (.txt or .md format)\n"
          "  --screenshot: Capture screenshots of discovered web ports\n"
          "  --screenshot-dir <dir>: Output directory for screenshots (default: kmap-screenshots)\n"
+         "  --yuril-export <dir>: Emit Yuril Security Suite export bundle (JSON + integrity meta)\n"
          "  --net-scan: Internet-scale scanning pipeline (discover + enrich + report)\n"
          "  --discover-only: Only run the discovery (SYN scan) phase\n"
          "  --enrich-only: Only run the enrichment phase on existing data\n"
          "  --report-only: Only generate findings reports from enriched data\n"
-         "  --resume: Resume an interrupted net-scan\n"
+         "  --net-resume: Resume an interrupted net-scan\n"
          "  --rate <pps>: Packets per second for discovery (default: 25000)\n"
          "  --exclude-file <file>: Additional IP ranges to exclude\n"
          "  --data-dir <dir>: Shard database directory (default: kmap-data)\n"
          "  --findings-dir <dir>: Findings output directory (default: Findings)\n"
          "  --watchlist <file>: Scan targets from file and generate diff report\n"
+         "  --tracemap <targets>: Map network topology to targets (IPs, CIDRs, file)\n"
+         "  --tm-output <file>: Tracemap output file (default: stdout)\n"
+         "  --tm-format <fmt>: Tracemap output format: txt, dot, json (default: txt)\n"
+         "  --tm-max-hops <n>: Maximum TTL hops for tracemap (default: 30, range: 1-255)\n"
          "  --net-query: Search collected scan data\n"
          "  --nq-port <port>: Filter query by port number\n"
          "  --nq-service <name>: Filter query by service name\n"
          "  --nq-cve <id>: Filter query by CVE ID\n"
          "  --nq-min-cvss <score>: Filter query by minimum CVSS score\n"
+         "  --nq-web-title <text>: Filter query by web page title\n"
+         "  --nq-web-server <text>: Filter query by Server header\n"
+         "  --nq-ip-range <cidr>: Restrict query to an IP range\n"
+         "  --nq-asn <number>: Filter query by ASN\n"
+         "  --nq-country <CC>: Filter query by ISO country code\n"
+         "  --nq-output <file>: Export query results to file\n"
          "  --nq-count: Show count instead of listing results\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
          "  -d: Increase debugging level (use -dd or more for greater effect)\n"
@@ -767,11 +842,12 @@ void parse_options(int argc, char **argv) {
     {"report", required_argument, 0, 0},
     {"screenshot", no_argument, 0, 0},
     {"screenshot-dir", required_argument, 0, 0},
+    {"yuril-export", required_argument, 0, 0},
     {"net-scan", no_argument, 0, 0},
     {"discover-only", no_argument, 0, 0},
     {"enrich-only", no_argument, 0, 0},
     {"report-only", no_argument, 0, 0},
-    {"resume", no_argument, 0, 0},
+    {"net-resume", no_argument, 0, 0},
     {"rate", required_argument, 0, 0},
     {"exclude-file", required_argument, 0, 0},
     {"data-dir", required_argument, 0, 0},
@@ -1730,6 +1806,9 @@ void  apply_delayed_options() {
     json_initialize(o.json_output_file);
     delayed_options.jsonfilename = nullptr;
   }
+  if (o.yuril_export_dir) {
+    yuril_export_initialize(o.yuril_export_dir);
+  }
 
   if (o.verbose > 1)
     o.reason = true;
@@ -2221,6 +2300,8 @@ int kmap_main(int argc, char *argv[]) {
   log_write(LOG_NORMAL | LOG_MACHINE, "\n");
   if (o.json_output_file)
     json_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long) timep);
+  if (o.yuril_export_dir)
+    yuril_export_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long) timep);
 
   /* Before we randomize the ports scanned, lets output them to machine
      parseable output */
@@ -2560,6 +2641,8 @@ int kmap_main(int argc, char *argv[]) {
         xml_newline();
         if (o.json_output_file)
           json_write_host(currenths);
+        if (o.yuril_export_dir)
+          yuril_export_write_host(currenths);
         if (o.report_file)
           report_write_host(currenths);
       }

@@ -290,6 +290,8 @@ class KmapOps {
   /* --screenshot options */
   bool screenshot;        /* Capture screenshots of web ports */
   char *screenshot_dir;   /* Directory for screenshots (default: kmap-screenshots) */
+  /* --yuril-export options */
+  char *yuril_export_dir; /* Directory for Yuril Security Suite export bundle, or NULL */
   /* --net-scan options */
   bool net_scan;            /* Enable net-scan mode */
   bool net_discover_only;   /* Only run discovery phase */

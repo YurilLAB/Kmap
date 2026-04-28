@@ -72,13 +72,27 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     size_t slash = line.find('/');
     if (slash != std::string::npos) {
       int prefix = atoi(line.substr(slash + 1).c_str());
+      if (prefix < 0 || prefix > 32) {
+        fprintf(stderr, "watchlist: invalid CIDR prefix /%d in '%s'\n",
+                prefix, line.c_str());
+        continue;
+      }
       uint32_t base = ip_to_u32(line.substr(0, slash).c_str());
-      if (prefix >= 24 && prefix <= 32) {
+      if (prefix >= 24 && prefix <= 30) {
         uint32_t count = 1u << (32 - prefix);
         uint32_t mask = ~(count - 1);
         base &= mask;
         for (uint32_t i = 1; i < count - 1; i++) /* skip network + broadcast */
           targets.push_back(base + i);
+      } else if (prefix == 31) {
+        /* /31: RFC 3021 point-to-point — both addresses usable */
+        uint32_t mask = ~1u;
+        base &= mask;
+        targets.push_back(base);
+        targets.push_back(base + 1);
+      } else if (prefix == 32) {
+        /* /32: single host */
+        targets.push_back(base);
       } else {
         /* Large range — just add the base */
         targets.push_back(base);
@@ -174,7 +188,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       tv.tv_usec = 0;
 
       bool open = false;
-      if (select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv) > 0) {
+#ifdef WIN32
+      /* Windows ignores the nfds argument; using a fixed value avoids the
+       * SOCKET-to-int truncation warning on 64-bit builds. */
+      if (select(0, nullptr, &wset, nullptr, &tv) > 0) {
+#else
+      if (select(fd + 1, nullptr, &wset, nullptr, &tv) > 0) {
+#endif
         int err = 0;
         socklen_t elen = sizeof(err);
         getsockopt(fd, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&err), &elen);

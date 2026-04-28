@@ -1128,7 +1128,8 @@ static TargetCredData *get_or_create_cred_data(Target *t) {
   if (existing)
     return static_cast<TargetCredData *>(existing);
   auto *data = new TargetCredData();
-  t->attribute.set(CRED_RESULTS_KEY, data);
+  t->attribute.set(CRED_RESULTS_KEY, data,
+                   [](void *p) { delete static_cast<TargetCredData *>(p); });
   return data;
 }
 

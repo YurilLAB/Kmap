@@ -194,6 +194,19 @@ struct DnsCacheEntry {
 };
 static std::map<std::string, DnsCacheEntry> dns_cache;
 static const int DNS_CACHE_TTL_SECS = 300; /* 5-minute TTL */
+static const size_t DNS_CACHE_MAX = 100000; /* hard cap to bound memory */
+
+/* Evict expired entries, and if still over cap, drop everything.
+ * A full flush is simpler and safer than LRU ordering, and the DNS TTL
+ * keeps the working set bounded anyway. */
+static void dns_cache_maybe_evict(time_t now) {
+  if (dns_cache.size() < DNS_CACHE_MAX) return;
+  for (auto it = dns_cache.begin(); it != dns_cache.end();) {
+    if (it->second.expires <= now) it = dns_cache.erase(it);
+    else ++it;
+  }
+  if (dns_cache.size() >= DNS_CACHE_MAX) dns_cache.clear();
+}
 
 /* Seed rand() once for DNS transaction ID generation.
  * Uses time + pid to avoid predictable txids (DNS cache poisoning risk). */
@@ -295,6 +308,7 @@ static std::string dns_txt_query(const char *qname, int timeout_ms) {
   std::string result = dns_extract_txt(resp, static_cast<size_t>(rlen));
 
   /* Store in cache with TTL */
+  dns_cache_maybe_evict(now);
   DnsCacheEntry entry;
   entry.result = result;
   entry.expires = now + DNS_CACHE_TTL_SECS;
@@ -410,6 +424,7 @@ static std::string country_to_region(const std::string &country) {
  * ----------------------------------------------------------------------- */
 
 static std::map<std::string, AsnInfo> asn_cache;
+static const size_t ASN_CACHE_MAX = 200000; /* hard cap to bound memory */
 
 /* -----------------------------------------------------------------------
  * Public API
@@ -429,7 +444,7 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
   }
 
   /* Parse the IP into octets for reversed query */
-  unsigned int a, b, c, d;
+  unsigned int a = 0, b = 0, c = 0, d = 0;
   if (sscanf(ip, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
     return info;
   if (a > 255 || b > 255 || c > 255 || d > 255)
@@ -459,7 +474,8 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
     info.region = country_to_region(info.country);
   }
 
-  /* Store in ASN cache */
+  /* Store in ASN cache (with hard cap — flush when full). */
+  if (asn_cache.size() >= ASN_CACHE_MAX) asn_cache.clear();
   asn_cache[ip_str] = info;
 
   return info;

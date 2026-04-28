@@ -453,7 +453,12 @@ static std::vector<std::string> parse_targets(const char *spec) {
     if (slash != std::string::npos) {
       int prefix = atoi(token.substr(slash + 1).c_str());
       uint32_t base = ip_to_u32(token.substr(0, slash).c_str());
-      if (prefix >= 24 && prefix <= 32 && base != 0) {
+      if (prefix < 0 || prefix > 32) {
+        fprintf(stderr, "tracemap: invalid CIDR prefix /%d in '%s'\n",
+                prefix, token.c_str());
+      } else if (base == 0 && prefix != 0) {
+        fprintf(stderr, "tracemap: invalid IP in CIDR '%s'\n", token.c_str());
+      } else if (prefix >= 24 && prefix <= 32) {
         uint32_t count = 1u << (32 - prefix);
         uint32_t mask = ~(count - 1);
         base &= mask;
@@ -465,6 +470,17 @@ static std::vector<std::string> parse_targets(const char *spec) {
         } else {
           targets.push_back(u32_to_ip(base));
         }
+      } else {
+        /* Prefix shorter than /24: probing the full range would be enormous.
+         * Sample the first, middle, and last usable addresses and warn. */
+        fprintf(stderr, "tracemap: CIDR %s covers %u IPs — sampling 3 addresses\n",
+                token.c_str(), 1u << (32 - prefix));
+        uint64_t count = 1ULL << (32 - prefix);
+        uint32_t mask = (prefix == 0) ? 0u : (0xFFFFFFFFu << (32 - prefix));
+        base &= mask;
+        targets.push_back(u32_to_ip(base + 1));
+        targets.push_back(u32_to_ip(base + (uint32_t)(count / 2)));
+        targets.push_back(u32_to_ip(base + (uint32_t)(count - 2)));
       }
     } else if (!token.empty()) {
       targets.push_back(token);
@@ -859,6 +875,49 @@ static void output_txt(FILE *fp, const Topology &topo) {
  * Output: DOT (Graphviz) format
  * ----------------------------------------------------------------------- */
 
+/* Escape a string for inclusion inside a DOT quoted label. We keep the
+ * two-character sequence "\n" (backslash + n) as a literal line-break
+ * directive recognised by Graphviz, but anything that could break out of
+ * the quoted context — quote, stray backslash, control char — is escaped. */
+static std::string dot_escape(const std::string &s) {
+  std::string out;
+  out.reserve(s.size() + 4);
+  for (size_t i = 0; i < s.size(); i++) {
+    unsigned char c = (unsigned char)s[i];
+    if (c == '\\' && i + 1 < s.size() && s[i + 1] == 'n') {
+      out += "\\n";
+      i++;
+    } else if (c == '"') {
+      out += "\\\"";
+    } else if (c == '\\') {
+      out += "\\\\";
+    } else if (c == '\n') {
+      out += "\\n";
+    } else if (c == '\r' || c == '\t' || c < 0x20) {
+      out += ' ';
+    } else {
+      out += (char)c;
+    }
+  }
+  return out;
+}
+
+/* Sanitize an IP string into a safe DOT node identifier. */
+static std::string dot_node_id(const std::string &ip) {
+  std::string id;
+  id.reserve(ip.size() + 1);
+  id += 'n';
+  for (char c : ip) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9')) {
+      id += c;
+    } else {
+      id += '_';
+    }
+  }
+  return id;
+}
+
 static void output_dot(FILE *fp, const Topology &topo) {
   fprintf(fp, "digraph kmap_topology {\n");
   fprintf(fp, "  rankdir=LR;\n");
@@ -882,22 +941,18 @@ static void output_dot(FILE *fp, const Topology &topo) {
     else if (n.role == "gateway") { color = "#87CEEB"; shape = "hexagon"; }
     else if (n.role == "border")  { color = "#DDA0DD"; shape = "octagon"; }
 
-    /* Sanitize IP for DOT node name (replace dots with underscores) */
-    std::string node_id = n.ip;
-    for (char &c : node_id) if (c == '.') c = '_';
+    std::string node_id = dot_node_id(n.ip);
 
     fprintf(fp, "  %s [label=\"%s\", style=filled, fillcolor=\"%s\", shape=%s];\n",
-            node_id.c_str(), label.c_str(), color, shape);
+            node_id.c_str(), dot_escape(label).c_str(), color, shape);
   }
 
   fprintf(fp, "\n");
 
   /* Edges */
   for (const auto &e : topo.edges) {
-    std::string from_id = e.from_ip;
-    std::string to_id = e.to_ip;
-    for (char &c : from_id) if (c == '.') c = '_';
-    for (char &c : to_id) if (c == '.') c = '_';
+    std::string from_id = dot_node_id(e.from_ip);
+    std::string to_id = dot_node_id(e.to_ip);
 
     std::string label;
     if (e.avg_latency_ms > 0.5)
@@ -910,7 +965,7 @@ static void output_dot(FILE *fp, const Topology &topo) {
     if (e.path_count > 2) penwidth = std::min(e.path_count, 5);
 
     fprintf(fp, "  %s -> %s [label=\"%s\", color=%s, style=%s, penwidth=%d];\n",
-            from_id.c_str(), to_id.c_str(), label.c_str(),
+            from_id.c_str(), to_id.c_str(), dot_escape(label).c_str(),
             color, style, penwidth);
   }
 
@@ -936,11 +991,20 @@ static std::string json_str(const std::string &s) {
   std::string out;
   out.reserve(s.size() + 4);
   out += '"';
-  for (char c : s) {
+  for (unsigned char c : s) {
     if (c == '"') out += "\\\"";
     else if (c == '\\') out += "\\\\";
     else if (c == '\n') out += "\\n";
-    else out += c;
+    else if (c == '\r') out += "\\r";
+    else if (c == '\t') out += "\\t";
+    else if (c == '\b') out += "\\b";
+    else if (c == '\f') out += "\\f";
+    else if (c < 0x20) {
+      char buf[8];
+      snprintf(buf, sizeof(buf), "\\u%04x", c);
+      out += buf;
+    }
+    else out += (char)c;
   }
   out += '"';
   return out;

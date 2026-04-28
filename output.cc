@@ -69,6 +69,7 @@
 #include "output.h"
 #include "color.h"
 #include "output_json.h"
+#include "yuril_export.h"
 #include "osscan.h"
 #include "osscan2.h"
 #include "KmapOps.h"
@@ -2570,6 +2571,13 @@ void printfinaloutput() {
                      static_cast<int>(o.numhosts_scanned),
                      o.TimeSinceStart(&tv));
     json_finalize();
+  }
+  if (o.yuril_export_dir) {
+    yuril_export_write_stats(static_cast<int>(o.numhosts_up),
+                             static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                             static_cast<int>(o.numhosts_scanned),
+                             o.TimeSinceStart(&tv));
+    yuril_export_finalize();
   }
   if (o.report_file) {
     report_write_stats(static_cast<int>(o.numhosts_up),

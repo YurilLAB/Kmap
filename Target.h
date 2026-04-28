@@ -285,14 +285,34 @@ class Target {
   int pingprobe_state;
 
   /* Kmap extension: generic key-value store for attaching feature data
-     (--default-creds, --web-recon, --cve-map results) to targets. */
-  struct {
+     (--default-creds, --web-recon, --cve-map results) to targets.
+     Callers pass a type-specific deleter so the value is freed when the
+     Target is destroyed (or when the key is overwritten). */
+  struct AttributeStore {
+    struct Entry {
+      void *val;
+      void (*deleter)(void *);
+    };
+    std::map<std::string, Entry> data_;
+
     void *get(const char *key) const {
       auto it = data_.find(key);
-      return (it != data_.end()) ? it->second : nullptr;
+      return (it != data_.end()) ? it->second.val : nullptr;
     }
-    void set(const char *key, void *val) { data_[key] = val; }
-    std::map<std::string, void *> data_;
+    void set(const char *key, void *val, void (*deleter)(void *) = nullptr) {
+      auto it = data_.find(key);
+      if (it != data_.end() && it->second.deleter && it->second.val != val)
+        it->second.deleter(it->second.val);
+      data_[key] = {val, deleter};
+    }
+    ~AttributeStore() {
+      for (auto &kv : data_)
+        if (kv.second.deleter && kv.second.val)
+          kv.second.deleter(kv.second.val);
+    }
+    AttributeStore() = default;
+    AttributeStore(const AttributeStore &) = delete;
+    AttributeStore &operator=(const AttributeStore &) = delete;
   } attribute;
 
   private:

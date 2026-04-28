@@ -112,7 +112,7 @@ kmap --net-scan --enrich-only                    # Enrich existing data
 kmap --net-scan --report-only                    # Generate findings reports
 
 # Resume an interrupted scan
-kmap --net-scan --resume
+kmap --net-scan --net-resume
 
 # Monitor your own / client assets with change detection
 kmap --net-scan --watchlist clients.txt
@@ -354,7 +354,7 @@ Phase 3: REPORT       Reads enriched data
 - Randomized IP iteration (multiplicative-inverse permutation — avoids sequential sweeps that ISPs detect)
 - Token bucket rate limiter (default 25,000 pps, configurable)
 - Hard-coded exclusion of all private, reserved, multicast, and DoD ranges
-- Checkpoint/resume support (Ctrl+C saves progress, `--resume` continues)
+- Checkpoint/resume support (Ctrl+C saves progress, `--net-resume` continues)
 
 **Enrichment** connects to each discovered host and:
 - Grabs service banners and matches against known patterns (SSH, HTTP, FTP, MySQL, PostgreSQL, etc.)
@@ -379,7 +379,7 @@ kmap --net-scan --enrich-only
 kmap --net-scan --report-only
 
 # Resume after interruption
-kmap --net-scan --resume
+kmap --net-scan --net-resume
 
 # Use custom directories
 kmap --net-scan --data-dir /mnt/storage/kmap-data --findings-dir /mnt/storage/Findings
@@ -526,7 +526,7 @@ kmap --net-query --nq-ip-range 93.184.0.0/16
 | `--discover-only` | Only run the SYN scan discovery phase |
 | `--enrich-only` | Only enrich existing shard databases |
 | `--report-only` | Only generate findings from enriched data |
-| `--resume` | Resume an interrupted net-scan |
+| `--net-resume` | Resume an interrupted net-scan |
 | `--rate <pps>` | Discovery rate in packets per second (default: 25,000) |
 | `--exclude-file <file>` | Additional IP ranges to exclude from scanning |
 | `--data-dir <dir>` | Shard database directory (default: `kmap-data`) |

@@ -35,8 +35,29 @@ namespace detail {
   }
 }
 
+#ifdef WIN32
+namespace detail {
+  /* On Windows 10+ ANSI escape codes are only rendered when the console
+   * has ENABLE_VIRTUAL_TERMINAL_PROCESSING on the output handle. Older
+   * Windows (8.1 and below) will simply ignore the SetConsoleMode call. */
+  inline void enable_vt_processing_once() {
+    static bool done = false;
+    if (done) return;
+    done = true;
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE || h == nullptr) return;
+    DWORD mode = 0;
+    if (!GetConsoleMode(h, &mode)) return;
+    SetConsoleMode(h, mode | 0x0004 /* ENABLE_VIRTUAL_TERMINAL_PROCESSING */);
+  }
+}
+#endif
+
 inline void set_mode(Mode m) {
   detail::current_mode() = m;
+#ifdef WIN32
+  if (m != Mode::NEVER) detail::enable_vt_processing_once();
+#endif
 }
 
 inline Mode get_mode() {
@@ -44,17 +65,19 @@ inline Mode get_mode() {
 }
 
 inline bool enabled() {
+  bool on = false;
   switch (detail::current_mode()) {
-    case Mode::ALWAYS:
-      return true;
-    case Mode::NEVER:
-      return false;
+    case Mode::ALWAYS: on = true; break;
+    case Mode::NEVER:  on = false; break;
     case Mode::AUTO:
-      if (std::getenv("NO_COLOR") != nullptr)
-        return false;
-      return kmap_isatty(KMAP_STDOUT_FD) != 0;
+      on = (std::getenv("NO_COLOR") == nullptr)
+           && (kmap_isatty(KMAP_STDOUT_FD) != 0);
+      break;
   }
-  return false;
+#ifdef WIN32
+  if (on) detail::enable_vt_processing_once();
+#endif
+  return on;
 }
 
 // Wrap a string with an ANSI SGR code if colors are enabled.

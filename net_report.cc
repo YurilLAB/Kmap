@@ -70,14 +70,18 @@ static std::string format_count(int64_t n) {
   return out;
 }
 
-/* Format a Unix timestamp to a date string */
+/* Format a Unix timestamp to a date string (thread-safe). */
 static std::string format_date(int64_t ts) {
   if (ts <= 0) return "unknown";
   time_t t = static_cast<time_t>(ts);
-  struct tm *tm = localtime(&t);
-  if (!tm) return "unknown";
+  struct tm tm_buf{};
+#ifdef WIN32
+  if (localtime_s(&tm_buf, &t) != 0) return "unknown";
+#else
+  if (!localtime_r(&t, &tm_buf)) return "unknown";
+#endif
   char buf[16];
-  strftime(buf, sizeof(buf), "%Y-%m-%d", tm);
+  strftime(buf, sizeof(buf), "%Y-%m-%d", &tm_buf);
   return buf;
 }
 

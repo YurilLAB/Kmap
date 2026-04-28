@@ -416,7 +416,8 @@ static TargetCveData *get_or_create(Target *t) {
   void *raw = t->attribute.get(CVE_ATTR_KEY);
   if (raw) return static_cast<TargetCveData *>(raw);
   auto *data = new TargetCveData();
-  t->attribute.set(CVE_ATTR_KEY, data);
+  t->attribute.set(CVE_ATTR_KEY, data,
+                   [](void *p) { delete static_cast<TargetCveData *>(p); });
   return data;
 }
 

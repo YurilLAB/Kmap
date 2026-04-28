@@ -155,19 +155,45 @@ std::vector<int> parse_port_spec(const char *spec) {
     return std::vector<int>(ports.begin(), ports.end());
   }
 
+  auto parse_num = [](const std::string &s, int &out) -> bool {
+    if (s.empty()) return false;
+    for (char c : s) if (c < '0' || c > '9') return false;
+    char *end = nullptr;
+    long v = strtol(s.c_str(), &end, 10);
+    if (!end || *end != '\0' || v < 0 || v > 65535) return false;
+    out = (int)v;
+    return true;
+  };
+
   std::istringstream ss(spec);
   std::string token;
   while (std::getline(ss, token, ',')) {
     size_t dash = token.find('-');
     if (dash != std::string::npos) {
-      int lo = atoi(token.substr(0, dash).c_str());
-      int hi = atoi(token.substr(dash + 1).c_str());
+      int lo = 0, hi = 0;
+      std::string lo_s = token.substr(0, dash);
+      std::string hi_s = token.substr(dash + 1);
+      if (!parse_num(lo_s, lo) || !parse_num(hi_s, hi)) {
+        fprintf(stderr, "net-scan: invalid port range '%s' — skipping\n",
+                token.c_str());
+        continue;
+      }
       if (lo < 1) lo = 1;
       if (hi > 65535) hi = 65535;
+      if (lo > hi) {
+        fprintf(stderr, "net-scan: port range '%s' has lo > hi — skipping\n",
+                token.c_str());
+        continue;
+      }
       for (int p = lo; p <= hi; p++) ports.insert(p);
     } else {
-      int p = atoi(token.c_str());
-      if (p >= 1 && p <= 65535) ports.insert(p);
+      int p = 0;
+      if (!parse_num(token, p) || p < 1 || p > 65535) {
+        fprintf(stderr, "net-scan: invalid port '%s' — skipping\n",
+                token.c_str());
+        continue;
+      }
+      ports.insert(p);
     }
   }
   return std::vector<int>(ports.begin(), ports.end());
@@ -209,22 +235,47 @@ static std::string checkpoint_path(const char *data_dir) {
 
 static bool save_checkpoint(const char *data_dir, const ScanCheckpoint &cp) {
   std::string path = checkpoint_path(data_dir);
-  FILE *f = fopen(path.c_str(), "w");
+  std::string tmp_path = path + ".tmp";
+  FILE *f = fopen(tmp_path.c_str(), "w");
   if (!f) return false;
-  fprintf(f, "%llu\n%llu\n%llu\n%llu\n%lld\n",
-          (unsigned long long)cp.next_index,
-          (unsigned long long)cp.packets_sent,
-          (unsigned long long)cp.hosts_found,
-          (unsigned long long)cp.seed,
-          (long long)cp.last_save);
-  fclose(f);
+  int n = fprintf(f, "%llu\n%llu\n%llu\n%llu\n%lld\n",
+                  (unsigned long long)cp.next_index,
+                  (unsigned long long)cp.packets_sent,
+                  (unsigned long long)cp.hosts_found,
+                  (unsigned long long)cp.seed,
+                  (long long)cp.last_save);
+  if (n < 0 || fflush(f) != 0) {
+    fclose(f);
+    remove(tmp_path.c_str());
+    return false;
+  }
+  if (fclose(f) != 0) {
+    remove(tmp_path.c_str());
+    return false;
+  }
+  /* Atomic replace. On Windows rename() fails if the destination exists,
+   * so remove the old checkpoint first. A crash between remove() and
+   * rename() still leaves the .tmp file, which we can fall back to on load. */
+#ifdef WIN32
+  remove(path.c_str());
+#endif
+  if (rename(tmp_path.c_str(), path.c_str()) != 0) {
+    remove(tmp_path.c_str());
+    return false;
+  }
   return true;
 }
 
 static bool load_checkpoint(const char *data_dir, ScanCheckpoint &cp) {
   std::string path = checkpoint_path(data_dir);
   FILE *f = fopen(path.c_str(), "r");
-  if (!f) return false;
+  /* If the atomic rename didn't complete, the last successful write may
+   * still be in the .tmp file. Fall back to it. */
+  if (!f) {
+    std::string tmp_path = path + ".tmp";
+    f = fopen(tmp_path.c_str(), "r");
+    if (!f) return false;
+  }
   unsigned long long ni, ps, hf, sd;
   long long ls;
   if (fscanf(f, "%llu\n%llu\n%llu\n%llu\n%lld", &ni, &ps, &hf, &sd, &ls) != 5) {

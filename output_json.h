@@ -64,6 +64,12 @@
 #define OUTPUT_JSON_H
 
 #include "Target.h"
+#include "third-party/nlohmann/json.hpp"
+
+/* Build the canonical per-host JSON object used by both --json and
+   --yuril-export. Exposed so consumers like yuril_export.cc can reuse
+   the exact same host serialization. */
+nlohmann::json build_host_json(const Target *t);
 
 /* Call these in order during a scan to produce a JSON output file. */
 
