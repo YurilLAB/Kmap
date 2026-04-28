@@ -238,6 +238,7 @@
     <ClCompile Include="..\web_recon.cc" />
     <ClCompile Include="..\cve_map.cc" />
     <ClCompile Include="..\output_json.cc" />
+    <ClCompile Include="..\yuril_export.cc" />
     <ClCompile Include="..\net_scan.cc" />
     <ClCompile Include="..\net_db.cc" />
     <ClCompile Include="..\fast_syn.cc" />
@@ -320,6 +321,7 @@
     <ClInclude Include="..\asn_lookup.h" />
     <ClInclude Include="..\tracemap.h" />
     <ClInclude Include="..\output_json.h" />
+    <ClInclude Include="..\yuril_export.h" />
     <ClInclude Include="..\color.h" />
     <ClInclude Include="winfix.h" />
   </ItemGroup>
