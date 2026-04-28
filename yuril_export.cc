@@ -40,6 +40,21 @@
 #  include <unistd.h>
 #endif
 
+/* nbase.h does `#define write _write` so upstream nmap socket code
+ * picks up MSVC's POSIX-shim function on Windows. That macro is
+ * object-like, so it text-substitutes EVERY 'write' token regardless
+ * of context — including the std::ofstream::write member function
+ * we use for atomic file writes here. The parenthesize-the-member
+ * trick that suppresses function-like macros (close(x)→closesocket(x))
+ * does NOT work for object-like macros. This file does not use the
+ * POSIX write() function itself — only std::ofstream::write — so we
+ * can safely undefine the macro for the rest of the translation
+ * unit. Effect is local to this .cc file; other TUs that need the
+ * shim still get it. */
+#ifdef write
+#  undef write
+#endif
+
 /* =======================================================================
  * Self-contained SHA-256 (FIPS 180-4).
  * Small and dependency-free: one hash per export, not perf-critical.
