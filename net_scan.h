@@ -2,7 +2,7 @@
  * net_scan.h -- Internet-scale scanning orchestrator for Kmap.
  *
  * Coordinates the full pipeline: discover (fast SYN scan) → enrich
- * (service detection, CVE map, web recon) → report (Findings/*.txt).
+ * (service detection, CVE map, web recon) → report (Findings/findings_NNN.txt).
  * Also supports watchlist mode for monitoring owned/client assets.
  */
 

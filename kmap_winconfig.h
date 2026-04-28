@@ -70,6 +70,18 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #define KMAP_PLATFORM "i686-pc-windows-windows"
 
+/* Suppress windows.h's min/max function-like macros so that std::min and
+ * std::max in C++ code compile correctly. Without NOMINMAX, windef.h
+ * defines min(a,b) and max(a,b) as preprocessor macros, which then expand
+ * std::min(...) into std::((...) ? ... : ...) — illegal C++ that surfaces
+ * as MSVC errors C2589 ("'(': illegal token on right side of '::'") and
+ * C2062 ("type 'unknown-type' unexpected") at every std::min/std::max
+ * call site. Defining NOMINMAX before any windows.h chain keeps the
+ * standard C++ template versions usable everywhere. */
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
+
 #define HAVE_OPENSSL 1
 #define HAVE_LIBSSH2 1
 #define HAVE_LIBZ 1
@@ -82,6 +94,31 @@
 #define PCRE_INCLUDED 1
 #define LIBSSH2_INCLUDED 1
 #define ZLIB_INCLUDED 1
+
+/* Pre-include the C++ standard stream headers here, before any nbase
+ * header gets a chance to run.
+ *
+ * Why: nbase_winunix.h does `#define close(x) closesocket(x)` so that
+ * upstream nmap socket code stays portable. That macro is harmless for
+ * socket I/O, but it leaks into any C++ standard header included AFTER
+ * it that has a member function named close() — most visibly
+ * <fstream>'s basic_filebuf::close, which appears at MSVC fstream
+ * line ~1166 as `void close()`. The preprocessor sees `close()` and
+ * tries to expand the close(x) macro with zero arguments, producing
+ * warning C4003 ("not enough arguments for function-like macro
+ * invocation 'close'") at every translation unit that transitively
+ * pulls in <fstream> through, e.g., <sstream> via std::ostringstream.
+ *
+ * Pre-including the stream headers here parses them once with the real
+ * ::close (or none at all) before nbase_winunix.h's macro is later
+ * defined. Subsequent #include <fstream>/<sstream>/<iostream> are
+ * no-ops thanks to standard include guards. C++-only; wrap so the
+ * file is still safe if pulled into C compilation. */
+#ifdef __cplusplus
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#endif
 
 #endif /* KMAP_WINCONFIG_H */
 

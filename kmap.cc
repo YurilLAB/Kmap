@@ -62,6 +62,12 @@
 /* $Id$ */
 
 #ifdef WIN32
+/* kmap_winconfig.h MUST be the first include on Windows: it sets
+ * NOMINMAX before winfix.h pulls in <windows.h> (otherwise windef.h's
+ * min/max macros wreck std::min / std::max), and it pre-parses the
+ * C++ stream headers before <nbase.h>'s close→closesocket macro can
+ * leak into them and trip C4003 at <fstream> line ~1166. */
+#include "kmap_winconfig.h"
 #include "winfix.h"
 /* This name collides in the following include. */
 #undef PS_NONE

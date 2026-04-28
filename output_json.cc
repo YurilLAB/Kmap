@@ -62,6 +62,14 @@
 
 /* $Id$ */
 
+#ifdef WIN32
+/* kmap_winconfig.h MUST be the first include on Windows: it defines
+ * NOMINMAX before <windows.h> ever gets pulled in (via Target.h →
+ * nbase.h chain), and pre-parses the C++ stream headers before
+ * nbase_winunix.h's close→closesocket macro can leak into them. */
+#include "kmap_winconfig.h"
+#endif
+
 #include "output_json.h"
 #include "output.h"
 
