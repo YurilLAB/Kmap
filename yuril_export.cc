@@ -180,7 +180,12 @@ static int write_atomic(const std::string &path, const std::string &content) {
                 tmp.c_str());
             return 1;
         }
-        ofs.write(content.data(), static_cast<std::streamsize>(content.size()));
+        /* Parenthesize the member name so the preprocessor sees ')' after
+         * 'write' and skips expanding nbase.h's #define write _write
+         * (MSVC POSIX-shim alias). Without this, ofs.write(...) becomes
+         * ofs._write(...) on Windows and the linker can't find that
+         * member. Same trick used for ofs.close() above. */
+        (ofs.write)(content.data(), static_cast<std::streamsize>(content.size()));
         if (!ofs.good()) {
             fprintf(stderr,
                 "KMAP WARNING: --yuril-export: write error on %s.\n", tmp.c_str());
