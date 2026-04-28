@@ -509,7 +509,12 @@ void json_finalize() {
         fprintf(stderr, "KMAP WARNING: Write error on JSON output file %s (disk full?).\n",
                 g_filename.c_str());
     }
-    ofs.close();
+    /* Parenthesize the member name so the preprocessor sees ')' next
+     * after 'close' and skips expanding nbase_winunix.h's
+     * #define close(x) closesocket(x). Without this, MSVC mangles
+     * ofs.close() into ofs.closesocket() and fails to find the
+     * member. */
+    (ofs.close)();
 
     /* Release memory. */
     g_doc  = nlohmann::json{};
@@ -982,7 +987,8 @@ void report_finalize() {
         fprintf(stderr, "KMAP WARNING: Write error on report file %s (disk full?).\n",
                 rpt_filename.c_str());
     }
-    ofs.close();
+    /* See parenthesize-to-suppress-macro note above. */
+    (ofs.close)();
 
     log_write(LOG_STDOUT, "Report written to %s\n", rpt_filename.c_str());
 

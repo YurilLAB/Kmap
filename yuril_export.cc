@@ -184,7 +184,11 @@ static int write_atomic(const std::string &path, const std::string &content) {
         if (!ofs.good()) {
             fprintf(stderr,
                 "KMAP WARNING: --yuril-export: write error on %s.\n", tmp.c_str());
-            ofs.close();
+            /* Parenthesize the member name so the preprocessor sees ')'
+             * after 'close' and skips expanding nbase_winunix.h's
+             * #define close(x) closesocket(x), which would otherwise
+             * mangle ofs.close() into ofs.closesocket() on Windows. */
+            (ofs.close)();
             std::remove(tmp.c_str());
             return 1;
         }
