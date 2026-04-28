@@ -41,6 +41,8 @@
 #include <ws2tcpip.h>
 #include <direct.h>
 #include <io.h>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 #endif
 
 extern KmapOps o;
@@ -317,8 +319,16 @@ static int64_t now_usec() {
 }
 
 static void rate_init(RateLimiter &rl, int pps) {
-  rl.max_tokens = pps * 1.5;  /* allow 1.5x burst */
-  rl.tokens = rl.max_tokens;
+  /* Cap burst capacity at ~20 ms of refill. The previous value of
+   * pps * 1.5 (1.5 seconds of accumulated tokens) caused a huge
+   * opening burst at scan start — for --rate 25000 the first ~37,500
+   * packets fired as fast as the CPU could drive them, before any
+   * throttling kicked in. That spike triggers IDS on the receiving
+   * end and overflows upstream NIC buffers. A 20 ms ceiling absorbs
+   * normal scheduler hiccups without producing detectable spikes. */
+  rl.max_tokens = (double)pps * 0.02;
+  if (rl.max_tokens < 4.0) rl.max_tokens = 4.0;  /* floor for low pps */
+  rl.tokens = 1.0;                /* ramp up smoothly, don't burst */
   rl.refill_rate = (double)pps / 1000000.0;
   rl.last_refill = now_usec();
 }
@@ -353,6 +363,14 @@ static volatile int scan_interrupted = 0;
 #ifndef WIN32
 static void sigint_handler(int /*sig*/) {
   scan_interrupted = 1;
+}
+#else
+/* Named handler so SetConsoleCtrlHandler(.., FALSE) at scan exit can
+ * actually remove it; passing nullptr only resets default Ctrl+C
+ * behavior, it does not unregister an installed handler. */
+static BOOL WINAPI win_console_ctrl_handler(DWORD /*type*/) {
+  scan_interrupted = 1;
+  return TRUE;
 }
 #endif
 
@@ -488,6 +506,27 @@ int fast_syn_scan(const char *data_dir,
   bool resumed = false;
   if (resume) {
     if (load_checkpoint(data_dir, cp)) {
+      /* A checkpoint that indicates progress but lacks a seed cannot
+       * be resumed safely — without the original permutation seed the
+       * scanner would walk a different IP order, leaving some IPs
+       * never scanned and others scanned twice. Older checkpoints
+       * from before seed tracking land here. */
+      if (cp.seed == 0 && cp.next_index > 0) {
+        fprintf(stderr,
+          "net-scan: ERROR: checkpoint at %s shows progress (index %llu) "
+          "but has no permutation seed; cannot resume safely. Delete the "
+          "checkpoint and restart, or use a checkpoint from a newer kmap "
+          "build that records the seed.\n",
+          checkpoint_path(data_dir).c_str(),
+          (unsigned long long)cp.next_index);
+        close_all_shards(shards);
+        return 1;
+      }
+      /* Reset last_save to "now" so ETA calculations measure rate
+       * since-resume rather than since-original-checkpoint (which
+       * could be days ago and produces a useless "calculating..."
+       * for the first 60 s post-resume). */
+      cp.last_save = time(nullptr);
       log_write(LOG_STDOUT, "net-scan: Resuming from index %llu (%llu packets sent, %llu hosts found)\n",
                 (unsigned long long)cp.next_index,
                 (unsigned long long)cp.packets_sent,
@@ -509,10 +548,14 @@ int fast_syn_scan(const char *data_dir,
   sa_new.sa_handler = sigint_handler;
   sigaction(SIGINT, &sa_new, &sa_old);
 #else
-  SetConsoleCtrlHandler([](DWORD) -> BOOL {
-    scan_interrupted = 1;
-    return TRUE;
-  }, TRUE);
+  SetConsoleCtrlHandler(win_console_ctrl_handler, TRUE);
+  /* Raise Windows timer resolution so Sleep(1) in the rate limiter
+   * actually sleeps ~1 ms instead of the default ~15.6 ms. Without
+   * this, the limiter degenerates into 15 ms-long pauses followed by
+   * burst sends, which makes high --rate values much noisier on
+   * Windows than on Linux. timeEndPeriod() restores the system
+   * default at scan exit. */
+  timeBeginPeriod(1);
 #endif
   scan_interrupted = 0;
 
@@ -624,8 +667,11 @@ int fast_syn_scan(const char *data_dir,
                  hrs, mins, secs);
       }
 
+      /* Left-pad ETA to a fixed width so a shrinking ETA string
+       * ("calculating..." → "01:23:45") doesn't leave stale trailing
+       * characters from the previous longer line on the same row. */
       log_write(LOG_STDOUT,
-        "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %s\r",
+        "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %-15s\r",
                 pct,
                 (unsigned long long)cp.packets_sent,
                 (unsigned long long)cp.hosts_found,
@@ -672,7 +718,12 @@ int fast_syn_scan(const char *data_dir,
 #ifndef WIN32
   sigaction(SIGINT, &sa_old, nullptr);
 #else
-  SetConsoleCtrlHandler(nullptr, FALSE);
+  /* Pass our actual handler pointer (not nullptr) so the Ctrl+C
+   * handler we installed is removed; SetConsoleCtrlHandler(NULL, FALSE)
+   * only restores default Ctrl+C behavior, it does not unregister
+   * an installed handler. Then drop the elevated timer resolution. */
+  SetConsoleCtrlHandler(win_console_ctrl_handler, FALSE);
+  timeEndPeriod(1);
 #endif
 
   close_all_shards(shards);
