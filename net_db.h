@@ -67,7 +67,8 @@ struct NetHost {
 int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
                        const char *proto, int64_t timestamp);
 
-/* Update a host with enrichment data.  Sets enriched=1.
+/* Update a host with enrichment data.  Sets enriched=1 and clears any
+   prior enrichment_error / enrichment_error_at fields.
    Returns 0 on success, -1 on error. */
 int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *service, const char *version,
@@ -75,15 +76,30 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *web_title, const char *web_server,
                              const char *web_headers, const char *web_paths);
 
+/* Record a transient enrichment failure for a host/port without marking
+   it enriched.  Stores the error message and the current timestamp so
+   subsequent calls to net_db_get_unenriched() can decide whether enough
+   time has passed to retry.  Returns 0 on success, -1 on error. */
+int net_db_record_enrichment_error(sqlite3 *db, const char *ip, int port,
+                                   const char *error_msg);
+
 /* Update ASN/GeoIP data for all ports of an IP.
    Returns 0 on success, -1 on error. */
 int net_db_update_asn(sqlite3 *db, const char *ip,
                       uint32_t asn, const char *as_name,
                       const char *country, const char *bgp_prefix);
 
-/* Fetch up to `limit` unenriched hosts (enriched=0) as distinct IPs.
-   Returns a vector of IP strings. */
-std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit);
+/* Default cool-down (seconds) before a host whose last enrichment attempt
+   failed becomes eligible to retry. */
+#define NET_DB_ENRICH_RETRY_SECONDS 3600
+
+/* Fetch up to `limit` distinct IPs that need enrichment.  Picks rows where
+   enriched=0 AND (no prior error OR the prior error is older than
+   `retry_after_seconds`).  Pass NET_DB_ENRICH_RETRY_SECONDS as the default
+   retry window. */
+std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
+                                               int64_t retry_after_seconds =
+                                                   NET_DB_ENRICH_RETRY_SECONDS);
 
 /* Fetch all port records for a given IP. */
 std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip);
@@ -91,8 +107,11 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip);
 /* Count total rows in the hosts table. */
 int64_t net_db_count(sqlite3 *db);
 
-/* Count unenriched rows. */
-int64_t net_db_count_unenriched(sqlite3 *db);
+/* Count rows currently eligible for enrichment.  Mirrors the filter used by
+   net_db_get_unenriched(): enriched=0 and not in an active error cool-down. */
+int64_t net_db_count_unenriched(sqlite3 *db,
+                                int64_t retry_after_seconds =
+                                    NET_DB_ENRICH_RETRY_SECONDS);
 
 /* -----------------------------------------------------------------------
  * Batch operations (for performance during scanning)

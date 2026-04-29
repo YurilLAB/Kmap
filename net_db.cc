@@ -80,38 +80,49 @@ std::string net_shard_path(const char *data_dir, int shard_idx) {
 /* Schema creation SQL */
 static const char *SCHEMA_SQL =
   "CREATE TABLE IF NOT EXISTS hosts ("
-  "  ip            TEXT NOT NULL,"
-  "  port          INTEGER NOT NULL,"
-  "  proto         TEXT DEFAULT 'tcp',"
-  "  first_seen    INTEGER NOT NULL,"
-  "  last_seen     INTEGER NOT NULL,"
-  "  service       TEXT,"
-  "  version       TEXT,"
-  "  cves          TEXT,"
-  "  web_title     TEXT,"
-  "  web_server    TEXT,"
-  "  web_headers   TEXT,"
-  "  web_paths     TEXT,"
-  "  asn           INTEGER DEFAULT 0,"
-  "  as_name       TEXT,"
-  "  country       TEXT,"
-  "  bgp_prefix    TEXT,"
-  "  enriched      INTEGER DEFAULT 0,"
+  "  ip                   TEXT NOT NULL,"
+  "  port                 INTEGER NOT NULL,"
+  "  proto                TEXT DEFAULT 'tcp',"
+  "  first_seen           INTEGER NOT NULL,"
+  "  last_seen            INTEGER NOT NULL,"
+  "  service              TEXT,"
+  "  version              TEXT,"
+  "  cves                 TEXT,"
+  "  web_title            TEXT,"
+  "  web_server           TEXT,"
+  "  web_headers          TEXT,"
+  "  web_paths            TEXT,"
+  "  asn                  INTEGER DEFAULT 0,"
+  "  as_name              TEXT,"
+  "  country              TEXT,"
+  "  bgp_prefix           TEXT,"
+  "  enriched             INTEGER DEFAULT 0,"
+  "  enrichment_error     TEXT,"
+  "  enrichment_error_at  INTEGER DEFAULT 0,"
   "  PRIMARY KEY (ip, port)"
   ");"
+  /* Indexes whose columns have always existed since v1 are safe in
+     SCHEMA_SQL.  Indexes on columns added by later migrations live in
+     POST_MIGRATION_SQL so old databases reach the migration step before
+     the index is attempted. */
   "CREATE INDEX IF NOT EXISTS idx_hosts_port     ON hosts(port);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_service  ON hosts(service);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_enriched ON hosts(enriched);"
-  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);"
-  "CREATE INDEX IF NOT EXISTS idx_hosts_asn      ON hosts(asn);"
-  "CREATE INDEX IF NOT EXISTS idx_hosts_country  ON hosts(country);";
+  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);";
 
-/* Migration SQL — adds ASN columns to existing databases */
-static const char *MIGRATE_ASN_SQL =
-  "ALTER TABLE hosts ADD COLUMN asn INTEGER DEFAULT 0;"
-  "ALTER TABLE hosts ADD COLUMN as_name TEXT;"
-  "ALTER TABLE hosts ADD COLUMN country TEXT;"
-  "ALTER TABLE hosts ADD COLUMN bgp_prefix TEXT;";
+/* Per-statement migrations applied to pre-existing databases.  ALTER TABLE
+   ADD COLUMN errors out if the column already exists; we run each statement
+   in its own sqlite3_exec() so a single failure does not skip the others. */
+static const char *MIGRATIONS[] = {
+  /* v2: ASN/GeoIP columns */
+  "ALTER TABLE hosts ADD COLUMN asn INTEGER DEFAULT 0",
+  "ALTER TABLE hosts ADD COLUMN as_name TEXT",
+  "ALTER TABLE hosts ADD COLUMN country TEXT",
+  "ALTER TABLE hosts ADD COLUMN bgp_prefix TEXT",
+  /* v3: enrichment-error tracking for retry-after-cooldown */
+  "ALTER TABLE hosts ADD COLUMN enrichment_error TEXT",
+  "ALTER TABLE hosts ADD COLUMN enrichment_error_at INTEGER DEFAULT 0",
+};
 
 sqlite3 *net_db_open(const std::string &path) {
   sqlite3 *db = nullptr;
@@ -140,15 +151,19 @@ sqlite3 *net_db_open(const std::string &path) {
     return nullptr;
   }
 
-  /* Migrate existing databases: add ASN columns if missing.
-   * ALTER TABLE ADD COLUMN is a no-op if the column already exists
-   * in SQLite >= 3.35, but older versions return an error — ignore it. */
-  sqlite3_exec(db, MIGRATE_ASN_SQL, nullptr, nullptr, nullptr);
-  /* Create ASN indexes (safe to call repeatedly) */
+  /* Migrate existing databases by running each ADD COLUMN independently.
+   * "duplicate column" errors mean the column already exists -- ignore them. */
+  for (const char *stmt : MIGRATIONS) {
+    sqlite3_exec(db, stmt, nullptr, nullptr, nullptr);
+  }
+  /* Indexes that depend on migration-added columns -- now safe to create. */
   sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_asn ON hosts(asn)",
                nullptr, nullptr, nullptr);
   sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_country ON hosts(country)",
                nullptr, nullptr, nullptr);
+  sqlite3_exec(db,
+    "CREATE INDEX IF NOT EXISTS idx_hosts_err_at ON hosts(enrichment_error_at)",
+    nullptr, nullptr, nullptr);
 
   return db;
 }
@@ -200,6 +215,7 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   static const char *sql =
     "UPDATE hosts SET service=?, version=?, cves=?, web_title=?, "
     "web_server=?, web_headers=?, web_paths=?, enriched=1, "
+    "enrichment_error=NULL, enrichment_error_at=0, "
     "last_seen=strftime('%s','now') "
     "WHERE ip=? AND port=?";
 
@@ -223,6 +239,31 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   bind_or_null(7, web_paths);
   sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
   sqlite3_bind_int(stmt, 9, port);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+int net_db_record_enrichment_error(sqlite3 *db, const char *ip, int port,
+                                   const char *error_msg) {
+  if (!db || !ip) return -1;
+
+  static const char *sql =
+    "UPDATE hosts SET enrichment_error=?, "
+    "enrichment_error_at=strftime('%s','now') "
+    "WHERE ip=? AND port=?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  if (error_msg && error_msg[0])
+    sqlite3_bind_text(stmt, 1, error_msg, -1, SQLITE_TRANSIENT);
+  else
+    sqlite3_bind_null(stmt, 1);
+  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt, 3, port);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -259,18 +300,26 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
-std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit) {
+std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
+                                               int64_t retry_after_seconds) {
   std::vector<std::string> ips;
   if (!db) return ips;
 
+  /* Pick rows that are not yet enriched AND either have never errored
+     or whose last error is older than the retry window. */
   static const char *sql =
-    "SELECT DISTINCT ip FROM hosts WHERE enriched=0 LIMIT ?";
+    "SELECT DISTINCT ip FROM hosts "
+    "WHERE enriched=0 "
+    "  AND (enrichment_error_at = 0 "
+    "       OR enrichment_error_at <= strftime('%s','now') - ?) "
+    "LIMIT ?";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return ips;
 
-  sqlite3_bind_int(stmt, 1, limit);
+  sqlite3_bind_int64(stmt, 1, retry_after_seconds);
+  sqlite3_bind_int(stmt, 2, limit);
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     const unsigned char *txt = sqlite3_column_text(stmt, 0);
@@ -338,12 +387,17 @@ int64_t net_db_count(sqlite3 *db) {
   return count;
 }
 
-int64_t net_db_count_unenriched(sqlite3 *db) {
+int64_t net_db_count_unenriched(sqlite3 *db, int64_t retry_after_seconds) {
   if (!db) return -1;
+  static const char *sql =
+    "SELECT COUNT(*) FROM hosts "
+    "WHERE enriched=0 "
+    "  AND (enrichment_error_at = 0 "
+    "       OR enrichment_error_at <= strftime('%s','now') - ?)";
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM hosts WHERE enriched=0",
-                         -1, &stmt, nullptr) != SQLITE_OK)
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
+  sqlite3_bind_int64(stmt, 1, retry_after_seconds);
   int64_t count = 0;
   if (sqlite3_step(stmt) == SQLITE_ROW)
     count = sqlite3_column_int64(stmt, 0);

@@ -270,9 +270,13 @@ static std::string extract_header(const std::string &response, const char *name)
   std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
                  [](unsigned char c){ return static_cast<char>(tolower(c)); });
 
-  size_t pos = lower_resp.find(lower_name + ":");
+  /* Require '\n' before the header name so we don't match a name that appears
+   * embedded in another header's value or in a longer header name (e.g.
+   * "X-Server:" matching when searching for "Server"). */
+  std::string needle = "\n" + lower_name + ":";
+  size_t pos = lower_resp.find(needle);
   if (pos == std::string::npos) return "";
-  size_t start = response.find(':', pos) + 1;
+  size_t start = pos + needle.size();
   while (start < response.size() && response[start] == ' ') ++start;
   size_t end = response.find('\r', start);
   if (end == std::string::npos) end = response.find('\n', start);

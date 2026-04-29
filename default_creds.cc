@@ -810,18 +810,23 @@ static bool probe_telnet(const char *ip, uint16_t port,
   close_fd(fd);
 
   if (n <= 0) return false;
-  /* Heuristic: look for shell prompt indicators while rejecting known failure
-   * messages.  Avoid bare '>' — it matches HTML tags and many non-prompt
-   * contexts.  Instead look for common prompt suffixes like "$ ", "# ",
-   * or "> " (space after the character) that indicate a real shell. */
-  bool has_prompt = (strstr(buf, "$ ") || strstr(buf, "# ") ||
-                     strstr(buf, "> ") || strstr(buf, "~]") ||
-                     strstr(buf, ":~") || strstr(buf, ":/"));
+  /* Failure indicators — check across the full response, anywhere. */
   bool has_fail   = (strstr(buf, "incorrect") || strstr(buf, "failed") ||
                      strstr(buf, "denied")    || strstr(buf, "Password:") ||
                      strstr(buf, "invalid")   || strstr(buf, "bad password") ||
                      strstr(buf, "Login fail") || strstr(buf, "Access denied"));
-  return has_prompt && !has_fail;
+  if (has_fail) return false;
+
+  /* Prompt indicators — only check the last line.  A real shell prompt
+   * always sits at end-of-response after a final newline; matching anywhere
+   * causes false positives when login banners or MOTDs happen to contain
+   * "$ ", "# ", etc. */
+  const char *last_nl = strrchr(buf, '\n');
+  const char *tail = last_nl ? last_nl + 1 : buf;
+  bool has_prompt = (strstr(tail, "$ ") || strstr(tail, "# ") ||
+                     strstr(tail, "> ") || strstr(tail, "~]") ||
+                     strstr(tail, ":~") || strstr(tail, ":/"));
+  return has_prompt;
 }
 
 /* MySQL: authenticate using native_password (SHA1-based) when OpenSSL is

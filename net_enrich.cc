@@ -873,13 +873,15 @@ int run_enrichment(const char *data_dir, int batch_size) {
                                     web_titles, web_servers,
                                     web_headers, web_paths);
         if (rc != 0) {
-          /* Mark as enriched with empty data so we don't retry forever */
+          /* Record the failure with a timestamp so the row becomes
+             eligible to retry after NET_DB_ENRICH_RETRY_SECONDS. */
           if (o.verbose)
-            log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, marking as done\n",
+            log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, will retry later\n",
                       ip.c_str());
+          char err_buf[64];
+          snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", rc);
           for (size_t j = 0; j < ports.size(); j++) {
-            net_db_update_enrichment(db, ip.c_str(), ports[j],
-                                     "", "", "", "", "", "", "");
+            net_db_record_enrichment_error(db, ip.c_str(), ports[j], err_buf);
           }
           continue;
         }

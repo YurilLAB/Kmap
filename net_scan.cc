@@ -250,13 +250,16 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
                          web_titles, web_servers, web_headers, web_paths);
 
       if (erc != 0) {
-        /* Enrichment failed for this host -- mark as enriched with empty
-           data so it doesn't retry, and continue to next host */
-        log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, skipping\n",
+        /* Enrichment failed for this host -- record the error so the row
+           stays eligible for retry once the cooldown elapses, and continue
+           to the next host. */
+        log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, will retry later\n",
                   ip_str.c_str());
+        char err_buf[64];
+        snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", erc);
         for (size_t i = 0; i < port_nums.size(); i++) {
-          net_db_update_enrichment(wl_db, ip_str.c_str(), port_nums[i],
-                                   "", "", "", "", "", "", "");
+          net_db_record_enrichment_error(wl_db, ip_str.c_str(), port_nums[i],
+                                         err_buf);
         }
         enrich_errors++;
         continue;

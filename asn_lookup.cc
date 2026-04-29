@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <random>
 #include <string>
 #include <vector>
 #include <map>
@@ -35,7 +36,6 @@
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <process.h>  /* _getpid() on Windows */
 #endif
 
 /* -----------------------------------------------------------------------
@@ -208,18 +208,13 @@ static void dns_cache_maybe_evict(time_t now) {
   if (dns_cache.size() >= DNS_CACHE_MAX) dns_cache.clear();
 }
 
-/* Seed rand() once for DNS transaction ID generation.
- * Uses time + pid to avoid predictable txids (DNS cache poisoning risk). */
-static void seed_rand_once() {
-  static bool seeded = false;
-  if (!seeded) {
-#ifdef WIN32
-    srand(static_cast<unsigned int>(time(nullptr)) ^ static_cast<unsigned int>(_getpid()));
-#else
-    srand(static_cast<unsigned int>(time(nullptr)) ^ static_cast<unsigned int>(getpid()));
-#endif
-    seeded = true;
-  }
+/* Generate a cryptographically-unpredictable 16-bit DNS transaction ID.
+ * std::random_device is backed by /dev/urandom on POSIX and RtlGenRandom
+ * (or BCryptGenRandom) on Windows MSVC, so TXIDs aren't guessable from
+ * wall-clock time + pid -- closing a DNS cache-poisoning vector. */
+static uint16_t dns_txid() {
+  static std::random_device rd;
+  return static_cast<uint16_t>(rd() & 0xFFFFu);
 }
 
 /* Send a DNS query and receive the response via raw UDP.
@@ -234,12 +229,9 @@ static std::string dns_txt_query(const char *qname, int timeout_ms) {
     return it->second.result;
   }
 
-  /* Seed rand() on first call */
-  seed_rand_once();
-
   /* Build query packet */
   uint8_t query[512];
-  uint16_t txid = static_cast<uint16_t>(rand() & 0xFFFF);
+  uint16_t txid = dns_txid();
   size_t qlen = dns_build_query(qname, txid, query, sizeof(query));
   if (qlen == 0) return "";
 
