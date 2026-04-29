@@ -321,6 +321,10 @@ class KmapOps {
   char *tm_output;          /* Output file (NULL = stdout) */
   char *tm_format;          /* "txt", "dot", or "json" */
   int  tm_max_hops;         /* Max TTL (default 30) */
+  /* --spoof-os: OS fingerprint spoofing profile name for net-scan probes
+     (TTL, RCVBUF, HTTP User-Agent + Accept-* headers). NULL = no spoofing.
+     Validated against os_profile_is_valid() at parse time. */
+  char *spoof_os;
   int ttl; // Time to live
   bool badsum;
   char *datadir;

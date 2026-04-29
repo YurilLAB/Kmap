@@ -16,6 +16,8 @@
 #include "utils.h"
 #include "kmap_error.h"
 #include "nbase.h"
+#include "KmapOps.h"
+#include "os_profile.h"
 
 #include <string>
 #include <vector>
@@ -46,6 +48,8 @@
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #endif
+
+extern KmapOps o;
 
 /* Key used to attach PortCredResults list to a Target */
 #define CRED_RESULTS_KEY "kmap_default_creds"
@@ -451,6 +455,11 @@ static cred_fd_t tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
   if (fd < 0) return CRED_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
+
+  /* OS spoofing profile: applied before connect so the SYN sent to the
+     target carries the spoofed TTL/RCVBUF. No-op when --spoof-os not set. */
+  os_profile_apply_socket(static_cast<intptr_t>(fd), af,
+                          os_profile_get(o.spoof_os));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 

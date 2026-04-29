@@ -159,6 +159,7 @@ KmapOps::~KmapOps() {
   if (tracemap_targets) { free(tracemap_targets); tracemap_targets = NULL; }
   if (tm_output) { free(tm_output); tm_output = NULL; }
   if (tm_format) { free(tm_format); tm_format = NULL; }
+  if (spoof_os) { free(spoof_os); spoof_os = NULL; }
 
 #ifndef NOLUA
   if (scriptversion || script)
@@ -354,6 +355,7 @@ void KmapOps::Initialize() {
   tm_output        = nullptr;
   tm_format        = nullptr;
   tm_max_hops      = 30;
+  spoof_os         = nullptr;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;

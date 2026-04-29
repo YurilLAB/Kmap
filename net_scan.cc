@@ -18,6 +18,7 @@
 #include "KmapOps.h"
 #include "kmap.h"
 #include "output.h"
+#include "os_profile.h"
 
 #include <cstdio>
 #include <cstring>
@@ -178,6 +179,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       int flags = fcntl(fd, F_GETFL, 0);
       fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
+
+      /* OS spoofing profile (--spoof-os). No-op when not set. */
+      os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
+                              os_profile_get(o.spoof_os));
 
       connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
       fd_set wset;

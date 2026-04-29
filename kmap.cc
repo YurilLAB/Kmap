@@ -153,6 +153,7 @@
 #include "cve_map.h"
 #include "net_scan.h"
 #include "tracemap.h"
+#include "os_profile.h"
 
 /* global options */
 extern char *optarg;
@@ -307,6 +308,18 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.tm_format = strdup(arg); return true;
   } else if (strcmp(name, "tm-max-hops") == 0) {
     o.tm_max_hops = parse_int_arg("tm-max-hops", arg, 1, 255);
+    return true;
+  } else if (strcmp(name, "spoof-os") == 0) {
+    /* Validate against the os_profile preset list at parse time so a typo
+       fails the scan immediately instead of silently falling back to
+       no-spoofing inside each probe path. */
+    if (arg == nullptr || arg[0] == '\0')
+      fatal("--spoof-os requires a profile name (one of: %s)",
+            os_profile_names());
+    if (!os_profile_is_valid(arg))
+      fatal("--spoof-os: unknown profile '%s' (valid: %s)",
+            arg, os_profile_names());
+    o.spoof_os = strdup(arg);
     return true;
   }
   return false;
@@ -480,6 +493,8 @@ static void printusage() {
          "  --tm-output <file>: Tracemap output file (default: stdout)\n"
          "  --tm-format <fmt>: Tracemap output format: txt, dot, json (default: txt)\n"
          "  --tm-max-hops <n>: Maximum TTL hops for tracemap (default: 30, range: 1-255)\n"
+         "  --spoof-os <profile>: Spoof OS fingerprint for net-scan probes\n"
+         "                         (linux, win10, win11, macos, freebsd, random)\n"
          "  --net-query: Search collected scan data\n"
          "  --nq-port <port>: Filter query by port number\n"
          "  --nq-service <name>: Filter query by service name\n"
@@ -876,6 +891,8 @@ void parse_options(int argc, char **argv) {
     {"tm-output", required_argument, 0, 0},
     {"tm-format", required_argument, 0, 0},
     {"tm-max-hops", required_argument, 0, 0},
+    /* --spoof-os: net-scan OS fingerprint spoofing profile */
+    {"spoof-os", required_argument, 0, 0},
     {0, 0, 0, 0}
   };
 

@@ -93,11 +93,23 @@ static std::string json_extract_string(const std::string &json,
   size_t pos = json.find(search);
   if (pos == std::string::npos) return "";
   pos += search.size();
-  size_t end = json.find('"', pos);
-  /* Handle escaped quotes */
-  while (end != std::string::npos && end > 0 && json[end - 1] == '\\')
-    end = json.find('"', end + 1);
-  if (end == std::string::npos) return "";
+  /* Find the unescaped closing quote. A quote is escaped only when preceded
+   * by an ODD number of consecutive backslashes; an even count means each
+   * pair is itself an escaped backslash (\\) and the quote terminates the
+   * string. The previous "json[end-1] == '\\\\'" check got this wrong and
+   * skipped past valid string ends in CVE descriptions containing literal
+   * backslashes. */
+  size_t end = pos;
+  while (end < json.size()) {
+    end = json.find('"', end);
+    if (end == std::string::npos) return "";
+    size_t bs_count = 0;
+    size_t i = end;
+    while (i > pos && json[i - 1] == '\\') { bs_count++; i--; }
+    if ((bs_count & 1u) == 0) break; /* unescaped quote */
+    end++; /* escaped — keep looking */
+  }
+  if (end >= json.size() || end == std::string::npos) return "";
   return json.substr(pos, end - pos);
 }
 

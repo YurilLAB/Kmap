@@ -21,6 +21,7 @@
 #include "KmapOps.h"
 #include "kmap.h"
 #include "output.h"
+#include "os_profile.h"
 
 #include "sqlite/sqlite3.h"
 
@@ -99,6 +100,10 @@ static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_m
   if (fd < 0) return KMAP_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
+
+  /* OS spoofing profile (--spoof-os). No-op when not set. */
+  os_profile_apply_socket(static_cast<intptr_t>(fd), af,
+                          os_profile_get(o.spoof_os));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 
@@ -265,11 +270,14 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
   int n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
 
   /* If no immediate banner, try sending a minimal HTTP request to elicit
-     a response (many HTTP servers wait for the client to speak first). */
+     a response (many HTTP servers wait for the client to speak first).
+     Use the os_profile-built request so the banner-grab leg also carries
+     the spoofed User-Agent. ip is passed as the Host so the request looks
+     plausible end-to-end. */
   if (n <= 0) {
-    const char *http_probe = "GET / HTTP/1.0\r\nHost: probe\r\n"
-                             "User-Agent: Kmap\r\nConnection: close\r\n\r\n";
-    if (enrich_fd_send(fd, http_probe, strlen(http_probe))) {
+    std::string http_probe =
+        os_profile_http_request("/", ip, os_profile_get(o.spoof_os));
+    if (enrich_fd_send(fd, http_probe.c_str(), http_probe.size())) {
       n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
     }
   }
@@ -567,9 +575,12 @@ static std::string extract_header_val(const std::string &resp,
                                       const char *name) {
   std::string lower_resp = str_lower(resp);
   std::string lower_name = str_lower(std::string(name));
-  size_t pos = lower_resp.find(lower_name + ":");
+  /* Anchor to start of header line: require '\n' before the header name so a
+   * search for "Server" does not match "X-Server:" or "Last-Modified-Server:". */
+  std::string needle = "\n" + lower_name + ":";
+  size_t pos = lower_resp.find(needle);
   if (pos == std::string::npos) return "";
-  size_t start = resp.find(':', pos) + 1;
+  size_t start = pos + needle.size();
   while (start < resp.size() && resp[start] == ' ') start++;
   size_t end = resp.find('\r', start);
   if (end == std::string::npos) end = resp.find('\n', start);
@@ -614,11 +625,13 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
     if (fd == KMAP_INVALID_FD) return wr;
 
-    char host_hdr[256];
-    snprintf(host_hdr, sizeof(host_hdr), "%s:%d", ip, port);
-
-    std::string req = std::string("GET / HTTP/1.0\r\nHost: ") + host_hdr
-                    + "\r\nUser-Agent: Kmap\r\nConnection: close\r\n\r\n";
+    /* Profile-driven request (User-Agent + Accept-* headers) — preserves
+       the existing Host-with-port form by passing ip as the host and
+       letting os_profile_http_request handle IPv6 bracketing. The :port
+       suffix is not strictly required (HTTP/1.0 ignores port mismatch)
+       and dropping it gives a more browser-faithful header. */
+    std::string req =
+        os_profile_http_request("/", ip, os_profile_get(o.spoof_os));
 
     if (!enrich_fd_send(fd, req.c_str(), req.size())) {
       enrich_close_fd(fd);

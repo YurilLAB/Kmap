@@ -15,6 +15,7 @@
 #include "tcpip.h"
 #include "KmapOps.h"
 #include "output.h"
+#include "os_profile.h"
 
 #include <pcap.h>
 
@@ -431,6 +432,11 @@ static bool connect_probe(uint32_t ip, int port, int timeout_ms) {
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
+
+  /* Apply OS-spoofing profile (TTL, RCVBUF) before connect. No-op when
+     --spoof-os was not supplied. */
+  os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
+                          os_profile_get(o.spoof_os));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
 

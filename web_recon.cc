@@ -16,6 +16,8 @@
 #include "utils.h"
 #include "kmap_error.h"
 #include "nbase.h"
+#include "KmapOps.h"
+#include "os_profile.h"
 
 #include <string>
 #include <vector>
@@ -46,6 +48,8 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 #endif
+
+extern KmapOps o;
 
 #define WEB_RECON_KEY    "kmap_web_recon"
 #define CONNECT_TIMEOUT  5000  /* ms */
@@ -182,6 +186,11 @@ static wr_fd_t tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
+  /* OS spoofing profile: applied before connect. No-op when --spoof-os
+     not set. Done here so HTTPS connections also carry the spoofed TTL. */
+  os_profile_apply_socket(static_cast<intptr_t>(fd), af,
+                          os_profile_get(o.spoof_os));
+
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
   fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
   struct timeval tv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
@@ -316,12 +325,13 @@ static std::string extract_redirect(const std::string &response) {
   return extract_header(response, "Location");
 }
 
-/* Build a minimal HTTP/1.0 GET request */
+/* Build a minimal HTTP/1.0 GET request via the os_profile module so that
+ * --spoof-os swaps out the User-Agent and Accept-* headers in lockstep
+ * with the network-layer knobs already applied to the socket. The IPv6
+ * Host-header bracketing required by RFC 7230 §5.4 is handled inside
+ * os_profile_http_request(). */
 static std::string build_request(const char *path, const char *host) {
-  return std::string("GET ") + path + " HTTP/1.0\r\n"
-       + "Host: " + host + "\r\n"
-       + "User-Agent: Kmap Web Recon\r\n"
-       + "Connection: close\r\n\r\n";
+  return os_profile_http_request(path, host, os_profile_get(o.spoof_os));
 }
 
 /* -----------------------------------------------------------------------

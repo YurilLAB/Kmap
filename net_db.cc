@@ -283,7 +283,12 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  sqlite3_bind_int(stmt, 1, static_cast<int>(asn));
+  /* ASN is uint32_t (4-byte ASNs go up to 4,294,967,295). Binding via
+   * sqlite3_bind_int would truncate values above INT_MAX to a negative
+   * integer in storage, which round-trips by accident through column_int
+   * + uint32_t cast but breaks any SQL that filters by asn directly. Use
+   * int64 to preserve the full unsigned range. */
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(asn));
   auto bind_or_null = [&](int idx, const char *val) {
     if (val && val[0])
       sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
@@ -364,7 +369,9 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.web_server  = col(9);
     h.web_headers = col(10);
     h.web_paths   = col(11);
-    h.asn         = static_cast<uint32_t>(sqlite3_column_int(stmt, 12));
+    /* Read as int64 to match the int64 bind in net_db_update_asn — see
+     * note there. */
+    h.asn         = static_cast<uint32_t>(sqlite3_column_int64(stmt, 12));
     h.as_name     = col(13);
     h.country     = col(14);
     h.bgp_prefix  = col(15);
