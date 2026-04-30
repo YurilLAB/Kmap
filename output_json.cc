@@ -356,11 +356,54 @@ static nlohmann::json build_web_recon_json(const Target *t) {
             nlohmann::json tls;
             if (!r.tls.subject_cn.empty()) tls["subject_cn"] = r.tls.subject_cn;
             if (!r.tls.issuer.empty())     tls["issuer"]     = r.tls.issuer;
+            if (!r.tls.not_before.empty()) tls["not_before"] = r.tls.not_before;
             if (!r.tls.not_after.empty())  tls["not_after"]  = r.tls.not_after;
             if (!r.tls.protocol.empty())   tls["protocol"]   = r.tls.protocol;
+            if (!r.tls.cipher.empty())     tls["cipher"]     = r.tls.cipher;
+            if (!r.tls.fingerprint_sha256.empty())
+                tls["fingerprint_sha256"] = r.tls.fingerprint_sha256;
+            if (!r.tls.pubkey_algo.empty()) {
+                tls["pubkey_algo"] = r.tls.pubkey_algo;
+                if (r.tls.pubkey_bits > 0)
+                    tls["pubkey_bits"] = r.tls.pubkey_bits;
+            }
+            if (!r.tls.sig_algo.empty())   tls["sig_algo"]   = r.tls.sig_algo;
+            if (!r.tls.san.empty()) {
+                nlohmann::json san = nlohmann::json::array();
+                for (const auto &n : r.tls.san) san.push_back(n);
+                tls["san"] = std::move(san);
+            }
             tls["self_signed"] = r.tls.self_signed;
             if (!tls.empty())
                 e["tls"] = std::move(tls);
+        }
+
+        // Security-posture headers. Emit a single sub-object so they
+        // group naturally in `jq` queries (`.security_headers.hsts`).
+        // Empty values are omitted so consumers can distinguish absent
+        // ("key not present") from empty-string ("present, but blank").
+        {
+            nlohmann::json sh;
+            if (!r.hsts.empty())              sh["hsts"]              = r.hsts;
+            if (!r.csp.empty())               sh["csp"]               = r.csp;
+            if (!r.xframe_options.empty())    sh["x_frame_options"]   = r.xframe_options;
+            if (!r.xcontent_type.empty())     sh["x_content_type"]    = r.xcontent_type;
+            if (!r.referrer_policy.empty())   sh["referrer_policy"]   = r.referrer_policy;
+            if (!r.permissions_policy.empty())sh["permissions_policy"]= r.permissions_policy;
+            if (!sh.empty())
+                e["security_headers"] = std::move(sh);
+        }
+
+        if (!r.allowed_methods.empty()) {
+            nlohmann::json m = nlohmann::json::array();
+            for (const auto &n : r.allowed_methods) m.push_back(n);
+            e["allowed_methods"] = std::move(m);
+        }
+
+        if (!r.cookie_flags.empty()) {
+            nlohmann::json c = nlohmann::json::array();
+            for (const auto &n : r.cookie_flags) c.push_back(n);
+            e["cookie_flags"] = std::move(c);
         }
 
         if (!r.paths.empty()) {

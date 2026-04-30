@@ -22,9 +22,16 @@ struct WebPath {
 struct TlsInfo {
   std::string subject_cn;
   std::string issuer;
+  std::string not_before;    // validity start (ASN1_TIME printed)
   std::string not_after;     // expiry date string
   bool        self_signed = false;
   std::string protocol;      // "TLSv1.2", "TLSv1.3"
+  std::string cipher;        // negotiated cipher suite, e.g. "ECDHE-RSA-AES128-GCM-SHA256"
+  std::vector<std::string> san; // Subject Alternative Names (DNS + IP)
+  std::string fingerprint_sha256; // colon-separated lowercase hex of DER cert
+  std::string pubkey_algo;   // "RSA", "EC", "DSA", "Ed25519", ... or "id=N"
+  int         pubkey_bits = 0; // key size in bits
+  std::string sig_algo;      // certificate signature algorithm OID short name
 };
 
 struct WebReconResult {
@@ -37,6 +44,26 @@ struct WebReconResult {
   std::vector<std::string> robots_disallowed; // from robots.txt
   TlsInfo     tls;           // only if is_https
   std::vector<WebPath> paths; // probed path results (non-404 only)
+
+  // Security-posture response headers (empty string = header absent).
+  // Long values (CSP, Permissions-Policy) are truncated to 200 chars + "..."
+  // so the text output stays scannable; the JSON output preserves the same
+  // value for downstream tooling that wants the truncated form.
+  std::string hsts;          // Strict-Transport-Security
+  std::string csp;           // Content-Security-Policy
+  std::string xframe_options;// X-Frame-Options
+  std::string xcontent_type; // X-Content-Type-Options
+  std::string referrer_policy;   // Referrer-Policy
+  std::string permissions_policy;// Permissions-Policy
+
+  // Allowed HTTP methods from an OPTIONS / probe (Allow: header). Empty
+  // when the server didn't respond, returned no Allow header, or 4xx'd.
+  std::vector<std::string> allowed_methods;
+
+  // Per-cookie security-flag summary parsed from Set-Cookie response
+  // headers: "name (Secure, HttpOnly, SameSite=Strict)". A cookie with
+  // no flags is rendered as just "name" so missing flags are easy to spot.
+  std::vector<std::string> cookie_flags;
 };
 
 /* Per-target web recon storage (attached to Target via attribute map) */

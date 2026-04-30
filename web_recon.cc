@@ -47,6 +47,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <openssl/objects.h>
+#include <openssl/evp.h>
 #endif
 
 extern KmapOps o;
@@ -426,22 +428,136 @@ static std::string https_get(const char *ip, uint16_t port,
                                   NID_commonName, buf, sizeof(buf));
       tls_out->issuer = buf;
 
-      ASN1_TIME *exp = X509_get_notAfter(cert);
-      if (exp) {
+      // Validity window. Both ends are useful: not_before catches certs
+      // that aren't yet active (clock skew or pre-deployment), not_after
+      // is the usual expiry signal.
+      auto fmt_asn1_time = [](ASN1_TIME *t) -> std::string {
+        if (!t) return "";
         BIO *b = BIO_new(BIO_s_mem());
-        ASN1_TIME_print(b, exp);
+        if (!b) return "";
+        ASN1_TIME_print(b, t);
         char tbuf[64]{};
-        BIO_read(b, tbuf, sizeof(tbuf) - 1);
+        int n = BIO_read(b, tbuf, sizeof(tbuf) - 1);
         BIO_free(b);
-        tls_out->not_after = tbuf;
-      }
+        if (n <= 0) return "";
+        tbuf[n] = '\0';
+        return std::string(tbuf);
+      };
+      tls_out->not_before = fmt_asn1_time(X509_get_notBefore(cert));
+      tls_out->not_after  = fmt_asn1_time(X509_get_notAfter(cert));
 
       tls_out->self_signed =
         (X509_NAME_cmp(X509_get_subject_name(cert),
                         X509_get_issuer_name(cert)) == 0);
+
+      // Subject Alternative Names. Modern browsers ignore CN entirely
+      // and only honour SAN, so this is the actual list of hostnames
+      // the cert is valid for. Both DNS names and IP literals are
+      // captured so output users can spot certs reissued for whole
+      // /24 ranges or wildcard SANs (a CDN signal).
+      GENERAL_NAMES *gens = static_cast<GENERAL_NAMES *>(
+          X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL));
+      if (gens) {
+        int n = sk_GENERAL_NAME_num(gens);
+        for (int i = 0; i < n; i++) {
+          GENERAL_NAME *gn = sk_GENERAL_NAME_value(gens, i);
+          if (!gn) continue;
+          if (gn->type == GEN_DNS && gn->d.dNSName) {
+            const unsigned char *data = ASN1_STRING_get0_data(gn->d.dNSName);
+            int len = ASN1_STRING_length(gn->d.dNSName);
+            if (data && len > 0)
+              tls_out->san.emplace_back(reinterpret_cast<const char *>(data),
+                                        static_cast<size_t>(len));
+          } else if (gn->type == GEN_IPADD && gn->d.iPAddress) {
+            const unsigned char *ip = ASN1_STRING_get0_data(gn->d.iPAddress);
+            int len = ASN1_STRING_length(gn->d.iPAddress);
+            char ipbuf[64] = {0};
+            if (len == 4) {
+              snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u",
+                       ip[0], ip[1], ip[2], ip[3]);
+            } else if (len == 16) {
+              snprintf(ipbuf, sizeof(ipbuf),
+                       "%x:%x:%x:%x:%x:%x:%x:%x",
+                       (ip[0]<<8)|ip[1],   (ip[2]<<8)|ip[3],
+                       (ip[4]<<8)|ip[5],   (ip[6]<<8)|ip[7],
+                       (ip[8]<<8)|ip[9],   (ip[10]<<8)|ip[11],
+                       (ip[12]<<8)|ip[13], (ip[14]<<8)|ip[15]);
+            }
+            if (ipbuf[0])
+              tls_out->san.emplace_back(std::string("IP:") + ipbuf);
+          }
+        }
+        GENERAL_NAMES_free(gens);
+      }
+
+      // SHA-256 fingerprint of the DER-encoded cert. Stable identifier
+      // independent of CN/SAN renames; matches what `openssl x509 -fingerprint
+      // -sha256` prints, so it's grep-friendly across tools.
+      {
+        unsigned char md[EVP_MAX_MD_SIZE];
+        unsigned int md_len = 0;
+        if (X509_digest(cert, EVP_sha256(), md, &md_len) == 1 && md_len > 0) {
+          std::string fp;
+          fp.reserve(static_cast<size_t>(md_len) * 3);
+          char hexbuf[4];
+          for (unsigned int i = 0; i < md_len; i++) {
+            snprintf(hexbuf, sizeof(hexbuf), "%02x", md[i]);
+            fp += hexbuf;
+            if (i + 1 < md_len) fp += ":";
+          }
+          tls_out->fingerprint_sha256 = fp;
+        }
+      }
+
+      // Public-key algorithm + bit size. Catches deprecated 1024-bit RSA,
+      // weak 256-bit DSA, and lets a downstream policy rule flag any
+      // non-EC/non-Ed25519 key as "modernise". EVP_PKEY_id is the
+      // OpenSSL-canonical way; we map the well-known IDs to readable names
+      // and fall back to the numeric ID for exotic algorithms.
+      EVP_PKEY *pk = X509_get_pubkey(cert);
+      if (pk) {
+        int id = EVP_PKEY_id(pk);
+        switch (id) {
+          case EVP_PKEY_RSA:     tls_out->pubkey_algo = "RSA"; break;
+          case EVP_PKEY_EC:      tls_out->pubkey_algo = "EC";  break;
+          case EVP_PKEY_DSA:     tls_out->pubkey_algo = "DSA"; break;
+#ifdef EVP_PKEY_ED25519
+          case EVP_PKEY_ED25519: tls_out->pubkey_algo = "Ed25519"; break;
+#endif
+#ifdef EVP_PKEY_ED448
+          case EVP_PKEY_ED448:   tls_out->pubkey_algo = "Ed448";   break;
+#endif
+          default: {
+            char idbuf[32];
+            snprintf(idbuf, sizeof(idbuf), "id=%d", id);
+            tls_out->pubkey_algo = idbuf;
+          }
+        }
+        tls_out->pubkey_bits = EVP_PKEY_bits(pk);
+        EVP_PKEY_free(pk);
+      }
+
+      // Cert signature algorithm. SHA-1 / MD5 here is a deployment red
+      // flag. X509_get0_signature is OpenSSL 1.1+, which is what the
+      // configure check already requires for the rest of TLS recon.
+      {
+        const X509_ALGOR *sig_alg = NULL;
+        X509_get0_signature(NULL, &sig_alg, cert);
+        if (sig_alg && sig_alg->algorithm) {
+          char obj_buf[80] = {0};
+          OBJ_obj2txt(obj_buf, sizeof(obj_buf), sig_alg->algorithm, 0);
+          tls_out->sig_algo = obj_buf;
+        }
+      }
+
       X509_free(cert);
     }
     tls_out->protocol = SSL_get_version(ssl);
+    // Negotiated cipher suite. Combined with protocol it's a stronger
+    // server-side fingerprint than either alone (e.g. spotting a
+    // TLS1.2-only server pinned to AES-CBC).
+    const char *neg_cipher = SSL_get_cipher(ssl);
+    if (neg_cipher) tls_out->cipher = neg_cipher;
   }
 
   std::string req = build_request(path, ip);
@@ -511,6 +627,254 @@ static std::vector<std::string> parse_robots(const std::string &body) {
 }
 
 /* -----------------------------------------------------------------------
+ * Security-posture header extraction
+ *
+ * Parses the response headers from GET / and records which security
+ * headers the server sends (and their values, truncated for the
+ * verbose ones). An empty value means the header is absent, which is
+ * itself the diagnostic signal -- e.g. no HSTS on an https:// origin
+ * or no X-Frame-Options on a login page.
+ * ----------------------------------------------------------------------- */
+static std::string truncate_header(const std::string &v, size_t max) {
+  if (v.size() <= max) return v;
+  return v.substr(0, max) + "...";
+}
+
+static void extract_security_headers(const std::string &response,
+                                     WebReconResult &r) {
+  r.hsts             = extract_header(response, "Strict-Transport-Security");
+  r.csp              = truncate_header(
+      extract_header(response, "Content-Security-Policy"), 200);
+  r.xframe_options   = extract_header(response, "X-Frame-Options");
+  r.xcontent_type    = extract_header(response, "X-Content-Type-Options");
+  r.referrer_policy  = extract_header(response, "Referrer-Policy");
+  r.permissions_policy = truncate_header(
+      extract_header(response, "Permissions-Policy"), 200);
+}
+
+/* -----------------------------------------------------------------------
+ * Set-Cookie security-flag summary
+ *
+ * Walks every "Set-Cookie:" header in the response and records the
+ * cookie name plus the security flags actually set (Secure, HttpOnly,
+ * SameSite=...). Cookies with no flags appear with just their name so
+ * the missing protection is visible at a glance. Cookie *values* are
+ * deliberately not captured -- a session token in the output would be
+ * an unwanted disclosure when the kmap output is shared.
+ * ----------------------------------------------------------------------- */
+static std::vector<std::string>
+extract_cookie_flag_summary(const std::string &response) {
+  std::vector<std::string> out;
+
+  std::string lower = response;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
+
+  const std::string needle = "\nset-cookie:";
+  size_t pos = 0;
+  while ((pos = lower.find(needle, pos)) != std::string::npos) {
+    size_t start = pos + needle.size();
+    while (start < response.size() && response[start] == ' ') start++;
+    size_t end = response.find('\r', start);
+    if (end == std::string::npos) end = response.find('\n', start);
+    if (end == std::string::npos) end = response.size();
+
+    std::string line = response.substr(start, end - start);
+    std::string lline = lower.substr(start, end - start);
+
+    // Cookie name is everything before the first '='.
+    size_t eq = line.find('=');
+    std::string name = (eq != std::string::npos) ? line.substr(0, eq) : line;
+
+    std::vector<std::string> flags;
+    auto has_attr = [&](const char *attr) -> bool {
+      // Match "; <attr>" with optional whitespace and word-boundary so
+      // "Secure" doesn't false-positive against "Secured-By".
+      std::string n1 = "; ";   n1 += attr;
+      std::string n2 = ";";    n2 += attr;
+      size_t p = lline.find(n1);
+      if (p == std::string::npos) p = lline.find(n2);
+      if (p == std::string::npos) return false;
+      size_t after = p + (lline[p+1] == ' ' ? 2 : 1) + strlen(attr);
+      // End of attribute is start of next ';' or end of line, possibly '='.
+      return after >= lline.size() || lline[after] == ';' ||
+             lline[after] == '=' || lline[after] == ' ' ||
+             lline[after] == '\0';
+    };
+    if (has_attr("secure"))   flags.push_back("Secure");
+    if (has_attr("httponly")) flags.push_back("HttpOnly");
+    size_t ss = lline.find("samesite=");
+    if (ss != std::string::npos) {
+      size_t v_start = ss + 9;
+      size_t v_end = lline.find(';', v_start);
+      if (v_end == std::string::npos) v_end = lline.size();
+      std::string val = line.substr(v_start, v_end - v_start);
+      // Trim trailing whitespace.
+      while (!val.empty() && (val.back() == ' ' || val.back() == '\t'))
+        val.pop_back();
+      if (!val.empty()) flags.push_back("SameSite=" + val);
+    }
+
+    std::string s = name;
+    if (!flags.empty()) {
+      s += " (";
+      for (size_t i = 0; i < flags.size(); i++) {
+        s += flags[i];
+        if (i + 1 < flags.size()) s += ", ";
+      }
+      s += ")";
+    }
+    out.push_back(s);
+
+    pos = end;
+  }
+  return out;
+}
+
+/* -----------------------------------------------------------------------
+ * OPTIONS probe -- discover the methods the server advertises.
+ *
+ * Issues a tiny OPTIONS request against the origin (path "*", which
+ * RFC 7231 reserves for "the server itself"; servers that don't
+ * understand "*" usually treat it as "/"), parses the Allow: header,
+ * and returns the comma-split method tokens. Servers that decline
+ * OPTIONS (4xx/5xx) or omit Allow yield an empty list -- the absence
+ * itself is data ("server hides allowed methods").
+ *
+ * The request reuses the existing tcp_connect_wr / OpenSSL paths so
+ * the OS-spoofing profile (TTL, MSS, ciphers) and IPv6 Host bracketing
+ * already applied to GET requests carry through unchanged.
+ * ----------------------------------------------------------------------- */
+static std::string build_options_request(const char *host) {
+  // OPTIONS has no body and modern browsers don't send the same
+  // header set as GET, so we keep the request small and don't run it
+  // through os_profile_http_request (which is GET-shaped). The Host
+  // value is bracketed for IPv6 here so the request stays RFC 7230
+  // compliant.
+  std::string h = host ? host : "";
+  if (h.find(':') != std::string::npos) h = "[" + h + "]";
+
+  std::string req;
+  req.reserve(128);
+  req += "OPTIONS * HTTP/1.1\r\n";
+  req += "Host: " + h + "\r\n";
+  // Use the spoofed UA so OPTIONS doesn't stick out vs the GETs that
+  // preceded it -- WAFs flag UA changes mid-session.
+  const OsProfile *prof = os_profile_get_for_target(
+      o.spoof_os, os_profile_seed_from_text(host));
+  if (prof && prof->user_agent && prof->user_agent[0]) {
+    req += "User-Agent: ";
+    req += prof->user_agent;
+    req += "\r\n";
+  } else {
+    req += "User-Agent: Kmap\r\n";
+  }
+  req += "Accept: */*\r\n";
+  req += "Connection: close\r\n\r\n";
+  return req;
+}
+
+static std::vector<std::string>
+parse_allow_header(const std::string &response) {
+  std::vector<std::string> methods;
+  std::string allow = extract_header(response, "Allow");
+  if (allow.empty()) return methods;
+
+  std::string token;
+  for (char c : allow) {
+    if (c == ',' || c == ' ' || c == '\t') {
+      if (!token.empty()) {
+        // Uppercase to canonicalise (RFC defines methods as case-sensitive
+        // but server output is mixed in the wild).
+        for (char &t : token)
+          t = static_cast<char>(toupper(static_cast<unsigned char>(t)));
+        methods.push_back(token);
+        token.clear();
+      }
+    } else {
+      token += c;
+    }
+  }
+  if (!token.empty()) {
+    for (char &t : token)
+      t = static_cast<char>(toupper(static_cast<unsigned char>(t)));
+    methods.push_back(token);
+  }
+  return methods;
+}
+
+static std::vector<std::string>
+http_options_probe(const char *ip, uint16_t port,
+                   bool is_https, int timeout_ms) {
+  // Build the request first; if Host bracketing or UA lookup throws
+  // we never touch the socket.
+  std::string req = build_options_request(ip);
+
+  if (is_https) {
+#ifdef HAVE_OPENSSL
+    SSL_CTX *ctx = get_ssl_ctx();
+    if (!ctx) return {};
+    wr_fd_t fd = tcp_connect_wr(ip, port, timeout_ms);
+    if (fd == WR_INVALID_FD) return {};
+    SSL *ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, static_cast<int>(fd));
+    {
+      struct in_addr d4; struct in6_addr d6;
+      if (inet_pton(AF_INET, ip, &d4) != 1 &&
+          inet_pton(AF_INET6, ip, &d6) != 1)
+        SSL_set_tlsext_host_name(ssl, ip);
+    }
+    {
+      const OsProfile *prof = os_profile_get_for_target(
+          o.spoof_os, os_profile_seed_from_text(ip));
+      const char *cipher_list = os_profile_tls_cipher_list(prof);
+      if (cipher_list) SSL_set_cipher_list(ssl, cipher_list);
+    }
+    if (SSL_connect(ssl) != 1) {
+      SSL_free(ssl); close_fd_wr(fd); return {};
+    }
+    if (SSL_write(ssl, req.c_str(), static_cast<int>(req.size())) <= 0) {
+      SSL_shutdown(ssl); SSL_free(ssl); close_fd_wr(fd); return {};
+    }
+    std::string response;
+    char chunk[4096];
+    // Read the response headers; we don't need the body. Cap at 8K so
+    // a misbehaving server doesn't stall the scan.
+    while (response.size() < 8192) {
+      fd_set rset; FD_ZERO(&rset);
+#ifdef WIN32
+      FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+      FD_SET(static_cast<int>(fd), &rset);
+#endif
+      struct timeval rtv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
+      if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &rtv) <= 0)
+        break;
+      int n = SSL_read(ssl, chunk, sizeof(chunk));
+      if (n <= 0) break;
+      response.append(chunk, static_cast<size_t>(n));
+      if (response.find("\r\n\r\n") != std::string::npos) break;
+    }
+    SSL_shutdown(ssl); SSL_free(ssl); close_fd_wr(fd);
+    return parse_allow_header(response);
+#else
+    return {};
+#endif
+  }
+
+  // Plain HTTP path.
+  wr_fd_t fd = tcp_connect_wr(ip, port, timeout_ms);
+  if (fd == WR_INVALID_FD) return {};
+  if (!send_all(fd, req.c_str(), req.size())) {
+    close_fd_wr(fd); return {};
+  }
+  // recv_response is bounded; for OPTIONS we need only the header block.
+  std::string response = recv_response(fd, timeout_ms, 8192);
+  close_fd_wr(fd);
+  return parse_allow_header(response);
+}
+
+/* -----------------------------------------------------------------------
  * Core per-port recon logic
  * ----------------------------------------------------------------------- */
 static WebReconResult probe_web_port(const char *ip, uint16_t port,
@@ -538,7 +902,21 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
     r.server     = extract_header(root, "Server");
     r.powered_by = extract_header(root, "X-Powered-By");
     r.generator  = extract_header(root, "X-Generator");
+
+    // Security-posture headers and cookie flags both come out of the
+    // same GET / response we already paid for, so adding them costs no
+    // extra round-trip. They land on the same WebReconResult; missing
+    // values stay empty so JSON / text output skips them.
+    extract_security_headers(root, r);
+    r.cookie_flags = extract_cookie_flag_summary(root);
   }
+
+  // OPTIONS probe -- cheap separate request, only when the server
+  // responded to GET / at all (otherwise the probe is just wasted load
+  // against a closed / TLS-only port). Failure is silent: an empty
+  // allowed_methods is itself a valid output state ("server hides it").
+  if (!root.empty())
+    r.allowed_methods = http_options_probe(ip, port, is_https, READ_TIMEOUT);
 
   // robots.txt
   std::string robots_resp = do_get("/robots.txt");
@@ -681,6 +1059,84 @@ void print_web_recon_output(const Target *t) {
                 r.tls.self_signed ? " [self-signed]" : "");
       if (!r.tls.not_after.empty())
         log_write(LOG_PLAIN, "  |    Expiry:  %s\n", r.tls.not_after.c_str());
+      if (!r.tls.protocol.empty() || !r.tls.cipher.empty()) {
+        log_write(LOG_PLAIN, "  |    TLS:     %s%s%s\n",
+                  r.tls.protocol.c_str(),
+                  r.tls.cipher.empty() ? "" : " / ",
+                  r.tls.cipher.c_str());
+      }
+      if (!r.tls.pubkey_algo.empty()) {
+        log_write(LOG_PLAIN, "  |    Pubkey:  %s%s%s\n",
+                  r.tls.pubkey_algo.c_str(),
+                  r.tls.pubkey_bits > 0 ? " " : "",
+                  r.tls.pubkey_bits > 0
+                      ? (std::to_string(r.tls.pubkey_bits) + "-bit").c_str()
+                      : "");
+      }
+      if (!r.tls.sig_algo.empty())
+        log_write(LOG_PLAIN, "  |    SigAlgo: %s\n", r.tls.sig_algo.c_str());
+      if (!r.tls.fingerprint_sha256.empty())
+        log_write(LOG_PLAIN, "  |    SHA256:  %s\n",
+                  r.tls.fingerprint_sha256.c_str());
+      if (!r.tls.san.empty()) {
+        // Cap at 6 SAN entries in text output to keep the line block
+        // scannable; the full list is preserved in the JSON output.
+        log_write(LOG_PLAIN, "  |    SAN:     ");
+        size_t shown = std::min<size_t>(r.tls.san.size(), 6);
+        for (size_t i = 0; i < shown; i++) {
+          log_write(LOG_PLAIN, "%s%s", r.tls.san[i].c_str(),
+                    (i + 1 < shown) ? ", " : "");
+        }
+        if (r.tls.san.size() > shown)
+          log_write(LOG_PLAIN, ", +%zu more", r.tls.san.size() - shown);
+        log_write(LOG_PLAIN, "\n");
+      }
+    }
+
+    // Security-posture summary. We print one line listing only the
+    // headers actually present, plus a bracketed "missing:" tail when
+    // any of the standard set is absent on an https origin -- that's
+    // the actionable signal for security review.
+    if (r.is_https || !r.hsts.empty() || !r.csp.empty() ||
+        !r.xframe_options.empty()) {
+      std::string present, missing;
+      auto add = [&](const char *name, const std::string &val,
+                     bool relevant) {
+        if (!val.empty()) {
+          if (!present.empty()) present += ", ";
+          present += name;
+        } else if (relevant) {
+          if (!missing.empty()) missing += ", ";
+          missing += name;
+        }
+      };
+      add("HSTS",       r.hsts,             r.is_https);
+      add("CSP",        r.csp,              true);
+      add("X-Frame",    r.xframe_options,   true);
+      add("X-CTO",      r.xcontent_type,    true);
+      add("Referrer",   r.referrer_policy,  true);
+      add("Permissions",r.permissions_policy,false);
+      if (!present.empty() || !missing.empty()) {
+        log_write(LOG_PLAIN, "  |    SecHdrs: %s",
+                  present.empty() ? "(none)" : present.c_str());
+        if (!missing.empty())
+          log_write(LOG_PLAIN, " [missing: %s]", missing.c_str());
+        log_write(LOG_PLAIN, "\n");
+      }
+    }
+
+    if (!r.allowed_methods.empty()) {
+      log_write(LOG_PLAIN, "  |    Methods: ");
+      for (size_t i = 0; i < r.allowed_methods.size(); i++)
+        log_write(LOG_PLAIN, "%s%s", r.allowed_methods[i].c_str(),
+                  (i + 1 < r.allowed_methods.size()) ? ", " : "\n");
+    }
+
+    if (!r.cookie_flags.empty()) {
+      log_write(LOG_PLAIN, "  |    Cookies: ");
+      for (size_t i = 0; i < r.cookie_flags.size(); i++)
+        log_write(LOG_PLAIN, "%s%s", r.cookie_flags[i].c_str(),
+                  (i + 1 < r.cookie_flags.size()) ? "; " : "\n");
     }
 
     if (!r.robots_disallowed.empty()) {
