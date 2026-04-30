@@ -177,14 +177,14 @@ std::vector<int> parse_port_spec(const char *spec) {
       std::string lo_s = token.substr(0, dash);
       std::string hi_s = token.substr(dash + 1);
       if (!parse_num(lo_s, lo) || !parse_num(hi_s, hi)) {
-        fprintf(stderr, "net-scan: invalid port range '%s' — skipping\n",
+        fprintf(stderr, "net-scan: invalid port range '%s' -- skipping\n",
                 token.c_str());
         continue;
       }
       if (lo < 1) lo = 1;
       if (hi > 65535) hi = 65535;
       if (lo > hi) {
-        fprintf(stderr, "net-scan: port range '%s' has lo > hi — skipping\n",
+        fprintf(stderr, "net-scan: port range '%s' has lo > hi -- skipping\n",
                 token.c_str());
         continue;
       }
@@ -192,7 +192,7 @@ std::vector<int> parse_port_spec(const char *spec) {
     } else {
       int p = 0;
       if (!parse_num(token, p) || p < 1 || p > 65535) {
-        fprintf(stderr, "net-scan: invalid port '%s' — skipping\n",
+        fprintf(stderr, "net-scan: invalid port '%s' -- skipping\n",
                 token.c_str());
         continue;
       }
@@ -203,7 +203,7 @@ std::vector<int> parse_port_spec(const char *spec) {
 }
 
 /* -----------------------------------------------------------------------
- * IP randomization — multiplicative inverse permutation
+ * IP randomization -- multiplicative inverse permutation
  *
  * Maps index 0..N-1 to a unique IP in 0..N-1 using:
  *   permuted = (index * PRIME) mod N
@@ -228,7 +228,7 @@ struct ScanCheckpoint {
   uint64_t next_index;     /* next IP index to scan */
   uint64_t packets_sent;
   uint64_t hosts_found;
-  uint64_t seed;           /* permutation seed — must match on resume */
+  uint64_t seed;           /* permutation seed -- must match on resume */
   time_t   last_save;
 };
 
@@ -295,7 +295,7 @@ static bool load_checkpoint(const char *data_dir, ScanCheckpoint &cp) {
 }
 
 /* -----------------------------------------------------------------------
- * Rate limiter — token bucket
+ * Rate limiter -- token bucket
  * ----------------------------------------------------------------------- */
 
 struct RateLimiter {
@@ -322,7 +322,7 @@ static int64_t now_usec() {
 static void rate_init(RateLimiter &rl, int pps) {
   /* Cap burst capacity at ~20 ms of refill. The previous value of
    * pps * 1.5 (1.5 seconds of accumulated tokens) caused a huge
-   * opening burst at scan start — for --rate 25000 the first ~37,500
+   * opening burst at scan start -- for --rate 25000 the first ~37,500
    * packets fired as fast as the CPU could drive them, before any
    * throttling kicked in. That spike triggers IDS on the receiving
    * end and overflows upstream NIC buffers. A 20 ms ceiling absorbs
@@ -390,7 +390,7 @@ static BOOL WINAPI win_console_ctrl_handler(DWORD /*type*/) {
  * falls back to connect() scanning (slower but works without root).
  * ----------------------------------------------------------------------- */
 
-/* Open shard databases — one per shard index.  Returns nullptr entries
+/* Open shard databases -- one per shard index.  Returns nullptr entries
    for shards that fail to open (non-fatal). */
 static std::vector<sqlite3 *> open_all_shards(const char *data_dir) {
   std::vector<sqlite3 *> shards(NET_SHARD_COUNT, nullptr);
@@ -433,10 +433,15 @@ static bool connect_probe(uint32_t ip, int port, int timeout_ms) {
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-  /* Apply OS-spoofing profile (TTL, RCVBUF) before connect. No-op when
-     --spoof-os was not supplied. */
+  /* Apply OS-spoofing profile (TTL, RCVBUF, MSS, ...) before connect.
+     No-op when --spoof-os was not supplied. The per-target picker keeps
+     "random" mode stable for a given host, so retries against the same
+     IP produce the same OS personality instead of flickering between
+     profiles probe-to-probe. */
   os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
-                          os_profile_get(o.spoof_os));
+                          os_profile_get_for_target(
+                              o.spoof_os,
+                              os_profile_seed_from_ipv4(ip)));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
 
@@ -477,7 +482,7 @@ int fast_syn_scan(const char *data_dir,
     return 1;
   }
 
-  /* Validate rate — warn if unreasonably high */
+  /* Validate rate -- warn if unreasonably high */
   if (rate_pps > 1000000) {
     fprintf(stderr,
       "net-scan: WARNING: --rate %d exceeds 1,000,000 pps; "
@@ -513,7 +518,7 @@ int fast_syn_scan(const char *data_dir,
   if (resume) {
     if (load_checkpoint(data_dir, cp)) {
       /* A checkpoint that indicates progress but lacks a seed cannot
-       * be resumed safely — without the original permutation seed the
+       * be resumed safely -- without the original permutation seed the
        * scanner would walk a different IP order, leaving some IPs
        * never scanned and others scanned twice. Older checkpoints
        * from before seed tracking land here. */
@@ -565,7 +570,7 @@ int fast_syn_scan(const char *data_dir,
 #endif
   scan_interrupted = 0;
 
-  /* Seed for IP permutation — stored in checkpoint so resume uses
+  /* Seed for IP permutation -- stored in checkpoint so resume uses
      the same permutation order as the original scan. */
   uint64_t seed;
   if (resumed && cp.seed != 0) {
@@ -592,7 +597,7 @@ int fast_syn_scan(const char *data_dir,
   time_t last_checkpoint = time(nullptr);
   uint64_t batch_inserts = 0;
 
-  /* Main scan loop — using connect() fallback for safety.
+  /* Main scan loop -- using connect() fallback for safety.
    * Raw SYN scanning requires root privileges and careful pcap setup
    * that varies by OS.  The connect() approach works everywhere and
    * for a home-machine scanner at 25k pps is adequate.  The rate
@@ -674,7 +679,7 @@ int fast_syn_scan(const char *data_dir,
       }
 
       /* Left-pad ETA to a fixed width so a shrinking ETA string
-       * ("calculating..." → "01:23:45") doesn't leave stale trailing
+       * ("calculating..." -> "01:23:45") doesn't leave stale trailing
        * characters from the previous longer line on the same row. */
       log_write(LOG_STDOUT,
         "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %-15s\r",
@@ -700,7 +705,7 @@ int fast_syn_scan(const char *data_dir,
     if (db) net_db_commit(db);
   }
 
-  /* Save final checkpoint — use actual loop position, not stale value */
+  /* Save final checkpoint -- use actual loop position, not stale value */
   cp.next_index = scan_interrupted ? idx : IP_SPACE;
   cp.last_save = time(nullptr);
   save_checkpoint(data_dir, cp);

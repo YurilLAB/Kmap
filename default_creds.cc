@@ -457,9 +457,13 @@ static cred_fd_t tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 #endif
 
   /* OS spoofing profile: applied before connect so the SYN sent to the
-     target carries the spoofed TTL/RCVBUF. No-op when --spoof-os not set. */
+     target carries the spoofed TTL/RCVBUF/MSS. No-op when --spoof-os
+     not set. Per-target seed keeps "random" stable for the same host
+     across the multi-credential retry loop. */
   os_profile_apply_socket(static_cast<intptr_t>(fd), af,
-                          os_profile_get(o.spoof_os));
+                          os_profile_get_for_target(
+                              o.spoof_os,
+                              os_profile_seed_from_text(ip)));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 
@@ -558,7 +562,7 @@ static bool probe_ftp(const char *ip, uint16_t port,
   if (fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms) <= 0) {
     close_fd(fd); return false;
   }
-  /* Send USER — bail if connection drops */
+  /* Send USER -- bail if connection drops */
   std::string cmd = "USER " + user + "\r\n";
   if (!fd_send(fd, cmd.c_str(), cmd.size())) { close_fd(fd); return false; }
   memset(buf, 0, sizeof(buf));
@@ -594,8 +598,8 @@ static std::string base64_encode(const std::string &input) {
 }
 
 /* HTTP Basic Auth probe.
- * Step 1: GET / without credentials — must return 401 (auth required).
- * Step 2: GET / with Authorization header — success if response is not 401.
+ * Step 1: GET / without credentials -- must return 401 (auth required).
+ * Step 2: GET / with Authorization header -- success if response is not 401.
  * This two-step approach avoids false positives on servers that don't use
  * Basic Auth at all (which would otherwise look like successful empty creds). */
 static bool probe_http_basic(const char *ip, uint16_t port,
@@ -730,7 +734,7 @@ static bool probe_mssql(const char *ip, uint16_t port,
 
   /* Fixed section */
   p32(body_len);      /* body length (LE) */
-  p32(0x71000001);    /* TDS version 7.1 — broad compatibility */
+  p32(0x71000001);    /* TDS version 7.1 -- broad compatibility */
   p32(0x00001000);    /* PacketSize = 4096 */
   p32(0x00000007);    /* ClientVersion */
   p32(0x00000001);    /* ClientPID */
@@ -750,7 +754,7 @@ static bool probe_mssql(const char *ip, uint16_t port,
   p16(tail_o);  p16(0);       /* CltIntName */
   p16(tail_o);  p16(0);       /* Language */
   p16(db_o);    p16(db_l);    /* Database */
-  /* ClientID (6 bytes — use zeros) */
+  /* ClientID (6 bytes -- use zeros) */
   for (int i = 0; i < 6; ++i) body.push_back(0x00);
   p16(tail_o); p16(0);        /* SSPI */
   p16(tail_o); p16(0);        /* AttachDBFile */
@@ -802,7 +806,7 @@ static bool probe_telnet(const char *ip, uint16_t port,
   if (fd == CRED_INVALID_FD) return false;
 
   char buf[1024]{};
-  /* Read banner / negotiate — ignore failure (some telnet servers are slow) */
+  /* Read banner / negotiate -- ignore failure (some telnet servers are slow) */
   fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
 
   /* Send username */
@@ -819,14 +823,14 @@ static bool probe_telnet(const char *ip, uint16_t port,
   close_fd(fd);
 
   if (n <= 0) return false;
-  /* Failure indicators — check across the full response, anywhere. */
+  /* Failure indicators -- check across the full response, anywhere. */
   bool has_fail   = (strstr(buf, "incorrect") || strstr(buf, "failed") ||
                      strstr(buf, "denied")    || strstr(buf, "Password:") ||
                      strstr(buf, "invalid")   || strstr(buf, "bad password") ||
                      strstr(buf, "Login fail") || strstr(buf, "Access denied"));
   if (has_fail) return false;
 
-  /* Prompt indicators — only check the last line.  A real shell prompt
+  /* Prompt indicators -- only check the last line.  A real shell prompt
    * always sits at end-of-response after a final newline; matching anywhere
    * causes false positives when login banners or MOTDs happen to contain
    * "$ ", "# ", etc. */
@@ -841,7 +845,7 @@ static bool probe_telnet(const char *ip, uint16_t port,
 /* MySQL: authenticate using native_password (SHA1-based) when OpenSSL is
  * available, falling back to empty-password for no-auth servers otherwise.
  *
- * Protocol: HandshakeV10 → parse 20-byte scramble → SHA1 auth response.
+ * Protocol: HandshakeV10 -> parse 20-byte scramble -> SHA1 auth response.
  * Works with MySQL 5.x and MySQL 8.x servers still configured for
  * mysql_native_password. Also detects servers with no-password (auth_type=0). */
 static bool probe_mysql(const char *ip, uint16_t port,
@@ -881,7 +885,7 @@ static bool probe_mysql(const char *ip, uint16_t port,
     }
   }
 
-  /* Compute auth token — SHA1(pass) XOR SHA1(scramble + SHA1(SHA1(pass))) */
+  /* Compute auth token -- SHA1(pass) XOR SHA1(scramble + SHA1(SHA1(pass))) */
   uint8_t token[20]{};
   bool    has_token = false;
 #ifdef HAVE_OPENSSL
@@ -933,8 +937,8 @@ static bool probe_mysql(const char *ip, uint16_t port,
 }
 
 /* PostgreSQL: send startup message, then handle the auth challenge.
- *   auth_type 0 → trust auth (no password, detected regardless of cred pair)
- *   auth_type 5 → MD5 password auth (when OpenSSL is available)
+ *   auth_type 0 -> trust auth (no password, detected regardless of cred pair)
+ *   auth_type 5 -> MD5 password auth (when OpenSSL is available)
  *
  * MD5 auth: MD5("md5" + hex(MD5(password + username)) + hex(salt))
  * Salt is the 4-byte value returned with auth_type 5. */
@@ -1032,7 +1036,7 @@ static bool probe_postgresql(const char *ip, uint16_t port,
   return false;
 }
 
-/* MongoDB: try unauthenticated isMaster — old MongoDB allows this without creds */
+/* MongoDB: try unauthenticated isMaster -- old MongoDB allows this without creds */
 static bool probe_mongodb(const char *ip, uint16_t port,
                           const std::string & /*user*/, const std::string & /*pass*/,
                           int timeout_ms) {
@@ -1061,7 +1065,7 @@ static bool probe_mongodb(const char *ip, uint16_t port,
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
 
-  // Any valid OP_REPLY (opCode 1) means server responded — unauthenticated access
+  // Any valid OP_REPLY (opCode 1) means server responded -- unauthenticated access
   return (n > 16 && static_cast<uint8_t>(buf[12]) == 0x01 &&
                     static_cast<uint8_t>(buf[13]) == 0x00);
 }
@@ -1107,7 +1111,7 @@ static std::string normalize_service(const char *name) {
   if (s.find("ssh")        != std::string::npos) return "ssh";
   if (s.find("ftp")        != std::string::npos) return "ftp";
   if (s.find("telnet")     != std::string::npos) return "telnet";
-  /* Only probe plaintext HTTP — HTTPS (SSL/TLS) cannot be probed with raw TCP */
+  /* Only probe plaintext HTTP -- HTTPS (SSL/TLS) cannot be probed with raw TCP */
   if (s == "http" || s == "http-alt" || s == "http-proxy") return "http";
   if (s.find("mysql")      != std::string::npos) return "mysql";
   if (s.find("postgres")   != std::string::npos) return "postgresql";

@@ -1,7 +1,7 @@
 /*
  * net_scan.cc -- Internet-scale scanning orchestrator for Kmap.
  *
- * Coordinates the pipeline: discover → enrich → report.
+ * Coordinates the pipeline: discover -> enrich -> report.
  * Also handles watchlist mode and the --net-query search interface.
  */
 
@@ -69,7 +69,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     line.erase(line.find_last_not_of(" \t\r\n") + 1);
     if (line.empty() || line[0] == '#') continue;
 
-    /* Handle CIDR notation — expand small ranges */
+    /* Handle CIDR notation -- expand small ranges */
     size_t slash = line.find('/');
     if (slash != std::string::npos) {
       int prefix = atoi(line.substr(slash + 1).c_str());
@@ -86,7 +86,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         for (uint32_t i = 1; i < count - 1; i++) /* skip network + broadcast */
           targets.push_back(base + i);
       } else if (prefix == 31) {
-        /* /31: RFC 3021 point-to-point — both addresses usable */
+        /* /31: RFC 3021 point-to-point -- both addresses usable */
         uint32_t mask = ~1u;
         base &= mask;
         targets.push_back(base);
@@ -95,7 +95,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         /* /32: single host */
         targets.push_back(base);
       } else {
-        /* Large range — just add the base */
+        /* Large range -- just add the base */
         targets.push_back(base);
       }
     } else {
@@ -109,7 +109,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     return 1;
   }
 
-  log_write(LOG_STDOUT, "\nnet-scan: Watchlist mode — %d targets from %s\n",
+  log_write(LOG_STDOUT, "\nnet-scan: Watchlist mode -- %d targets from %s\n",
             (int)targets.size(), targets_file);
 
   /* Open watchlist database */
@@ -154,7 +154,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   /* Clear old data and re-scan */
   sqlite3_exec(wl_db, "DELETE FROM hosts", nullptr, nullptr, nullptr);
 
-  /* Scan each target — using connect probes for the top ports */
+  /* Scan each target -- using connect probes for the top ports */
   std::vector<int> ports = parse_port_spec(nullptr); /* top 100 */
   int64_t now_ts = static_cast<int64_t>(time(nullptr));
 
@@ -180,9 +180,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-      /* OS spoofing profile (--spoof-os). No-op when not set. */
+      /* OS spoofing profile (--spoof-os). No-op when not set. Stable
+         per-target: same IP -> same profile across retries / port loops. */
       os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
-                              os_profile_get(o.spoof_os));
+                              os_profile_get_for_target(
+                                  o.spoof_os,
+                                  os_profile_seed_from_ipv4(ip)));
 
       connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
       fd_set wset;
@@ -342,7 +345,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   }
   if (diff_fp) {
     fprintf(diff_fp, "================================================================================\n");
-    fprintf(diff_fp, "                    WATCHLIST DIFF — %s\n", datebuf);
+    fprintf(diff_fp, "                    WATCHLIST DIFF -- %s\n", datebuf);
     fprintf(diff_fp, "================================================================================\n");
     fprintf(diff_fp, "  Targets scanned: %d\n", (int)targets.size());
 
@@ -397,7 +400,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   }
   if (full_fp) {
     fprintf(full_fp, "================================================================================\n");
-    fprintf(full_fp, "                    WATCHLIST FULL REPORT — %s\n", datebuf);
+    fprintf(full_fp, "                    WATCHLIST FULL REPORT -- %s\n", datebuf);
     fprintf(full_fp, "================================================================================\n");
     fprintf(full_fp, "  Targets: %d | Open ports: %d\n\n", (int)targets.size(), (int)current.size());
 
@@ -496,7 +499,7 @@ int run_net_scan() {
     rc = run_enrichment(data_dir, 1000);
     if (rc != 0) {
       fprintf(stderr, "net-scan: enrichment phase had errors (continuing to report)\n");
-      /* Non-fatal — generate report with whatever was enriched */
+      /* Non-fatal -- generate report with whatever was enriched */
     }
 
     if (o.net_enrich_only) return 0;

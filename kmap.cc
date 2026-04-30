@@ -65,7 +65,7 @@
 /* kmap_winconfig.h MUST be the first include on Windows: it sets
  * NOMINMAX before winfix.h pulls in <windows.h> (otherwise windef.h's
  * min/max macros wreck std::min / std::max), and it pre-parses the
- * C++ stream headers before <nbase.h>'s close→closesocket macro can
+ * C++ stream headers before <nbase.h>'s close->closesocket macro can
  * leak into them and trip C4003 at <fstream> line ~1166. */
 #include "kmap_winconfig.h"
 #include "winfix.h"
@@ -494,7 +494,8 @@ static void printusage() {
          "  --tm-format <fmt>: Tracemap output format: txt, dot, json (default: txt)\n"
          "  --tm-max-hops <n>: Maximum TTL hops for tracemap (default: 30, range: 1-255)\n"
          "  --spoof-os <profile>: Spoof OS fingerprint for net-scan probes\n"
-         "                         (linux, win10, win11, macos, freebsd, random)\n"
+         "                         (linux, win10, win11, macos, freebsd,\n"
+         "                          openbsd, android, ios, random)\n"
          "  --net-query: Search collected scan data\n"
          "  --nq-port <port>: Filter query by port number\n"
          "  --nq-service <name>: Filter query by service name\n"
@@ -1189,7 +1190,7 @@ void parse_options(int argc, char **argv) {
             fatal("Invalid --color value '%s'. Use: always, never, or auto", optarg);
           Color::set_mode(cmode);
         } else if (parse_kmap_option(long_options[option_index].name, optarg)) {
-          /* Handled by parse_kmap_option() — Kmap-specific options
+          /* Handled by parse_kmap_option() -- Kmap-specific options
              extracted to avoid MSVC C1061 "blocks nested too deeply" */
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");

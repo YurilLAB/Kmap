@@ -147,7 +147,7 @@ static const char *builtin_paths[] = {
 };
 
 /* -----------------------------------------------------------------------
- * Low-level TCP helpers — IPv4 and IPv6 aware.
+ * Low-level TCP helpers -- IPv4 and IPv6 aware.
  * Use intptr_t for socket handles to avoid SOCKET-to-int truncation
  * on 64-bit Windows (SOCKET is UINT_PTR = 64 bits on Win64).
  * ----------------------------------------------------------------------- */
@@ -187,9 +187,13 @@ static wr_fd_t tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
 #endif
 
   /* OS spoofing profile: applied before connect. No-op when --spoof-os
-     not set. Done here so HTTPS connections also carry the spoofed TTL. */
+     not set. Done here so HTTPS connections also carry the spoofed
+     TTL/RCVBUF/MSS. Stable per-target seed: HTTP and HTTPS probes
+     against the same IP get the same OS personality. */
   os_profile_apply_socket(static_cast<intptr_t>(fd), af,
-                          os_profile_get(o.spoof_os));
+                          os_profile_get_for_target(
+                              o.spoof_os,
+                              os_profile_seed_from_text(ip)));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
   fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
@@ -325,13 +329,18 @@ static std::string extract_redirect(const std::string &response) {
   return extract_header(response, "Location");
 }
 
-/* Build a minimal HTTP/1.0 GET request via the os_profile module so that
- * --spoof-os swaps out the User-Agent and Accept-* headers in lockstep
- * with the network-layer knobs already applied to the socket. The IPv6
- * Host-header bracketing required by RFC 7230 §5.4 is handled inside
- * os_profile_http_request(). */
+/* Build a minimal GET request via the os_profile module so that
+ * --spoof-os swaps out the User-Agent, Accept-*, and (for browser
+ * profiles) Sec-Fetch-* headers in lockstep with the network-layer
+ * knobs already applied to the socket. The IPv6 Host-header bracketing
+ * required by RFC 7230 Section 5.4 is handled inside os_profile_http_request().
+ * The per-target picker keeps "random" stable for the host so the HTTP
+ * banner matches the TTL-and-window personality the SYN already carried. */
 static std::string build_request(const char *path, const char *host) {
-  return os_profile_http_request(path, host, os_profile_get(o.spoof_os));
+  return os_profile_http_request(
+      path, host,
+      os_profile_get_for_target(o.spoof_os,
+                                os_profile_seed_from_text(host)));
 }
 
 /* -----------------------------------------------------------------------
@@ -359,7 +368,7 @@ static SSL_CTX *get_ssl_ctx() {
     SSL_load_error_strings();
     ctx = SSL_CTX_new(TLS_client_method());
     if (ctx) {
-      // Skip verification — self-signed certs are common in internal nets
+      // Skip verification -- self-signed certs are common in internal nets
       SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
     }
   }
@@ -377,11 +386,26 @@ static std::string https_get(const char *ip, uint16_t port,
 
   SSL *ssl = SSL_new(ctx);
   SSL_set_fd(ssl, static_cast<int>(fd));
-  /* SNI must be a hostname, not an IP — skip for bare IPs (RFC 6066) */
+  /* SNI must be a hostname, not an IP -- skip for bare IPs (RFC 6066) */
   { struct in_addr dummy4; struct in6_addr dummy6;
     if (inet_pton(AF_INET, ip, &dummy4) != 1 &&
         inet_pton(AF_INET6, ip, &dummy6) != 1)
       SSL_set_tlsext_host_name(ssl, ip);
+  }
+
+  /* Per-profile TLS cipher ordering. Setting it on the SSL (not the
+   * shared CTX) keeps each connection's choice independent and lets a
+   * "random" --spoof-os profile pick a different JA3 fingerprint per
+   * host. NULL return means "use OpenSSL default", which is what we
+   * want for curl-style profiles (linux, openbsd) -- they should look
+   * exactly like a real curl build's TLS handshake. The call returns
+   * 0 on failure but we don't fail the probe: a degraded JA3 (default
+   * ciphers) is still better than no probe. */
+  {
+    const OsProfile *prof = os_profile_get_for_target(
+        o.spoof_os, os_profile_seed_from_text(ip));
+    const char *cipher_list = os_profile_tls_cipher_list(prof);
+    if (cipher_list) SSL_set_cipher_list(ssl, cipher_list);
   }
 
   if (SSL_connect(ssl) != 1) {
@@ -671,9 +695,9 @@ void print_web_recon_output(const Target *t) {
       if (wp.redirect_to.empty())
         log_write(LOG_PLAIN, "  |    [%d] %s%s\n",
                   wp.status_code, wp.path.c_str(),
-                  wp.title.empty() ? "" : (" — " + wp.title).c_str());
+                  wp.title.empty() ? "" : (" -- " + wp.title).c_str());
       else
-        log_write(LOG_PLAIN, "  |    [%d] %s → %s\n",
+        log_write(LOG_PLAIN, "  |    [%d] %s -> %s\n",
                   wp.status_code, wp.path.c_str(), wp.redirect_to.c_str());
     }
   }
@@ -726,7 +750,7 @@ static std::string find_browser() {
 }
 
 /* Spawn the browser with the given argument vector. Returns the child's
- * exit code, or -1 on spawn failure. No shell interpretation — the
+ * exit code, or -1 on spawn failure. No shell interpretation -- the
  * arguments are passed directly. */
 static int spawn_browser(const std::string &browser,
                          const std::vector<std::string> &args) {
@@ -806,7 +830,7 @@ void run_screenshot_capture(std::vector<Target *> &targets,
 
     if (!screenshot_dir_safe(dir)) {
         log_write(LOG_STDOUT,
-            "ERROR: --screenshot-dir '%s' contains unsafe characters — aborting screenshot capture.\n",
+            "ERROR: --screenshot-dir '%s' contains unsafe characters -- aborting screenshot capture.\n",
             dir.c_str());
         return;
     }
@@ -814,7 +838,7 @@ void run_screenshot_capture(std::vector<Target *> &targets,
     /* Create output directory (tolerate EEXIST). */
     if (kmap_mkdir(dir.c_str()) != 0 && errno != EEXIST) {
         log_write(LOG_STDOUT,
-            "ERROR: --screenshot: cannot create directory '%s' (%s) — aborting.\n",
+            "ERROR: --screenshot: cannot create directory '%s' (%s) -- aborting.\n",
             dir.c_str(), strerror(errno));
         return;
     }

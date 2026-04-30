@@ -60,7 +60,7 @@ extern KmapOps o;
 #define ENRICH_BANNER_MAX       1024  /* bytes */
 
 /* -----------------------------------------------------------------------
- * Low-level TCP helpers — same pattern as default_creds.cc
+ * Low-level TCP helpers -- same pattern as default_creds.cc
  * ----------------------------------------------------------------------- */
 
 /* Use intptr_t for socket handles to avoid SOCKET-to-int truncation
@@ -101,9 +101,13 @@ static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_m
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
-  /* OS spoofing profile (--spoof-os). No-op when not set. */
+  /* OS spoofing profile (--spoof-os). No-op when not set. Stable per
+     target IP so the multiple enrichment probes against one host present
+     a single coherent OS personality. */
   os_profile_apply_socket(static_cast<intptr_t>(fd), af,
-                          os_profile_get(o.spoof_os));
+                          os_profile_get_for_target(
+                              o.spoof_os,
+                              os_profile_seed_from_text(ip)));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 
@@ -198,8 +202,8 @@ static std::string str_lower(const std::string &s) {
   return r;
 }
 
-/* Numeric version comparison — returns -1/0/1 for a<b, a==b, a>b.
-   Parses "2.4.49p1" → {2, 4, 49} and compares component-by-component. */
+/* Numeric version comparison -- returns -1/0/1 for a<b, a==b, a>b.
+   Parses "2.4.49p1" -> {2, 4, 49} and compares component-by-component. */
 static int ver_cmp_enrich(const std::string &a, const std::string &b) {
   auto parse = [](const std::string &s) -> std::vector<int> {
     std::vector<int> parts;
@@ -275,8 +279,10 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
      the spoofed User-Agent. ip is passed as the Host so the request looks
      plausible end-to-end. */
   if (n <= 0) {
-    std::string http_probe =
-        os_profile_http_request("/", ip, os_profile_get(o.spoof_os));
+    std::string http_probe = os_profile_http_request(
+        "/", ip,
+        os_profile_get_for_target(o.spoof_os,
+                                  os_profile_seed_from_text(ip)));
     if (enrich_fd_send(fd, http_probe.c_str(), http_probe.size())) {
       n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
     }
@@ -317,7 +323,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     }
 
     /* Detect HTTPS ports by common port numbers (enrichment connects
-       plain TCP — we cannot do TLS here without OpenSSL overhead) */
+       plain TCP -- we cannot do TLS here without OpenSSL overhead) */
     if (port == 443 || port == 8443 || port == 4443)
       result.service = "https";
 
@@ -327,7 +333,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
   /* Match against known banner patterns */
   if (banner.size() >= 4 && banner.substr(0, 4) == "SSH-") {
     result.service = "ssh";
-    /* "SSH-2.0-OpenSSH_8.2p1" → version = "OpenSSH 8.2p1" */
+    /* "SSH-2.0-OpenSSH_8.2p1" -> version = "OpenSSH 8.2p1" */
     size_t dash3 = banner.find('-', 4);
     if (dash3 != std::string::npos && dash3 + 1 < first_line.size()) {
       result.version = first_line.substr(dash3 + 1);
@@ -347,7 +353,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
                banner_lower.find("esmtp") != std::string::npos) {
       result.service = "smtp";
     } else {
-      /* Ambiguous 220 — guess based on port */
+      /* Ambiguous 220 -- guess based on port */
       if (port == 21) result.service = "ftp";
       else if (port == 25 || port == 587 || port == 465) result.service = "smtp";
       else result.service = "ftp";  /* default */
@@ -386,7 +392,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     return result;
   }
 
-  /* MongoDB: binary wire protocol — check for valid OP_REPLY header */
+  /* MongoDB: binary wire protocol -- check for valid OP_REPLY header */
   if (n >= 16 && static_cast<unsigned char>(buf[12]) == 0x01) {
     result.service = "mongodb";
     return result;
@@ -413,7 +419,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
 /* -----------------------------------------------------------------------
  * CVE lookup against kmap-cve.db
  *
- * Simplified version of cve_map.cc's query_cves() — works with plain
+ * Simplified version of cve_map.cc's query_cves() -- works with plain
  * strings instead of Target objects.
  * ----------------------------------------------------------------------- */
 
@@ -461,7 +467,7 @@ static std::string normalize_product(const std::string &service,
 }
 
 /* Extract a dotted version number from a string.
- * "OpenSSH 8.2p1" → "8.2", "nginx/1.18.0" → "1.18.0" */
+ * "OpenSSH 8.2p1" -> "8.2", "nginx/1.18.0" -> "1.18.0" */
 static std::string extract_version_number(const std::string &s) {
   size_t i = 0;
   while (i < s.size()) {
@@ -513,7 +519,7 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
 
-    /* Version range filtering — uses numeric version comparison,
+    /* Version range filtering -- uses numeric version comparison,
        same algorithm as cve_map.cc's ver_cmp(). */
     if (!det_ver.empty() && (!vmin.empty() || !vmax.empty())) {
       if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
@@ -612,7 +618,7 @@ static int extract_status(const std::string &resp) {
   return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
 }
 
-/* probe_http — if cached_response is non-empty, reuse it instead of
+/* probe_http -- if cached_response is non-empty, reuse it instead of
    making a new TCP connection (avoids the double-connect from grab_banner). */
 static WebResult probe_http(const char *ip, int port, int timeout_ms,
                             const std::string &cached_response = "") {
@@ -625,13 +631,15 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
     if (fd == KMAP_INVALID_FD) return wr;
 
-    /* Profile-driven request (User-Agent + Accept-* headers) — preserves
+    /* Profile-driven request (User-Agent + Accept-* headers) -- preserves
        the existing Host-with-port form by passing ip as the host and
        letting os_profile_http_request handle IPv6 bracketing. The :port
        suffix is not strictly required (HTTP/1.0 ignores port mismatch)
        and dropping it gives a more browser-faithful header. */
-    std::string req =
-        os_profile_http_request("/", ip, os_profile_get(o.spoof_os));
+    std::string req = os_profile_http_request(
+        "/", ip,
+        os_profile_get_for_target(o.spoof_os,
+                                  os_profile_seed_from_text(ip)));
 
     if (!enrich_fd_send(fd, req.c_str(), req.size())) {
       enrich_close_fd(fd);
@@ -696,7 +704,7 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
   hdr_json << "}";
   if (!first) wr.headers_json = hdr_json.str();
 
-  /* Build paths JSON — just the root path result */
+  /* Build paths JSON -- just the root path result */
   int status = extract_status(response);
   if (status > 0) {
     std::ostringstream paths_json;
@@ -722,7 +730,7 @@ static bool is_http_port(int port, const std::string &service) {
 }
 
 /* -----------------------------------------------------------------------
- * enrich_single_host — public API
+ * enrich_single_host -- public API
  * ----------------------------------------------------------------------- */
 
 int enrich_single_host(const char *ip,
@@ -768,7 +776,7 @@ int enrich_single_host(const char *ip,
       out_cves[i] = cves_to_json(cves);
     }
 
-    /* Step 3: HTTP recon on web ports — reuse response from banner grab
+    /* Step 3: HTTP recon on web ports -- reuse response from banner grab
        if it already did an HTTP probe (avoids double TCP connection) */
     if (is_http_port(ports[i], br.service)) {
       WebResult wr = probe_http(ip, ports[i], timeout_ms, br.http_response);
@@ -784,7 +792,7 @@ int enrich_single_host(const char *ip,
 }
 
 /* -----------------------------------------------------------------------
- * Format a number with thousand separators: 1234567 → "1,234,567"
+ * Format a number with thousand separators: 1234567 -> "1,234,567"
  * ----------------------------------------------------------------------- */
 static std::string format_count(int64_t n) {
   if (n < 0) return "-" + format_count(-n);
@@ -799,7 +807,7 @@ static std::string format_count(int64_t n) {
 }
 
 /* -----------------------------------------------------------------------
- * run_enrichment — full pipeline across all shards
+ * run_enrichment -- full pipeline across all shards
  * ----------------------------------------------------------------------- */
 
 int run_enrichment(const char *data_dir, int batch_size) {
@@ -814,7 +822,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
   }
   if (cve_path.empty()) {
     log_write(LOG_STDOUT,
-      "net-scan: WARNING: kmap-cve.db not found — CVE enrichment skipped.\n");
+      "net-scan: WARNING: kmap-cve.db not found -- CVE enrichment skipped.\n");
   }
 
   int errors = 0;
@@ -824,12 +832,12 @@ int run_enrichment(const char *data_dir, int batch_size) {
 
     /* Check if shard file exists before trying to open */
     FILE *test = fopen(db_path.c_str(), "r");
-    if (!test) continue;  /* shard doesn't exist — skip */
+    if (!test) continue;  /* shard doesn't exist -- skip */
     fclose(test);
 
     sqlite3 *db = net_db_open(db_path);
     if (!db) {
-      log_write(LOG_STDOUT, "net-scan: WARNING: cannot open %s — skipping.\n",
+      log_write(LOG_STDOUT, "net-scan: WARNING: cannot open %s -- skipping.\n",
                 db_path.c_str());
       errors++;
       continue;
@@ -874,7 +882,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
           protos.push_back(h.proto);
         }
 
-        /* Run enrichment — isolated per-host so one failure
+        /* Run enrichment -- isolated per-host so one failure
            does not abort the entire shard */
         std::vector<std::string> services, versions, cves_json;
         std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
@@ -899,7 +907,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
           continue;
         }
 
-        /* Write enrichment results back to DB — check bounds to avoid
+        /* Write enrichment results back to DB -- check bounds to avoid
            out-of-range access if output vectors are somehow short */
         for (size_t j = 0; j < ports.size(); j++) {
           net_db_update_enrichment(
@@ -913,7 +921,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
             j < web_paths.size()   ? web_paths[j].c_str()   : "");
         }
 
-        /* ASN/GeoIP lookup — one per IP, applied to all ports */
+        /* ASN/GeoIP lookup -- one per IP, applied to all ports */
         AsnInfo asn_info = lookup_asn(ip.c_str(), 2000);
         if (asn_info.asn > 0) {
           net_db_update_asn(db, ip.c_str(), asn_info.asn,

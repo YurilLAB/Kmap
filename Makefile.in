@@ -266,7 +266,7 @@ clean-nping:
 	-cd $(NPINGDIR) && $(MAKE) clean
 
 clean-tests:
-	@rm -f tests/kmap_dns_test tests/expr_match_test
+	@rm -f tests/kmap_dns_test tests/expr_match_test tests/os_profile_test
 
 distclean-pcap:
 	-cd $(LIBPCAPDIR) && $(MAKE) distclean
@@ -456,7 +456,7 @@ check-nsock:
 check-zekmap:
 	@cd $(ZEKMAPDIR)/test && $(PYTHON) run_tests.py
 
-check-kmap: tests/kmap_dns_test tests/expr_match_test
+check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test
 	for test in $^; do ./$$test; done
 
 check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZEKMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-kmap
