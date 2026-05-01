@@ -60,6 +60,23 @@ struct NetHost {
   std::string country;
   std::string bgp_prefix;
   int         enriched;
+
+  /* Patch-status / re-scan tracking. Populated by the atomic capture
+     inside net_db_update_enrichment() each time enrichment runs against
+     an already-enriched row. Stay empty / zero on first-ever enrichment.
+     enriched_at is the wall-clock timestamp the *current* cves/service
+     were stored; prev_enriched_at is the timestamp the values now in
+     prev_* were stored. The pair lets a report show "scanned T1, scanned
+     again T2 -- here's what changed". scan_count counts how many times
+     the host/port has been re-discovered (incremented by the UPSERT in
+     net_db_insert_host on every re-scan, regardless of whether it was
+     re-enriched). */
+  std::string prev_cves;
+  std::string prev_service;
+  std::string prev_version;
+  int64_t     prev_enriched_at = 0;
+  int64_t     enriched_at = 0;
+  int         scan_count = 0;
 };
 
 /* Insert a discovered host/port.  Ignores duplicates (INSERT OR IGNORE).
@@ -132,5 +149,41 @@ uint32_t ip_to_u32(const char *ip_str);
 
 /* Convert a 32-bit host-order integer to a dotted-quad string. */
 std::string u32_to_ip(uint32_t ip);
+
+/* -----------------------------------------------------------------------
+ * Patch-status diff helpers
+ *
+ * On a re-scan, kmap captures the previous enrichment's CVE list into
+ * prev_cves before overwriting cves with the new findings. These helpers
+ * turn that pair into a structured patch diff that the report engine
+ * surfaces as "what was patched", "what is still vulnerable", and
+ * "what is new since last scan".
+ *
+ * The JSON parser is intentionally permissive and only extracts the
+ * "id" field of each entry -- it does not allocate a full JSON tree.
+ * The format it accepts is the one written by net_enrich's cves_to_json
+ * (`[{"id":"CVE-...","cvss":...,...},...]`); other shapes return an
+ * empty list rather than throwing, so a corrupt prev_cves cell never
+ * blocks a report run.
+ * ----------------------------------------------------------------------- */
+
+/* Parse a CVE JSON-array string into the bare list of CVE IDs. Empty
+   string, "[]", or malformed input all return an empty vector. */
+std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json);
+
+/* Diff result returned by net_db_cve_diff. Each list is sorted ascending
+   by CVE ID for stable, grep-friendly output. */
+struct NetDbCveDiff {
+  std::vector<std::string> persisting; /* in both prev and current */
+  std::vector<std::string> introduced; /* in current only (new this scan) */
+  std::vector<std::string> patched;    /* in prev only (gone this scan) */
+};
+
+/* Compute the patch diff between two CVE JSON arrays (typically the
+   prev_cves and cves columns of one host/port row). Result is sorted
+   per the contract above. Pure function -- no DB access -- so callers
+   can unit-test it without a fixture. */
+NetDbCveDiff net_db_cve_diff(const std::string &prev_cves_json,
+                             const std::string &current_cves_json);
 
 #endif /* NET_DB_H */

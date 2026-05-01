@@ -142,6 +142,16 @@ struct FileSummary {
   int64_t cves_found;
   int64_t earliest_seen;  /* Unix epoch */
   int64_t latest_seen;    /* Unix epoch */
+
+  /* Patch-status counters. Populated as write_host_section walks each
+     host and computes net_db_cve_diff(prev_cves, cves) per port. The
+     "rescanned_hosts" counter is the number of hosts whose port rows
+     have scan_count >= 2, i.e. ones we have data from more than one
+     scan for and therefore have meaningful patch deltas to report. */
+  int64_t patched_cves;     /* gone since prior scan */
+  int64_t persisting_cves;  /* still present across scans */
+  int64_t introduced_cves;  /* new this scan */
+  int64_t rescanned_hosts;  /* hosts seen in >= 2 scans */
 };
 
 /* -----------------------------------------------------------------------
@@ -251,6 +261,100 @@ static void write_host_section(FILE *fp, const std::string &ip,
     }
   }
 
+  /* PATCH STATUS section
+     ---------------------
+     Emitted only for hosts that have been enriched at least twice
+     (any port row has prev_cves non-empty OR a previous enriched_at).
+     Lists the per-port diff between prev_cves and cves so a re-scan
+     surfaces "what was patched" (CVE was on this host last scan, gone
+     now), "still vulnerable", and "newly introduced since last scan".
+
+     This is the headline value of keeping prev_* columns: an operator
+     scanning the same range a year apart immediately sees what the
+     defenders fixed and what regressed. */
+  bool host_was_rescanned = false;
+  for (const auto &p : ports) {
+    if (!p.prev_cves.empty() || p.prev_enriched_at > 0 || p.scan_count >= 2) {
+      host_was_rescanned = true;
+      break;
+    }
+  }
+  if (host_was_rescanned) {
+    summary.rescanned_hosts++;
+    fprintf(fp, "\n  PATCH STATUS\n");
+    fprintf(fp, "  %s\n", dash_line().c_str());
+
+    for (const auto &p : ports) {
+      /* Skip ports that have no prior state to compare against. We
+         still want to render rescanned hosts even when one of their
+         ports is brand new -- that fact itself is interesting -- so
+         the per-port skip is independent of host_was_rescanned. */
+      if (p.prev_cves.empty() && p.prev_enriched_at == 0 && p.scan_count < 2)
+        continue;
+
+      char port_str[32];
+      snprintf(port_str, sizeof(port_str), "%d/%s",
+               p.port, p.proto.c_str());
+
+      /* Header line shows port + scan-count and the time since the
+         previous enrichment so the reader knows the baseline date. */
+      std::string when;
+      if (p.prev_enriched_at > 0) {
+        when = " (prev scan ";
+        when += format_date(p.prev_enriched_at);
+        when += ")";
+      } else if (p.scan_count >= 2) {
+        when = " (rediscovered, no prior enrichment)";
+      }
+      fprintf(fp, "  %s%s [scans=%d]%s\n",
+              port_str, p.service.empty() ? "" : (" " + p.service).c_str(),
+              p.scan_count, when.c_str());
+
+      /* Service / version drift -- a port flipping from OpenSSH to
+         nginx is itself a finding (port reassigned), and a version
+         bump even with the same CVEs implies a partial patch. */
+      if (!p.prev_service.empty() && p.prev_service != p.service) {
+        fprintf(fp, "    SERVICE:   %s -> %s\n",
+                p.prev_service.c_str(),
+                p.service.empty() ? "(none)" : p.service.c_str());
+      }
+      if (!p.prev_version.empty() && p.prev_version != p.version) {
+        fprintf(fp, "    VERSION:   %s -> %s\n",
+                p.prev_version.c_str(),
+                p.version.empty() ? "(none)" : p.version.c_str());
+      }
+
+      NetDbCveDiff d = net_db_cve_diff(p.prev_cves, p.cves);
+      summary.patched_cves    += static_cast<int64_t>(d.patched.size());
+      summary.persisting_cves += static_cast<int64_t>(d.persisting.size());
+      summary.introduced_cves += static_cast<int64_t>(d.introduced.size());
+
+      auto print_list = [&](const char *label,
+                            const std::vector<std::string> &v) {
+        if (v.empty()) return;
+        fprintf(fp, "    %-10s ", label);
+        /* Wrap at ~6 IDs per line so the report stays readable when
+           a host has dozens of CVEs (legacy appliances commonly do). */
+        const size_t per_line = 6;
+        for (size_t k = 0; k < v.size(); k++) {
+          fprintf(fp, "%s%s", v[k].c_str(),
+                  (k + 1 < v.size()) ? ", " : "\n");
+          if ((k + 1) % per_line == 0 && k + 1 < v.size())
+            fprintf(fp, "\n               ");
+        }
+      };
+      print_list("PATCHED:",    d.patched);
+      print_list("PERSISTING:", d.persisting);
+      print_list("NEW:",        d.introduced);
+
+      /* All-clear case: a host whose prev had CVEs and current has
+         none is the cleanest possible "good news" signal -- call it
+         out explicitly so it does not get lost in the file. */
+      if (!d.patched.empty() && d.persisting.empty() && d.introduced.empty())
+        fprintf(fp, "    STATUS:    fully patched since last scan\n");
+    }
+  }
+
   /* WEB RECON section */
   if (has_web) {
     fprintf(fp, "\n  WEB RECON\n");
@@ -353,6 +457,20 @@ static void write_file_summary(FILE *fp, const FileSummary &summary) {
           format_count(summary.total_ports).c_str());
   fprintf(fp, "  CVEs found:       %s\n",
           format_count(summary.cves_found).c_str());
+
+  /* Patch-status summary -- only meaningful when at least one host in
+     the file was rescanned. Suppress the lines on first-ever scans so
+     the footer does not show four "0" lines that mean nothing. */
+  if (summary.rescanned_hosts > 0) {
+    fprintf(fp, "  Rescanned hosts:  %s\n",
+            format_count(summary.rescanned_hosts).c_str());
+    fprintf(fp, "  Patched CVEs:     %s\n",
+            format_count(summary.patched_cves).c_str());
+    fprintf(fp, "  Persisting CVEs:  %s\n",
+            format_count(summary.persisting_cves).c_str());
+    fprintf(fp, "  New CVEs:         %s\n",
+            format_count(summary.introduced_cves).c_str());
+  }
 
   std::string period;
   if (summary.earliest_seen > 0 && summary.latest_seen > 0)

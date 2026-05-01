@@ -8,6 +8,7 @@
 
 #include "net_db.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -99,6 +100,14 @@ static const char *SCHEMA_SQL =
   "  enriched             INTEGER DEFAULT 0,"
   "  enrichment_error     TEXT,"
   "  enrichment_error_at  INTEGER DEFAULT 0,"
+  /* v4 patch-status columns. Listed here for fresh-install databases;
+     existing dbs pick them up via the MIGRATIONS array below. */
+  "  enriched_at          INTEGER DEFAULT 0,"
+  "  prev_cves            TEXT,"
+  "  prev_service         TEXT,"
+  "  prev_version         TEXT,"
+  "  prev_enriched_at     INTEGER DEFAULT 0,"
+  "  scan_count           INTEGER DEFAULT 1,"
   "  PRIMARY KEY (ip, port)"
   ");"
   /* Indexes whose columns have always existed since v1 are safe in
@@ -122,6 +131,17 @@ static const char *MIGRATIONS[] = {
   /* v3: enrichment-error tracking for retry-after-cooldown */
   "ALTER TABLE hosts ADD COLUMN enrichment_error TEXT",
   "ALTER TABLE hosts ADD COLUMN enrichment_error_at INTEGER DEFAULT 0",
+  /* v4: patch-status / re-scan history. enriched_at is when the current
+     cves/service were stored; prev_* hold the state captured atomically
+     on the next enrichment so reports can diff "patched since last scan"
+     without keeping a separate history table. scan_count is bumped by
+     the insert-host UPSERT on every re-discovery. */
+  "ALTER TABLE hosts ADD COLUMN enriched_at INTEGER DEFAULT 0",
+  "ALTER TABLE hosts ADD COLUMN prev_cves TEXT",
+  "ALTER TABLE hosts ADD COLUMN prev_service TEXT",
+  "ALTER TABLE hosts ADD COLUMN prev_version TEXT",
+  "ALTER TABLE hosts ADD COLUMN prev_enriched_at INTEGER DEFAULT 0",
+  "ALTER TABLE hosts ADD COLUMN scan_count INTEGER DEFAULT 1",
 };
 
 sqlite3 *net_db_open(const std::string &path) {
@@ -180,9 +200,20 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
                        const char *proto, int64_t timestamp) {
   if (!db) return -1;
 
+  /* UPSERT semantics: on first sight, insert with first_seen=last_seen=ts
+     and scan_count=1. On re-discovery, leave first_seen alone (it is the
+     historical anchor) but refresh last_seen and bump scan_count. The
+     prior INSERT OR IGNORE form left last_seen frozen at the first-seen
+     time, which made "did I see this host on the latest scan" impossible
+     to answer from the DB without re-running the discovery. ON CONFLICT
+     ... DO UPDATE has been in SQLite since 3.24 (2018-06); the bundled
+     amalgamation is far newer. */
   static const char *sql =
-    "INSERT OR IGNORE INTO hosts (ip, port, proto, first_seen, last_seen) "
-    "VALUES (?, ?, ?, ?, ?)";
+    "INSERT INTO hosts (ip, port, proto, first_seen, last_seen, scan_count) "
+    "VALUES (?, ?, ?, ?, ?, 1) "
+    "ON CONFLICT(ip, port) DO UPDATE SET "
+    "  last_seen  = excluded.last_seen, "
+    "  scan_count = scan_count + 1";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -199,7 +230,11 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
   sqlite3_finalize(stmt);
 
   if (rc == SQLITE_DONE) {
-    /* Check if row was actually inserted (not a duplicate) */
+    /* sqlite3_changes counts rows affected by either the INSERT or the
+       UPSERT branch, so 1 means "row written" regardless of new vs
+       updated. Callers that need to distinguish (e.g. progress counters
+       for "first sight" vs "re-discovery") should check scan_count
+       separately via net_db_get_host. */
     return sqlite3_changes(db) > 0 ? 1 : 0;
   }
   return -1;
@@ -212,11 +247,26 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *web_headers, const char *web_paths) {
   if (!db) return -1;
 
+  /* Atomic prev-state capture: when this row was already enriched at
+     least once (enriched=1), copy the current cves/service/version/
+     enriched_at into prev_* BEFORE overwriting with the new values.
+     One UPDATE statement, so the snapshot can never get out of sync
+     with the new data even under concurrent SQLITE_BUSY retries. The
+     CASE-WHEN guard means a *first*-time enrichment leaves prev_* at
+     their default empty / zero values, so reports can use "prev_cves
+     non-empty" as the trigger for the patch-status section. */
   static const char *sql =
-    "UPDATE hosts SET service=?, version=?, cves=?, web_title=?, "
-    "web_server=?, web_headers=?, web_paths=?, enriched=1, "
-    "enrichment_error=NULL, enrichment_error_at=0, "
-    "last_seen=strftime('%s','now') "
+    "UPDATE hosts SET "
+    "  prev_cves        = CASE WHEN enriched=1 THEN cves        ELSE prev_cves        END, "
+    "  prev_service     = CASE WHEN enriched=1 THEN service     ELSE prev_service     END, "
+    "  prev_version     = CASE WHEN enriched=1 THEN version     ELSE prev_version     END, "
+    "  prev_enriched_at = CASE WHEN enriched=1 THEN enriched_at ELSE prev_enriched_at END, "
+    "  service=?, version=?, cves=?, web_title=?, "
+    "  web_server=?, web_headers=?, web_paths=?, "
+    "  enriched=1, "
+    "  enriched_at=strftime('%s','now'), "
+    "  enrichment_error=NULL, enrichment_error_at=0, "
+    "  last_seen=strftime('%s','now') "
     "WHERE ip=? AND port=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -338,10 +388,17 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
   std::vector<NetHost> hosts;
   if (!db || !ip) return hosts;
 
+  /* Selects the v4 patch-status columns alongside the existing fields.
+     The COALESCE on the new columns lets this run cleanly against any
+     post-migration database (where the columns exist but rows seen
+     before v4 have NULLs). */
   static const char *sql =
     "SELECT ip, port, proto, first_seen, last_seen, service, version, "
     "cves, web_title, web_server, web_headers, web_paths, "
-    "asn, as_name, country, bgp_prefix, enriched "
+    "asn, as_name, country, bgp_prefix, enriched, "
+    "COALESCE(prev_cves, ''), COALESCE(prev_service, ''), "
+    "COALESCE(prev_version, ''), COALESCE(prev_enriched_at, 0), "
+    "COALESCE(enriched_at, 0), COALESCE(scan_count, 1) "
     "FROM hosts WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -369,13 +426,19 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.web_server  = col(9);
     h.web_headers = col(10);
     h.web_paths   = col(11);
-    /* Read as int64 to match the int64 bind in net_db_update_asn — see
+    /* Read as int64 to match the int64 bind in net_db_update_asn -- see
      * note there. */
     h.asn         = static_cast<uint32_t>(sqlite3_column_int64(stmt, 12));
     h.as_name     = col(13);
     h.country     = col(14);
     h.bgp_prefix  = col(15);
     h.enriched    = sqlite3_column_int(stmt, 16);
+    h.prev_cves        = col(17);
+    h.prev_service     = col(18);
+    h.prev_version     = col(19);
+    h.prev_enriched_at = sqlite3_column_int64(stmt, 20);
+    h.enriched_at      = sqlite3_column_int64(stmt, 21);
+    h.scan_count       = sqlite3_column_int(stmt, 22);
     hosts.push_back(std::move(h));
   }
   sqlite3_finalize(stmt);
@@ -434,4 +497,112 @@ void net_db_commit(sqlite3 *db) {
     fprintf(stderr, "net-scan: WARNING: COMMIT failed: %s\n", errmsg);
     sqlite3_free(errmsg);
   }
+}
+
+/* -----------------------------------------------------------------------
+ * CVE id parser + diff helpers
+ *
+ * The CVE column is a JSON array written by net_enrich's cves_to_json,
+ * shaped like [{"id":"CVE-2024-...","cvss":...,"severity":"...",
+ * "desc":"..."},...]. For patch-status we only need the IDs, so a full
+ * JSON parse is overkill. The walk below is intentionally state-machine
+ * lite: it scans for the literal "id":" prefix at the start of each
+ * object and reads characters until the closing quote, treating any
+ * "id" inside the desc field as a non-issue because we anchor the
+ * search to immediately after a '{' (which a desc field cannot contain
+ * unescaped per net_enrich's json_escape).
+ *
+ * Tolerant of whitespace between tokens, "[]" empty arrays, NULL/empty
+ * input, and missing fields. Pure -- no DB access -- so it can be
+ * unit-tested without a fixture.
+ * ----------------------------------------------------------------------- */
+
+std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json) {
+  std::vector<std::string> ids;
+  if (cves_json.empty() || cves_json == "[]") return ids;
+
+  size_t pos = 0;
+  while (pos < cves_json.size()) {
+    /* Find next object opener. Only an unescaped '{' starts a new entry;
+       a '{' inside a quoted string never appears because json_escape
+       does not allow raw '{' inside descriptions but does keep them
+       readable -- still, anchoring to '{' right after the array element
+       boundary is robust enough for the format we control. */
+    size_t obj_start = cves_json.find('{', pos);
+    if (obj_start == std::string::npos) break;
+
+    /* Find the matching '}' to bound this entry. The simple scan works
+       because json_escape strips control characters and the only
+       structural braces in our format are the per-entry object braces;
+       no nested objects appear. */
+    size_t obj_end = cves_json.find('}', obj_start);
+    if (obj_end == std::string::npos) break;
+
+    /* Within this entry, look for "id":" then read up to the next
+       unescaped quote. We respect the same odd/even backslash rule
+       json_extract_string in net_report uses for full correctness on
+       descriptions containing literal backslashes -- though IDs
+       themselves never contain a backslash, the parser must not get
+       desynchronized by one in a sibling field that comes BEFORE id. */
+    static const char id_key[] = "\"id\":\"";
+    size_t key = cves_json.find(id_key, obj_start);
+    if (key == std::string::npos || key > obj_end) {
+      pos = obj_end + 1;
+      continue;
+    }
+    size_t id_start = key + sizeof(id_key) - 1;
+    size_t id_end = id_start;
+    while (id_end < obj_end) {
+      id_end = cves_json.find('"', id_end);
+      if (id_end == std::string::npos || id_end > obj_end) break;
+      size_t bs = 0, i = id_end;
+      while (i > id_start && cves_json[i - 1] == '\\') { bs++; i--; }
+      if ((bs & 1u) == 0) break;  /* unescaped quote */
+      id_end++;
+    }
+    if (id_end != std::string::npos && id_end > id_start && id_end <= obj_end) {
+      ids.emplace_back(cves_json.substr(id_start, id_end - id_start));
+    }
+    pos = obj_end + 1;
+  }
+  return ids;
+}
+
+NetDbCveDiff net_db_cve_diff(const std::string &prev_cves_json,
+                             const std::string &current_cves_json) {
+  NetDbCveDiff out;
+
+  std::vector<std::string> prev_ids = net_db_parse_cve_ids(prev_cves_json);
+  std::vector<std::string> cur_ids  = net_db_parse_cve_ids(current_cves_json);
+
+  /* Sort + dedupe each side so set arithmetic is O(n+m) rather than
+     O(n*m). Stable order also gives reproducible report output. */
+  auto sort_unique = [](std::vector<std::string> &v) {
+    std::sort(v.begin(), v.end());
+    v.erase(std::unique(v.begin(), v.end()), v.end());
+  };
+  sort_unique(prev_ids);
+  sort_unique(cur_ids);
+
+  /* Three-way merge: walk both sorted lists in lockstep, emitting into
+     persisting / introduced / patched depending on which side(s) the
+     id appears on. */
+  size_t i = 0, j = 0;
+  while (i < prev_ids.size() && j < cur_ids.size()) {
+    int cmp = prev_ids[i].compare(cur_ids[j]);
+    if (cmp == 0) {
+      out.persisting.push_back(prev_ids[i]);
+      i++; j++;
+    } else if (cmp < 0) {
+      out.patched.push_back(prev_ids[i]);
+      i++;
+    } else {
+      out.introduced.push_back(cur_ids[j]);
+      j++;
+    }
+  }
+  while (i < prev_ids.size()) out.patched.push_back(prev_ids[i++]);
+  while (j < cur_ids.size())  out.introduced.push_back(cur_ids[j++]);
+
+  return out;
 }
