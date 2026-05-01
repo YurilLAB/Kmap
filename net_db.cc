@@ -555,9 +555,17 @@ std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json) {
     while (id_end < obj_end) {
       id_end = cves_json.find('"', id_end);
       if (id_end == std::string::npos || id_end > obj_end) break;
-      size_t bs = 0, i = id_end;
-      while (i > id_start && cves_json[i - 1] == '\\') { bs++; i--; }
-      if ((bs & 1u) == 0) break;  /* unescaped quote */
+      /* Count the run of consecutive backslashes immediately preceding
+         this quote. An odd run means the quote is escaped (every
+         backslash pairs except one, which escapes the quote); an even
+         run means the backslashes pair off and the quote terminates
+         the string. The mod-2 form is used in place of `bs & 1u` to
+         avoid any signed/unsigned mismatch warnings under MSVC's
+         default Level 2 diagnostics. */
+      size_t bs = 0;
+      size_t k = id_end;
+      while (k > id_start && cves_json[k - 1] == '\\') { bs++; k--; }
+      if ((bs % 2) == 0) break;  /* unescaped quote */
       id_end++;
     }
     if (id_end != std::string::npos && id_end > id_start && id_end <= obj_end) {
@@ -576,13 +584,18 @@ NetDbCveDiff net_db_cve_diff(const std::string &prev_cves_json,
   std::vector<std::string> cur_ids  = net_db_parse_cve_ids(current_cves_json);
 
   /* Sort + dedupe each side so set arithmetic is O(n+m) rather than
-     O(n*m). Stable order also gives reproducible report output. */
-  auto sort_unique = [](std::vector<std::string> &v) {
-    std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end());
-  };
-  sort_unique(prev_ids);
-  sort_unique(cur_ids);
+     O(n*m). Stable order also gives reproducible report output. The
+     two-call inline form is used in place of a local lambda helper so
+     no anonymous function-object class is generated -- some MSVC
+     toolchains have historically produced odd diagnostics when a
+     non-capturing lambda is invoked twice on the same TU and the
+     name-mangling collides. The cost is ~6 extra lines for clarity. */
+  std::sort(prev_ids.begin(), prev_ids.end());
+  prev_ids.erase(std::unique(prev_ids.begin(), prev_ids.end()),
+                 prev_ids.end());
+  std::sort(cur_ids.begin(), cur_ids.end());
+  cur_ids.erase(std::unique(cur_ids.begin(), cur_ids.end()),
+                cur_ids.end());
 
   /* Three-way merge: walk both sorted lists in lockstep, emitting into
      persisting / introduced / patched depending on which side(s) the

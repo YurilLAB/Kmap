@@ -297,7 +297,16 @@ static void write_host_section(FILE *fp, const std::string &ip,
                p.port, p.proto.c_str());
 
       /* Header line shows port + scan-count and the time since the
-         previous enrichment so the reader knows the baseline date. */
+         previous enrichment so the reader knows the baseline date. The
+         service-prefix string is hoisted to a named std::string variable
+         instead of being computed inline as ("" or " " + service).c_str()
+         in the fprintf args -- that inline form relies on full-expression
+         temporary lifetime extension, which MSVC has historically been
+         flaky about across the conditional operator. Hoisting removes
+         the question entirely. */
+      std::string svc_part;
+      if (!p.service.empty()) svc_part = " " + p.service;
+
       std::string when;
       if (p.prev_enriched_at > 0) {
         when = " (prev scan ";
@@ -307,7 +316,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
         when = " (rediscovered, no prior enrichment)";
       }
       fprintf(fp, "  %s%s [scans=%d]%s\n",
-              port_str, p.service.empty() ? "" : (" " + p.service).c_str(),
+              port_str, svc_part.c_str(),
               p.scan_count, when.c_str());
 
       /* Service / version drift -- a port flipping from OpenSSH to
