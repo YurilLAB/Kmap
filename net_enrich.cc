@@ -233,6 +233,94 @@ static std::string reverse_dns_lookup(const char *ip) {
 }
 
 /* -----------------------------------------------------------------------
+ * Fingerprint derivation helpers (used by the per-host loop after
+ * enrichment writes to seed the fingerprints table — kind=tls_sha256,
+ * tls_subject_cn, tls_san, hostname, redirect_host).
+ * ----------------------------------------------------------------------- */
+
+/* True if s parses as a bare IPv4 or IPv6 literal.  Cert CNs that ARE
+   the server IP are useless for clustering (every kmap-scanned IP
+   would share a fingerprint with itself), so the derivation skips
+   them.  Real fleets put a hostname in the CN. */
+static bool fp_looks_like_ip(const std::string &s) {
+  if (s.empty()) return false;
+  struct in_addr  v4;
+  struct in6_addr v6;
+  if (inet_pton(AF_INET,  s.c_str(), &v4) == 1) return true;
+  if (inet_pton(AF_INET6, s.c_str(), &v6) == 1) return true;
+  return false;
+}
+
+/* Pull DNS names out of the JSON array written by tls_capture_cert.
+   Format is exactly ["name1","name2",...] with no nested objects or
+   escape sequences other than what json_escape emits.  A simple quote-
+   delimited walk handles every value the writer produces. */
+static std::vector<std::string>
+fp_parse_san_json(const std::string &json) {
+  std::vector<std::string> out;
+  if (json.size() < 2) return out;
+  size_t i = 0;
+  while (i < json.size()) {
+    if (json[i] != '"') { i++; continue; }
+    /* Opening quote.  Walk to the closing quote, honoring \" and \\
+       so a SAN that smuggled in a quoted backslash does not desync. */
+    size_t start = ++i;
+    std::string val;
+    while (i < json.size() && json[i] != '"') {
+      if (json[i] == '\\' && i + 1 < json.size()) {
+        char esc = json[i + 1];
+        val += (esc == 'n')  ? '\n'
+             : (esc == 'r')  ? '\r'
+             : (esc == 't')  ? '\t'
+             : esc;
+        i += 2;
+      } else {
+        val += json[i++];
+      }
+    }
+    if (i >= json.size()) break;  /* unterminated string — bail */
+    i++;  /* consume the closing quote */
+    if (!val.empty()) out.push_back(std::move(val));
+    (void)start;
+  }
+  return out;
+}
+
+/* Extract the host component from an HTTP Location: value.  Handles:
+     "http://foo.com/path"     -> "foo.com"
+     "https://foo.com:8443/x"  -> "foo.com"
+     "//foo.com/x"             -> "foo.com" (protocol-relative)
+     "/relative/path"          -> ""        (no host present)
+     "foo.com"                 -> "foo.com" (some servers emit bare host)
+   The lowercase normalization stabilizes the fingerprint so a redirect
+   to "Foo.COM" clusters with one to "foo.com". */
+static std::string fp_extract_redirect_host(const std::string &loc) {
+  if (loc.empty()) return "";
+  std::string s = loc;
+  /* Strip a scheme prefix if present. */
+  size_t scheme_end = s.find("://");
+  if (scheme_end != std::string::npos) {
+    s = s.substr(scheme_end + 3);
+  } else if (s.size() >= 2 && s[0] == '/' && s[1] == '/') {
+    s = s.substr(2);
+  } else if (!s.empty() && s[0] == '/') {
+    /* Path-relative redirect, no host. */
+    return "";
+  }
+  /* End-of-host is the first of '/', '?', '#', or ':' (port). */
+  size_t end = s.find_first_of("/?#:");
+  if (end != std::string::npos) s = s.substr(0, end);
+  /* Strip trailing whitespace some servers append. */
+  while (!s.empty() && (s.back() == ' ' || s.back() == '\t' ||
+                        s.back() == '\r' || s.back() == '\n'))
+    s.pop_back();
+  /* Lowercase. */
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
+  return s;
+}
+
+/* -----------------------------------------------------------------------
  * String helpers
  * ----------------------------------------------------------------------- */
 
@@ -1191,6 +1279,71 @@ int run_enrichment(const char *data_dir, int batch_size) {
                             asn_info.bgp_prefix.c_str(),
                             asn_info.registry.c_str(),
                             asn_info.region.c_str());
+        }
+
+        /* Fingerprint derivation — seed the relationship-matching index
+           with every shareable identifier we collected.  Inserts UPSERT
+           on (ip_u32, kind, value), so re-scans just refresh observed_at
+           and the cluster cohort stays stable across runs.  All inserts
+           are inside the existing transaction so a shard-level failure
+           rolls back the whole batch cleanly.
+
+           Kinds emitted here:
+             hostname       — per-IP, reverse-DNS PTR.
+             tls_sha256     — per-port, DER cert hash; primary cluster key.
+             tls_subject_cn — per-port, skipped when the CN is just the IP.
+             tls_san        — per-port, ONE row per DNS SAN (fan-out).
+             redirect_host  — per-port, host from a 3xx Location header. */
+        uint32_t ip_u32 = ip_to_u32(ip.c_str());
+        if (ip_u32 != 0) {
+          int64_t fp_ts = static_cast<int64_t>(time(nullptr));
+
+          /* Per-IP fingerprint: reverse DNS (port=0 -> stored as NULL). */
+          if (!hostname.empty()) {
+            net_db_insert_fingerprint(db, ip_u32, 0, "hostname",
+                                      hostname.c_str(), fp_ts);
+          }
+
+          /* Per-port fingerprints. */
+          for (size_t j = 0; j < ports.size(); j++) {
+            /* TLS cert fingerprints. */
+            if (j < tls_caps.size()) {
+              const TlsCapture &tc = tls_caps[j];
+              if (!tc.sha256.empty()) {
+                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                                          "tls_sha256",
+                                          tc.sha256.c_str(), fp_ts);
+              }
+              if (!tc.subject_cn.empty() && !fp_looks_like_ip(tc.subject_cn)) {
+                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                                          "tls_subject_cn",
+                                          tc.subject_cn.c_str(), fp_ts);
+              }
+              /* SAN DNS names — fan out one row per name.  Skips empty
+                 strings and IP-literal SANs (same reasoning as CN). */
+              if (!tc.san_json.empty()) {
+                std::vector<std::string> sans =
+                    fp_parse_san_json(tc.san_json);
+                for (const std::string &san : sans) {
+                  if (san.empty() || fp_looks_like_ip(san)) continue;
+                  net_db_insert_fingerprint(db, ip_u32, ports[j],
+                                            "tls_san",
+                                            san.c_str(), fp_ts);
+                }
+              }
+            }
+
+            /* HTTP redirect target — pivots to whatever host the service
+               points clients at (often the canonical hostname of a fleet). */
+            if (j < redirects.size() && !redirects[j].empty()) {
+              std::string rh = fp_extract_redirect_host(redirects[j]);
+              if (!rh.empty()) {
+                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                                          "redirect_host",
+                                          rh.c_str(), fp_ts);
+              }
+            }
+          }
         }
 
         processed++;

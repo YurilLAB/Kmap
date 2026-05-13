@@ -316,6 +316,12 @@ class KmapOps {
   bool nq_count;            /* Count mode */
   int  nq_asn;              /* Filter by ASN (-1 = unset) */
   char *nq_country;         /* Filter by country code */
+  /* --net-cluster options */
+  bool net_cluster;         /* Enable relationship-cluster mode */
+  char *nc_ip;              /* IP to find cohort for (dotted-quad) */
+  int  nc_min_shared;       /* Min shared fingerprints to report (default 1) */
+  char *nc_output;          /* Export results to file (NULL = stdout) */
+  char *nc_format;          /* "text" (default), "dot", or "json" */
   /* --tracemap options */
   char *tracemap_targets;   /* Target IPs, CIDRs, or file path */
   char *tm_output;          /* Output file (NULL = stdout) */

@@ -138,7 +138,31 @@ static const char *SCHEMA_SQL =
   "CREATE INDEX IF NOT EXISTS idx_hosts_port     ON hosts(port);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_service  ON hosts(service);"
   "CREATE INDEX IF NOT EXISTS idx_hosts_enriched ON hosts(enriched);"
-  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);";
+  "CREATE INDEX IF NOT EXISTS idx_hosts_lastseen ON hosts(last_seen);"
+  /* v5b: fingerprints — per-shard relationship-matching index.
+     ip_u32 INTEGER (4 bytes vs ~15 for dotted-quad TEXT) keeps the row
+     compact since this table easily out-rows the hosts table after a
+     full-internet scan (one host can carry 5–20 fingerprints).
+     Primary key is (ip_u32, kind, value) — ports collapse, so a host
+     serving the same cert on 443 and 8443 yields one row, not two.
+     port stays as informational metadata (set to the most recent
+     observation) and is intentionally NOT part of the PK. */
+  "CREATE TABLE IF NOT EXISTS fingerprints ("
+  "  ip_u32       INTEGER NOT NULL,"
+  "  kind         TEXT    NOT NULL,"
+  "  value        TEXT    NOT NULL,"
+  "  port         INTEGER,"
+  "  observed_at  INTEGER NOT NULL,"
+  "  PRIMARY KEY (ip_u32, kind, value)"
+  ");"
+  /* Inverse lookup is the hot path: "given a (kind, value), who else
+     carries it?".  Without this composite index that query falls back
+     to a full table scan, which dies on a 10B-row table. */
+  "CREATE INDEX IF NOT EXISTS idx_fp_kind_value ON fingerprints(kind, value);"
+  /* Forward lookup: every fingerprint a given IP carries.  Covered by
+     the PK leading column already, but an explicit single-column index
+     keeps the query planner from second-guessing under varied stats. */
+  "CREATE INDEX IF NOT EXISTS idx_fp_ip         ON fingerprints(ip_u32);";
 
 /* Per-statement migrations applied to pre-existing databases.  ALTER TABLE
    ADD COLUMN errors out if the column already exists; we run each statement
@@ -706,6 +730,118 @@ void net_db_commit(sqlite3 *db) {
     fprintf(stderr, "net-scan: WARNING: COMMIT failed: %s\n", errmsg);
     sqlite3_free(errmsg);
   }
+}
+
+/* -----------------------------------------------------------------------
+ * Fingerprints — relationship-matching index helpers
+ *
+ * Each shard owns its own fingerprints table.  Inserts UPSERT on the
+ * (ip_u32, kind, value) primary key so re-scans refresh observed_at
+ * (and the most-recent port) without creating duplicates.  Look-ups
+ * use the inverse index idx_fp_kind_value, which lets the relationship
+ * engine resolve "who else carries kind K with value V?" in a single
+ * indexed scan even when the table is billions of rows.
+ * ----------------------------------------------------------------------- */
+
+int net_db_insert_fingerprint(sqlite3 *db,
+                              uint32_t ip_u32, int port,
+                              const char *kind, const char *value,
+                              int64_t observed_at) {
+  if (!db || !kind || !value || !kind[0] || !value[0]) return -1;
+
+  /* UPSERT: on conflict refresh observed_at and the port stamp.
+     We use the bound observed_at on the conflict path rather than
+     strftime so the caller can stamp a whole batch with one timestamp
+     for free, which makes re-scan diffs cluster on the same instant. */
+  static const char *sql =
+    "INSERT INTO fingerprints (ip_u32, kind, value, port, observed_at) "
+    "VALUES (?, ?, ?, ?, ?) "
+    "ON CONFLICT(ip_u32, kind, value) DO UPDATE SET "
+    "  observed_at = excluded.observed_at, "
+    "  port        = excluded.port";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  /* ip_u32 stored as int64 — same reason as net_db_update_asn: values
+     above INT_MAX (the top half of IPv4) would otherwise round-trip
+     through a negative int and break direct numeric comparisons. */
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
+  sqlite3_bind_text(stmt, 2, kind, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 3, value, -1, SQLITE_TRANSIENT);
+  if (port > 0) sqlite3_bind_int(stmt, 4, port);
+  else          sqlite3_bind_null(stmt, 4);
+  sqlite3_bind_int64(stmt, 5, observed_at);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+std::vector<NetFingerprint>
+net_db_find_by_fingerprint(sqlite3 *db,
+                           const char *kind, const char *value) {
+  std::vector<NetFingerprint> out;
+  if (!db || !kind || !value) return out;
+
+  static const char *sql =
+    "SELECT ip_u32, port, kind, value, observed_at FROM fingerprints "
+    "WHERE kind = ? AND value = ?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return out;
+  sqlite3_bind_text(stmt, 1, kind,  -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT);
+
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    NetFingerprint fp;
+    fp.ip_u32      = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
+    fp.port        = (sqlite3_column_type(stmt, 1) == SQLITE_NULL)
+                       ? 0 : sqlite3_column_int(stmt, 1);
+    const unsigned char *k = sqlite3_column_text(stmt, 2);
+    const unsigned char *v = sqlite3_column_text(stmt, 3);
+    if (k) fp.kind  = reinterpret_cast<const char *>(k);
+    if (v) fp.value = reinterpret_cast<const char *>(v);
+    fp.observed_at = sqlite3_column_int64(stmt, 4);
+    out.push_back(std::move(fp));
+  }
+  sqlite3_finalize(stmt);
+  return out;
+}
+
+std::vector<NetFingerprint>
+net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip) {
+  std::vector<NetFingerprint> out;
+  if (!db || !ip) return out;
+
+  uint32_t ip_u32 = ip_to_u32(ip);
+  if (ip_u32 == 0) return out;  /* parse failure */
+
+  static const char *sql =
+    "SELECT ip_u32, port, kind, value, observed_at FROM fingerprints "
+    "WHERE ip_u32 = ?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return out;
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
+
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    NetFingerprint fp;
+    fp.ip_u32      = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
+    fp.port        = (sqlite3_column_type(stmt, 1) == SQLITE_NULL)
+                       ? 0 : sqlite3_column_int(stmt, 1);
+    const unsigned char *k = sqlite3_column_text(stmt, 2);
+    const unsigned char *v = sqlite3_column_text(stmt, 3);
+    if (k) fp.kind  = reinterpret_cast<const char *>(k);
+    if (v) fp.value = reinterpret_cast<const char *>(v);
+    fp.observed_at = sqlite3_column_int64(stmt, 4);
+    out.push_back(std::move(fp));
+  }
+  sqlite3_finalize(stmt);
+  return out;
 }
 
 /* -----------------------------------------------------------------------

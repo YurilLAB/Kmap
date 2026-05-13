@@ -27,6 +27,8 @@
 #include <vector>
 #include <fstream>
 #include <set>
+#include <map>
+#include <algorithm>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -563,4 +565,201 @@ int run_net_query_cli() {
     o.nq_output,
     o.nq_count
   );
+}
+
+/* -----------------------------------------------------------------------
+ * Relationship cluster lookup
+ *
+ * Two-phase walk:
+ *   1. Open the shard that owns o.nc_ip and pull every fingerprint row
+ *      that IP carries.
+ *   2. For each (kind, value) the target carries, walk all 32 shards and
+ *      collect the IPs that also carry it (i.e. the cohort that shares
+ *      this fingerprint with the target).
+ * The cohort map (ip -> set of matching kind:value strings) deduplicates
+ * across kinds, so an IP that shares both a SAN and a tls_sha256 with
+ * the target shows up once with both signals listed.
+ *
+ * Output: one line per cohort IP, prefixed by the share count.  The
+ * format is pipeable: `kmap --net-cluster 1.2.3.4 | awk '{print $1}'`
+ * gets a clean IP list ready for downstream chaining (e.g. into
+ * tracemap or another scan).
+ * ----------------------------------------------------------------------- */
+
+int run_net_cluster_cli() {
+  if (!o.nc_ip || !o.nc_ip[0]) {
+    fprintf(stderr, "net-cluster: --net-cluster requires an IP argument\n");
+    return 1;
+  }
+  uint32_t target_u32 = ip_to_u32(o.nc_ip);
+  if (target_u32 == 0) {
+    fprintf(stderr, "net-cluster: cannot parse IP '%s'\n", o.nc_ip);
+    return 1;
+  }
+
+  const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
+  int min_shared = o.nc_min_shared > 0 ? o.nc_min_shared : 1;
+
+  /* Step 1: get the target's own fingerprint set from its shard. */
+  int target_shard = net_shard_index(target_u32);
+  std::string target_shard_path = net_shard_path(data_dir, target_shard);
+  sqlite3 *target_db = net_db_open(target_shard_path);
+  if (!target_db) {
+    fprintf(stderr, "net-cluster: cannot open shard %s\n",
+            target_shard_path.c_str());
+    return 1;
+  }
+  std::vector<NetFingerprint> target_fps =
+      net_db_get_fingerprints_for_ip(target_db, o.nc_ip);
+  net_db_close(target_db);
+
+  if (target_fps.empty()) {
+    fprintf(stderr,
+            "net-cluster: IP %s has no fingerprints in the database. "
+            "Has it been enriched yet?\n", o.nc_ip);
+    return 1;
+  }
+
+  /* Step 2: for each (kind, value) the target has, query every shard
+     and aggregate matching IPs.  Keyed by uint32 so two-byte comparison
+     is fastest; the set<string> per IP preserves which fingerprints
+     matched so the output can show why each IP was clustered. */
+  std::map<uint32_t, std::set<std::string>> cohort;
+
+  for (const NetFingerprint &fp : target_fps) {
+    std::string sig = fp.kind + ":" + fp.value;
+    for (int sh = 0; sh < NET_SHARD_COUNT; sh++) {
+      std::string sp = net_shard_path(data_dir, sh);
+      /* Skip shards whose file does not exist — saves a noisy stderr
+         from net_db_open when shards have not been populated yet. */
+      FILE *test = fopen(sp.c_str(), "r");
+      if (!test) continue;
+      fclose(test);
+
+      sqlite3 *db = net_db_open(sp);
+      if (!db) continue;
+      std::vector<NetFingerprint> matches =
+          net_db_find_by_fingerprint(db, fp.kind.c_str(), fp.value.c_str());
+      net_db_close(db);
+
+      for (const NetFingerprint &m : matches) {
+        if (m.ip_u32 == target_u32) continue;  /* exclude the target itself */
+        cohort[m.ip_u32].insert(sig);
+      }
+    }
+  }
+
+  /* Step 3: emit, sorted by share count descending then IP ascending. */
+  struct Row { uint32_t ip; int count; std::vector<std::string> sigs; };
+  std::vector<Row> rows;
+  rows.reserve(cohort.size());
+  for (const auto &kv : cohort) {
+    if (static_cast<int>(kv.second.size()) < min_shared) continue;
+    Row r;
+    r.ip    = kv.first;
+    r.count = static_cast<int>(kv.second.size());
+    r.sigs.assign(kv.second.begin(), kv.second.end());
+    rows.push_back(std::move(r));
+  }
+  std::sort(rows.begin(), rows.end(),
+            [](const Row &a, const Row &b) {
+              if (a.count != b.count) return a.count > b.count;
+              return a.ip < b.ip;
+            });
+
+  FILE *fp_out = stdout;
+  if (o.nc_output && o.nc_output[0]) {
+    fp_out = fopen(o.nc_output, "w");
+    if (!fp_out) {
+      fprintf(stderr, "net-cluster: cannot open output %s\n", o.nc_output);
+      return 1;
+    }
+  }
+
+  /* JSON-escape helper — only quote and backslash escapes, sufficient
+     for the fingerprint signature values we ever emit here. */
+  auto jesc = [](const std::string &s) {
+    std::string out; out.reserve(s.size() + 4);
+    for (char c : s) {
+      if      (c == '"')  out += "\\\"";
+      else if (c == '\\') out += "\\\\";
+      else if (c == '\n') out += "\\n";
+      else if (c == '\r') out += "\\r";
+      else if (c == '\t') out += "\\t";
+      else                out += c;
+    }
+    return out;
+  };
+
+  const std::string fmt = o.nc_format ? o.nc_format : "text";
+
+  if (fmt == "dot") {
+    /* Graphviz: target as the hub node, cohort IPs as leaves, each edge
+       labeled with the shared fingerprint kinds (deduplicated).  Style
+       hints separate the target from the cohort visually. */
+    fprintf(fp_out, "graph net_cluster {\n");
+    fprintf(fp_out, "  graph [layout=neato, overlap=false, splines=true];\n");
+    fprintf(fp_out, "  node  [shape=ellipse, style=filled, fontname=\"Helvetica\"];\n");
+    fprintf(fp_out, "  \"%s\" [fillcolor=\"#ff6b6b\", label=\"%s\\n(target)\"];\n",
+            o.nc_ip, o.nc_ip);
+    for (const Row &r : rows) {
+      std::string ip_s = u32_to_ip(r.ip);
+      fprintf(fp_out, "  \"%s\" [fillcolor=\"#4ecdc4\"];\n", ip_s.c_str());
+      /* Build edge label from kind-only set (the values are noisy hex
+         hashes and SANs — kinds tell the story). */
+      std::set<std::string> kinds;
+      for (const std::string &sig : r.sigs) {
+        size_t c = sig.find(':');
+        kinds.insert(c == std::string::npos ? sig : sig.substr(0, c));
+      }
+      std::string label;
+      for (const std::string &k : kinds) {
+        if (!label.empty()) label += ",";
+        label += k;
+      }
+      fprintf(fp_out, "  \"%s\" -- \"%s\" [label=\"%s (%d)\"];\n",
+              o.nc_ip, ip_s.c_str(), label.c_str(), r.count);
+    }
+    fprintf(fp_out, "}\n");
+  } else if (fmt == "json") {
+    fprintf(fp_out, "{\n");
+    fprintf(fp_out, "  \"target\": \"%s\",\n", o.nc_ip);
+    fprintf(fp_out, "  \"min_shared\": %d,\n", min_shared);
+    fprintf(fp_out, "  \"target_fingerprints\": %zu,\n", target_fps.size());
+    fprintf(fp_out, "  \"cohort\": [\n");
+    for (size_t i = 0; i < rows.size(); i++) {
+      const Row &r = rows[i];
+      fprintf(fp_out, "    { \"ip\": \"%s\", \"shared\": %d, \"matches\": [",
+              u32_to_ip(r.ip).c_str(), r.count);
+      for (size_t j = 0; j < r.sigs.size(); j++) {
+        fprintf(fp_out, "%s\"%s\"",
+                (j == 0) ? "" : ", ",
+                jesc(r.sigs[j]).c_str());
+      }
+      fprintf(fp_out, "] }%s\n",
+              (i + 1 == rows.size()) ? "" : ",");
+    }
+    fprintf(fp_out, "  ]\n");
+    fprintf(fp_out, "}\n");
+  } else {
+    /* Default text format — pipeable.  Header lines start with '#' so
+       `kmap --net-cluster IP | grep -v '^#' | awk '{print $1}'` yields
+       a clean IP list ready for chaining. */
+    fprintf(fp_out, "# net-cluster cohort for %s (min_shared=%d)\n",
+            o.nc_ip, min_shared);
+    fprintf(fp_out, "# target carries %zu fingerprints; %zu IPs share >= %d\n",
+            target_fps.size(), rows.size(), min_shared);
+    for (const Row &r : rows) {
+      fprintf(fp_out, "%-15s\t%d shared", u32_to_ip(r.ip).c_str(), r.count);
+      for (size_t i = 0; i < r.sigs.size(); i++) {
+        fprintf(fp_out, "%s%s",
+                (i == 0) ? "\t" : ", ",
+                r.sigs[i].c_str());
+      }
+      fprintf(fp_out, "\n");
+    }
+  }
+
+  if (fp_out != stdout) fclose(fp_out);
+  return 0;
 }

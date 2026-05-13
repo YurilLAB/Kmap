@@ -351,6 +351,11 @@ void KmapOps::Initialize() {
   nq_count         = false;
   nq_asn           = -1;
   nq_country       = nullptr;
+  net_cluster      = false;
+  nc_ip            = nullptr;
+  nc_min_shared    = 1;
+  nc_output        = nullptr;
+  nc_format        = nullptr;
   tracemap_targets = nullptr;
   tm_output        = nullptr;
   tm_format        = nullptr;

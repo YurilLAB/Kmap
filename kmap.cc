@@ -299,6 +299,20 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     return true;
   } else if (strcmp(name, "nq-country") == 0) {
     o.net_query = true; o.nq_country = strdup(arg); return true;
+  /* --net-cluster options */
+  } else if (strcmp(name, "net-cluster") == 0) {
+    o.net_cluster = true; o.nc_ip = strdup(arg); return true;
+  } else if (strcmp(name, "nc-min-shared") == 0) {
+    o.net_cluster = true;
+    o.nc_min_shared = parse_int_arg("nc-min-shared", arg, 1, 100);
+    return true;
+  } else if (strcmp(name, "nc-output") == 0) {
+    o.net_cluster = true; o.nc_output = strdup(arg); return true;
+  } else if (strcmp(name, "nc-format") == 0) {
+    if (strcmp(arg, "text") != 0 && strcmp(arg, "dot") != 0 &&
+        strcmp(arg, "json") != 0)
+      fatal("--nc-format must be one of: text, dot, json");
+    o.net_cluster = true; o.nc_format = strdup(arg); return true;
   /* --tracemap options */
   } else if (strcmp(name, "tracemap") == 0) {
     o.tracemap_targets = strdup(arg); return true;
@@ -887,6 +901,11 @@ void parse_options(int argc, char **argv) {
     {"nq-count", no_argument, 0, 0},
     {"nq-asn", required_argument, 0, 0},
     {"nq-country", required_argument, 0, 0},
+    /* --net-cluster: relationship-cohort lookup */
+    {"net-cluster", required_argument, 0, 0},
+    {"nc-min-shared", required_argument, 0, 0},
+    {"nc-output", required_argument, 0, 0},
+    {"nc-format", required_argument, 0, 0},
     /* --tracemap options */
     {"tracemap", required_argument, 0, 0},
     {"tm-output", required_argument, 0, 0},
@@ -2267,6 +2286,13 @@ int kmap_main(int argc, char *argv[]) {
   /* --net-query: search collected scan data and exit */
   if (o.net_query) {
     int rc = run_net_query_cli();
+    exit(rc);
+  }
+
+  /* --net-cluster: enumerate the relationship cohort for a single IP
+     by walking the per-shard fingerprints tables and exit. */
+  if (o.net_cluster) {
+    int rc = run_net_cluster_cli();
     exit(rc);
   }
 

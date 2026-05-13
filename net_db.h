@@ -202,6 +202,58 @@ uint32_t ip_to_u32(const char *ip_str);
 std::string u32_to_ip(uint32_t ip);
 
 /* -----------------------------------------------------------------------
+ * Fingerprints — relationship-matching index
+ *
+ * Every host carries a small set of derived "fingerprints" that can also
+ * appear on unrelated hosts: a TLS cert SHA-256, a subject CN, each DNS
+ * SAN on its cert, its reverse-DNS hostname, the hostname it redirects
+ * to, and (over time) favicon hashes, SSH host-key prints, etc.  Two
+ * hosts sharing one of these are very likely part of the same deployment,
+ * fleet, or hosting account — even when the IPs themselves give no hint.
+ *
+ * The fingerprints table stores (ip_u32, port, kind, value, observed_at)
+ * with the same primary key shape, so an UPSERT just refreshes the
+ * observed_at timestamp on re-scan and the cluster cohort stays stable.
+ *
+ * Indexes are sized for the *inverse* lookup ("who else has value X for
+ * kind K?") — the relationship engine's hot query path — and for the
+ * forward lookup ("what fingerprints does this IP carry?").
+ *
+ * Each shard owns its own fingerprints table.  Cross-shard cohort
+ * resolution is the caller's responsibility (the CLI walks all 32).
+ * ----------------------------------------------------------------------- */
+
+/* A single fingerprint row. Pure value type — no DB handle. */
+struct NetFingerprint {
+  uint32_t    ip_u32;
+  int         port;
+  std::string kind;        /* "tls_sha256", "tls_subject_cn", "tls_san",
+                              "hostname", "redirect_host", future kinds */
+  std::string value;
+  int64_t     observed_at;
+};
+
+/* Insert (or refresh observed_at on) a single fingerprint. Idempotent —
+   primary key is (ip_u32, kind, value, port).  Returns 0 on success. */
+int net_db_insert_fingerprint(sqlite3 *db,
+                              uint32_t ip_u32, int port,
+                              const char *kind, const char *value,
+                              int64_t observed_at);
+
+/* Inverse lookup: every (ip_u32, port) row in this shard whose
+   (kind, value) matches.  Used by --net-cluster to enumerate the
+   cohort that shares a given fingerprint. */
+std::vector<NetFingerprint>
+net_db_find_by_fingerprint(sqlite3 *db,
+                           const char *kind, const char *value);
+
+/* Forward lookup: every fingerprint row for a given IP in this shard.
+   ip is the dotted-quad form for caller convenience; internally we
+   convert to ip_u32 via ip_to_u32 and query the indexed column. */
+std::vector<NetFingerprint>
+net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip);
+
+/* -----------------------------------------------------------------------
  * Patch-status diff helpers
  *
  * On a re-scan, kmap captures the previous enrichment's CVE list into
