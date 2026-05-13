@@ -41,12 +41,21 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>          /* getnameinfo, NI_MAXHOST, NI_NAMEREQD */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #else
 #include <winsock2.h>
-#include <ws2tcpip.h>
+#include <ws2tcpip.h>       /* getnameinfo on Win32 lives here */
+#endif
+
+#ifdef HAVE_OPENSSL
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
 #endif
 
 extern KmapOps o;
@@ -189,6 +198,38 @@ static int enrich_fd_recv(kmap_fd_t fd, char *buf, size_t len, int timeout_ms) {
 #else
   return static_cast<int>(recv(static_cast<int>(fd), buf, static_cast<int>(len), 0));
 #endif
+}
+
+/* -----------------------------------------------------------------------
+ * Reverse-DNS (PTR) lookup
+ *
+ * Uses POSIX getnameinfo() with NI_NAMEREQD so an unresolvable IP yields
+ * an empty string rather than the dotted-quad fallback.  Synchronous per
+ * IP — fine because the enrichment loop is already serialized one host
+ * at a time; mass async resolution belongs on the discover side.
+ * ----------------------------------------------------------------------- */
+static std::string reverse_dns_lookup(const char *ip) {
+  struct sockaddr_storage ss{};
+  socklen_t slen;
+
+  struct sockaddr_in  *sa4 = reinterpret_cast<struct sockaddr_in  *>(&ss);
+  struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6 *>(&ss);
+
+  if (inet_pton(AF_INET, ip, &sa4->sin_addr) == 1) {
+    sa4->sin_family = AF_INET;
+    slen = sizeof(struct sockaddr_in);
+  } else if (inet_pton(AF_INET6, ip, &sa6->sin6_addr) == 1) {
+    sa6->sin6_family = AF_INET6;
+    slen = sizeof(struct sockaddr_in6);
+  } else {
+    return "";
+  }
+
+  char host[NI_MAXHOST]{};
+  int rc = getnameinfo(reinterpret_cast<struct sockaddr *>(&ss), slen,
+                       host, sizeof(host), nullptr, 0, NI_NAMEREQD);
+  if (rc != 0) return "";
+  return std::string(host);
 }
 
 /* -----------------------------------------------------------------------
@@ -573,8 +614,11 @@ static std::string cves_to_json(const std::vector<EnrichCve> &cves) {
 struct WebResult {
   std::string title;
   std::string server;
-  std::string headers_json;  /* JSON object of selected headers */
-  std::string paths_json;    /* JSON array of probed paths (just /) */
+  std::string headers_json;     /* JSON object of selected headers */
+  std::string paths_json;       /* JSON array of probed paths (just /) */
+  std::string powered_by;       /* X-Powered-By header */
+  std::string x_generator;      /* X-Generator header */
+  std::string redirect_target;  /* Location: header (3xx responses) */
 };
 
 static std::string extract_header_val(const std::string &resp,
@@ -681,8 +725,11 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
   std::string body = (body_start != std::string::npos)
                      ? response.substr(body_start + 4) : "";
 
-  wr.title  = extract_html_title(body);
-  wr.server = extract_header_val(response, "Server");
+  wr.title           = extract_html_title(body);
+  wr.server          = extract_header_val(response, "Server");
+  wr.powered_by      = extract_header_val(response, "X-Powered-By");
+  wr.x_generator     = extract_header_val(response, "X-Generator");
+  wr.redirect_target = extract_header_val(response, "Location");
 
   /* Build headers JSON object with selected interesting headers */
   std::ostringstream hdr_json;
@@ -729,6 +776,165 @@ static bool is_http_port(int port, const std::string &service) {
   return false;
 }
 
+/* HTTPS-only port heuristic — kept narrow so we do not waste a TLS handshake
+   attempt on every HTTP port.  Non-standard TLS ports are still reachable
+   via the per-target web_recon pipeline. */
+static bool is_https_port(int port, const std::string &service) {
+  std::string svc = str_lower(service);
+  if (svc == "https" || svc.find("ssl") != std::string::npos) return true;
+  return port == 443 || port == 4443 || port == 8443 || port == 9443;
+}
+
+/* -----------------------------------------------------------------------
+ * TLS handshake + cert capture (HAVE_OPENSSL only)
+ *
+ * Captures the public TLS material we want to persist on every HTTPS host:
+ * subject CN, issuer CN, SAN list (DNS names only), notAfter, self-signed
+ * flag, negotiated protocol, and the server cert's SHA-256 fingerprint.
+ *
+ * The fingerprint is the (B)-step pivot key for relationship matching:
+ * any two IPs that serve the same DER cert hash to the same hex string,
+ * which clusters shared-deployment fleets even without DNS evidence.
+ * ----------------------------------------------------------------------- */
+
+/* TlsCapture struct is declared in net_enrich.h so the run_enrichment loop
+   can plumb results to net_db_update_tls without leaking implementation
+   details. */
+
+#ifdef HAVE_OPENSSL
+/* Shared SSL_CTX — created once per process.  Mirrors web_recon.cc's
+   pattern; VERIFY_NONE because we want the cert details even when the
+   chain doesn't validate (self-signed certs are the whole point of one of
+   the fields we capture). */
+static SSL_CTX *enrich_get_ssl_ctx() {
+  static SSL_CTX *ctx = nullptr;
+  if (!ctx) {
+    SSL_library_init();
+    SSL_load_error_strings();
+    ctx = SSL_CTX_new(TLS_client_method());
+    if (ctx)
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+  }
+  return ctx;
+}
+
+static int tls_capture_cert(const char *ip, int port, int timeout_ms,
+                            TlsCapture &out) {
+  SSL_CTX *ctx = enrich_get_ssl_ctx();
+  if (!ctx) return -1;
+
+  kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
+  if (fd == KMAP_INVALID_FD) return -1;
+
+  SSL *ssl = SSL_new(ctx);
+  if (!ssl) { enrich_close_fd(fd); return -1; }
+
+  SSL_set_fd(ssl, static_cast<int>(fd));
+  /* No SNI: net_enrich works exclusively with IP literals, and RFC 6066
+     forbids SNI on IP-form hosts.  Some pedantic servers will close
+     instead of returning a default vhost; that's a wash given the volume. */
+
+  if (SSL_connect(ssl) != 1) {
+    SSL_free(ssl);
+    enrich_close_fd(fd);
+    return -1;
+  }
+
+  out.protocol = SSL_get_version(ssl);
+
+  X509 *cert = SSL_get_peer_certificate(ssl);
+  if (cert) {
+    char buf[256]{};
+    X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
+                              NID_commonName, buf, sizeof(buf));
+    out.subject_cn = buf;
+
+    std::memset(buf, 0, sizeof(buf));
+    X509_NAME_get_text_by_NID(X509_get_issuer_name(cert),
+                              NID_commonName, buf, sizeof(buf));
+    out.issuer = buf;
+
+    ASN1_TIME *exp = X509_get_notAfter(cert);
+    if (exp) {
+      BIO *b = BIO_new(BIO_s_mem());
+      if (b) {
+        ASN1_TIME_print(b, exp);
+        char tbuf[64]{};
+        BIO_read(b, tbuf, sizeof(tbuf) - 1);
+        BIO_free(b);
+        out.not_after = tbuf;
+      }
+    }
+
+    out.self_signed =
+      (X509_NAME_cmp(X509_get_subject_name(cert),
+                     X509_get_issuer_name(cert)) == 0) ? 1 : 0;
+
+    /* SAN DNS names — emit only GEN_DNS entries.  GEN_IPADD entries are
+       skipped: IP-form SANs are uncommon and harder to pivot than DNS
+       names (an IP-form SAN typically just duplicates the cert's host). */
+    GENERAL_NAMES *sans = static_cast<GENERAL_NAMES *>(
+      X509_get_ext_d2i(cert, NID_subject_alt_name, nullptr, nullptr));
+    if (sans) {
+      std::ostringstream oss;
+      oss << "[";
+      bool first = true;
+      int n = sk_GENERAL_NAME_num(sans);
+      for (int i = 0; i < n; i++) {
+        GENERAL_NAME *gn = sk_GENERAL_NAME_value(sans, i);
+        if (gn && gn->type == GEN_DNS) {
+          const ASN1_IA5STRING *s = gn->d.dNSName;
+          const char *val = reinterpret_cast<const char *>(
+            ASN1_STRING_get0_data(s));
+          int len = ASN1_STRING_length(s);
+          if (val && len > 0) {
+            if (!first) oss << ",";
+            oss << "\"" << json_escape(std::string(val, static_cast<size_t>(len)))
+                << "\"";
+            first = false;
+          }
+        }
+      }
+      oss << "]";
+      if (!first) out.san_json = oss.str();
+      GENERAL_NAMES_free(sans);
+    }
+
+    /* DER-encoded cert SHA-256 — the pivot key for B-step relationship
+       matching.  X509_digest hashes the canonical DER form, so two ports
+       serving the same cert produce identical fingerprints regardless of
+       handshake-level differences. */
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digest_len = 0;
+    if (X509_digest(cert, EVP_sha256(), digest, &digest_len) == 1 &&
+        digest_len == 32) {
+      static const char hex[] = "0123456789abcdef";
+      char hexbuf[65];
+      for (unsigned int i = 0; i < digest_len; i++) {
+        hexbuf[i * 2]     = hex[digest[i] >> 4];
+        hexbuf[i * 2 + 1] = hex[digest[i] & 0xF];
+      }
+      hexbuf[digest_len * 2] = '\0';
+      out.sha256 = hexbuf;
+    }
+
+    X509_free(cert);
+  }
+
+  SSL_shutdown(ssl);
+  SSL_free(ssl);
+  enrich_close_fd(fd);
+  return 0;
+}
+#else
+/* Build without OpenSSL: TLS capture is a no-op, leaves TlsCapture::self_signed
+   at its -1 ("unknown") default so the DB layer writes NULL. */
+static int tls_capture_cert(const char * /*ip*/, int /*port*/,
+                            int /*timeout_ms*/, TlsCapture & /*out*/) {
+  return -1;
+}
+#endif /* HAVE_OPENSSL */
+
 /* -----------------------------------------------------------------------
  * enrich_single_host -- public API
  * ----------------------------------------------------------------------- */
@@ -744,7 +950,11 @@ int enrich_single_host(const char *ip,
                        std::vector<std::string> &out_web_titles,
                        std::vector<std::string> &out_web_servers,
                        std::vector<std::string> &out_web_headers,
-                       std::vector<std::string> &out_web_paths) {
+                       std::vector<std::string> &out_web_paths,
+                       std::vector<std::string> &out_powered_by,
+                       std::vector<std::string> &out_x_generator,
+                       std::vector<std::string> &out_redirects,
+                       std::vector<TlsCapture> *out_tls) {
   size_t nports = ports.size();
   out_services.resize(nports);
   out_versions.resize(nports);
@@ -753,6 +963,10 @@ int enrich_single_host(const char *ip,
   out_web_servers.resize(nports);
   out_web_headers.resize(nports);
   out_web_paths.resize(nports);
+  out_powered_by.resize(nports);
+  out_x_generator.resize(nports);
+  out_redirects.resize(nports);
+  if (out_tls) out_tls->assign(nports, TlsCapture{});
 
   /* Open CVE database (read-only) if path provided */
   sqlite3 *cve_db = nullptr;
@@ -780,10 +994,22 @@ int enrich_single_host(const char *ip,
        if it already did an HTTP probe (avoids double TCP connection) */
     if (is_http_port(ports[i], br.service)) {
       WebResult wr = probe_http(ip, ports[i], timeout_ms, br.http_response);
-      out_web_titles[i]  = wr.title;
-      out_web_servers[i] = wr.server;
-      out_web_headers[i] = wr.headers_json;
-      out_web_paths[i]   = wr.paths_json;
+      out_web_titles[i]   = wr.title;
+      out_web_servers[i]  = wr.server;
+      out_web_headers[i]  = wr.headers_json;
+      out_web_paths[i]    = wr.paths_json;
+      out_powered_by[i]   = wr.powered_by;
+      out_x_generator[i]  = wr.x_generator;
+      out_redirects[i]    = wr.redirect_target;
+    }
+
+    /* Step 4: TLS handshake on HTTPS ports — captures cert details and
+       fingerprint.  Best-effort: handshake failures (cert expired,
+       protocol mismatch, IP-form pedantic server) leave the slot empty
+       so net_db_update_tls writes NULLs and the row stays eligible for
+       re-probing later. */
+    if (out_tls && is_https_port(ports[i], br.service)) {
+      tls_capture_cert(ip, ports[i], timeout_ms, (*out_tls)[i]);
     }
   }
 
@@ -886,13 +1112,17 @@ int run_enrichment(const char *data_dir, int batch_size) {
            does not abort the entire shard */
         std::vector<std::string> services, versions, cves_json;
         std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
+        std::vector<std::string> powered_by, x_generator, redirects;
+        std::vector<TlsCapture> tls_caps;
 
         int rc = enrich_single_host(ip.c_str(), ports, protos,
                                     cve_path.empty() ? nullptr : cve_path.c_str(),
                                     ENRICH_CONNECT_TIMEOUT,
                                     services, versions, cves_json,
                                     web_titles, web_servers,
-                                    web_headers, web_paths);
+                                    web_headers, web_paths,
+                                    powered_by, x_generator, redirects,
+                                    &tls_caps);
         if (rc != 0) {
           /* Record the failure with a timestamp so the row becomes
              eligible to retry after NET_DB_ENRICH_RETRY_SECONDS. */
@@ -907,7 +1137,13 @@ int run_enrichment(const char *data_dir, int batch_size) {
           continue;
         }
 
-        /* Write enrichment results back to DB -- check bounds to avoid
+        /* Reverse DNS — one PTR lookup per host, applied to every port row.
+           Empty string when the IP has no PTR record (very common). */
+        std::string hostname = reverse_dns_lookup(ip.c_str());
+        if (!hostname.empty())
+          net_db_set_hostname(db, ip.c_str(), hostname.c_str());
+
+        /* Write enrichment results back to DB — check bounds to avoid
            out-of-range access if output vectors are somehow short */
         for (size_t j = 0; j < ports.size(); j++) {
           net_db_update_enrichment(
@@ -918,7 +1154,32 @@ int run_enrichment(const char *data_dir, int batch_size) {
             j < web_titles.size()  ? web_titles[j].c_str()  : "",
             j < web_servers.size() ? web_servers[j].c_str()  : "",
             j < web_headers.size() ? web_headers[j].c_str()  : "",
-            j < web_paths.size()   ? web_paths[j].c_str()   : "");
+            j < web_paths.size()   ? web_paths[j].c_str()   : "",
+            j < powered_by.size()  ? powered_by[j].c_str()  : nullptr,
+            j < x_generator.size() ? x_generator[j].c_str() : nullptr,
+            j < redirects.size()   ? redirects[j].c_str()   : nullptr,
+            nullptr /* robots_disallowed_json — net_enrich does not probe
+                       robots.txt; populated by per-target web_recon. */);
+
+          /* TLS cert details — only emit when we have at least one piece
+             of TLS data (handshake succeeded).  Empty TlsCapture leaves
+             every column NULL via COALESCE, so no wasted UPDATE. */
+          if (j < tls_caps.size()) {
+            const TlsCapture &tc = tls_caps[j];
+            bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
+                            !tc.sha256.empty()     || !tc.protocol.empty();
+            if (have_tls) {
+              net_db_update_tls(
+                db, ip.c_str(), ports[j],
+                tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
+                tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
+                tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
+                tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
+                tc.self_signed,
+                tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
+                tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
+            }
+          }
         }
 
         /* ASN/GeoIP lookup -- one per IP, applied to all ports */
@@ -927,7 +1188,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
           net_db_update_asn(db, ip.c_str(), asn_info.asn,
                             asn_info.as_name.c_str(),
                             asn_info.country.c_str(),
-                            asn_info.bgp_prefix.c_str());
+                            asn_info.bgp_prefix.c_str(),
+                            asn_info.registry.c_str(),
+                            asn_info.region.c_str());
         }
 
         processed++;

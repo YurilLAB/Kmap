@@ -251,11 +251,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
       std::vector<std::string> services, versions, cves_out;
       std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
+      std::vector<std::string> powered_by, x_generator, redirects;
+      std::vector<TlsCapture> tls_caps;
 
       int erc = enrich_single_host(ip_str.c_str(), port_nums, protos,
                          cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
                          5000, services, versions, cves_out,
-                         web_titles, web_servers, web_headers, web_paths);
+                         web_titles, web_servers, web_headers, web_paths,
+                         powered_by, x_generator, redirects,
+                         &tls_caps);
 
       if (erc != 0) {
         /* Enrichment failed for this host -- record the error so the row
@@ -281,7 +285,30 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           i < web_titles.size() ? web_titles[i].c_str() : "",
           i < web_servers.size() ? web_servers[i].c_str() : "",
           i < web_headers.size() ? web_headers[i].c_str() : "",
-          i < web_paths.size() ? web_paths[i].c_str() : "");
+          i < web_paths.size() ? web_paths[i].c_str() : "",
+          i < powered_by.size() ? powered_by[i].c_str() : nullptr,
+          i < x_generator.size() ? x_generator[i].c_str() : nullptr,
+          i < redirects.size() ? redirects[i].c_str() : nullptr,
+          nullptr /* robots_disallowed_json: not captured by net_enrich path */);
+
+        /* TLS cert details — watchlist mode wants this most of all, since
+           cert rotation on a tracked asset is a strong tampering signal. */
+        if (i < tls_caps.size()) {
+          const TlsCapture &tc = tls_caps[i];
+          bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
+                          !tc.sha256.empty()     || !tc.protocol.empty();
+          if (have_tls) {
+            net_db_update_tls(
+              wl_db, ip_str.c_str(), port_nums[i],
+              tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
+              tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
+              tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
+              tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
+              tc.self_signed,
+              tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
+              tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
+          }
+        }
       }
       enriched_count++;
     }

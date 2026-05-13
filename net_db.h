@@ -77,6 +77,27 @@ struct NetHost {
   int64_t     prev_enriched_at = 0;
   int64_t     enriched_at = 0;
   int         scan_count = 0;
+
+  /* v4 — public data previously collected but discarded at the persistence
+     boundary.  Mirrors the new columns in net_db.cc MIGRATIONS[]. */
+  std::string hostname;                /* reverse DNS (PTR) */
+  std::string powered_by;              /* HTTP X-Powered-By */
+  std::string x_generator;             /* HTTP X-Generator */
+  std::string redirect_target;         /* HTTP Location: from GET / */
+  std::string robots_disallowed_json;  /* JSON array of robots.txt entries */
+  std::string screenshot_path;         /* PNG path from screenshot capture */
+  std::string asn_registry;            /* RIR name (arin/ripe/etc.) */
+  std::string asn_region;              /* Human-readable region */
+  /* v5 — TLS columns.  Populated by web_recon today and by the net_enrich
+     TLS handshake leg (see tls_capture_cert in net_enrich.cc). */
+  std::string tls_subject_cn;
+  std::string tls_issuer;
+  std::string tls_san_json;            /* JSON array of cert SAN values */
+  std::string tls_not_after;           /* cert expiry, ISO-8601 or epoch */
+  int         tls_self_signed = -1;    /* tri-state: -1=unknown (no TLS data),
+                                          0=chain-validated, 1=self-signed */
+  std::string tls_protocol;            /* "TLSv1.2" / "TLSv1.3" */
+  std::string tls_sha256;              /* server cert SHA-256 fingerprint hex */
 };
 
 /* Insert a discovered host/port.  Ignores duplicates (INSERT OR IGNORE).
@@ -86,12 +107,39 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
 
 /* Update a host with enrichment data.  Sets enriched=1 and clears any
    prior enrichment_error / enrichment_error_at fields.
+   The trailing v4 params (powered_by, x_generator, redirect_target,
+   robots_disallowed_json) accept NULL to leave the column unchanged.
    Returns 0 on success, -1 on error. */
 int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *service, const char *version,
                              const char *cves_json,
                              const char *web_title, const char *web_server,
-                             const char *web_headers, const char *web_paths);
+                             const char *web_headers, const char *web_paths,
+                             const char *powered_by = nullptr,
+                             const char *x_generator = nullptr,
+                             const char *redirect_target = nullptr,
+                             const char *robots_disallowed_json = nullptr);
+
+/* Set the reverse-DNS hostname for an IP.  Applies to every port row for
+   the IP (one hostname per host, not per port).  Pass NULL/empty to clear.
+   Returns 0 on success, -1 on error. */
+int net_db_set_hostname(sqlite3 *db, const char *ip, const char *hostname);
+
+/* Set the screenshot file path for a specific (ip, port) row. */
+int net_db_set_screenshot(sqlite3 *db, const char *ip, int port,
+                          const char *screenshot_path);
+
+/* Update TLS cert details for a specific (ip, port) row.  Any NULL/empty
+   string field leaves that column unchanged; tls_self_signed of -1 means
+   "leave unchanged", 0 or 1 writes the value. */
+int net_db_update_tls(sqlite3 *db, const char *ip, int port,
+                      const char *tls_subject_cn,
+                      const char *tls_issuer,
+                      const char *tls_san_json,
+                      const char *tls_not_after,
+                      int tls_self_signed,
+                      const char *tls_protocol,
+                      const char *tls_sha256);
 
 /* Record a transient enrichment failure for a host/port without marking
    it enriched.  Stores the error message and the current timestamp so
@@ -100,11 +148,14 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
 int net_db_record_enrichment_error(sqlite3 *db, const char *ip, int port,
                                    const char *error_msg);
 
-/* Update ASN/GeoIP data for all ports of an IP.
+/* Update ASN/GeoIP data for all ports of an IP.  asn_registry and asn_region
+   are optional (NULL/empty leaves the column unchanged).
    Returns 0 on success, -1 on error. */
 int net_db_update_asn(sqlite3 *db, const char *ip,
                       uint32_t asn, const char *as_name,
-                      const char *country, const char *bgp_prefix);
+                      const char *country, const char *bgp_prefix,
+                      const char *asn_registry = nullptr,
+                      const char *asn_region = nullptr);
 
 /* Default cool-down (seconds) before a host whose last enrichment attempt
    failed becomes eligible to retry. */

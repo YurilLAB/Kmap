@@ -108,6 +108,27 @@ static const char *SCHEMA_SQL =
   "  prev_version         TEXT,"
   "  prev_enriched_at     INTEGER DEFAULT 0,"
   "  scan_count           INTEGER DEFAULT 1,"
+  /* v4 enrichment-data persistence columns. Mirrors of the MIGRATIONS
+     entries below — kept on fresh-install schemas so a brand-new DB
+     does not have to ALTER through the upgrade chain. */
+  "  hostname               TEXT,"
+  "  powered_by             TEXT,"
+  "  x_generator            TEXT,"
+  "  redirect_target        TEXT,"
+  "  robots_disallowed_json TEXT,"
+  "  screenshot_path        TEXT,"
+  "  asn_registry           TEXT,"
+  "  asn_region             TEXT,"
+  /* v5 TLS cert columns. tls_self_signed is tri-state and intentionally
+     has no DEFAULT so legacy/never-probed rows stay NULL ("unknown")
+     rather than falsely "chain-validated". */
+  "  tls_subject_cn         TEXT,"
+  "  tls_issuer             TEXT,"
+  "  tls_san_json           TEXT,"
+  "  tls_not_after          TEXT,"
+  "  tls_self_signed        INTEGER,"
+  "  tls_protocol           TEXT,"
+  "  tls_sha256             TEXT,"
   "  PRIMARY KEY (ip, port)"
   ");"
   /* Indexes whose columns have always existed since v1 are safe in
@@ -131,7 +152,7 @@ static const char *MIGRATIONS[] = {
   /* v3: enrichment-error tracking for retry-after-cooldown */
   "ALTER TABLE hosts ADD COLUMN enrichment_error TEXT",
   "ALTER TABLE hosts ADD COLUMN enrichment_error_at INTEGER DEFAULT 0",
-  /* v4: patch-status / re-scan history. enriched_at is when the current
+  /* v4a: patch-status / re-scan history. enriched_at is when the current
      cves/service were stored; prev_* hold the state captured atomically
      on the next enrichment so reports can diff "patched since last scan"
      without keeping a separate history table. scan_count is bumped by
@@ -142,6 +163,37 @@ static const char *MIGRATIONS[] = {
   "ALTER TABLE hosts ADD COLUMN prev_version TEXT",
   "ALTER TABLE hosts ADD COLUMN prev_enriched_at INTEGER DEFAULT 0",
   "ALTER TABLE hosts ADD COLUMN scan_count INTEGER DEFAULT 1",
+  /* v4b: persist enrichment data the pipeline already collected but had
+     been discarding at the persistence boundary.
+     hostname     — reverse DNS (PTR), per-IP identity key.
+     powered_by   — HTTP X-Powered-By header (extracted but only stashed in JSON).
+     x_generator  — HTTP X-Generator header (same).
+     redirect_target — HTTP Location: from / for the root.
+     robots_disallowed_json — JSON array of robots.txt disallow paths.
+     screenshot_path — path to PNG saved by run_screenshot_capture.
+     asn_registry — RIR from AsnInfo (arin/ripe/etc.).
+     asn_region   — region from AsnInfo. */
+  "ALTER TABLE hosts ADD COLUMN hostname TEXT",
+  "ALTER TABLE hosts ADD COLUMN powered_by TEXT",
+  "ALTER TABLE hosts ADD COLUMN x_generator TEXT",
+  "ALTER TABLE hosts ADD COLUMN redirect_target TEXT",
+  "ALTER TABLE hosts ADD COLUMN robots_disallowed_json TEXT",
+  "ALTER TABLE hosts ADD COLUMN screenshot_path TEXT",
+  "ALTER TABLE hosts ADD COLUMN asn_registry TEXT",
+  "ALTER TABLE hosts ADD COLUMN asn_region TEXT",
+  /* v5: TLS columns — populated by web_recon and the net_enrich
+     tls_capture_cert handshake leg. */
+  "ALTER TABLE hosts ADD COLUMN tls_subject_cn TEXT",
+  "ALTER TABLE hosts ADD COLUMN tls_issuer TEXT",
+  "ALTER TABLE hosts ADD COLUMN tls_san_json TEXT",
+  "ALTER TABLE hosts ADD COLUMN tls_not_after TEXT",
+  /* tls_self_signed is tri-state: NULL = no TLS data captured (legacy/
+     never-probed rows backfill to NULL), 0 = chain-validated, 1 = self-
+     signed.  Do NOT add a DEFAULT — that would silently mark every
+     never-probed legacy row as "TLS checked, not self-signed". */
+  "ALTER TABLE hosts ADD COLUMN tls_self_signed INTEGER",
+  "ALTER TABLE hosts ADD COLUMN tls_protocol TEXT",
+  "ALTER TABLE hosts ADD COLUMN tls_sha256 TEXT",
 };
 
 sqlite3 *net_db_open(const std::string &path) {
@@ -184,6 +236,13 @@ sqlite3 *net_db_open(const std::string &path) {
   sqlite3_exec(db,
     "CREATE INDEX IF NOT EXISTS idx_hosts_err_at ON hosts(enrichment_error_at)",
     nullptr, nullptr, nullptr);
+  /* v4/v5 pivot-key indexes — relationship matching looks up cohorts of IPs
+     by these values, so they need to be cheap.  hostname can pivot across
+     wildcard zones; tls_sha256 fingerprints the actual server certificate. */
+  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname)",
+               nullptr, nullptr, nullptr);
+  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_tls_sha256 ON hosts(tls_sha256)",
+               nullptr, nullptr, nullptr);
 
   return db;
 }
@@ -244,7 +303,11 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *service, const char *version,
                              const char *cves_json,
                              const char *web_title, const char *web_server,
-                             const char *web_headers, const char *web_paths) {
+                             const char *web_headers, const char *web_paths,
+                             const char *powered_by,
+                             const char *x_generator,
+                             const char *redirect_target,
+                             const char *robots_disallowed_json) {
   if (!db) return -1;
 
   /* Atomic prev-state capture: when this row was already enriched at
@@ -254,7 +317,14 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
      with the new data even under concurrent SQLITE_BUSY retries. The
      CASE-WHEN guard means a *first*-time enrichment leaves prev_* at
      their default empty / zero values, so reports can use "prev_cves
-     non-empty" as the trigger for the patch-status section. */
+     non-empty" as the trigger for the patch-status section.
+
+     COALESCE on the v4b fields (powered_by, x_generator, redirect_target,
+     robots_disallowed_json) preserves prior data when the caller passes
+     NULL — callers without the data yet can leave the cells untouched
+     instead of wiping good values on retry. The CASE-WHEN and COALESCE
+     branches read the row's pre-update state because SQLite evaluates
+     the entire SET right-hand side before any assignment takes effect. */
   static const char *sql =
     "UPDATE hosts SET "
     "  prev_cves        = CASE WHEN enriched=1 THEN cves        ELSE prev_cves        END, "
@@ -263,6 +333,10 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
     "  prev_enriched_at = CASE WHEN enriched=1 THEN enriched_at ELSE prev_enriched_at END, "
     "  service=?, version=?, cves=?, web_title=?, "
     "  web_server=?, web_headers=?, web_paths=?, "
+    "  powered_by             = COALESCE(?, powered_by), "
+    "  x_generator            = COALESCE(?, x_generator), "
+    "  redirect_target        = COALESCE(?, redirect_target), "
+    "  robots_disallowed_json = COALESCE(?, robots_disallowed_json), "
     "  enriched=1, "
     "  enriched_at=strftime('%s','now'), "
     "  enrichment_error=NULL, enrichment_error_at=0, "
@@ -280,15 +354,19 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
       sqlite3_bind_null(stmt, idx);
   };
 
-  bind_or_null(1, service);
-  bind_or_null(2, version);
-  bind_or_null(3, cves_json);
-  bind_or_null(4, web_title);
-  bind_or_null(5, web_server);
-  bind_or_null(6, web_headers);
-  bind_or_null(7, web_paths);
-  sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 9, port);
+  bind_or_null(1,  service);
+  bind_or_null(2,  version);
+  bind_or_null(3,  cves_json);
+  bind_or_null(4,  web_title);
+  bind_or_null(5,  web_server);
+  bind_or_null(6,  web_headers);
+  bind_or_null(7,  web_paths);
+  bind_or_null(8,  powered_by);
+  bind_or_null(9,  x_generator);
+  bind_or_null(10, redirect_target);
+  bind_or_null(11, robots_disallowed_json);
+  sqlite3_bind_text(stmt, 12, ip, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt, 13, port);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -322,11 +400,17 @@ int net_db_record_enrichment_error(sqlite3 *db, const char *ip, int port,
 
 int net_db_update_asn(sqlite3 *db, const char *ip,
                       uint32_t asn, const char *as_name,
-                      const char *country, const char *bgp_prefix) {
+                      const char *country, const char *bgp_prefix,
+                      const char *asn_registry, const char *asn_region) {
   if (!db || !ip) return -1;
 
+  /* COALESCE on registry/region so legacy callers without those values can
+     still update asn/as_name/country/bgp_prefix without wiping previously-
+     captured registry data. */
   static const char *sql =
-    "UPDATE hosts SET asn=?, as_name=?, country=?, bgp_prefix=? "
+    "UPDATE hosts SET asn=?, as_name=?, country=?, bgp_prefix=?, "
+    "asn_registry=COALESCE(?, asn_registry), "
+    "asn_region=COALESCE(?, asn_region) "
     "WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -348,7 +432,107 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
   bind_or_null(2, as_name);
   bind_or_null(3, country);
   bind_or_null(4, bgp_prefix);
-  sqlite3_bind_text(stmt, 5, ip, -1, SQLITE_TRANSIENT);
+  bind_or_null(5, asn_registry);
+  bind_or_null(6, asn_region);
+  sqlite3_bind_text(stmt, 7, ip, -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+/* -----------------------------------------------------------------------
+ * v4/v5 helpers — hostname, screenshot path, TLS cert details
+ * ----------------------------------------------------------------------- */
+
+int net_db_set_hostname(sqlite3 *db, const char *ip, const char *hostname) {
+  if (!db || !ip) return -1;
+
+  static const char *sql = "UPDATE hosts SET hostname=? WHERE ip=?";
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  if (hostname && hostname[0])
+    sqlite3_bind_text(stmt, 1, hostname, -1, SQLITE_TRANSIENT);
+  else
+    sqlite3_bind_null(stmt, 1);
+  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+int net_db_set_screenshot(sqlite3 *db, const char *ip, int port,
+                          const char *screenshot_path) {
+  if (!db || !ip) return -1;
+
+  static const char *sql =
+    "UPDATE hosts SET screenshot_path=? WHERE ip=? AND port=?";
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  if (screenshot_path && screenshot_path[0])
+    sqlite3_bind_text(stmt, 1, screenshot_path, -1, SQLITE_TRANSIENT);
+  else
+    sqlite3_bind_null(stmt, 1);
+  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt, 3, port);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+int net_db_update_tls(sqlite3 *db, const char *ip, int port,
+                      const char *tls_subject_cn,
+                      const char *tls_issuer,
+                      const char *tls_san_json,
+                      const char *tls_not_after,
+                      int tls_self_signed,
+                      const char *tls_protocol,
+                      const char *tls_sha256) {
+  if (!db || !ip) return -1;
+
+  /* COALESCE every text field so partial TLS info (e.g. handshake completes
+     but cert chain parsing fails) does not wipe prior good data.  The
+     self-signed flag uses -1 as the "leave unchanged" sentinel. */
+  static const char *sql =
+    "UPDATE hosts SET "
+    "tls_subject_cn=COALESCE(?, tls_subject_cn), "
+    "tls_issuer=COALESCE(?, tls_issuer), "
+    "tls_san_json=COALESCE(?, tls_san_json), "
+    "tls_not_after=COALESCE(?, tls_not_after), "
+    "tls_self_signed=COALESCE(?, tls_self_signed), "
+    "tls_protocol=COALESCE(?, tls_protocol), "
+    "tls_sha256=COALESCE(?, tls_sha256) "
+    "WHERE ip=? AND port=?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  auto bind_or_null = [&](int idx, const char *val) {
+    if (val && val[0])
+      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+    else
+      sqlite3_bind_null(stmt, idx);
+  };
+
+  bind_or_null(1, tls_subject_cn);
+  bind_or_null(2, tls_issuer);
+  bind_or_null(3, tls_san_json);
+  bind_or_null(4, tls_not_after);
+  if (tls_self_signed < 0)
+    sqlite3_bind_null(stmt, 5);
+  else
+    sqlite3_bind_int(stmt, 5, tls_self_signed ? 1 : 0);
+  bind_or_null(6, tls_protocol);
+  bind_or_null(7, tls_sha256);
+  sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt, 9, port);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -388,17 +572,24 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
   std::vector<NetHost> hosts;
   if (!db || !ip) return hosts;
 
-  /* Selects the v4 patch-status columns alongside the existing fields.
-     The COALESCE on the new columns lets this run cleanly against any
-     post-migration database (where the columns exist but rows seen
-     before v4 have NULLs). */
+  /* Selects v4 patch-status columns and v4b/v5 enrichment columns
+     alongside the existing fields.  The COALESCE on the patch-status
+     columns lets this run cleanly against any post-migration database
+     (where the columns exist but rows seen before v4 have NULLs).
+     The v4b/v5 columns can be read with bare names because the struct
+     stores them as std::string / int and a NULL DB cell just yields
+     an empty string or the -1 tri-state sentinel for tls_self_signed. */
   static const char *sql =
     "SELECT ip, port, proto, first_seen, last_seen, service, version, "
     "cves, web_title, web_server, web_headers, web_paths, "
     "asn, as_name, country, bgp_prefix, enriched, "
     "COALESCE(prev_cves, ''), COALESCE(prev_service, ''), "
     "COALESCE(prev_version, ''), COALESCE(prev_enriched_at, 0), "
-    "COALESCE(enriched_at, 0), COALESCE(scan_count, 1) "
+    "COALESCE(enriched_at, 0), COALESCE(scan_count, 1), "
+    "hostname, powered_by, x_generator, redirect_target, "
+    "robots_disallowed_json, screenshot_path, asn_registry, asn_region, "
+    "tls_subject_cn, tls_issuer, tls_san_json, tls_not_after, "
+    "tls_self_signed, tls_protocol, tls_sha256 "
     "FROM hosts WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -439,6 +630,24 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.prev_enriched_at = sqlite3_column_int64(stmt, 20);
     h.enriched_at      = sqlite3_column_int64(stmt, 21);
     h.scan_count       = sqlite3_column_int(stmt, 22);
+    h.hostname               = col(23);
+    h.powered_by             = col(24);
+    h.x_generator            = col(25);
+    h.redirect_target        = col(26);
+    h.robots_disallowed_json = col(27);
+    h.screenshot_path        = col(28);
+    h.asn_registry           = col(29);
+    h.asn_region             = col(30);
+    h.tls_subject_cn         = col(31);
+    h.tls_issuer             = col(32);
+    h.tls_san_json           = col(33);
+    h.tls_not_after          = col(34);
+    /* Preserve the NULL/0/1 tri-state — column_int returns 0 for NULL,
+       which would conflate "unknown" with "verified not self-signed". */
+    h.tls_self_signed = (sqlite3_column_type(stmt, 35) == SQLITE_NULL)
+                         ? -1 : sqlite3_column_int(stmt, 35);
+    h.tls_protocol           = col(36);
+    h.tls_sha256             = col(37);
     hosts.push_back(std::move(h));
   }
   sqlite3_finalize(stmt);
