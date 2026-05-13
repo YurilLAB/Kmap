@@ -49,6 +49,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/stat.h>   /* mkdir(2) for topo.db parent dir creation */
 /* BSD/macOS use ICMP_TIMXCEED instead of ICMP_TIME_EXCEEDED */
 #ifndef ICMP_TIME_EXCEEDED
 #define ICMP_TIME_EXCEEDED ICMP_TIMXCEED
@@ -58,6 +59,7 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <icmpapi.h>
+#include <direct.h>     /* _mkdir for topo.db parent dir creation */
 #pragma comment(lib, "iphlpapi.lib")
 #endif
 
@@ -1196,6 +1198,78 @@ int run_tracemap(const char *targets, const char *output_file,
   log_write(LOG_STDOUT, "  Nodes: %d | Edges: %d | ASNs: %d | Boundaries: %d\n",
             topo.total_nodes, topo.total_edges,
             topo.unique_asns, topo.asn_boundaries);
+
+  /* Persist the graph to topo.db so successive tracemap runs accumulate
+     into one map instead of rebuilding from scratch.  Opt out via
+     --tm-no-persist if the user just wants a one-shot dump.
+
+     topo.db lives alongside the shard files in --data-dir but is not
+     itself a shard; the whole topology is small enough to fit in a
+     single file (millions of unique routers across the public
+     internet, not billions like the host catalog). */
+  if (!o.tm_no_persist) {
+    const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
+    char topo_path[1024];
+    snprintf(topo_path, sizeof(topo_path), "%s/topo.db", data_dir);
+
+    /* Ensure the directory exists — net-scan would normally create it,
+       but tracemap can run standalone. */
+#ifdef WIN32
+    _mkdir(data_dir);
+#else
+    mkdir(data_dir, 0755);
+#endif
+
+    sqlite3 *topo_db = net_db_open(topo_path);
+    if (topo_db) {
+      int64_t now = static_cast<int64_t>(time(nullptr));
+      net_db_begin(topo_db);
+
+      int persisted_nodes = 0, persisted_edges = 0;
+      for (const TopoNode &n : topo.nodes) {
+        uint32_t u = ip_to_u32(n.ip.c_str());
+        if (u == 0) continue;
+        NetTopoNode nn;
+        nn.ip_u32     = u;
+        nn.hostname   = n.hostname;
+        nn.asn        = n.asn;
+        nn.as_name    = n.as_name;
+        nn.country    = n.country;
+        nn.role       = n.role;
+        nn.path_count = n.path_count;
+        nn.avg_rtt_ms = n.avg_rtt_ms;
+        nn.last_seen  = now;
+        if (net_db_upsert_topo_node(topo_db, nn) == 0) persisted_nodes++;
+      }
+      for (const TopoEdge &e : topo.edges) {
+        uint32_t f = ip_to_u32(e.from_ip.c_str());
+        uint32_t t = ip_to_u32(e.to_ip.c_str());
+        if (f == 0 || t == 0) continue;
+        NetTopoEdge ne;
+        ne.from_u32       = f;
+        ne.to_u32         = t;
+        ne.asn_boundary   = e.asn_boundary ? 1 : 0;
+        ne.avg_latency_ms = e.avg_latency_ms;
+        ne.path_count     = e.path_count;
+        ne.last_seen      = now;
+        if (net_db_upsert_topo_edge(topo_db, ne) == 0) persisted_edges++;
+      }
+
+      net_db_commit(topo_db);
+      log_write(LOG_STDOUT,
+                "  Persisted %d nodes + %d edges to %s "
+                "(cumulative: %lld nodes, %lld edges)\n",
+                persisted_nodes, persisted_edges, topo_path,
+                static_cast<long long>(net_db_count_topo_nodes(topo_db)),
+                static_cast<long long>(net_db_count_topo_edges(topo_db)));
+      net_db_close(topo_db);
+    } else {
+      log_write(LOG_STDOUT,
+                "  WARNING: could not open %s — graph not persisted "
+                "(run with --tm-no-persist to suppress this warning)\n",
+                topo_path);
+    }
+  }
 
   /* Write output */
   FILE *fp = stdout;

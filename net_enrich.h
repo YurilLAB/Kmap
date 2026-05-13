@@ -62,4 +62,8 @@ int enrich_single_host(const char *ip,
                        std::vector<std::string> &out_redirects,
                        std::vector<TlsCapture> *out_tls = nullptr);
 
+/* fp_* fingerprint-derivation helpers were moved into net_fp_helpers.h
+   so the test harness can link them without dragging in this header's
+   OpenSSL / sockets transitive dependencies. */
+
 #endif /* NET_ENRICH_H */

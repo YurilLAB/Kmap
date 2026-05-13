@@ -23,4 +23,11 @@ int run_net_query_cli();
    Returns 0 on success, 1 on error. */
 int run_net_cluster_cli();
 
+/* Run the --topo-export dump.  Reads the persistent topology graph
+   from topo.db and emits in dot or json.  Honors o.topo_export_file,
+   o.topo_format, and the optional filters o.topo_around_ip /
+   o.topo_around_depth and o.topo_asn_filter.
+   Returns 0 on success, 1 on error. */
+int run_topo_export_cli();
+
 #endif /* NET_SCAN_H */

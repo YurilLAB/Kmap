@@ -360,6 +360,13 @@ void KmapOps::Initialize() {
   tm_output        = nullptr;
   tm_format        = nullptr;
   tm_max_hops      = 30;
+  tm_no_persist    = false;
+  topo_export        = false;
+  topo_export_file   = nullptr;
+  topo_format        = nullptr;
+  topo_around_ip     = 0;
+  topo_around_depth  = 1;
+  topo_asn_filter    = 0;
   spoof_os         = nullptr;
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;

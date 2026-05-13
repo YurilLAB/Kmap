@@ -152,6 +152,7 @@
 #include "web_recon.h"
 #include "cve_map.h"
 #include "net_scan.h"
+#include "net_db.h"  /* ip_to_u32 for --topo-around */
 #include "tracemap.h"
 #include "os_profile.h"
 
@@ -322,6 +323,29 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.tm_format = strdup(arg); return true;
   } else if (strcmp(name, "tm-max-hops") == 0) {
     o.tm_max_hops = parse_int_arg("tm-max-hops", arg, 1, 255);
+    return true;
+  } else if (strcmp(name, "tm-no-persist") == 0) {
+    o.tm_no_persist = true; return true;
+  /* --topo-export options */
+  } else if (strcmp(name, "topo-export") == 0) {
+    o.topo_export = true; o.topo_export_file = strdup(arg); return true;
+  } else if (strcmp(name, "topo-format") == 0) {
+    if (strcmp(arg, "dot") != 0 && strcmp(arg, "json") != 0)
+      fatal("--topo-format must be one of: dot, json");
+    o.topo_export = true; o.topo_format = strdup(arg); return true;
+  } else if (strcmp(name, "topo-around") == 0) {
+    o.topo_export = true;
+    o.topo_around_ip = ip_to_u32(arg);
+    if (o.topo_around_ip == 0)
+      fatal("--topo-around: cannot parse IP '%s'", arg);
+    return true;
+  } else if (strcmp(name, "topo-around-depth") == 0) {
+    o.topo_export = true;
+    o.topo_around_depth = parse_int_arg("topo-around-depth", arg, 1, 6);
+    return true;
+  } else if (strcmp(name, "topo-asn") == 0) {
+    o.topo_export = true;
+    o.topo_asn_filter = parse_int_arg("topo-asn", arg, 1, INT_MAX);
     return true;
   } else if (strcmp(name, "spoof-os") == 0) {
     /* Validate against the os_profile preset list at parse time so a typo
@@ -911,6 +935,13 @@ void parse_options(int argc, char **argv) {
     {"tm-output", required_argument, 0, 0},
     {"tm-format", required_argument, 0, 0},
     {"tm-max-hops", required_argument, 0, 0},
+    {"tm-no-persist", no_argument, 0, 0},
+    /* --topo-export: read the persisted graph */
+    {"topo-export", required_argument, 0, 0},
+    {"topo-format", required_argument, 0, 0},
+    {"topo-around", required_argument, 0, 0},
+    {"topo-around-depth", required_argument, 0, 0},
+    {"topo-asn", required_argument, 0, 0},
     /* --spoof-os: net-scan OS fingerprint spoofing profile */
     {"spoof-os", required_argument, 0, 0},
     {0, 0, 0, 0}
@@ -2293,6 +2324,12 @@ int kmap_main(int argc, char *argv[]) {
      by walking the per-shard fingerprints tables and exit. */
   if (o.net_cluster) {
     int rc = run_net_cluster_cli();
+    exit(rc);
+  }
+
+  /* --topo-export: dump the persisted topology graph to a file and exit. */
+  if (o.topo_export) {
+    int rc = run_topo_export_cli();
     exit(rc);
   }
 

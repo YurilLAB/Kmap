@@ -162,7 +162,46 @@ static const char *SCHEMA_SQL =
   /* Forward lookup: every fingerprint a given IP carries.  Covered by
      the PK leading column already, but an explicit single-column index
      keeps the query planner from second-guessing under varied stats. */
-  "CREATE INDEX IF NOT EXISTS idx_fp_ip         ON fingerprints(ip_u32);";
+  "CREATE INDEX IF NOT EXISTS idx_fp_ip         ON fingerprints(ip_u32);"
+  /* v5c: persistent topology graph — nodes and edges that survive
+     across runs so successive tracemap invocations refine the same
+     graph instead of starting from scratch.  See the comment block
+     above NetTopoNode in net_db.h for compression rationale.
+     hostname_id / as_name_id reference the strings interning table
+     (created below); -1 / NULL means "no value captured yet". */
+  "CREATE TABLE IF NOT EXISTS topo_nodes ("
+  "  ip_u32       INTEGER PRIMARY KEY,"
+  "  hostname_id  INTEGER,"
+  "  asn          INTEGER DEFAULT 0,"
+  "  as_name_id   INTEGER,"
+  "  country      TEXT,"
+  "  role         TEXT,"
+  "  path_count   INTEGER DEFAULT 0,"
+  "  avg_rtt_ms   REAL,"
+  "  last_seen    INTEGER NOT NULL"
+  ");"
+  "CREATE INDEX IF NOT EXISTS idx_topo_nodes_asn ON topo_nodes(asn);"
+  "CREATE TABLE IF NOT EXISTS topo_edges ("
+  "  from_u32        INTEGER NOT NULL,"
+  "  to_u32          INTEGER NOT NULL,"
+  "  asn_boundary    INTEGER DEFAULT 0,"
+  "  avg_latency_ms  REAL,"
+  "  path_count      INTEGER DEFAULT 0,"
+  "  last_seen       INTEGER NOT NULL,"
+  "  PRIMARY KEY (from_u32, to_u32)"
+  ");"
+  /* Reverse-direction lookup: "who points at me?".  The PK covers
+     out-edges via its leading column; in-edges need their own index. */
+  "CREATE INDEX IF NOT EXISTS idx_topo_edges_to ON topo_edges(to_u32);"
+  /* v5d: string interning.  AUTOINCREMENT pins ids monotonically so
+     deleted rows do not get their id reused — important when the topo
+     nodes table holds a stale reference for a string that was
+     accidentally cleared.  UNIQUE on val makes net_db_intern_string
+     idempotent via INSERT OR IGNORE + a SELECT lookup. */
+  "CREATE TABLE IF NOT EXISTS strings ("
+  "  id  INTEGER PRIMARY KEY AUTOINCREMENT,"
+  "  val TEXT    NOT NULL UNIQUE"
+  ");";
 
 /* Per-statement migrations applied to pre-existing databases.  ALTER TABLE
    ADD COLUMN errors out if the column already exists; we run each statement
@@ -842,6 +881,278 @@ net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip) {
   }
   sqlite3_finalize(stmt);
   return out;
+}
+
+/* -----------------------------------------------------------------------
+ * String interning
+ *
+ * strings(id, val) collapses repeated TEXT values to int IDs.  Storing
+ * "CLOUDFLARENET" in a billion topo_nodes rows costs ~13 GB; an int
+ * reference is ~8 GB, and the strings table itself adds ~kilobytes
+ * because the distinct value set is tiny.  Interning is opt-in — only
+ * the topo layer uses it today; hosts.* still uses TEXT for backward
+ * compatibility with existing readers.
+ * ----------------------------------------------------------------------- */
+
+int64_t net_db_intern_string(sqlite3 *db, const char *val) {
+  if (!db || !val || !val[0]) return 0;
+
+  /* Hot path: value already exists.  Try SELECT first to avoid an
+     INSERT OR IGNORE no-op (which still bumps AUTOINCREMENT on some
+     SQLite versions and wastes ids). */
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, "SELECT id FROM strings WHERE val = ?",
+                         -1, &stmt, nullptr) != SQLITE_OK)
+    return 0;
+  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  int64_t id = 0;
+  if (sqlite3_step(stmt) == SQLITE_ROW)
+    id = sqlite3_column_int64(stmt, 0);
+  sqlite3_finalize(stmt);
+  if (id > 0) return id;
+
+  /* Cold path: insert.  INSERT OR IGNORE so a concurrent inserter
+     doesn't crash us; we re-read the id either way. */
+  if (sqlite3_prepare_v2(db,
+        "INSERT OR IGNORE INTO strings(val) VALUES(?)",
+        -1, &stmt, nullptr) != SQLITE_OK)
+    return 0;
+  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  if (rc != SQLITE_DONE) return 0;
+
+  /* If the IGNORE branch fired, last_insert_rowid is 0 and we need to
+     re-SELECT.  Otherwise last_insert_rowid is the new id. */
+  id = sqlite3_last_insert_rowid(db);
+  if (id != 0) return id;
+
+  if (sqlite3_prepare_v2(db, "SELECT id FROM strings WHERE val = ?",
+                         -1, &stmt, nullptr) != SQLITE_OK)
+    return 0;
+  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  if (sqlite3_step(stmt) == SQLITE_ROW)
+    id = sqlite3_column_int64(stmt, 0);
+  sqlite3_finalize(stmt);
+  return id;
+}
+
+std::string net_db_lookup_string(sqlite3 *db, int64_t id) {
+  if (!db || id <= 0) return "";
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, "SELECT val FROM strings WHERE id = ?",
+                         -1, &stmt, nullptr) != SQLITE_OK)
+    return "";
+  sqlite3_bind_int64(stmt, 1, id);
+  std::string out;
+  if (sqlite3_step(stmt) == SQLITE_ROW) {
+    const unsigned char *p = sqlite3_column_text(stmt, 0);
+    if (p) out = reinterpret_cast<const char *>(p);
+  }
+  sqlite3_finalize(stmt);
+  return out;
+}
+
+/* -----------------------------------------------------------------------
+ * Persistent topology — nodes and edges
+ *
+ * UPSERTs use the same atomic-in-one-statement pattern as the hosts
+ * UPSERT above: on first insertion, fields go in directly; on conflict,
+ * path_count is bumped, last_seen refreshed, and string fields refresh
+ * only when the caller passes a non-empty replacement.  The avg_latency
+ * column on edges uses the running-mean update
+ *   new_avg = old_avg + (sample - old_avg) / new_count
+ * which is stable under order-of-arrival and never accumulates floating-
+ * point error the way a sum-of-samples / count division would.
+ * ----------------------------------------------------------------------- */
+
+int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
+  if (!db) return -1;
+
+  /* Intern the string-valued columns up front so the UPSERT itself
+     binds only ints.  Empty -> id 0 -> NULLIF maps to NULL -> COALESCE
+     keeps the previously-stored id (no wipe on partial re-observation). */
+  int64_t hostname_id = net_db_intern_string(db, node.hostname.c_str());
+  int64_t as_name_id  = net_db_intern_string(db, node.as_name.c_str());
+
+  static const char *sql =
+    "INSERT INTO topo_nodes "
+    "  (ip_u32, hostname_id, asn, as_name_id, country, role, "
+    "   path_count, avg_rtt_ms, last_seen) "
+    "VALUES (?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, 1, ?, ?) "
+    "ON CONFLICT(ip_u32) DO UPDATE SET "
+    "  hostname_id = COALESCE(NULLIF(excluded.hostname_id, 0), hostname_id), "
+    "  asn         = CASE WHEN excluded.asn  != 0 THEN excluded.asn  ELSE asn  END, "
+    "  as_name_id  = COALESCE(NULLIF(excluded.as_name_id, 0), as_name_id), "
+    "  country     = COALESCE(NULLIF(excluded.country, ''),  country), "
+    "  role        = COALESCE(NULLIF(excluded.role, ''),     role), "
+    "  path_count  = path_count + 1, "
+    "  avg_rtt_ms  = CASE WHEN excluded.avg_rtt_ms IS NOT NULL "
+    "                     THEN excluded.avg_rtt_ms ELSE avg_rtt_ms END, "
+    "  last_seen   = excluded.last_seen";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(node.ip_u32));
+  sqlite3_bind_int64(stmt, 2, hostname_id);
+  sqlite3_bind_int64(stmt, 3, static_cast<int64_t>(node.asn));
+  sqlite3_bind_int64(stmt, 4, as_name_id);
+  sqlite3_bind_text (stmt, 5, node.country.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, 6, node.role.c_str(),    -1, SQLITE_TRANSIENT);
+  if (node.avg_rtt_ms > 0.0) sqlite3_bind_double(stmt, 7, node.avg_rtt_ms);
+  else                       sqlite3_bind_null  (stmt, 7);
+  sqlite3_bind_int64(stmt, 8, node.last_seen);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
+  if (!db) return -1;
+
+  /* Running-mean update on conflict: stable under order, no precision
+     loss vs. sum/count.  When the sample is NULL (a `* * *` hop), keep
+     the old average rather than poisoning the stat with zero. */
+  static const char *sql =
+    "INSERT INTO topo_edges "
+    "  (from_u32, to_u32, asn_boundary, avg_latency_ms, path_count, last_seen) "
+    "VALUES (?, ?, ?, ?, 1, ?) "
+    "ON CONFLICT(from_u32, to_u32) DO UPDATE SET "
+    "  asn_boundary   = excluded.asn_boundary, "
+    "  avg_latency_ms = CASE WHEN excluded.avg_latency_ms IS NOT NULL "
+    "                        THEN COALESCE(avg_latency_ms, 0.0) + "
+    "                             (excluded.avg_latency_ms - "
+    "                              COALESCE(avg_latency_ms, 0.0)) / "
+    "                             (path_count + 1.0) "
+    "                        ELSE avg_latency_ms END, "
+    "  path_count     = path_count + 1, "
+    "  last_seen      = excluded.last_seen";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(edge.from_u32));
+  sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(edge.to_u32));
+  sqlite3_bind_int  (stmt, 3, edge.asn_boundary ? 1 : 0);
+  if (edge.avg_latency_ms > 0.0)
+    sqlite3_bind_double(stmt, 4, edge.avg_latency_ms);
+  else
+    sqlite3_bind_null  (stmt, 4);
+  sqlite3_bind_int64(stmt, 5, edge.last_seen);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
+static std::vector<NetTopoEdge>
+edge_rows(sqlite3 *db, const char *sql, uint32_t bind_u32) {
+  std::vector<NetTopoEdge> out;
+  if (!db) return out;
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return out;
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(bind_u32));
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    NetTopoEdge e;
+    e.from_u32       = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
+    e.to_u32         = static_cast<uint32_t>(sqlite3_column_int64(stmt, 1));
+    e.asn_boundary   = sqlite3_column_int(stmt, 2);
+    e.avg_latency_ms = (sqlite3_column_type(stmt, 3) == SQLITE_NULL)
+                         ? 0.0 : sqlite3_column_double(stmt, 3);
+    e.path_count     = sqlite3_column_int(stmt, 4);
+    e.last_seen      = sqlite3_column_int64(stmt, 5);
+    out.push_back(std::move(e));
+  }
+  sqlite3_finalize(stmt);
+  return out;
+}
+
+std::vector<NetTopoEdge>
+net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32) {
+  return edge_rows(db,
+    "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
+    "path_count, last_seen FROM topo_edges WHERE from_u32 = ?",
+    from_u32);
+}
+
+std::vector<NetTopoEdge>
+net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32) {
+  return edge_rows(db,
+    "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
+    "path_count, last_seen FROM topo_edges WHERE to_u32 = ?",
+    to_u32);
+}
+
+bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out) {
+  if (!db || !out) return false;
+  static const char *sql =
+    "SELECT n.ip_u32, "
+    "       COALESCE(h.val, ''), "
+    "       n.asn, "
+    "       COALESCE(a.val, ''), "
+    "       COALESCE(n.country, ''), "
+    "       COALESCE(n.role, ''), "
+    "       n.path_count, "
+    "       COALESCE(n.avg_rtt_ms, 0.0), "
+    "       n.last_seen "
+    "FROM topo_nodes n "
+    "LEFT JOIN strings h ON h.id = n.hostname_id "
+    "LEFT JOIN strings a ON a.id = n.as_name_id "
+    "WHERE n.ip_u32 = ?";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return false;
+  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
+
+  bool found = false;
+  if (sqlite3_step(stmt) == SQLITE_ROW) {
+    out->ip_u32     = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
+    const unsigned char *h = sqlite3_column_text(stmt, 1);
+    out->hostname   = h ? reinterpret_cast<const char *>(h) : "";
+    out->asn        = static_cast<uint32_t>(sqlite3_column_int64(stmt, 2));
+    const unsigned char *a = sqlite3_column_text(stmt, 3);
+    out->as_name    = a ? reinterpret_cast<const char *>(a) : "";
+    const unsigned char *c = sqlite3_column_text(stmt, 4);
+    out->country    = c ? reinterpret_cast<const char *>(c) : "";
+    const unsigned char *r = sqlite3_column_text(stmt, 5);
+    out->role       = r ? reinterpret_cast<const char *>(r) : "";
+    out->path_count = sqlite3_column_int(stmt, 6);
+    out->avg_rtt_ms = sqlite3_column_double(stmt, 7);
+    out->last_seen  = sqlite3_column_int64(stmt, 8);
+    found = true;
+  }
+  sqlite3_finalize(stmt);
+  return found;
+}
+
+int64_t net_db_count_topo_nodes(sqlite3 *db) {
+  if (!db) return -1;
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM topo_nodes",
+                         -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+  int64_t c = 0;
+  if (sqlite3_step(stmt) == SQLITE_ROW) c = sqlite3_column_int64(stmt, 0);
+  sqlite3_finalize(stmt);
+  return c;
+}
+
+int64_t net_db_count_topo_edges(sqlite3 *db) {
+  if (!db) return -1;
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM topo_edges",
+                         -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+  int64_t c = 0;
+  if (sqlite3_step(stmt) == SQLITE_ROW) c = sqlite3_column_int64(stmt, 0);
+  sqlite3_finalize(stmt);
+  return c;
 }
 
 /* -----------------------------------------------------------------------

@@ -254,6 +254,103 @@ std::vector<NetFingerprint>
 net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip);
 
 /* -----------------------------------------------------------------------
+ * Persistent topology — incremental graph storage
+ *
+ * Tracemap historically built its graph in memory from a single run and
+ * threw it away when the process exited.  At internet scale that means
+ * every traceroute starts from zero, and shared hops between successive
+ * scans are never combined.  These tables store the graph durably so
+ * repeated traceroutes refine the same node/edge set instead.
+ *
+ * Compression: ip_u32 columns are 4-byte INTEGER, not the dotted-quad
+ * TEXT form (~15 bytes).  hostname / as_name use string IDs that index
+ * into the strings(id, val) interning table — at internet scale, AS
+ * names appear thousands of times across millions of rows and an int
+ * reference is ~1/8 the size of the literal.  See net_db_intern_string.
+ *
+ * Indexes are sized for graph traversal: every edge can be found by
+ * its endpoint via the PK, and a separate idx_topo_edges_to lets you
+ * look up the in-edges of a node ("who points at me?") without a scan.
+ * ----------------------------------------------------------------------- */
+
+struct NetTopoNode {
+  uint32_t    ip_u32;
+  std::string hostname;
+  uint32_t    asn;
+  std::string as_name;
+  std::string country;
+  std::string role;       /* "source", "gateway", "router", "ixp",
+                             "target", "border", "hub", "" */
+  int         path_count; /* how many traces have passed through this node */
+  double      avg_rtt_ms;
+  int64_t     last_seen;
+};
+
+struct NetTopoEdge {
+  uint32_t from_u32;
+  uint32_t to_u32;
+  int      asn_boundary;   /* 1 if from.asn != to.asn, else 0 */
+  double   avg_latency_ms; /* avg(to.rtt - from.rtt) across observations */
+  int      path_count;     /* how many traces use this edge */
+  int64_t  last_seen;
+};
+
+/* UPSERT a node.  Re-observed nodes update path_count (atomic +1) and
+   refresh last_seen, but the other columns are only filled when the
+   caller passes non-empty values — repeat probes that learned nothing
+   new about hostname/asn won't wipe previously-captured data.  Returns
+   0 on success, -1 on error. */
+int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node);
+
+/* UPSERT an edge.  Bumps path_count by 1 and merges avg_latency_ms via
+   the running-mean formula `new_avg = old_avg + (sample - old_avg)/n`
+   so observation order doesn't bias the result.  Returns 0/-1. */
+int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge);
+
+/* Out-neighbors of an IP: every node this IP has been observed
+   pointing at.  Uses the PK leading-column index on from_u32. */
+std::vector<NetTopoEdge>
+net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32);
+
+/* In-neighbors of an IP: every node observed pointing at it.  Uses
+   the explicit idx_topo_edges_to index for the reverse direction. */
+std::vector<NetTopoEdge>
+net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32);
+
+/* Read a single node by IP.  Returns true if found and populates *out;
+   false if the IP has never been seen. */
+bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out);
+
+/* Count rows in topo_nodes / topo_edges respectively. */
+int64_t net_db_count_topo_nodes(sqlite3 *db);
+int64_t net_db_count_topo_edges(sqlite3 *db);
+
+/* -----------------------------------------------------------------------
+ * String interning — compress repeated values to int IDs
+ *
+ * Hot columns like as_name ("CLOUDFLARENET") and hostname suffixes
+ * repeat across billions of rows.  Storing each as TEXT costs ~bytes
+ * per row × billions of rows.  Interning collapses every duplicate to
+ * one 8-byte rowid reference + one row in the strings table.
+ *
+ * Tradeoff: every read joins through strings.  The strings table is
+ * small enough that SQLite keeps it in cache, and the join is on the
+ * primary key — fast in practice for analytical queries.  Hot-path
+ * inserts on hosts still use TEXT for compatibility; interning is
+ * opt-in for the topology layer where the win pays off the most.
+ * ----------------------------------------------------------------------- */
+
+/* Get or create a row in strings(id, val) for the given value.  Returns
+   the row id on success, 0 on error (or for NULL/empty input).  Calls
+   are idempotent — the UNIQUE constraint on val collapses duplicates
+   and the existing id is returned on conflict. */
+int64_t net_db_intern_string(sqlite3 *db, const char *val);
+
+/* Reverse: look up the literal value for an interned id.  Returns the
+   empty string on miss or error. */
+std::string net_db_lookup_string(sqlite3 *db, int64_t id);
+
+/* -----------------------------------------------------------------------
  * Patch-status diff helpers
  *
  * On a re-scan, kmap captures the previous enrichment's CVE list into

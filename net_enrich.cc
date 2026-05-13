@@ -16,6 +16,7 @@
 #endif
 
 #include "net_enrich.h"
+#include "net_fp_helpers.h"
 #include "net_db.h"
 #include "asn_lookup.h"
 #include "KmapOps.h"
@@ -233,92 +234,10 @@ static std::string reverse_dns_lookup(const char *ip) {
 }
 
 /* -----------------------------------------------------------------------
- * Fingerprint derivation helpers (used by the per-host loop after
- * enrichment writes to seed the fingerprints table — kind=tls_sha256,
- * tls_subject_cn, tls_san, hostname, redirect_host).
+ * Fingerprint derivation helpers live in net_fp_helpers.cc so the test
+ * harness can link them without pulling in OpenSSL and the rest of the
+ * enrichment pipeline.  Declarations come in via net_fp_helpers.h above.
  * ----------------------------------------------------------------------- */
-
-/* True if s parses as a bare IPv4 or IPv6 literal.  Cert CNs that ARE
-   the server IP are useless for clustering (every kmap-scanned IP
-   would share a fingerprint with itself), so the derivation skips
-   them.  Real fleets put a hostname in the CN. */
-static bool fp_looks_like_ip(const std::string &s) {
-  if (s.empty()) return false;
-  struct in_addr  v4;
-  struct in6_addr v6;
-  if (inet_pton(AF_INET,  s.c_str(), &v4) == 1) return true;
-  if (inet_pton(AF_INET6, s.c_str(), &v6) == 1) return true;
-  return false;
-}
-
-/* Pull DNS names out of the JSON array written by tls_capture_cert.
-   Format is exactly ["name1","name2",...] with no nested objects or
-   escape sequences other than what json_escape emits.  A simple quote-
-   delimited walk handles every value the writer produces. */
-static std::vector<std::string>
-fp_parse_san_json(const std::string &json) {
-  std::vector<std::string> out;
-  if (json.size() < 2) return out;
-  size_t i = 0;
-  while (i < json.size()) {
-    if (json[i] != '"') { i++; continue; }
-    /* Opening quote.  Walk to the closing quote, honoring \" and \\
-       so a SAN that smuggled in a quoted backslash does not desync. */
-    size_t start = ++i;
-    std::string val;
-    while (i < json.size() && json[i] != '"') {
-      if (json[i] == '\\' && i + 1 < json.size()) {
-        char esc = json[i + 1];
-        val += (esc == 'n')  ? '\n'
-             : (esc == 'r')  ? '\r'
-             : (esc == 't')  ? '\t'
-             : esc;
-        i += 2;
-      } else {
-        val += json[i++];
-      }
-    }
-    if (i >= json.size()) break;  /* unterminated string — bail */
-    i++;  /* consume the closing quote */
-    if (!val.empty()) out.push_back(std::move(val));
-    (void)start;
-  }
-  return out;
-}
-
-/* Extract the host component from an HTTP Location: value.  Handles:
-     "http://foo.com/path"     -> "foo.com"
-     "https://foo.com:8443/x"  -> "foo.com"
-     "//foo.com/x"             -> "foo.com" (protocol-relative)
-     "/relative/path"          -> ""        (no host present)
-     "foo.com"                 -> "foo.com" (some servers emit bare host)
-   The lowercase normalization stabilizes the fingerprint so a redirect
-   to "Foo.COM" clusters with one to "foo.com". */
-static std::string fp_extract_redirect_host(const std::string &loc) {
-  if (loc.empty()) return "";
-  std::string s = loc;
-  /* Strip a scheme prefix if present. */
-  size_t scheme_end = s.find("://");
-  if (scheme_end != std::string::npos) {
-    s = s.substr(scheme_end + 3);
-  } else if (s.size() >= 2 && s[0] == '/' && s[1] == '/') {
-    s = s.substr(2);
-  } else if (!s.empty() && s[0] == '/') {
-    /* Path-relative redirect, no host. */
-    return "";
-  }
-  /* End-of-host is the first of '/', '?', '#', or ':' (port). */
-  size_t end = s.find_first_of("/?#:");
-  if (end != std::string::npos) s = s.substr(0, end);
-  /* Strip trailing whitespace some servers append. */
-  while (!s.empty() && (s.back() == ' ' || s.back() == '\t' ||
-                        s.back() == '\r' || s.back() == '\n'))
-    s.pop_back();
-  /* Lowercase. */
-  std::transform(s.begin(), s.end(), s.begin(),
-                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
-  return s;
-}
 
 /* -----------------------------------------------------------------------
  * String helpers

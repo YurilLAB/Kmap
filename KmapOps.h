@@ -69,6 +69,7 @@
 #include "output.h" /* LOG_NUM_FILES */
 #include <nbase.h>
 #include <nsock.h>
+#include <cstdint>      /* uint32_t for topo_around_ip */
 #include <string>
 #include <map>
 #include <vector>
@@ -327,6 +328,14 @@ class KmapOps {
   char *tm_output;          /* Output file (NULL = stdout) */
   char *tm_format;          /* "txt", "dot", or "json" */
   int  tm_max_hops;         /* Max TTL (default 30) */
+  bool tm_no_persist;       /* Skip writing the built graph to topo.db */
+  /* --topo-export options */
+  bool topo_export;          /* Enable topo-export mode */
+  char *topo_export_file;    /* Output file path */
+  char *topo_format;         /* "dot" or "json" (default "json") */
+  uint32_t topo_around_ip;   /* If non-zero, restrict to neighborhood of this IP */
+  int  topo_around_depth;    /* BFS depth for --topo-around (default 1) */
+  int  topo_asn_filter;      /* If non-zero, restrict to nodes in this ASN */
   /* --spoof-os: OS fingerprint spoofing profile name for net-scan probes
      (TTL, RCVBUF, HTTP User-Agent + Accept-* headers). NULL = no spoofing.
      Validated against os_profile_is_valid() at parse time. */

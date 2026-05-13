@@ -5,6 +5,13 @@
  *   - net_db_find_by_fingerprint (inverse lookup)
  *   - net_db_get_fingerprints_for_ip (forward lookup)
  *
+ * Also exercises the pure derivation helpers exposed via net_enrich.h:
+ *   - fp_extract_redirect_host (URL -> host parser, schema gate)
+ *   - fp_parse_san_json (TLS SAN JSON array parser)
+ * The regression cases below would have caught both bugs found in the
+ * post-B audit (scheme:opaque URLs returning the scheme name as a host;
+ * the original was patched in the same change set).
+ *
  * Validates the bits a code-pattern test cannot: that the schema actually
  * creates the table, that the indexes are usable, that ip_u32 round-trips
  * cleanly through int64 binding for IPs above INT_MAX, and that the
@@ -12,10 +19,12 @@
  *
  * Build:
  *   g++ -o net_db_fingerprint_test \
- *       tests/net_db_fingerprint_test.cc net_db.cc sqlite/sqlite3.o
+ *       tests/net_db_fingerprint_test.cc net_db.cc net_enrich_helpers.o \
+ *       sqlite/sqlite3.o
  */
 
 #include "../net_db.h"
+#include "../net_fp_helpers.h"
 
 #include <cassert>
 #include <cstdio>
@@ -127,6 +136,67 @@ static void test_unknown_lookup_returns_empty(sqlite3 *db) {
   CHECK(by_ip.empty());
 }
 
+/* ---------------------------------------------------------------------
+ * Pure-function regression tests for the derivation helpers.
+ * No DB access — these directly check fp_extract_redirect_host and
+ * fp_parse_san_json against the corner cases that bit the post-B audit.
+ * --------------------------------------------------------------------- */
+
+static void test_redirect_host_normal_urls() {
+  CHECK(fp_extract_redirect_host("http://foo.com/path")     == "foo.com");
+  CHECK(fp_extract_redirect_host("https://foo.com:8443/x")  == "foo.com");
+  CHECK(fp_extract_redirect_host("//foo.com/x")             == "foo.com");
+  CHECK(fp_extract_redirect_host("foo.com")                 == "foo.com");
+  /* Case normalization: clusters with the lowercase variant. */
+  CHECK(fp_extract_redirect_host("HTTPS://FOO.COM/")        == "foo.com");
+}
+
+static void test_redirect_host_rejects_relatives_and_empty() {
+  CHECK(fp_extract_redirect_host("")                  == "");
+  CHECK(fp_extract_redirect_host("/relative/path")    == "");
+  CHECK(fp_extract_redirect_host("/")                 == "");
+}
+
+static void test_redirect_host_rejects_non_http_schemes() {
+  /* The audit bug: these scheme:opaque shapes used to return the
+     scheme name as a host (e.g. "javascript:alert(0)" -> "javascript").
+     After the dot-gate fix they all return "". */
+  CHECK(fp_extract_redirect_host("javascript:alert(0)") == "");
+  CHECK(fp_extract_redirect_host("mailto:x@y.com")      == "");
+  CHECK(fp_extract_redirect_host("tel:+15551234")       == "");
+  CHECK(fp_extract_redirect_host("data:text/html,abc")  == "");
+}
+
+static void test_redirect_host_rejects_single_label() {
+  /* Single-label intranet names have no public clustering value and
+     get filtered by the dot-gate. */
+  CHECK(fp_extract_redirect_host("intranet")        == "");
+  CHECK(fp_extract_redirect_host("http://intranet") == "");
+}
+
+static void test_redirect_host_ipv6_brackets() {
+  /* IPv6 literals in Location headers come with [] brackets per RFC
+     3986; the parser strips them so [::1] and ::1 fingerprint as one. */
+  CHECK(fp_extract_redirect_host("http://[::1]:8080/path") == "::1");
+}
+
+static void test_san_parser_basic() {
+  auto sans = fp_parse_san_json("[\"a.com\",\"b.com\"]");
+  CHECK(sans.size() == 2);
+  if (sans.size() == 2) {
+    CHECK(sans[0] == "a.com");
+    CHECK(sans[1] == "b.com");
+  }
+}
+
+static void test_san_parser_empty_and_malformed() {
+  CHECK(fp_parse_san_json("").empty());
+  CHECK(fp_parse_san_json("[]").empty());
+  /* Unterminated string: do not crash, do not push a partial value. */
+  auto unterm = fp_parse_san_json("[\"unterm");
+  CHECK(unterm.empty());
+}
+
 static void test_bad_input_rejected(sqlite3 *db) {
   /* NULL kind/value and empty-string kind/value must all be rejected
      without corrupting the DB. */
@@ -162,6 +232,15 @@ int main() {
   test_per_ip_returns_all_kinds(db);
   test_unknown_lookup_returns_empty(db);
   test_bad_input_rejected(db);
+
+  /* Pure-function regressions — no DB needed. */
+  test_redirect_host_normal_urls();
+  test_redirect_host_rejects_relatives_and_empty();
+  test_redirect_host_rejects_non_http_schemes();
+  test_redirect_host_rejects_single_label();
+  test_redirect_host_ipv6_brackets();
+  test_san_parser_basic();
+  test_san_parser_empty_and_malformed();
 
   net_db_close(db);
   std::remove(path.c_str());

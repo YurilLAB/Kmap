@@ -620,33 +620,38 @@ int run_net_cluster_cli() {
     return 1;
   }
 
-  /* Step 2: for each (kind, value) the target has, query every shard
-     and aggregate matching IPs.  Keyed by uint32 so two-byte comparison
-     is fastest; the set<string> per IP preserves which fingerprints
-     matched so the output can show why each IP was clustered. */
+  /* Step 2: for each shard, run every (kind, value) lookup against
+     that shard's fingerprints table, THEN close.  Doing it shard-major
+     (vs fingerprint-major) reduces SQLite opens from N*32 to just 32
+     even when the target carries dozens of fingerprints — important on
+     Windows where CreateFile is much more expensive than a Linux open(2).
+     Keyed by uint32 so two-byte comparison is fastest; the set<string>
+     per IP preserves which fingerprints matched so the output can show
+     why each IP was clustered. */
   std::map<uint32_t, std::set<std::string>> cohort;
 
-  for (const NetFingerprint &fp : target_fps) {
-    std::string sig = fp.kind + ":" + fp.value;
-    for (int sh = 0; sh < NET_SHARD_COUNT; sh++) {
-      std::string sp = net_shard_path(data_dir, sh);
-      /* Skip shards whose file does not exist — saves a noisy stderr
-         from net_db_open when shards have not been populated yet. */
-      FILE *test = fopen(sp.c_str(), "r");
-      if (!test) continue;
-      fclose(test);
+  for (int sh = 0; sh < NET_SHARD_COUNT; sh++) {
+    std::string sp = net_shard_path(data_dir, sh);
+    /* Skip shards whose file does not exist — saves a noisy stderr
+       from net_db_open when shards have not been populated yet. */
+    FILE *test = fopen(sp.c_str(), "r");
+    if (!test) continue;
+    fclose(test);
 
-      sqlite3 *db = net_db_open(sp);
-      if (!db) continue;
+    sqlite3 *db = net_db_open(sp);
+    if (!db) continue;
+
+    for (const NetFingerprint &fp : target_fps) {
       std::vector<NetFingerprint> matches =
           net_db_find_by_fingerprint(db, fp.kind.c_str(), fp.value.c_str());
-      net_db_close(db);
-
+      std::string sig = fp.kind + ":" + fp.value;
       for (const NetFingerprint &m : matches) {
         if (m.ip_u32 == target_u32) continue;  /* exclude the target itself */
         cohort[m.ip_u32].insert(sig);
       }
     }
+
+    net_db_close(db);
   }
 
   /* Step 3: emit, sorted by share count descending then IP ascending. */
@@ -761,5 +766,209 @@ int run_net_cluster_cli() {
   }
 
   if (fp_out != stdout) fclose(fp_out);
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Topology export
+ *
+ * Reads the persisted topo.db that tracemap writes through to and emits
+ * the full graph in dot or json.  Filters:
+ *   --topo-around IP [--topo-around-depth N]  -> BFS neighborhood of IP
+ *   --topo-asn N                              -> nodes in ASN N only
+ *   (no filter)                               -> full graph (caps emit
+ *                                                at 100k nodes to keep
+ *                                                downstream renderers
+ *                                                from melting)
+ *
+ * The interned string columns are resolved at read time via the joins
+ * in net_db_get_topo_node, so the output sees the literal hostnames /
+ * AS names instead of the integer ids stored on disk.
+ * ----------------------------------------------------------------------- */
+
+static std::string json_escape_topo(const std::string &s) {
+  std::string out; out.reserve(s.size() + 4);
+  for (char c : s) {
+    if      (c == '"')  out += "\\\"";
+    else if (c == '\\') out += "\\\\";
+    else if (c == '\n') out += "\\n";
+    else if (c == '\r') out += "\\r";
+    else if (c == '\t') out += "\\t";
+    else                out += c;
+  }
+  return out;
+}
+
+/* BFS expansion of the neighborhood around `start` up to `depth` hops
+   in either direction.  Returns the set of node ip_u32 values to
+   include in the export. */
+static std::set<uint32_t>
+bfs_neighborhood(sqlite3 *db, uint32_t start, int depth) {
+  std::set<uint32_t> seen;
+  std::vector<uint32_t> frontier;
+  seen.insert(start);
+  frontier.push_back(start);
+  for (int d = 0; d < depth && !frontier.empty(); d++) {
+    std::vector<uint32_t> next;
+    for (uint32_t u : frontier) {
+      auto outs = net_db_get_topo_edges_from(db, u);
+      auto ins  = net_db_get_topo_edges_to  (db, u);
+      for (const auto &e : outs)
+        if (seen.insert(e.to_u32).second)   next.push_back(e.to_u32);
+      for (const auto &e : ins)
+        if (seen.insert(e.from_u32).second) next.push_back(e.from_u32);
+    }
+    frontier = std::move(next);
+  }
+  return seen;
+}
+
+int run_topo_export_cli() {
+  if (!o.topo_export_file || !o.topo_export_file[0]) {
+    fprintf(stderr,
+            "topo-export: --topo-export requires an output file path\n");
+    return 1;
+  }
+
+  const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
+  char topo_path[1024];
+  snprintf(topo_path, sizeof(topo_path), "%s/topo.db", data_dir);
+
+  sqlite3 *db = net_db_open(topo_path);
+  if (!db) {
+    fprintf(stderr, "topo-export: cannot open %s -- run --tracemap first\n",
+            topo_path);
+    return 1;
+  }
+
+  /* Build the include-set of nodes.  Order of precedence:
+       --topo-around > --topo-asn > everything (capped). */
+  std::set<uint32_t> include_nodes;
+
+  if (o.topo_around_ip != 0) {
+    include_nodes = bfs_neighborhood(db, o.topo_around_ip,
+                                     o.topo_around_depth);
+  } else if (o.topo_asn_filter != 0) {
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db,
+          "SELECT ip_u32 FROM topo_nodes WHERE asn = ?",
+          -1, &stmt, nullptr) == SQLITE_OK) {
+      sqlite3_bind_int64(stmt, 1, o.topo_asn_filter);
+      while (sqlite3_step(stmt) == SQLITE_ROW) {
+        include_nodes.insert(
+          static_cast<uint32_t>(sqlite3_column_int64(stmt, 0)));
+      }
+      sqlite3_finalize(stmt);
+    }
+  } else {
+    /* No filter: include everything up to a sanity cap so a 50M-node
+       graph doesn't produce a 5 GB DOT file. */
+    const int64_t cap = 100000;
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db,
+          "SELECT ip_u32 FROM topo_nodes ORDER BY path_count DESC LIMIT ?",
+          -1, &stmt, nullptr) == SQLITE_OK) {
+      sqlite3_bind_int64(stmt, 1, cap);
+      while (sqlite3_step(stmt) == SQLITE_ROW) {
+        include_nodes.insert(
+          static_cast<uint32_t>(sqlite3_column_int64(stmt, 0)));
+      }
+      sqlite3_finalize(stmt);
+    }
+  }
+
+  if (include_nodes.empty()) {
+    fprintf(stderr, "topo-export: no nodes match the filter\n");
+    net_db_close(db);
+    return 1;
+  }
+
+  FILE *fp = fopen(o.topo_export_file, "w");
+  if (!fp) {
+    fprintf(stderr, "topo-export: cannot open output %s\n",
+            o.topo_export_file);
+    net_db_close(db);
+    return 1;
+  }
+
+  const std::string fmt = o.topo_format ? o.topo_format : "json";
+
+  if (fmt == "dot") {
+    fprintf(fp, "digraph topology {\n");
+    fprintf(fp, "  graph [layout=sfdp, overlap=false, splines=true];\n");
+    fprintf(fp, "  node  [shape=ellipse, style=filled];\n");
+    /* Emit nodes first so DOT positions them stably. */
+    for (uint32_t u : include_nodes) {
+      NetTopoNode n{};
+      if (!net_db_get_topo_node(db, u, &n)) continue;
+      std::string ip_s = u32_to_ip(u);
+      const char *color = (n.role == "target") ? "#ff6b6b"
+                        : (n.role == "hub")    ? "#ffd93d"
+                        : (n.role == "ixp")    ? "#a78bfa"
+                        : "#4ecdc4";
+      fprintf(fp, "  \"%s\" [fillcolor=\"%s\", label=\"%s\\nAS%u\"];\n",
+              ip_s.c_str(), color, ip_s.c_str(), n.asn);
+    }
+    /* Edges between included nodes only. */
+    for (uint32_t u : include_nodes) {
+      auto outs = net_db_get_topo_edges_from(db, u);
+      for (const auto &e : outs) {
+        if (include_nodes.count(e.to_u32) == 0) continue;
+        const char *style = e.asn_boundary ? "dashed" : "solid";
+        fprintf(fp, "  \"%s\" -> \"%s\" [style=%s, label=\"%.1fms\"];\n",
+                u32_to_ip(e.from_u32).c_str(),
+                u32_to_ip(e.to_u32).c_str(),
+                style, e.avg_latency_ms);
+      }
+    }
+    fprintf(fp, "}\n");
+  } else {
+    /* JSON: nodes + edges arrays.  Stable enough for downstream
+       ingestion (cytoscape, d3-force, gephi, etc). */
+    fprintf(fp, "{\n  \"nodes\": [\n");
+    bool first = true;
+    for (uint32_t u : include_nodes) {
+      NetTopoNode n{};
+      if (!net_db_get_topo_node(db, u, &n)) continue;
+      fprintf(fp,
+        "%s    { \"ip\": \"%s\", \"hostname\": \"%s\", \"asn\": %u, "
+        "\"as_name\": \"%s\", \"country\": \"%s\", \"role\": \"%s\", "
+        "\"path_count\": %d, \"avg_rtt_ms\": %.3f }",
+        first ? "" : ",\n",
+        u32_to_ip(u).c_str(),
+        json_escape_topo(n.hostname).c_str(),
+        n.asn,
+        json_escape_topo(n.as_name).c_str(),
+        json_escape_topo(n.country).c_str(),
+        json_escape_topo(n.role).c_str(),
+        n.path_count, n.avg_rtt_ms);
+      first = false;
+    }
+    fprintf(fp, "\n  ],\n  \"edges\": [\n");
+    first = true;
+    for (uint32_t u : include_nodes) {
+      auto outs = net_db_get_topo_edges_from(db, u);
+      for (const auto &e : outs) {
+        if (include_nodes.count(e.to_u32) == 0) continue;
+        fprintf(fp,
+          "%s    { \"from\": \"%s\", \"to\": \"%s\", "
+          "\"asn_boundary\": %s, \"avg_latency_ms\": %.3f, "
+          "\"path_count\": %d }",
+          first ? "" : ",\n",
+          u32_to_ip(e.from_u32).c_str(),
+          u32_to_ip(e.to_u32).c_str(),
+          e.asn_boundary ? "true" : "false",
+          e.avg_latency_ms, e.path_count);
+        first = false;
+      }
+    }
+    fprintf(fp, "\n  ]\n}\n");
+  }
+
+  fclose(fp);
+  fprintf(stderr,
+          "topo-export: wrote %zu nodes to %s (%s)\n",
+          include_nodes.size(), o.topo_export_file, fmt.c_str());
+  net_db_close(db);
   return 0;
 }
