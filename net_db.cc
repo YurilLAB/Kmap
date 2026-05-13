@@ -922,11 +922,24 @@ int64_t net_db_intern_string(sqlite3 *db, const char *val) {
   sqlite3_finalize(stmt);
   if (rc != SQLITE_DONE) return 0;
 
-  /* If the IGNORE branch fired, last_insert_rowid is 0 and we need to
-     re-SELECT.  Otherwise last_insert_rowid is the new id. */
-  id = sqlite3_last_insert_rowid(db);
-  if (id != 0) return id;
+  /* Detect whether the INSERT actually happened.  This is NOT the same
+     as `last_insert_rowid() != 0`: per the SQLite docs, that function
+     returns the rowid of the most recent SUCCESSFUL insert on the
+     connection, and an ignored INSERT OR IGNORE does NOT change its
+     value.  So if a prior insert in this connection succeeded, reading
+     last_insert_rowid after a conflict would return that older,
+     unrelated rowid and we would mis-attribute an existing string to a
+     completely different value.  sqlite3_changes() reports 0 on an
+     ignored insert and 1 on a successful one — that is the correct
+     gate. */
+  if (sqlite3_changes(db) > 0) {
+    id = sqlite3_last_insert_rowid(db);
+    if (id > 0) return id;
+  }
 
+  /* Either the IGNORE branch fired (val already present after the race
+     between our SELECT and INSERT) or last_insert_rowid was somehow
+     stale — re-SELECT to find the canonical id. */
   if (sqlite3_prepare_v2(db, "SELECT id FROM strings WHERE val = ?",
                          -1, &stmt, nullptr) != SQLITE_OK)
     return 0;
@@ -975,18 +988,26 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
   int64_t hostname_id = net_db_intern_string(db, node.hostname.c_str());
   int64_t as_name_id  = net_db_intern_string(db, node.as_name.c_str());
 
+  /* path_count is the number of traces that visited this node in the
+     in-memory Topology being persisted — a hub router visited by 500
+     traces in one tracemap run has node.path_count == 500.  Default to
+     1 when the caller leaves it zero (single-observation insert)
+     because 0 would make the UPSERT mean "do not increment", which
+     would silently lose every re-observation. */
+  int64_t batch_count = (node.path_count > 0) ? node.path_count : 1;
+
   static const char *sql =
     "INSERT INTO topo_nodes "
     "  (ip_u32, hostname_id, asn, as_name_id, country, role, "
     "   path_count, avg_rtt_ms, last_seen) "
-    "VALUES (?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, 1, ?, ?) "
+    "VALUES (?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, ?, ?) "
     "ON CONFLICT(ip_u32) DO UPDATE SET "
     "  hostname_id = COALESCE(NULLIF(excluded.hostname_id, 0), hostname_id), "
     "  asn         = CASE WHEN excluded.asn  != 0 THEN excluded.asn  ELSE asn  END, "
     "  as_name_id  = COALESCE(NULLIF(excluded.as_name_id, 0), as_name_id), "
     "  country     = COALESCE(NULLIF(excluded.country, ''),  country), "
     "  role        = COALESCE(NULLIF(excluded.role, ''),     role), "
-    "  path_count  = path_count + 1, "
+    "  path_count  = path_count + excluded.path_count, "
     "  avg_rtt_ms  = CASE WHEN excluded.avg_rtt_ms IS NOT NULL "
     "                     THEN excluded.avg_rtt_ms ELSE avg_rtt_ms END, "
     "  last_seen   = excluded.last_seen";
@@ -1001,9 +1022,10 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
   sqlite3_bind_int64(stmt, 4, as_name_id);
   sqlite3_bind_text (stmt, 5, node.country.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, 6, node.role.c_str(),    -1, SQLITE_TRANSIENT);
-  if (node.avg_rtt_ms > 0.0) sqlite3_bind_double(stmt, 7, node.avg_rtt_ms);
-  else                       sqlite3_bind_null  (stmt, 7);
-  sqlite3_bind_int64(stmt, 8, node.last_seen);
+  sqlite3_bind_int64(stmt, 7, batch_count);
+  if (node.avg_rtt_ms > 0.0) sqlite3_bind_double(stmt, 8, node.avg_rtt_ms);
+  else                       sqlite3_bind_null  (stmt, 8);
+  sqlite3_bind_int64(stmt, 9, node.last_seen);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -1013,22 +1035,34 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
 int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
   if (!db) return -1;
 
-  /* Running-mean update on conflict: stable under order, no precision
-     loss vs. sum/count.  When the sample is NULL (a `* * *` hop), keep
-     the old average rather than poisoning the stat with zero. */
+  /* Default batch_count to 1 if the caller did not set path_count —
+     same reasoning as nodes above: a 0 would freeze the count forever
+     under repeated upserts. */
+  int64_t batch_count = (edge.path_count > 0) ? edge.path_count : 1;
+
+  /* Running-mean update for BATCHED observations.  excluded.avg_latency_ms
+     is the mean of `batch_count` new samples; we merge it with the
+     existing path_count-sample mean using the weighted-mean identity:
+        new_avg = old_avg + N * (sample - old_avg) / (M + N)
+     where M is the prior path_count and N is excluded.path_count.
+     This is exact-equivalent to (M * old_avg + N * sample) / (M + N)
+     but avoids the multiplication-overflow risk of the sum form on
+     large counts.  Skipping the update when the new sample is NULL
+     (a `* * *` hop) keeps the stat from being poisoned by zero. */
   static const char *sql =
     "INSERT INTO topo_edges "
     "  (from_u32, to_u32, asn_boundary, avg_latency_ms, path_count, last_seen) "
-    "VALUES (?, ?, ?, ?, 1, ?) "
+    "VALUES (?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(from_u32, to_u32) DO UPDATE SET "
     "  asn_boundary   = excluded.asn_boundary, "
     "  avg_latency_ms = CASE WHEN excluded.avg_latency_ms IS NOT NULL "
     "                        THEN COALESCE(avg_latency_ms, 0.0) + "
+    "                             excluded.path_count * "
     "                             (excluded.avg_latency_ms - "
     "                              COALESCE(avg_latency_ms, 0.0)) / "
-    "                             (path_count + 1.0) "
+    "                             (path_count + excluded.path_count) "
     "                        ELSE avg_latency_ms END, "
-    "  path_count     = path_count + 1, "
+    "  path_count     = path_count + excluded.path_count, "
     "  last_seen      = excluded.last_seen";
 
   sqlite3_stmt *stmt = nullptr;
@@ -1042,7 +1076,8 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
     sqlite3_bind_double(stmt, 4, edge.avg_latency_ms);
   else
     sqlite3_bind_null  (stmt, 4);
-  sqlite3_bind_int64(stmt, 5, edge.last_seen);
+  sqlite3_bind_int64(stmt, 5, batch_count);
+  sqlite3_bind_int64(stmt, 6, edge.last_seen);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);

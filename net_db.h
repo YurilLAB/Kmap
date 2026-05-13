@@ -274,37 +274,45 @@ net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip);
  * ----------------------------------------------------------------------- */
 
 struct NetTopoNode {
-  uint32_t    ip_u32;
+  uint32_t    ip_u32      = 0;
   std::string hostname;
-  uint32_t    asn;
+  uint32_t    asn         = 0;
   std::string as_name;
   std::string country;
   std::string role;       /* "source", "gateway", "router", "ixp",
                              "target", "border", "hub", "" */
-  int         path_count; /* how many traces have passed through this node */
-  double      avg_rtt_ms;
-  int64_t     last_seen;
+  int         path_count  = 0; /* traces that visited this node in the
+                                  in-memory batch being persisted; the
+                                  upsert sums it into the DB total */
+  double      avg_rtt_ms  = 0.0;
+  int64_t     last_seen   = 0;
 };
 
 struct NetTopoEdge {
-  uint32_t from_u32;
-  uint32_t to_u32;
-  int      asn_boundary;   /* 1 if from.asn != to.asn, else 0 */
-  double   avg_latency_ms; /* avg(to.rtt - from.rtt) across observations */
-  int      path_count;     /* how many traces use this edge */
-  int64_t  last_seen;
+  uint32_t from_u32       = 0;
+  uint32_t to_u32         = 0;
+  int      asn_boundary   = 0;   /* 1 if from.asn != to.asn, else 0 */
+  double   avg_latency_ms = 0.0; /* mean of `path_count` samples */
+  int      path_count     = 0;   /* traces using this edge in the batch */
+  int64_t  last_seen      = 0;
 };
 
-/* UPSERT a node.  Re-observed nodes update path_count (atomic +1) and
-   refresh last_seen, but the other columns are only filled when the
-   caller passes non-empty values — repeat probes that learned nothing
-   new about hostname/asn won't wipe previously-captured data.  Returns
+/* UPSERT a node.  Re-observed nodes accumulate path_count (the new
+   row's path_count is ADDED to the existing total, so a batch of 50
+   traces lands as +50, not +1) and refresh last_seen.  The other
+   columns are only filled when the caller passes non-empty values, so
+   repeat probes that learned nothing new about hostname/asn won't wipe
+   previously-captured data.  A caller-supplied path_count of 0 is
+   treated as 1, since 0 would freeze the counter forever.  Returns
    0 on success, -1 on error. */
 int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node);
 
-/* UPSERT an edge.  Bumps path_count by 1 and merges avg_latency_ms via
-   the running-mean formula `new_avg = old_avg + (sample - old_avg)/n`
-   so observation order doesn't bias the result.  Returns 0/-1. */
+/* UPSERT an edge.  path_count is summed across batches (same as nodes)
+   and avg_latency_ms is updated via the batch-weighted running-mean
+   formula `new_avg = old_avg + N*(sample - old_avg)/(M + N)` where M
+   is the prior count and N is the new batch's count, so successive
+   probes refine the mean without bias from observation order.  NULL
+   samples (a `* * *` hop) keep the prior average.  Returns 0/-1. */
 int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge);
 
 /* Out-neighbors of an IP: every node this IP has been observed

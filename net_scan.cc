@@ -801,24 +801,44 @@ static std::string json_escape_topo(const std::string &s) {
 
 /* BFS expansion of the neighborhood around `start` up to `depth` hops
    in either direction.  Returns the set of node ip_u32 values to
-   include in the export. */
+   include in the export.
+
+   Capped at BFS_NODE_CAP nodes so a depth-6 expansion from a hub
+   router (Cogent core, T-Mobile gateway) does not produce a half-
+   gigabyte DOT file.  When the cap trips we stop expanding the
+   frontier but still emit whatever we collected up to that point,
+   plus a stderr warning so the caller knows the result is partial. */
+#define BFS_NODE_CAP 50000
+
 static std::set<uint32_t>
 bfs_neighborhood(sqlite3 *db, uint32_t start, int depth) {
   std::set<uint32_t> seen;
   std::vector<uint32_t> frontier;
   seen.insert(start);
   frontier.push_back(start);
-  for (int d = 0; d < depth && !frontier.empty(); d++) {
+  bool capped = false;
+  for (int d = 0; d < depth && !frontier.empty() && !capped; d++) {
     std::vector<uint32_t> next;
     for (uint32_t u : frontier) {
+      if (seen.size() >= BFS_NODE_CAP) { capped = true; break; }
       auto outs = net_db_get_topo_edges_from(db, u);
       auto ins  = net_db_get_topo_edges_to  (db, u);
-      for (const auto &e : outs)
+      for (const auto &e : outs) {
+        if (seen.size() >= BFS_NODE_CAP) { capped = true; break; }
         if (seen.insert(e.to_u32).second)   next.push_back(e.to_u32);
-      for (const auto &e : ins)
+      }
+      if (capped) break;
+      for (const auto &e : ins) {
+        if (seen.size() >= BFS_NODE_CAP) { capped = true; break; }
         if (seen.insert(e.from_u32).second) next.push_back(e.from_u32);
+      }
     }
     frontier = std::move(next);
+  }
+  if (capped) {
+    fprintf(stderr,
+            "topo-export: BFS hit the %d-node cap; result is partial. "
+            "Try a smaller --topo-around-depth.\n", BFS_NODE_CAP);
   }
   return seen;
 }

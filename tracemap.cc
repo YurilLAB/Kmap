@@ -1225,11 +1225,15 @@ int run_tracemap(const char *targets, const char *output_file,
       int64_t now = static_cast<int64_t>(time(nullptr));
       net_db_begin(topo_db);
 
+      /* path_count from the in-memory Topology IS the per-batch trace
+         count: build_topology counts how many traces visited each node
+         and edge.  Pass it through verbatim so the DB column tracks
+         actual trace observations, not how-many-times-tracemap-ran. */
       int persisted_nodes = 0, persisted_edges = 0;
       for (const TopoNode &n : topo.nodes) {
         uint32_t u = ip_to_u32(n.ip.c_str());
         if (u == 0) continue;
-        NetTopoNode nn;
+        NetTopoNode nn{};
         nn.ip_u32     = u;
         nn.hostname   = n.hostname;
         nn.asn        = n.asn;
@@ -1245,7 +1249,7 @@ int run_tracemap(const char *targets, const char *output_file,
         uint32_t f = ip_to_u32(e.from_ip.c_str());
         uint32_t t = ip_to_u32(e.to_ip.c_str());
         if (f == 0 || t == 0) continue;
-        NetTopoEdge ne;
+        NetTopoEdge ne{};
         ne.from_u32       = f;
         ne.to_u32         = t;
         ne.asn_boundary   = e.asn_boundary ? 1 : 0;

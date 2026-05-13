@@ -145,6 +145,67 @@ static void test_topo_edge_upsert_and_running_mean(sqlite3 *db) {
   CHECK(ins.size() == 1);
 }
 
+static void test_topo_batched_path_count(sqlite3 *db) {
+  /* Regression for the post-C audit bug: path_count was hardcoded to 1
+     in the upsert SQL regardless of what the caller passed.  After the
+     fix, an upsert with NetTopoNode.path_count = 50 must add 50 to the
+     stored count, not 1.  This is the bug that broke ORDER BY
+     path_count DESC in --topo-export. */
+  uint32_t ip = ip_to_u32("198.51.100.1");
+
+  NetTopoNode batch_a{};
+  batch_a.ip_u32     = ip;
+  batch_a.path_count = 50;       /* 50 traces visited in batch A */
+  batch_a.last_seen  = 7000;
+  CHECK(net_db_upsert_topo_node(db, batch_a) == 0);
+
+  NetTopoNode got{};
+  CHECK(net_db_get_topo_node(db, ip, &got));
+  CHECK(got.path_count == 50);   /* not 1 */
+
+  NetTopoNode batch_b{};
+  batch_b.ip_u32     = ip;
+  batch_b.path_count = 30;       /* 30 traces in batch B */
+  batch_b.last_seen  = 8000;
+  CHECK(net_db_upsert_topo_node(db, batch_b) == 0);
+
+  CHECK(net_db_get_topo_node(db, ip, &got));
+  CHECK(got.path_count == 80);   /* 50 + 30, not 50 + 1 */
+}
+
+static void test_topo_edge_batched_running_mean(sqlite3 *db) {
+  /* The running-mean formula must weight by the BATCH size, not assume
+     each upsert is one sample.  Insert batch A with 2 samples averaging
+     10ms, then batch B with 10 samples averaging 50ms.  Expected merged
+     mean: (2*10 + 10*50) / 12 = 520/12 = 43.33ms. */
+  uint32_t a = ip_to_u32("198.51.100.2");
+  uint32_t b = ip_to_u32("198.51.100.3");
+
+  NetTopoEdge batch_a{};
+  batch_a.from_u32       = a;
+  batch_a.to_u32         = b;
+  batch_a.avg_latency_ms = 10.0;
+  batch_a.path_count     = 2;
+  batch_a.last_seen      = 7000;
+  CHECK(net_db_upsert_topo_edge(db, batch_a) == 0);
+
+  NetTopoEdge batch_b{};
+  batch_b.from_u32       = a;
+  batch_b.to_u32         = b;
+  batch_b.avg_latency_ms = 50.0;
+  batch_b.path_count     = 10;
+  batch_b.last_seen      = 8000;
+  CHECK(net_db_upsert_topo_edge(db, batch_b) == 0);
+
+  auto outs = net_db_get_topo_edges_from(db, a);
+  CHECK(outs.size() == 1);
+  if (!outs.empty()) {
+    CHECK(outs[0].path_count == 12);  /* 2 + 10 */
+    /* 43.333... ms — within float tolerance */
+    CHECK(outs[0].avg_latency_ms > 43.32 && outs[0].avg_latency_ms < 43.34);
+  }
+}
+
 static void test_topo_edge_null_sample_keeps_prior_average(sqlite3 *db) {
   /* Send an edge with avg_latency_ms=0 (signals NULL via the >0 gate
      in the helper).  Prior average must stay put. */
@@ -201,6 +262,8 @@ int main() {
   test_topo_node_partial_reobservation_keeps_data(db);
   test_topo_edge_upsert_and_running_mean(db);
   test_topo_edge_null_sample_keeps_prior_average(db);
+  test_topo_batched_path_count(db);
+  test_topo_edge_batched_running_mean(db);
   test_high_ip_topo_roundtrip(db);
 
   net_db_close(db);
