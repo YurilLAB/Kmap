@@ -113,6 +113,44 @@ static std::string json_extract_string(const std::string &json,
   return json.substr(pos, end - pos);
 }
 
+/* Find the end of a JSON object that starts at `start` (which must point
+ * at '{').  Returns the position of the matching '}', or npos if the
+ * input is malformed.
+ *
+ * Needed because CVE / web-path JSON values often contain literal '{' or
+ * '}' inside string values (CVE descriptions in particular -- prose with
+ * code snippets, regex examples, set-builder notation).  A naive
+ * find('}', start) lands on the first '}' it sees, which may be inside
+ * a description string instead of the actual object terminator, and
+ * truncates the parse so the entry's id / cvss / desc come out wrong or
+ * the entry is silently dropped from the report.
+ *
+ * State machine: track brace depth while skipping over JSON string
+ * literals.  Backslash escapes inside strings are honored so a \" does
+ * not prematurely close the string. */
+static size_t json_find_object_end(const std::string &json, size_t start) {
+  if (start >= json.size() || json[start] != '{') return std::string::npos;
+  int  depth        = 0;
+  bool in_string    = false;
+  bool escape_next  = false;
+  for (size_t i = start; i < json.size(); i++) {
+    char c = json[i];
+    if (escape_next) { escape_next = false; continue; }
+    if (in_string) {
+      if (c == '\\')      escape_next = true;
+      else if (c == '"')  in_string = false;
+      continue;
+    }
+    if (c == '"')       in_string = true;
+    else if (c == '{')  depth++;
+    else if (c == '}') {
+      depth--;
+      if (depth == 0) return i;
+    }
+  }
+  return std::string::npos;
+}
+
 /* Extract a numeric value from JSON: "key":NNN */
 static std::string json_extract_number(const std::string &json,
                                        const char *key) {
@@ -232,7 +270,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
       while (true) {
         size_t obj_start = cves_str.find('{', search_pos);
         if (obj_start == std::string::npos) break;
-        size_t obj_end = cves_str.find('}', obj_start);
+        size_t obj_end = json_find_object_end(cves_str, obj_start);
         if (obj_end == std::string::npos) break;
 
         std::string obj = cves_str.substr(obj_start,
@@ -396,7 +434,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
         while (true) {
           size_t ostart = paths.find('{', spos);
           if (ostart == std::string::npos) break;
-          size_t oend = paths.find('}', ostart);
+          size_t oend = json_find_object_end(paths, ostart);
           if (oend == std::string::npos) break;
 
           std::string obj = paths.substr(ostart, oend - ostart + 1);
@@ -432,10 +470,19 @@ static void write_host_section(FILE *fp, const std::string &ip,
 static void write_file_header(FILE *fp, const std::string &first_ip,
                               const std::string &last_ip,
                               int64_t host_count) {
+  /* Use the reentrant variant to match format_date() at the top of this
+   * file -- mixing localtime() (returns a shared static buffer) with
+   * localtime_r/localtime_s elsewhere means any future concurrent
+   * report-generation path would silently corrupt one of the two. */
   time_t now = time(nullptr);
-  struct tm *tm = localtime(&now);
+  struct tm tm_buf{};
+#ifdef WIN32
+  if (localtime_s(&tm_buf, &now) != 0) tm_buf = {};
+#else
+  if (!localtime_r(&now, &tm_buf)) tm_buf = {};
+#endif
   char timebuf[64];
-  strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm);
+  strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &tm_buf);
 
   fprintf(fp, "%s\n", separator_line().c_str());
   /* Center the title within 80 chars */

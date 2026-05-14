@@ -394,8 +394,21 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
     "  prev_service     = CASE WHEN enriched=1 THEN service     ELSE prev_service     END, "
     "  prev_version     = CASE WHEN enriched=1 THEN version     ELSE prev_version     END, "
     "  prev_enriched_at = CASE WHEN enriched=1 THEN enriched_at ELSE prev_enriched_at END, "
-    "  service=?, version=?, cves=?, web_title=?, "
-    "  web_server=?, web_headers=?, web_paths=?, "
+    /* COALESCE on every overwrite-style field so a transient probe failure
+     * (HTTP timeout, partial banner, TLS handshake error) does not wipe the
+     * good data captured by an earlier successful enrichment.  Callers that
+     * actually want to clear a field must pass an explicit empty marker
+     * value, not NULL.  service/version/cves get the same treatment as
+     * web_* because all three suffer the same regression: a banner-grab
+     * that times out used to NULL out a perfectly valid Apache 2.4.41
+     * detected on the previous run. */
+    "  service     = COALESCE(?, service), "
+    "  version     = COALESCE(?, version), "
+    "  cves        = COALESCE(?, cves), "
+    "  web_title   = COALESCE(?, web_title), "
+    "  web_server  = COALESCE(?, web_server), "
+    "  web_headers = COALESCE(?, web_headers), "
+    "  web_paths   = COALESCE(?, web_paths), "
     "  powered_by             = COALESCE(?, powered_by), "
     "  x_generator            = COALESCE(?, x_generator), "
     "  redirect_target        = COALESCE(?, redirect_target), "
@@ -607,11 +620,26 @@ std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
   std::vector<std::string> ips;
   if (!db) return ips;
 
-  /* Pick rows that are not yet enriched AND either have never errored
-     or whose last error is older than the retry window. */
+  /* Pick rows in either of two states:
+   *   (a) never enriched (enriched=0)
+   *   (b) enriched in the past, but seen again by a more recent scan
+   *       (last_seen > enriched_at)
+   *
+   * Case (b) is what makes the prev_cves / prev_service / prev_version
+   * snapshot infrastructure actually fire.  Before this was added, the
+   * gate was `enriched=0` only, so every host was enriched exactly once
+   * for life of the DB -- the snapshot columns were declared but never
+   * populated, because the trigger condition (a successful UPDATE on a
+   * row whose enriched=1) was unreachable.  With (b) added, re-discovery
+   * naturally re-enriches a host, and net_db_update_enrichment's CASE
+   * WHEN enriched=1 THEN cves ELSE prev_cves END clause finally runs.
+   *
+   * The enrichment-error cool-down still applies on top: a host whose
+   * last enrichment errored stays out of the pool until the retry
+   * window elapses, regardless of which leg of the OR picked it. */
   static const char *sql =
     "SELECT DISTINCT ip FROM hosts "
-    "WHERE enriched=0 "
+    "WHERE (enriched=0 OR last_seen > enriched_at) "
     "  AND (enrichment_error_at = 0 "
     "       OR enrichment_error_at <= strftime('%s','now') - ?) "
     "LIMIT ?";
@@ -731,9 +759,11 @@ int64_t net_db_count(sqlite3 *db) {
 
 int64_t net_db_count_unenriched(sqlite3 *db, int64_t retry_after_seconds) {
   if (!db) return -1;
+  /* Predicate mirror of net_db_get_unenriched -- see the long comment
+   * there for the (enriched=0 OR last_seen > enriched_at) rationale. */
   static const char *sql =
     "SELECT COUNT(*) FROM hosts "
-    "WHERE enriched=0 "
+    "WHERE (enriched=0 OR last_seen > enriched_at) "
     "  AND (enrichment_error_at = 0 "
     "       OR enrichment_error_at <= strftime('%s','now') - ?)";
   sqlite3_stmt *stmt = nullptr;
@@ -1208,25 +1238,56 @@ int64_t net_db_count_topo_edges(sqlite3 *db) {
  * unit-tested without a fixture.
  * ----------------------------------------------------------------------- */
 
+/* Find the matching '}' that closes the JSON object starting at `start`
+ * (which must point at '{').  State machine: tracks brace depth while
+ * skipping over JSON string literals, honoring backslash escapes inside
+ * strings.  Needed because net_enrich's json_escape does NOT escape '{'
+ * or '}' (JSON spec does not require it), so a literal '}' inside a CVE
+ * description used to defeat the previous find('}') here -- it landed
+ * on the description's '}' instead of the object terminator, then the
+ * "id":" search inside the truncated substring missed the id and the
+ * entry was silently dropped.  Returns npos if the input is malformed. */
+static size_t db_json_find_object_end(const std::string &json, size_t start) {
+  if (start >= json.size() || json[start] != '{') return std::string::npos;
+  int  depth        = 0;
+  bool in_string    = false;
+  bool escape_next  = false;
+  for (size_t i = start; i < json.size(); i++) {
+    char c = json[i];
+    if (escape_next) { escape_next = false; continue; }
+    if (in_string) {
+      if (c == '\\')      escape_next = true;
+      else if (c == '"')  in_string = false;
+      continue;
+    }
+    if (c == '"')       in_string = true;
+    else if (c == '{')  depth++;
+    else if (c == '}') {
+      depth--;
+      if (depth == 0) return i;
+    }
+  }
+  return std::string::npos;
+}
+
 std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json) {
   std::vector<std::string> ids;
   if (cves_json.empty() || cves_json == "[]") return ids;
 
   size_t pos = 0;
   while (pos < cves_json.size()) {
-    /* Find next object opener. Only an unescaped '{' starts a new entry;
-       a '{' inside a quoted string never appears because json_escape
-       does not allow raw '{' inside descriptions but does keep them
-       readable -- still, anchoring to '{' right after the array element
-       boundary is robust enough for the format we control. */
+    /* Find next object opener.  The '{' we want is always at the start
+       of an array element; '{' inside a quoted string is skipped over
+       by db_json_find_object_end below, so this find() only ever lands
+       on a real opener. */
     size_t obj_start = cves_json.find('{', pos);
     if (obj_start == std::string::npos) break;
 
-    /* Find the matching '}' to bound this entry. The simple scan works
-       because json_escape strips control characters and the only
-       structural braces in our format are the per-entry object braces;
-       no nested objects appear. */
-    size_t obj_end = cves_json.find('}', obj_start);
+    /* Find the matching '}'.  Use the string-aware finder so a '}' inside
+       a description (CVE prose contains braces in code snippets, regex
+       examples, set-builder notation) does not truncate the object and
+       drop the entry from the parse. */
+    size_t obj_end = db_json_find_object_end(cves_json, obj_start);
     if (obj_end == std::string::npos) break;
 
     /* Within this entry, look for "id":" then read up to the next

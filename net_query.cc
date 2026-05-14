@@ -3,9 +3,10 @@
  *
  * Searches across all (or targeted) shard databases using SQL WHERE
  * clauses built from the provided filters.  Supports filtering by port,
- * service, CVE ID, CVSS score, web title, web server header, and IP
- * range.  Outputs results to stdout or a file, with an optional
- * count-only mode.
+ * service, CVE ID, CVSS score, web title, web server header, IP range,
+ * ASN, country code, and a derived device-class tag (web/ssh/router/iot/...).
+ * Output is either human-readable text or a JSON array; both modes also
+ * support count-only and writing to a file.
  */
 
 #ifdef WIN32
@@ -208,7 +209,9 @@ struct QueryFilter {
 static QueryFilter build_filter(int port, const char *service,
                                 const char *cve, float min_cvss,
                                 const char *web_title,
-                                const char *web_server) {
+                                const char *web_server,
+                                int asn,
+                                const char *country) {
   QueryFilter f;
   std::vector<std::string> conditions;
 
@@ -248,6 +251,21 @@ static QueryFilter build_filter(int port, const char *service,
                        "%" + str_lower(web_server) + "%", 0});
   }
 
+  if (asn > 0) {
+    conditions.push_back("asn = ?");
+    f.binds.push_back({QueryFilter::BINT, "", asn});
+  }
+
+  if (country && country[0]) {
+    /* Country codes are stored as 2-letter uppercase. Compare uppercased
+     * to be forgiving of "us" / "Us" / "US" on the command line. */
+    std::string cc = country;
+    std::transform(cc.begin(), cc.end(), cc.begin(),
+                   [](unsigned char c){ return static_cast<char>(toupper(c)); });
+    conditions.push_back("UPPER(country) = ?");
+    f.binds.push_back({QueryFilter::BTEXT, cc, 0});
+  }
+
   if (conditions.empty()) {
     f.where_clause = "1=1";
   } else {
@@ -260,6 +278,153 @@ static QueryFilter build_filter(int port, const char *service,
   }
 
   return f;
+}
+
+/* -----------------------------------------------------------------------
+ * Device classifier
+ *
+ * Derives a coarse device-class tag from (service, port).  We avoid a
+ * schema migration by classifying at query time.  Returns one of:
+ *   "web", "ssh", "ftp", "telnet", "smtp", "mail", "dns", "db", "rdp",
+ *   "vnc", "snmp", "smb", "router", "iot", "" (unclassified)
+ *
+ * Comparison against the user's --nq-device value is done case-insensitively
+ * by str_lower-ing both sides at the call site.
+ * ----------------------------------------------------------------------- */
+static std::string classify_device(const std::string &service, int port) {
+  std::string s = str_lower(service);
+
+  /* Service-name hits win when present and unambiguous. */
+  if (s.find("http") != std::string::npos) return "web";
+  if (s == "ssh" || s.find("ssh") != std::string::npos) return "ssh";
+  if (s == "telnet") return "telnet";
+  if (s == "ftp" || s.rfind("ftp", 0) == 0) return "ftp";
+  if (s.find("smtp") != std::string::npos) return "smtp";
+  if (s.find("pop3") != std::string::npos ||
+      s.find("imap") != std::string::npos) return "mail";
+  if (s == "domain" || s == "dns") return "dns";
+  if (s == "snmp") return "snmp";
+  if (s == "microsoft-ds" || s == "netbios-ssn" || s == "smb") return "smb";
+  if (s == "ms-wbt-server" || s == "rdp") return "rdp";
+  if (s.rfind("vnc", 0) == 0) return "vnc";
+  if (s == "mysql" || s == "postgresql" || s == "redis" ||
+      s == "mongodb" || s == "ms-sql-s" || s == "memcached" ||
+      s == "couchdb" || s.find("sql") != std::string::npos) return "db";
+  if (s.find("rtsp") != std::string::npos ||
+      s.find("mqtt") != std::string::npos ||
+      s.find("coap") != std::string::npos) return "iot";
+  if (s.find("routeros") != std::string::npos ||
+      s.find("mikrotik") != std::string::npos) return "router";
+
+  /* Port-only fallbacks for rows without an enriched service field. */
+  switch (port) {
+    case 80: case 443: case 8000: case 8080: case 8081: case 8082:
+    case 8443: case 8888:                                return "web";
+    case 22:                                             return "ssh";
+    case 23:                                             return "telnet";
+    case 21:                                             return "ftp";
+    case 25: case 465: case 587: case 2525:              return "smtp";
+    case 110: case 143: case 993: case 995:              return "mail";
+    case 53:                                             return "dns";
+    case 161: case 162:                                  return "snmp";
+    case 139: case 445:                                  return "smb";
+    case 3389:                                           return "rdp";
+    case 3306: case 5432: case 6379: case 27017:
+    case 1433: case 11211: case 5984:                    return "db";
+    case 554: case 1883: case 5683: case 8554: case 8883: return "iot";
+    case 8291:                                           return "router";
+    default:
+      if (port >= 5900 && port <= 5910) return "vnc";
+      return "";
+  }
+}
+
+/* -----------------------------------------------------------------------
+ * JSON escaping + per-row JSON formatter
+ *
+ * The cves column is stored as a JSON array string; we emit it raw when it
+ * looks well-formed (starts with '['), and as an escaped string otherwise.
+ * ----------------------------------------------------------------------- */
+
+static std::string json_escape(const std::string &in) {
+  std::string out;
+  out.reserve(in.size() + 8);
+  for (unsigned char c : in) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\b': out += "\\b";  break;
+      case '\f': out += "\\f";  break;
+      case '\n': out += "\\n";  break;
+      case '\r': out += "\\r";  break;
+      case '\t': out += "\\t";  break;
+      default:
+        if (c < 0x20) {
+          char buf[8];
+          snprintf(buf, sizeof(buf), "\\u%04x", c);
+          out += buf;
+        } else {
+          out += static_cast<char>(c);
+        }
+    }
+  }
+  return out;
+}
+
+static void json_kv_str(std::ostringstream &oss, const char *key,
+                        const std::string &val, bool &first) {
+  if (val.empty()) return;
+  if (!first) oss << ',';
+  first = false;
+  oss << '"' << key << "\":\"" << json_escape(val) << '"';
+}
+
+static void json_kv_int(std::ostringstream &oss, const char *key,
+                        int64_t val, bool &first) {
+  if (!first) oss << ',';
+  first = false;
+  oss << '"' << key << "\":" << val;
+}
+
+static std::string format_result_json(const std::string &ip, int port,
+                                      const std::string &proto,
+                                      const std::string &service,
+                                      const std::string &version,
+                                      const std::string &cves_json,
+                                      int asn, const std::string &as_name,
+                                      const std::string &country,
+                                      const std::string &hostname,
+                                      const std::string &web_title,
+                                      const std::string &web_server,
+                                      const std::string &device_class) {
+  std::ostringstream oss;
+  bool first = true;
+  oss << '{';
+  json_kv_str(oss, "ip",         ip,         first);
+  json_kv_int(oss, "port",       port,       first);
+  json_kv_str(oss, "proto",      proto,      first);
+  json_kv_str(oss, "service",    service,    first);
+  json_kv_str(oss, "version",    version,    first);
+  if (asn > 0)             json_kv_int(oss, "asn",       asn,       first);
+  json_kv_str(oss, "as_name",    as_name,    first);
+  json_kv_str(oss, "country",    country,    first);
+  json_kv_str(oss, "hostname",   hostname,   first);
+  json_kv_str(oss, "web_title",  web_title,  first);
+  json_kv_str(oss, "web_server", web_server, first);
+  json_kv_str(oss, "device_class", device_class, first);
+  /* cves is already JSON in the column.  Emit raw only if it looks like
+   * a JSON array; otherwise fall back to an escaped string to keep the
+   * output parseable. */
+  if (!cves_json.empty() && cves_json != "[]") {
+    if (!first) oss << ',';
+    first = false;
+    if (cves_json[0] == '[')
+      oss << "\"cves\":" << cves_json;
+    else
+      oss << "\"cves\":\"" << json_escape(cves_json) << '"';
+  }
+  oss << '}';
+  return oss.str();
 }
 
 /* Bind all filter values to a prepared statement */
@@ -336,7 +501,11 @@ int run_net_query(const char *data_dir,
                   const char *web_title,
                   const char *web_server,
                   const char *ip_range,
+                  int asn,
+                  const char *country,
+                  const char *device_class,
                   const char *output_file,
+                  const char *format,
                   bool count_only) {
   if (!data_dir) return 1;
 
@@ -346,6 +515,34 @@ int run_net_query(const char *data_dir,
       "net-query: ERROR: --nq-port %d is out of range (must be 1-65535)\n",
       port);
     return 1;
+  }
+
+  /* Validate format. NULL or empty means "text". */
+  bool emit_json = false;
+  if (format && format[0]) {
+    if (strcmp(format, "json") == 0) {
+      emit_json = true;
+    } else if (strcmp(format, "text") != 0) {
+      log_write(LOG_STDOUT,
+        "net-query: ERROR: --nq-format must be one of: text, json\n");
+      return 1;
+    }
+  }
+
+  /* Validate country code is 2 letters if provided. */
+  if (country && country[0]) {
+    if (strlen(country) != 2) {
+      log_write(LOG_STDOUT,
+        "net-query: ERROR: --nq-country must be a 2-letter ISO code "
+        "(e.g. US, GB, JP)\n");
+      return 1;
+    }
+  }
+
+  /* Pre-lowercase the device-class filter for case-insensitive compare. */
+  std::string device_filter;
+  if (device_class && device_class[0]) {
+    device_filter = str_lower(device_class);
   }
 
   /* Parse IP range if provided */
@@ -373,7 +570,8 @@ int run_net_query(const char *data_dir,
 
   /* Build the query filter */
   QueryFilter filter = build_filter(port, service, cve, min_cvss,
-                                    web_title, web_server);
+                                    web_title, web_server,
+                                    asn, country);
 
   /* Open output file if specified */
   FILE *out_fp = nullptr;
@@ -389,14 +587,34 @@ int run_net_query(const char *data_dir,
     own_fp = true;
   }
 
-  /* Build the SQL query */
+  /* Build the SQL query. We always SELECT the enrichment columns so that
+   * JSON output is complete; text mode just ignores the extra fields. */
   std::string sql =
-    "SELECT ip, port, proto, service, version, cves "
+    "SELECT ip, port, proto, service, version, cves, "
+    "       asn, as_name, country, hostname, web_title, web_server "
     "FROM hosts WHERE " + filter.where_clause
     + " ORDER BY ip, port";
 
   int64_t total_count = 0;
   int shards_searched = 0;
+
+  /* JSON array open. In count_only + JSON we skip the array entirely and
+   * emit {"count":N} at the bottom. */
+  auto emit_line = [&](const std::string &s) {
+    if (out_fp)
+      fprintf(out_fp, "%s\n", s.c_str());
+    else
+      log_write(LOG_PLAIN, "%s\n", s.c_str());
+  };
+  auto emit_raw = [&](const char *s) {
+    if (out_fp)
+      fputs(s, out_fp);
+    else
+      log_write(LOG_PLAIN, "%s", s);
+  };
+
+  if (emit_json && !count_only) emit_raw("[");
+  bool json_first = true;
 
   for (int shard_idx : shard_indices) {
     std::string db_path = net_shard_path(data_dir, shard_idx);
@@ -433,12 +651,18 @@ int run_net_query(const char *data_dir,
         return p ? reinterpret_cast<const char *>(p) : "";
       };
 
-      std::string row_ip    = col_str(0);
-      int         row_port  = sqlite3_column_int(stmt, 1);
-      std::string row_proto = col_str(2);
-      std::string row_svc   = col_str(3);
-      std::string row_ver   = col_str(4);
-      std::string row_cves  = col_str(5);
+      std::string row_ip      = col_str(0);
+      int         row_port    = sqlite3_column_int(stmt, 1);
+      std::string row_proto   = col_str(2);
+      std::string row_svc     = col_str(3);
+      std::string row_ver     = col_str(4);
+      std::string row_cves    = col_str(5);
+      int         row_asn     = sqlite3_column_int(stmt, 6);
+      std::string row_as_name = col_str(7);
+      std::string row_country = col_str(8);
+      std::string row_host    = col_str(9);
+      std::string row_wtitle  = col_str(10);
+      std::string row_wsrv    = col_str(11);
 
       /* Post-process: IP range filtering (exact CIDR check) */
       if (has_cidr) {
@@ -452,15 +676,32 @@ int run_net_query(const char *data_dir,
         if (max_score < min_cvss) continue;
       }
 
+      /* Post-process: device-class filtering (no schema column, classify
+       * on the fly from service+port). */
+      std::string dev_class = classify_device(row_svc, row_port);
+      if (!device_filter.empty()) {
+        if (dev_class != device_filter) continue;
+      }
+
       total_count++;
 
       if (!count_only) {
-        std::string line = format_result(row_ip, row_port, row_proto,
-                                         row_svc, row_ver, row_cves);
-        if (out_fp)
-          fprintf(out_fp, "%s\n", line.c_str());
-        else
-          log_write(LOG_PLAIN, "%s\n", line.c_str());
+        if (emit_json) {
+          std::string obj = format_result_json(
+              row_ip, row_port, row_proto, row_svc, row_ver, row_cves,
+              row_asn, row_as_name, row_country, row_host,
+              row_wtitle, row_wsrv, dev_class);
+          if (json_first) {
+            json_first = false;
+            emit_raw(obj.c_str());
+          } else {
+            emit_raw(",");
+            emit_raw(obj.c_str());
+          }
+        } else {
+          emit_line(format_result(row_ip, row_port, row_proto,
+                                  row_svc, row_ver, row_cves));
+        }
       }
     }
 
@@ -470,19 +711,21 @@ int run_net_query(const char *data_dir,
 
   /* Output final results */
   if (count_only) {
-    if (out_fp)
-      fprintf(out_fp, "%s\n", format_count(total_count).c_str());
-    else
-      log_write(LOG_PLAIN, "%s\n", format_count(total_count).c_str());
+    if (emit_json) {
+      char buf[64];
+      snprintf(buf, sizeof(buf), "{\"count\":%lld}",
+               static_cast<long long>(total_count));
+      emit_line(buf);
+    } else {
+      emit_line(format_count(total_count));
+    }
+  } else if (emit_json) {
+    emit_raw("]\n");
   } else if (total_count == 0) {
-    const char *no_results = "No matching results found.\n";
-    if (out_fp)
-      fprintf(out_fp, "%s", no_results);
-    else
-      log_write(LOG_PLAIN, "%s", no_results);
+    emit_raw("No matching results found.\n");
   }
 
-  /* Summary to log */
+  /* Summary to log (stderr-side LOG_STDOUT — does not pollute JSON on stdout) */
   log_write(LOG_STDOUT,
     "net-query: %s result(s) from %d shard(s)\n",
     format_count(total_count).c_str(), shards_searched);

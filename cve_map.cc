@@ -311,25 +311,25 @@ static std::vector<CveEntry> query_cves(
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product = ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 15";
+    "ORDER BY cvss_score DESC LIMIT 100";
 
   const char *sql_exact =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product = ? AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 15";
+    "ORDER BY cvss_score DESC LIMIT 100";
 
   const char *sql_like_vendor =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product LIKE ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 15";
+    "ORDER BY cvss_score DESC LIMIT 100";
 
   const char *sql_like =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product LIKE ? AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 15";
+    "ORDER BY cvss_score DESC LIMIT 100";
 
   const char *sql;
   bool has_vendor = !pq.vendor_pattern.empty();

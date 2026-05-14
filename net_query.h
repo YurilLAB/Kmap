@@ -18,7 +18,12 @@
  *   web_title   — filter by web page title substring (NULL = no filter)
  *   web_server  — filter by server header substring (NULL = no filter)
  *   ip_range    — restrict to IP range CIDR (NULL = all shards)
+ *   asn         — filter by ASN exact match (-1 = no filter)
+ *   country     — filter by 2-letter country code (NULL = no filter)
+ *   device_class — filter by device-class tag (NULL = no filter,
+ *                  e.g. "web", "ssh", "router", "iot")
  *   output_file — write results to file (NULL = stdout)
+ *   format      — "text" (default human-readable) or "json"
  *   count_only  — if true, only print total count of matching rows
  * Returns 0 on success, 1 on error. */
 int run_net_query(const char *data_dir,
@@ -29,7 +34,11 @@ int run_net_query(const char *data_dir,
                   const char *web_title,
                   const char *web_server,
                   const char *ip_range,
+                  int asn,
+                  const char *country,
+                  const char *device_class,
                   const char *output_file,
+                  const char *format,
                   bool count_only);
 
 #endif /* NET_QUERY_H */

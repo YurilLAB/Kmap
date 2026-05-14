@@ -317,6 +317,8 @@ class KmapOps {
   bool nq_count;            /* Count mode */
   int  nq_asn;              /* Filter by ASN (-1 = unset) */
   char *nq_country;         /* Filter by country code */
+  char *nq_device;          /* Filter by device_class tag (web/ssh/router/iot/...) */
+  char *nq_format;          /* "text" (default) or "json" */
   /* --net-cluster options */
   bool net_cluster;         /* Enable relationship-cluster mode */
   char *nc_ip;              /* IP to find cohort for (dotted-quad) */

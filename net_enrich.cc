@@ -544,11 +544,19 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
   std::string product = normalize_product(service, version);
   if (product.empty()) return results;
 
+  /* LIMIT raised from 15 to 100.  The previous ceiling silently evicted
+   * lower-CVSS CVEs from the hosts.cves column on each rescan: a product
+   * with 16+ applicable CVEs would lose every CVE past rank 15, and a
+   * fresh top-15 CVE published since the previous scan would push an
+   * older still-applicable CVE out of the stored list.  100 covers every
+   * mainstream product's real-world CVE count (Apache 2.2, OpenSSH 7.x,
+   * legacy nginx) without bloating the row: 100 rows of CVE JSON is
+   * ~8 KB per port, negligible at shard scale. */
   const char *sql =
     "SELECT cve_id, cvss_score, severity, description, "
     "version_min, version_max "
     "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-    "ORDER BY cvss_score DESC LIMIT 15";
+    "ORDER BY cvss_score DESC LIMIT 100";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -816,8 +824,12 @@ static bool is_https_port(int port, const std::string &service) {
 static SSL_CTX *enrich_get_ssl_ctx() {
   static SSL_CTX *ctx = nullptr;
   if (!ctx) {
-    SSL_library_init();
-    SSL_load_error_strings();
+    /* OpenSSL 1.1+ auto-initializes on first use of any libssl/libcrypto
+     * function (OPENSSL_init_ssl is called implicitly).  SSL_library_init
+     * and SSL_load_error_strings are no-ops since 1.1 and deprecated as
+     * of 3.0.  We require 1.1+ already via TLS_client_method() (it does
+     * not exist before 1.1), so calling them did nothing and produced a
+     * -Wdeprecated-declarations warning under modern toolchains. */
     ctx = SSL_CTX_new(TLS_client_method());
     if (ctx)
       SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
@@ -986,14 +998,24 @@ int enrich_single_host(const char *ip,
   }
 
   for (size_t i = 0; i < nports; i++) {
-    /* Step 1: Banner grab / service detection */
+    /* Step 1: Banner grab / service detection.  Only overwrite
+     * out_services / out_versions when the banner grab actually
+     * produced something -- callers that pre-populate these vectors
+     * with a prior scan's values (e.g. run_watchlist after
+     * net_db_get_host) want the prior values preserved when this
+     * scan's banner grab is flaky (port open but no recognizable
+     * response).  Without this guard, a transient empty banner wipes
+     * the CVE-lookup input and the cves column stays unpopulated
+     * forever once a single re-scan misses. */
     BannerResult br = grab_banner(ip, ports[i], timeout_ms);
-    out_services[i] = br.service;
-    out_versions[i] = br.version;
+    if (!br.service.empty()) out_services[i] = br.service;
+    if (!br.version.empty()) out_versions[i] = br.version;
 
-    /* Step 2: CVE lookup */
-    if (cve_db && !br.service.empty()) {
-      std::vector<EnrichCve> cves = lookup_cves(cve_db, br.service, br.version);
+    /* Step 2: CVE lookup -- uses out_services[i]/out_versions[i],
+     * which now reflects either this scan's banner or the caller's
+     * prior-scan hint when the banner came back empty. */
+    if (cve_db && !out_services[i].empty()) {
+      std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
       out_cves[i] = cves_to_json(cves);
     }
 

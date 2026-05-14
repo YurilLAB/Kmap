@@ -366,8 +366,11 @@ static std::string http_get(const char *ip, uint16_t port,
 static SSL_CTX *get_ssl_ctx() {
   static SSL_CTX *ctx = nullptr;
   if (!ctx) {
-    SSL_library_init();
-    SSL_load_error_strings();
+    /* OpenSSL 1.1+ auto-initializes on first use; SSL_library_init and
+     * SSL_load_error_strings are no-ops since 1.1 and deprecated in 3.0.
+     * We require 1.1+ via TLS_client_method() (introduced in 1.1.0), so
+     * the calls were dead code that emitted -Wdeprecated-declarations
+     * warnings under modern toolchains. */
     ctx = SSL_CTX_new(TLS_client_method());
     if (ctx) {
       // Skip verification -- self-signed certs are common in internal nets
@@ -387,6 +390,15 @@ static std::string https_get(const char *ip, uint16_t port,
   if (fd == WR_INVALID_FD) return "";
 
   SSL *ssl = SSL_new(ctx);
+  if (!ssl) {
+    /* OOM / internal OpenSSL state error. Without this guard the
+     * SSL_set_fd / SSL_set_tlsext_host_name / SSL_set_cipher_list /
+     * SSL_connect calls below would dereference NULL and crash the
+     * scan mid-host. Mirrors the same guard at net_enrich.cc's
+     * tls_capture_cert. */
+    close_fd_wr(fd);
+    return "";
+  }
   SSL_set_fd(ssl, static_cast<int>(fd));
   /* SNI must be a hostname, not an IP -- skip for bare IPs (RFC 6066) */
   { struct in_addr dummy4; struct in6_addr dummy6;
@@ -817,6 +829,7 @@ http_options_probe(const char *ip, uint16_t port,
     wr_fd_t fd = tcp_connect_wr(ip, port, timeout_ms);
     if (fd == WR_INVALID_FD) return {};
     SSL *ssl = SSL_new(ctx);
+    if (!ssl) { close_fd_wr(fd); return {}; }
     SSL_set_fd(ssl, static_cast<int>(fd));
     {
       struct in_addr d4; struct in6_addr d6;

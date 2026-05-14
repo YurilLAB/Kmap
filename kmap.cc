@@ -300,6 +300,12 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     return true;
   } else if (strcmp(name, "nq-country") == 0) {
     o.net_query = true; o.nq_country = strdup(arg); return true;
+  } else if (strcmp(name, "nq-device") == 0) {
+    o.net_query = true; o.nq_device = strdup(arg); return true;
+  } else if (strcmp(name, "nq-format") == 0) {
+    if (strcmp(arg, "text") != 0 && strcmp(arg, "json") != 0)
+      fatal("--nq-format must be one of: text, json");
+    o.net_query = true; o.nq_format = strdup(arg); return true;
   /* --net-cluster options */
   } else if (strcmp(name, "net-cluster") == 0) {
     o.net_cluster = true; o.nc_ip = strdup(arg); return true;
@@ -544,6 +550,9 @@ static void printusage() {
          "  --nq-ip-range <cidr>: Restrict query to an IP range\n"
          "  --nq-asn <number>: Filter query by ASN\n"
          "  --nq-country <CC>: Filter query by ISO country code\n"
+         "  --nq-device <tag>: Filter by device class (web, ssh, ftp, telnet, smtp,\n"
+         "                     mail, dns, db, rdp, vnc, snmp, smb, iot, router)\n"
+         "  --nq-format <fmt>: Output format: text (default) or json\n"
          "  --nq-output <file>: Export query results to file\n"
          "  --nq-count: Show count instead of listing results\n"
          "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
@@ -925,6 +934,8 @@ void parse_options(int argc, char **argv) {
     {"nq-count", no_argument, 0, 0},
     {"nq-asn", required_argument, 0, 0},
     {"nq-country", required_argument, 0, 0},
+    {"nq-device", required_argument, 0, 0},
+    {"nq-format", required_argument, 0, 0},
     /* --net-cluster: relationship-cohort lookup */
     {"net-cluster", required_argument, 0, 0},
     {"nc-min-shared", required_argument, 0, 0},

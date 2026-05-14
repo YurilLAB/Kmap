@@ -15,11 +15,14 @@
 #include "net_enrich.h"
 #include "net_report.h"
 #include "net_query.h"
+#include "asn_lookup.h"
 #include "KmapOps.h"
 #include "kmap.h"
 #include "output.h"
 #include "os_profile.h"
 
+#include <cstdarg>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -29,6 +32,10 @@
 #include <set>
 #include <map>
 #include <algorithm>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <chrono>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -38,6 +45,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -45,6 +53,94 @@
 #endif
 
 extern KmapOps o;
+
+/* -----------------------------------------------------------------------
+ * Scan interrupt flag
+ *
+ * Set by SIGINT (POSIX) / Ctrl+C console handler (Windows) so worker
+ * threads and the main enrichment / report loop can exit cleanly
+ * mid-scan instead of leaving the thread pool unjoined (which on
+ * Windows MSVC's std::thread implementation aborts the process via
+ * terminate()).
+ *
+ * std::atomic<int> (not volatile int) because the workers read this
+ * from many threads concurrently and the C++ memory model only
+ * guarantees racy access correctness on atomics.  POSIX would also
+ * accept sig_atomic_t for the handler side, but std::atomic<int> is
+ * lock-free for int and works uniformly on both platforms. */
+static std::atomic<int> g_scan_interrupted{0};
+
+#ifndef WIN32
+static void watchlist_sigint(int /*sig*/) { g_scan_interrupted.store(1); }
+#else
+static BOOL WINAPI watchlist_ctrl_handler(DWORD /*type*/) {
+  g_scan_interrupted.store(1);
+  return TRUE;
+}
+#endif
+
+/* -----------------------------------------------------------------------
+ * Scan event log
+ *
+ * Persists warnings / errors / phase-transition events from a single
+ * scan run into `<data_dir>/kmap.log` with ISO timestamps and a severity
+ * tag.  Mirrors to stderr so the running user still sees them.  Designed
+ * to be the one log an operator opens after a failed scan to figure out
+ * what went wrong without re-running with -vvv attached to a screen
+ * session.  Append-only; rotation is left to the operator (rare
+ * enough -- each line is ~120 bytes and a scan emits dozens, not
+ * thousands).
+ * ----------------------------------------------------------------------- */
+
+static FILE *g_scan_log_fp = nullptr;
+
+static void scan_log_open(const char *data_dir) {
+  if (g_scan_log_fp) return;  /* already open from a prior call */
+  std::string path = std::string(data_dir) + "/kmap.log";
+  g_scan_log_fp = fopen(path.c_str(), "a");
+  /* fopen failure is non-fatal: scan_log() falls back to stderr-only.
+   *
+   * Note: do NOT call setvbuf(fp, NULL, _IOLBF, 0) here -- MSVC's CRT
+   * fast-fails (STATUS_STACK_BUFFER_OVERRUN 0xC0000409) on a NULL
+   * buffer + size 0 combination.  Default block buffering plus the
+   * explicit fflush() inside scan_log() gives the same get-it-on-disk
+   * guarantee we want. */
+}
+
+static void scan_log_close() {
+  if (g_scan_log_fp) {
+    fclose(g_scan_log_fp);
+    g_scan_log_fp = nullptr;
+  }
+}
+
+/* Emit one log line at the given severity ("INFO", "WARN", "ERROR").
+ * Goes to both the log file (if open) and stderr (so live runs still
+ * surface problems).  Severity is a string -- no enum to keep call
+ * sites readable without an extra include. */
+static void scan_log(const char *severity, const char *fmt, ...) {
+  char ts[32];
+  time_t now = time(nullptr);
+  struct tm tm_buf{};
+#ifdef WIN32
+  if (localtime_s(&tm_buf, &now) != 0) tm_buf = {};
+#else
+  if (!localtime_r(&now, &tm_buf)) tm_buf = {};
+#endif
+  strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &tm_buf);
+
+  char msg[1024];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(msg, sizeof(msg), fmt, ap);
+  va_end(ap);
+
+  if (g_scan_log_fp) {
+    fprintf(g_scan_log_fp, "%s  %-5s  %s\n", ts, severity, msg);
+    fflush(g_scan_log_fp);
+  }
+  fprintf(stderr, "%s  %-5s  %s\n", ts, severity, msg);
+}
 
 /* -----------------------------------------------------------------------
  * Watchlist scanning
@@ -55,11 +151,45 @@ extern KmapOps o;
 
 static int run_watchlist(const char *targets_file, const char *data_dir,
                          const char *findings_dir) {
+  /* Open the persistent scan log so every WARN/ERROR survives the
+   * scrolled terminal -- one file for the operator to grep when a
+   * scan looks weird. */
+  scan_log_open(data_dir);
+  scan_log("INFO", "watchlist scan starting: targets_file=%s data_dir=%s",
+           targets_file, data_dir);
+
+  /* Per-phase timing for the SCAN COMPLETE summary. */
+  auto t_phase_start = std::chrono::steady_clock::now();
+  auto t_discovery_end = t_phase_start;
+  auto t_enrich_end    = t_phase_start;
+
+  /* Install SIGINT / Ctrl+C handler so the operator can break the
+   * scan without leaving worker threads dangling.  fast_syn's loop
+   * already does this for net-scan mode; watchlist needs the same so
+   * a Ctrl+C in the middle of a 5-minute parallel probe wave doesn't
+   * crash through std::thread's destructor (which calls terminate()
+   * on an un-joined thread).  Workers and the enrichment loop poll
+   * g_scan_interrupted and exit cleanly so join() returns promptly. */
+  g_scan_interrupted.store(0);
+#ifndef WIN32
+  struct sigaction sa_old{}, sa_new{};
+  sa_new.sa_handler = watchlist_sigint;
+  sigaction(SIGINT, &sa_new, &sa_old);
+#else
+  SetConsoleCtrlHandler(watchlist_ctrl_handler, TRUE);
+#endif
+
   /* Read target IPs from file */
   std::vector<uint32_t> targets;
   std::ifstream f(targets_file);
   if (!f.is_open()) {
-    fprintf(stderr, "net-scan: cannot open watchlist file: %s\n", targets_file);
+    scan_log("ERROR", "cannot open watchlist file: %s", targets_file);
+#ifndef WIN32
+    sigaction(SIGINT, &sa_old, nullptr);
+#else
+    SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE);
+#endif
+    scan_log_close();
     return 1;
   }
 
@@ -76,8 +206,8 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     if (slash != std::string::npos) {
       int prefix = atoi(line.substr(slash + 1).c_str());
       if (prefix < 0 || prefix > 32) {
-        fprintf(stderr, "watchlist: invalid CIDR prefix /%d in '%s'\n",
-                prefix, line.c_str());
+        scan_log("WARN", "invalid CIDR prefix /%d in '%s' (skipped)",
+                 prefix, line.c_str());
         continue;
       }
       uint32_t base = ip_to_u32(line.substr(0, slash).c_str());
@@ -107,7 +237,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   }
 
   if (targets.empty()) {
-    fprintf(stderr, "net-scan: no valid targets in %s\n", targets_file);
+    scan_log("ERROR", "no valid targets in %s", targets_file);
+#ifndef WIN32
+    sigaction(SIGINT, &sa_old, nullptr);
+#else
+    SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE);
+#endif
+    scan_log_close();
     return 1;
   }
 
@@ -117,7 +253,16 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   /* Open watchlist database */
   std::string wl_path = std::string(data_dir) + "/watchlist.db";
   sqlite3 *wl_db = net_db_open(wl_path);
-  if (!wl_db) return 1;
+  if (!wl_db) {
+    scan_log("ERROR", "cannot open watchlist DB at %s", wl_path.c_str());
+#ifndef WIN32
+    sigaction(SIGINT, &sa_old, nullptr);
+#else
+    SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE);
+#endif
+    scan_log_close();
+    return 1;
+  }
 
   /* Load previous state for diff */
   struct PrevEntry {
@@ -153,22 +298,77 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     }
   }
 
-  /* Clear old data and re-scan */
-  sqlite3_exec(wl_db, "DELETE FROM hosts", nullptr, nullptr, nullptr);
-
-  /* Scan each target -- using connect probes for the top ports */
+  /* Scan each target -- using connect probes for the top ports.
+   * We do NOT DELETE the hosts table before re-scanning.  The original
+   * code wiped the table here, which destroyed first_seen, scan_count,
+   * and the prev_cves/prev_service/prev_version history columns that
+   * net_db_update_enrichment depends on for cross-scan diffing.  Net
+   * effect: every watchlist run was a fresh slate, so "we saw CVE-X
+   * last week and it's still here this week" was impossible to tell
+   * from the DB itself.
+   *
+   * Rows that no longer respond stay in the DB with their stale
+   * last_seen timestamp; the "[CLOSED]" branch of the diff report
+   * below picks them up by comparing prev_state (in-memory snapshot
+   * from before the scan) against current (rows whose last_seen was
+   * advanced by this scan -- see scan_start_ts gate). */
   std::vector<int> ports = parse_port_spec(nullptr); /* top 100 */
-  int64_t now_ts = static_cast<int64_t>(time(nullptr));
+  int64_t scan_start_ts = static_cast<int64_t>(time(nullptr));
+  int64_t now_ts = scan_start_ts;
 
-  net_db_begin(wl_db);
-  int found = 0;
-  for (uint32_t ip : targets) {
-    for (int port : ports) {
-      /* Quick connect probe with 2s timeout */
+  /* Parallel connect-probe loop.
+   *
+   * The previous serial implementation took ~33 minutes for 10 hosts x
+   * 100 ports because filtered ports drop SYN packets and the 2-second
+   * select() timeout fires sequentially for each.  Wall time was
+   * dominated by O(N_hosts * N_ports * timeout_seconds).
+   *
+   * The new loop builds the (ip, port) task list up front, dispatches
+   * to a thread pool of `worker_count` workers (env override
+   * KMAP_WATCHLIST_CONCURRENCY, default 50), and collects opens into a
+   * mutex-guarded vector.  net_db inserts happen serially after the
+   * probe phase because SQLite serializes writes anyway -- doing them
+   * inside workers would just contend on the wl_db handle without
+   * speed-up.
+   *
+   * 50 concurrent connects is well under any practical OS fd limit
+   * (Linux default 1024, Windows kernel handle table is unbounded) and
+   * stays under the noise floor of any reasonable upstream firewall.
+   * Wall time on the same 10-host / 100-port set drops from ~33 min
+   * to roughly N_total_ports * timeout / concurrency = 1000 * 2 / 50
+   * = 40 seconds for the worst-case (all filtered) case, plus the time
+   * the OS spends queueing/closing sockets. */
+  struct ProbeTask { uint32_t ip; int port; };
+  std::vector<ProbeTask> tasks;
+  tasks.reserve(targets.size() * ports.size());
+  for (uint32_t ip : targets)
+    for (int port : ports)
+      tasks.push_back({ip, port});
+
+  std::atomic<size_t> next_idx{0};
+  std::vector<ProbeTask> opens;
+  std::mutex opens_mu;
+
+  int worker_count = 50;
+  if (const char *env = getenv("KMAP_WATCHLIST_CONCURRENCY")) {
+    int v = atoi(env);
+    if (v > 0 && v <= 1024) worker_count = v;
+  }
+  /* Don't spawn more workers than tasks. */
+  if (static_cast<size_t>(worker_count) > tasks.size())
+    worker_count = static_cast<int>(tasks.size());
+
+  auto worker = [&]() {
+    while (true) {
+      if (g_scan_interrupted.load(std::memory_order_relaxed)) return;
+      size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
+      if (i >= tasks.size()) return;
+      const ProbeTask &t = tasks[i];
+
       struct sockaddr_in sa{};
       sa.sin_family = AF_INET;
-      sa.sin_port = htons(static_cast<uint16_t>(port));
-      sa.sin_addr.s_addr = htonl(ip);
+      sa.sin_port = htons(static_cast<uint16_t>(t.port));
+      sa.sin_addr.s_addr = htonl(t.ip);
 
 #ifdef WIN32
       SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -182,12 +382,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
 
-      /* OS spoofing profile (--spoof-os). No-op when not set. Stable
-         per-target: same IP -> same profile across retries / port loops. */
       os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
                               os_profile_get_for_target(
                                   o.spoof_os,
-                                  os_profile_seed_from_ipv4(ip)));
+                                  os_profile_seed_from_ipv4(t.ip)));
 
       connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
       fd_set wset;
@@ -199,8 +397,6 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
       bool open = false;
 #ifdef WIN32
-      /* Windows ignores the nfds argument; using a fixed value avoids the
-       * SOCKET-to-int truncation warning on 64-bit builds. */
       if (select(0, nullptr, &wset, nullptr, &tv) > 0) {
 #else
       if (select(fd + 1, nullptr, &wset, nullptr, &tv) > 0) {
@@ -218,90 +414,210 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 #endif
 
       if (open) {
-        net_db_insert_host(wl_db, ip, port, "tcp", now_ts);
-        found++;
+        std::lock_guard<std::mutex> lk(opens_mu);
+        opens.push_back(t);
       }
     }
-  }
+  };
+
+  log_write(LOG_STDOUT, "  Probing %d (ip,port) pairs with %d workers...\n",
+            static_cast<int>(tasks.size()), worker_count);
+
+  std::vector<std::thread> pool;
+  pool.reserve(worker_count);
+  for (int i = 0; i < worker_count; i++) pool.emplace_back(worker);
+  for (auto &th : pool) th.join();
+
+  /* Serial insert phase -- SQLite serializes writes via the wl_db
+   * handle anyway, so concurrent inserts would just contend. */
+  net_db_begin(wl_db);
+  for (const auto &t : opens)
+    net_db_insert_host(wl_db, t.ip, t.port, "tcp", now_ts);
   net_db_commit(wl_db);
+  int found = static_cast<int>(opens.size());
+  t_discovery_end = std::chrono::steady_clock::now();
+
+  if (g_scan_interrupted.load()) {
+    scan_log("WARN", "scan interrupted during discovery, skipping enrichment");
+  }
 
   log_write(LOG_STDOUT, "  Discovery: %d open ports found\n", found);
 
-  /* Enrich the watchlist hosts using the enrichment pipeline */
+  /* Enrich the watchlist hosts using the enrichment pipeline.
+   * Skipped entirely when Ctrl+C was seen during discovery -- we want
+   * to flush whatever discovery captured rather than spending another
+   * five minutes on enrichment for a scan the operator already
+   * abandoned. */
+  if (g_scan_interrupted.load()) {
+    scan_log("INFO", "enrichment skipped due to interrupt");
+  } else {
   log_write(LOG_STDOUT, "  Enriching watchlist hosts...\n");
   {
     std::vector<std::string> unenriched = net_db_get_unenriched(wl_db, 10000);
-    /* Locate CVE database */
+    /* Locate CVE database.  Tries kmap_fetchfile's standard search
+     * (--datadir, $KMAPDIR, %APPDATA%/kmap or ~/.kmap, exe-dir,
+     * /usr/share/kmap).  Falls back to ./kmap-cve.db so users
+     * running kmap from the source tree get matches without needing
+     * to install or copy the DB into exe-dir. */
     char cve_buf[1024];
     std::string cve_db_path;
-    if (kmap_fetchfile(cve_buf, sizeof(cve_buf), "kmap-cve.db") > 0)
+    if (kmap_fetchfile(cve_buf, sizeof(cve_buf), "kmap-cve.db") > 0) {
       cve_db_path = cve_buf;
+    } else {
+      FILE *cwd_db = fopen("kmap-cve.db", "rb");
+      if (cwd_db) {
+        fclose(cwd_db);
+        cve_db_path = "kmap-cve.db";
+      }
+    }
+    if (cve_db_path.empty()) {
+      scan_log("WARN", "kmap-cve.db not found (searched exe-dir, %%APPDATA%%/kmap, $KMAPDIR, ./) -- CVE lookups disabled");
+    } else {
+      scan_log("INFO", "CVE database: %s", cve_db_path.c_str());
+    }
 
-    int enriched_count = 0;
-    int enrich_errors = 0;
-    net_db_begin(wl_db);
-    for (const auto &ip_str : unenriched) {
-      auto host_ports = net_db_get_host(wl_db, ip_str.c_str());
-      if (host_ports.empty()) continue;
-
+    /* Parallel enrichment.
+     *
+     * The serial loop was O(N_hosts * (avg_ports*banner_timeout +
+     * http_timeout + tls_handshake + asn_dns_rtt)).  On a 10-host
+     * watchlist that came out to ~260 seconds -- the bulk of the
+     * pre-parallel scan wall time.  Per-host work is fully independent
+     * (enrich_single_host opens its own per-call sockets / CVE db /
+     * SSL_CTX; lookup_asn does its own UDP DNS), so we can fan out
+     * with N workers.  Default 10 -- enough to hide the per-host RTT
+     * waits without saturating local CPU on banner-pattern matching.
+     * Tunable via KMAP_WATCHLIST_ENRICH_CONCURRENCY for very large
+     * watchlists.
+     *
+     * DB writes stay serial in a second phase: sqlite serializes them
+     * anyway via the shared wl_db handle, and keeping all UPDATEs
+     * inside one transaction is what makes the post-scan SELECTs
+     * see a consistent view. */
+    struct HostResult {
+      std::string ip;
       std::vector<int> port_nums;
       std::vector<std::string> protos;
-      for (const auto &h : host_ports) {
-        port_nums.push_back(h.port);
-        protos.push_back(h.proto);
-      }
-
       std::vector<std::string> services, versions, cves_out;
       std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
       std::vector<std::string> powered_by, x_generator, redirects;
       std::vector<TlsCapture> tls_caps;
+      AsnInfo asn_info{};
+      int erc = 0;
+      bool empty_host = false;  /* host had no ports in DB, skip */
+    };
 
-      int erc = enrich_single_host(ip_str.c_str(), port_nums, protos,
-                         cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
-                         5000, services, versions, cves_out,
-                         web_titles, web_servers, web_headers, web_paths,
-                         powered_by, x_generator, redirects,
-                         &tls_caps);
+    /* Stage A: build per-host work units serially from the DB.
+     * net_db_get_host is the only piece that has to be serial because
+     * it touches wl_db, which we don't share between threads. */
+    std::vector<HostResult> results;
+    results.reserve(unenriched.size());
+    for (const auto &ip_str : unenriched) {
+      HostResult hr;
+      hr.ip = ip_str;
+      auto host_ports = net_db_get_host(wl_db, ip_str.c_str());
+      if (host_ports.empty()) {
+        hr.empty_host = true;
+        results.push_back(std::move(hr));
+        continue;
+      }
+      for (const auto &h : host_ports) {
+        hr.port_nums.push_back(h.port);
+        hr.protos.push_back(h.proto);
+      }
+      /* Pre-populate from prior scan -- see banner-grab fallback note
+       * in the comment above the run_watchlist scan_start_ts setup. */
+      hr.services.resize(hr.port_nums.size());
+      hr.versions.resize(hr.port_nums.size());
+      for (size_t i = 0; i < host_ports.size() && i < hr.port_nums.size(); i++) {
+        hr.services[i] = host_ports[i].service;
+        hr.versions[i] = host_ports[i].version;
+      }
+      results.push_back(std::move(hr));
+    }
 
-      if (erc != 0) {
-        /* Enrichment failed for this host -- record the error so the row
-           stays eligible for retry once the cooldown elapses, and continue
-           to the next host. */
-        log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, will retry later\n",
-                  ip_str.c_str());
+    /* Stage B: parallel enrichment.  Workers do all the network /
+     * pattern-matching work; the results vector is pre-sized so
+     * each worker writes only to its own slot (no mutex needed). */
+    int enrich_worker_count = 10;
+    if (const char *env = getenv("KMAP_WATCHLIST_ENRICH_CONCURRENCY")) {
+      int v = atoi(env);
+      if (v > 0 && v <= 256) enrich_worker_count = v;
+    }
+    if (static_cast<size_t>(enrich_worker_count) > results.size())
+      enrich_worker_count = static_cast<int>(results.size());
+    if (enrich_worker_count < 1) enrich_worker_count = 1;
+
+    std::atomic<size_t> enrich_next{0};
+    auto enrich_worker = [&]() {
+      while (true) {
+        if (g_scan_interrupted.load(std::memory_order_relaxed)) return;
+        size_t i = enrich_next.fetch_add(1, std::memory_order_relaxed);
+        if (i >= results.size()) return;
+        HostResult &hr = results[i];
+        if (hr.empty_host) continue;
+        hr.erc = enrich_single_host(hr.ip.c_str(), hr.port_nums, hr.protos,
+                           cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
+                           5000, hr.services, hr.versions, hr.cves_out,
+                           hr.web_titles, hr.web_servers, hr.web_headers,
+                           hr.web_paths, hr.powered_by, hr.x_generator,
+                           hr.redirects, &hr.tls_caps);
+        if (hr.erc == 0) {
+          hr.asn_info = lookup_asn(hr.ip.c_str(), 2000);
+        }
+      }
+    };
+
+    log_write(LOG_STDOUT, "  Enriching %d hosts with %d workers...\n",
+              (int)results.size(), enrich_worker_count);
+    {
+      std::vector<std::thread> epool;
+      epool.reserve(enrich_worker_count);
+      for (int i = 0; i < enrich_worker_count; i++)
+        epool.emplace_back(enrich_worker);
+      for (auto &th : epool) th.join();
+    }
+
+    /* Stage C: serial DB write phase.  All sqlite UPDATEs go through
+     * one transaction so a reader sees either pre-scan or post-scan
+     * state, never a half-finished mid-scan view. */
+    int enriched_count = 0;
+    int enrich_errors = 0;
+    net_db_begin(wl_db);
+    for (const auto &hr : results) {
+      if (hr.empty_host) continue;
+      if (hr.erc != 0) {
+        scan_log("WARN", "enrichment failed for %s (rc=%d), will retry after cooldown",
+                 hr.ip.c_str(), hr.erc);
         char err_buf[64];
-        snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", erc);
-        for (size_t i = 0; i < port_nums.size(); i++) {
-          net_db_record_enrichment_error(wl_db, ip_str.c_str(), port_nums[i],
+        snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", hr.erc);
+        for (size_t i = 0; i < hr.port_nums.size(); i++) {
+          net_db_record_enrichment_error(wl_db, hr.ip.c_str(), hr.port_nums[i],
                                          err_buf);
         }
         enrich_errors++;
         continue;
       }
+      for (size_t i = 0; i < hr.port_nums.size(); i++) {
+        net_db_update_enrichment(wl_db, hr.ip.c_str(), hr.port_nums[i],
+          i < hr.services.size()    ? hr.services[i].c_str()    : "",
+          i < hr.versions.size()    ? hr.versions[i].c_str()    : "",
+          i < hr.cves_out.size()    ? hr.cves_out[i].c_str()    : "",
+          i < hr.web_titles.size()  ? hr.web_titles[i].c_str()  : "",
+          i < hr.web_servers.size() ? hr.web_servers[i].c_str() : "",
+          i < hr.web_headers.size() ? hr.web_headers[i].c_str() : "",
+          i < hr.web_paths.size()   ? hr.web_paths[i].c_str()   : "",
+          i < hr.powered_by.size()  ? hr.powered_by[i].c_str()  : nullptr,
+          i < hr.x_generator.size() ? hr.x_generator[i].c_str() : nullptr,
+          i < hr.redirects.size()   ? hr.redirects[i].c_str()   : nullptr,
+          nullptr);
 
-      for (size_t i = 0; i < port_nums.size(); i++) {
-        net_db_update_enrichment(wl_db, ip_str.c_str(), port_nums[i],
-          i < services.size() ? services[i].c_str() : "",
-          i < versions.size() ? versions[i].c_str() : "",
-          i < cves_out.size() ? cves_out[i].c_str() : "",
-          i < web_titles.size() ? web_titles[i].c_str() : "",
-          i < web_servers.size() ? web_servers[i].c_str() : "",
-          i < web_headers.size() ? web_headers[i].c_str() : "",
-          i < web_paths.size() ? web_paths[i].c_str() : "",
-          i < powered_by.size() ? powered_by[i].c_str() : nullptr,
-          i < x_generator.size() ? x_generator[i].c_str() : nullptr,
-          i < redirects.size() ? redirects[i].c_str() : nullptr,
-          nullptr /* robots_disallowed_json: not captured by net_enrich path */);
-
-        /* TLS cert details — watchlist mode wants this most of all, since
-           cert rotation on a tracked asset is a strong tampering signal. */
-        if (i < tls_caps.size()) {
-          const TlsCapture &tc = tls_caps[i];
+        if (i < hr.tls_caps.size()) {
+          const TlsCapture &tc = hr.tls_caps[i];
           bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
                           !tc.sha256.empty()     || !tc.protocol.empty();
           if (have_tls) {
             net_db_update_tls(
-              wl_db, ip_str.c_str(), port_nums[i],
+              wl_db, hr.ip.c_str(), hr.port_nums[i],
               tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
               tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
               tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
@@ -312,14 +628,27 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           }
         }
       }
+      if (hr.asn_info.asn > 0) {
+        net_db_update_asn(wl_db, hr.ip.c_str(), hr.asn_info.asn,
+                          hr.asn_info.as_name.c_str(),
+                          hr.asn_info.country.c_str(),
+                          hr.asn_info.bgp_prefix.c_str(),
+                          hr.asn_info.registry.c_str(),
+                          hr.asn_info.region.c_str());
+      }
       enriched_count++;
     }
     net_db_commit(wl_db);
+    if (g_scan_interrupted.load()) {
+      scan_log("INFO", "enrichment interrupted after %d hosts", enriched_count);
+    }
     log_write(LOG_STDOUT, "  Enriched %d hosts", enriched_count);
     if (enrich_errors > 0)
       log_write(LOG_STDOUT, " (%d failed)", enrich_errors);
     log_write(LOG_STDOUT, "\n");
   }
+  }  /* end of (!g_scan_interrupted) guard */
+  t_enrich_end = std::chrono::steady_clock::now();
 
   /* Generate diff */
   std::string wl_dir = std::string(findings_dir) + "/watchlist";
@@ -331,14 +660,20 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   mkdir(wl_dir.c_str(), 0755);
 #endif
 
-  /* Get current state */
+  /* Get current state -- only rows whose last_seen advanced during this
+   * scan, since we no longer DELETE before scanning.  Anything with an
+   * older last_seen represents a host/port that was open historically
+   * but did not respond this run; the diff loop below uses absence from
+   * `current` to flag those as [CLOSED]. */
   std::vector<NetHost> current;
   {
     sqlite3_stmt *stmt = nullptr;
     sqlite3_prepare_v2(wl_db,
-      "SELECT ip, port, proto, service, version, cves, web_title FROM hosts",
+      "SELECT ip, port, proto, service, version, cves, web_title "
+      "FROM hosts WHERE last_seen >= ?",
       -1, &stmt, nullptr);
     if (stmt) {
+      sqlite3_bind_int64(stmt, 1, scan_start_ts);
       while (sqlite3_step(stmt) == SQLITE_ROW) {
         NetHost h;
         auto col = [&](int c) -> std::string {
@@ -362,15 +697,20 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   char datebuf[32];
   {
     time_t now = time(nullptr);
-    struct tm *tm = localtime(&now);
-    strftime(datebuf, sizeof(datebuf), "%Y-%m-%d", tm);
+    struct tm tm_buf{};
+#ifdef WIN32
+    if (localtime_s(&tm_buf, &now) != 0) tm_buf = {};
+#else
+    if (!localtime_r(&now, &tm_buf)) tm_buf = {};
+#endif
+    strftime(datebuf, sizeof(datebuf), "%Y-%m-%d", &tm_buf);
   }
 
   std::string diff_path = wl_dir + "/diff_" + datebuf + ".txt";
   FILE *diff_fp = fopen(diff_path.c_str(), "w");
   if (!diff_fp) {
-    log_write(LOG_STDOUT, "  WARNING: cannot create diff report %s, skipping\n",
-              diff_path.c_str());
+    scan_log("WARN", "cannot create diff report %s (errno=%d), skipping",
+             diff_path.c_str(), errno);
   }
   if (diff_fp) {
     fprintf(diff_fp, "================================================================================\n");
@@ -420,12 +760,25 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     log_write(LOG_STDOUT, "  Diff report: %s (%d changes)\n", diff_path.c_str(), changes);
   }
 
-  /* Write full report */
+  /* Write full report.
+   *
+   * Renders every enrichment column the DB carries -- web title/server,
+   * TLS subject/issuer, ASN+as_name+country, hostname, CVE deltas
+   * (prev_cves vs cves), scan_count for "how many times have we seen
+   * this row".  The previous version dropped all of this on the floor
+   * and only printed port/proto + service + version, leaving the
+   * operator no choice but to inspect kmap-data/watchlist.db directly
+   * with sqlite3 to see what enrichment actually captured.
+   *
+   * Per-port data is fetched via net_db_get_host() rather than a
+   * direct SELECT so the column-to-field mapping lives in one place
+   * (net_db.cc), keeping this section invariant to future schema
+   * additions. */
   std::string full_path = wl_dir + "/full_" + datebuf + ".txt";
   FILE *full_fp = fopen(full_path.c_str(), "w");
   if (!full_fp) {
-    log_write(LOG_STDOUT, "  WARNING: cannot create full report %s, skipping\n",
-              full_path.c_str());
+    scan_log("WARN", "cannot create full report %s (errno=%d), skipping",
+             full_path.c_str(), errno);
   }
   if (full_fp) {
     fprintf(full_fp, "================================================================================\n");
@@ -433,19 +786,89 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     fprintf(full_fp, "================================================================================\n");
     fprintf(full_fp, "  Targets: %d | Open ports: %d\n\n", (int)targets.size(), (int)current.size());
 
-    std::string last_ip;
-    for (const auto &h : current) {
-      if (h.ip != last_ip) {
-        if (!last_ip.empty()) fprintf(full_fp, "\n");
-        fprintf(full_fp, "================================================================================\n");
-        fprintf(full_fp, "  TARGET: %s\n", h.ip.c_str());
-        fprintf(full_fp, "================================================================================\n");
-        last_ip = h.ip;
+    /* Build list of unique IPs that responded this scan, in stable order. */
+    std::vector<std::string> uniq_ips;
+    {
+      std::set<std::string> seen;
+      for (const auto &h : current) {
+        if (seen.insert(h.ip).second) uniq_ips.push_back(h.ip);
       }
-      fprintf(full_fp, "  %d/%s  %s  %s\n",
-              h.port, h.proto.c_str(),
-              h.service.empty() ? "unknown" : h.service.c_str(),
-              h.version.c_str());
+    }
+
+    for (const auto &ip : uniq_ips) {
+      auto rows = net_db_get_host(wl_db, ip.c_str());
+      if (rows.empty()) continue;
+
+      /* IP-level banner: hostname + AS/country if known. */
+      fprintf(full_fp, "================================================================================\n");
+      fprintf(full_fp, "  TARGET: %s", ip.c_str());
+      const NetHost &any = rows.front();
+      if (!any.hostname.empty()) fprintf(full_fp, "  (%s)", any.hostname.c_str());
+      fprintf(full_fp, "\n");
+      if (any.asn > 0) {
+        fprintf(full_fp, "    AS%u  %s%s%s\n",
+                any.asn,
+                any.as_name.empty() ? "unknown" : any.as_name.c_str(),
+                any.country.empty() ? "" : "  ",
+                any.country.c_str());
+        if (!any.bgp_prefix.empty())
+          fprintf(full_fp, "    Prefix: %s\n", any.bgp_prefix.c_str());
+      }
+      fprintf(full_fp, "================================================================================\n");
+
+      for (const auto &r : rows) {
+        /* Only include ports that responded in this scan. */
+        if (r.last_seen < scan_start_ts) continue;
+
+        fprintf(full_fp, "  %d/%s  %s",
+                r.port, r.proto.c_str(),
+                r.service.empty() ? "unknown" : r.service.c_str());
+        if (!r.version.empty()) fprintf(full_fp, "  %s", r.version.c_str());
+        if (r.scan_count > 1)   fprintf(full_fp, "   [scans=%d]", r.scan_count);
+        fprintf(full_fp, "\n");
+
+        if (!r.web_title.empty())
+          fprintf(full_fp, "    Title:    %s\n", r.web_title.c_str());
+        if (!r.web_server.empty())
+          fprintf(full_fp, "    Server:   %s\n", r.web_server.c_str());
+        if (!r.powered_by.empty())
+          fprintf(full_fp, "    X-Powered: %s\n", r.powered_by.c_str());
+        if (!r.redirect_target.empty())
+          fprintf(full_fp, "    Redirect: %s\n", r.redirect_target.c_str());
+        if (!r.tls_subject_cn.empty() || !r.tls_issuer.empty()) {
+          fprintf(full_fp, "    TLS:      CN=%s", r.tls_subject_cn.c_str());
+          if (!r.tls_issuer.empty())    fprintf(full_fp, "  Issuer=%s", r.tls_issuer.c_str());
+          if (!r.tls_protocol.empty())  fprintf(full_fp, "  %s", r.tls_protocol.c_str());
+          if (!r.tls_not_after.empty()) fprintf(full_fp, "  exp=%s", r.tls_not_after.c_str());
+          fprintf(full_fp, "\n");
+        }
+        /* CVE summary -- compact "id (CVSS:X)" of the first entry plus
+         * a count of how many more, since the full list of 100 would
+         * overwhelm the report.  Operators wanting all CVE IDs run
+         * `kmap --net-query --nq-cve <substring>` against the DB. */
+        if (!r.cves.empty() && r.cves != "[]") {
+          size_t id_pos = r.cves.find("\"id\":\"");
+          if (id_pos != std::string::npos) {
+            id_pos += 6;
+            size_t id_end = r.cves.find('"', id_pos);
+            if (id_end != std::string::npos) {
+              std::string cve_id = r.cves.substr(id_pos, id_end - id_pos);
+              int count = 0;
+              size_t scan = 0;
+              while ((scan = r.cves.find("\"id\":", scan)) != std::string::npos) {
+                count++; scan++;
+              }
+              fprintf(full_fp, "    CVE:      %s%s\n", cve_id.c_str(),
+                      count > 1 ? (" (+" + std::to_string(count - 1) + " more)").c_str() : "");
+            }
+          }
+        }
+        /* Patch-status delta -- only when prev_cves was populated by a
+         * prior enrichment. */
+        if (!r.prev_cves.empty() && r.prev_cves != "[]" && r.prev_cves != r.cves) {
+          fprintf(full_fp, "    NOTE:     CVE list changed since prior scan\n");
+        }
+      }
     }
     fprintf(full_fp, "\n================================================================================\n");
     fclose(full_fp);
@@ -454,7 +877,64 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   }
 
   net_db_close(wl_db);
-  return 0;
+
+  /* Restore the signal handler before printing the summary so a
+   * second Ctrl+C interrupts the operator's pager / tail, not our
+   * teardown. */
+#ifndef WIN32
+  sigaction(SIGINT, &sa_old, nullptr);
+#else
+  SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE);
+#endif
+
+  auto t_report_end = std::chrono::steady_clock::now();
+  auto elapsed_s = [](std::chrono::steady_clock::time_point a,
+                      std::chrono::steady_clock::time_point b) -> double {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(b - a).count()
+           / 1000.0;
+  };
+  double discovery_s = elapsed_s(t_phase_start, t_discovery_end);
+  double enrich_s    = elapsed_s(t_discovery_end, t_enrich_end);
+  double report_s    = elapsed_s(t_enrich_end, t_report_end);
+  double total_s     = elapsed_s(t_phase_start, t_report_end);
+
+  /* Post-scan summary -- the easy-to-find pointer block.  Operators
+   * scrolling through hundreds of probe lines should land on this and
+   * know exactly where to look next without rummaging in kmap-data/. */
+  std::string db_path_disp = std::string(data_dir) + "/watchlist.db";
+  log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "================================================================================\n");
+  log_write(LOG_STDOUT, "  SCAN %s -- watchlist mode\n",
+            g_scan_interrupted.load() ? "INTERRUPTED" : "COMPLETE");
+  log_write(LOG_STDOUT, "================================================================================\n");
+  log_write(LOG_STDOUT, "  Targets scanned:  %d\n", (int)targets.size());
+  log_write(LOG_STDOUT, "  Open ports found: %d\n", (int)current.size());
+  log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "  Timing:\n");
+  log_write(LOG_STDOUT, "    Discovery:      %.1fs\n", discovery_s);
+  log_write(LOG_STDOUT, "    Enrichment:     %.1fs\n", enrich_s);
+  log_write(LOG_STDOUT, "    Report:         %.1fs\n", report_s);
+  log_write(LOG_STDOUT, "    Total:          %.1fs\n", total_s);
+  log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "  Reports:\n");
+  log_write(LOG_STDOUT, "    Diff:           %s\n", diff_path.c_str());
+  log_write(LOG_STDOUT, "    Full:           %s\n", full_path.c_str());
+  log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "  Database:         %s\n", db_path_disp.c_str());
+  log_write(LOG_STDOUT, "  Scan log:         %s/kmap.log\n", data_dir);
+  log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "  Inspect from the CLI:\n");
+  log_write(LOG_STDOUT, "    kmap --net-query --nq-port 443\n");
+  log_write(LOG_STDOUT, "    kmap --net-query --nq-format json --nq-min-cvss 7\n");
+  log_write(LOG_STDOUT, "    kmap --net-query --nq-device web\n");
+  log_write(LOG_STDOUT, "================================================================================\n");
+
+  scan_log("INFO", "watchlist scan %s: %d ports across %d targets (discovery=%.1fs enrich=%.1fs report=%.1fs total=%.1fs)",
+           g_scan_interrupted.load() ? "interrupted" : "complete",
+           (int)current.size(), (int)targets.size(),
+           discovery_s, enrich_s, report_s, total_s);
+  scan_log_close();
+  return g_scan_interrupted.load() ? 130 : 0;
 }
 
 /* -----------------------------------------------------------------------
@@ -562,7 +1042,11 @@ int run_net_query_cli() {
     o.nq_web_title,
     o.nq_web_server,
     o.nq_ip_range,
+    o.nq_asn,
+    o.nq_country,
+    o.nq_device,
     o.nq_output,
+    o.nq_format,
     o.nq_count
   );
 }

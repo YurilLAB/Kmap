@@ -1,0 +1,17 @@
+# Small Windows-side smoke test watchlist for kmap.
+# Hosts chosen to exercise different response patterns without
+# scanning anything we shouldn't:
+#   - scanme.nmap.org   designed-for-scanning canonical test target
+#   - public DNS servers   accept probes as part of normal service
+# All targets respond on at least one well-known port so the
+# enrichment pipeline has something to work with.
+107.42.255.27
+1.1.1.1
+1.0.0.1
+8.8.8.8
+8.8.4.4
+9.9.9.9
+149.112.112.112
+208.67.222.222
+208.67.220.220
+8.26.56.26

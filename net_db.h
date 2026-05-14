@@ -162,9 +162,12 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
 #define NET_DB_ENRICH_RETRY_SECONDS 3600
 
 /* Fetch up to `limit` distinct IPs that need enrichment.  Picks rows where
-   enriched=0 AND (no prior error OR the prior error is older than
-   `retry_after_seconds`).  Pass NET_DB_ENRICH_RETRY_SECONDS as the default
-   retry window. */
+   (enriched=0 OR last_seen > enriched_at) AND (no prior error OR the
+   prior error is older than `retry_after_seconds`).  The second leg of
+   the OR is what makes re-discovered hosts get re-enriched on a fresh
+   scan; without it, the prev_cves/prev_service/prev_version snapshot
+   columns were declared but never populated.  Pass
+   NET_DB_ENRICH_RETRY_SECONDS as the default retry window. */
 std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
                                                int64_t retry_after_seconds =
                                                    NET_DB_ENRICH_RETRY_SECONDS);
@@ -176,7 +179,8 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip);
 int64_t net_db_count(sqlite3 *db);
 
 /* Count rows currently eligible for enrichment.  Mirrors the filter used by
-   net_db_get_unenriched(): enriched=0 and not in an active error cool-down. */
+   net_db_get_unenriched(): (enriched=0 OR last_seen > enriched_at) and
+   not in an active error cool-down. */
 int64_t net_db_count_unenriched(sqlite3 *db,
                                 int64_t retry_after_seconds =
                                     NET_DB_ENRICH_RETRY_SECONDS);

@@ -307,15 +307,22 @@ struct RateLimiter {
 
 static int64_t now_usec() {
 #ifdef WIN32
+  /* QueryPerformanceCounter is monotonic on every Windows version we
+   * support, so the rate-limiter math cannot see time step backwards. */
   static LARGE_INTEGER freq = {};
   if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
   return (int64_t)((double)counter.QuadPart / (double)freq.QuadPart * 1000000.0);
 #else
-  struct timeval tv;
-  gettimeofday(&tv, nullptr);
-  return (int64_t)tv.tv_sec * 1000000LL + tv.tv_usec;
+  /* CLOCK_MONOTONIC, not gettimeofday(): on long-running scans NTP slew
+   * can step the wall clock backwards, which made the previous
+   * gettimeofday() path return a "now" earlier than rl.last_refill.
+   * That produced a negative elapsed and the token bucket would silently
+   * lose tokens, stalling the limiter until it caught back up. */
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (int64_t)ts.tv_sec * 1000000LL + (int64_t)ts.tv_nsec / 1000;
 #endif
 }
 
