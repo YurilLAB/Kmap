@@ -384,15 +384,14 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    * to roughly N_total_ports * timeout / concurrency = 1000 * 2 / 50
    * = 40 seconds for the worst-case (all filtered) case, plus the time
    * the OS spends queueing/closing sockets. */
-  struct ProbeTask { uint32_t ip; int port; };
-  std::vector<ProbeTask> tasks;
-  tasks.reserve(targets.size() * ports.size());
-  for (uint32_t ip : targets)
-    for (int port : ports)
-      tasks.push_back({ip, port});
-
-  std::atomic<size_t> next_idx{0};
-  std::vector<ProbeTask> opens;
+  /* Task granularity is per-IP (was per-(ip,port) pair).  Per-IP
+   * grouping lets the worker apply the early-bail heuristic: after
+   * N consecutive timeouts with zero sign of life from the host,
+   * skip the remaining ports for that IP.  Single biggest discovery
+   * win on filtered hosts (a wholly-firewalled host that used to burn
+   * N_ports * timeout_ms now burns only N_bail * timeout_ms). */
+  std::atomic<size_t> next_ip_idx{0};
+  std::vector<std::pair<uint32_t, int>> opens;  /* ip, port */
   std::mutex opens_mu;
 
   /* Default 100 (was 50) -- matches the net-scan default after
@@ -403,74 +402,119 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     int v = atoi(env);
     if (v > 0 && v <= 1024) worker_count = v;
   }
-  /* Don't spawn more workers than tasks. */
-  if (static_cast<size_t>(worker_count) > tasks.size())
-    worker_count = static_cast<int>(tasks.size());
+  if (static_cast<size_t>(worker_count) > targets.size())
+    worker_count = static_cast<int>(targets.size());
+  if (worker_count < 1) worker_count = 1;
+
+  /* Per-probe TCP-connect timeout, milliseconds.  500 ms default --
+   * matches fast_syn after a 250-ms attempt cut off cross-continent
+   * services with marginal RTT (us-east-1 from .au lands at ~210 ms
+   * SYN-ACK, blowing through a 250-ms window often enough to drop
+   * ~37% of real opens on the validation scan).  KMAP_PROBE_TIMEOUT_MS
+   * shared with fast_syn so a single env var tunes both discovery
+   * paths. */
+  int probe_timeout_ms = 500;
+  if (const char *env = getenv("KMAP_PROBE_TIMEOUT_MS")) {
+    int v = atoi(env);
+    if (v >= 50 && v <= 30000) probe_timeout_ms = v;
+  }
+
+  int bail_after_timeouts = 8;
+  if (const char *env = getenv("KMAP_BAIL_AFTER_TIMEOUTS")) {
+    int v = atoi(env);
+    if (v >= 1 && v <= 100) bail_after_timeouts = v;
+  }
+
+  /* Inline probe (same outcome enum semantics as fast_syn's
+   * connect_probe but watchlist uses targets as a flat vector and
+   * does not need rate-limit/db-mutex hooks here, so duplicating
+   * the inner is clearer than reaching across to fast_syn). */
+  auto probe_one = [&](uint32_t ip, int port) -> int {
+    /* 0=TIMEOUT, 1=OPEN, 2=CLOSED -- matches the bail logic below. */
+    struct sockaddr_in sa{};
+    sa.sin_family = AF_INET;
+    sa.sin_port   = htons(static_cast<uint16_t>(port));
+    sa.sin_addr.s_addr = htonl(ip);
+#ifdef WIN32
+    SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd == INVALID_SOCKET) return 2;
+    u_long nb = 1;
+    ioctlsocket(fd, FIONBIO, &nb);
+#else
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return 2;
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#endif
+    int nodelay = 1;
+    setsockopt(static_cast<int>(fd), IPPROTO_TCP, TCP_NODELAY,
+               reinterpret_cast<const char *>(&nodelay), sizeof(nodelay));
+    os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
+                            os_profile_get_for_target(
+                                o.spoof_os,
+                                os_profile_seed_from_ipv4(ip)));
+    connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
+    fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
+    struct timeval tv;
+    tv.tv_sec  = probe_timeout_ms / 1000;
+    tv.tv_usec = (probe_timeout_ms % 1000) * 1000;
+    int out = 0;
+#ifdef WIN32
+    int sel = select(0, nullptr, &wset, nullptr, &tv);
+#else
+    int sel = select(fd + 1, nullptr, &wset, nullptr, &tv);
+#endif
+    if (sel > 0) {
+      int err = 0;
+      socklen_t elen = sizeof(err);
+      getsockopt(fd, SOL_SOCKET, SO_ERROR,
+                 reinterpret_cast<char *>(&err), &elen);
+      out = (err == 0) ? 1 : 2;
+    } else if (sel < 0) {
+      out = 2;
+    }
+#ifdef WIN32
+    closesocket(fd);
+#else
+    close(fd);
+#endif
+    return out;
+  };
 
   auto worker = [&]() {
     while (true) {
       if (g_scan_interrupted.load(std::memory_order_relaxed)) return;
-      size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
-      if (i >= tasks.size()) return;
-      const ProbeTask &t = tasks[i];
+      size_t i = next_ip_idx.fetch_add(1, std::memory_order_relaxed);
+      if (i >= targets.size()) return;
+      uint32_t ip = targets[i];
 
-      struct sockaddr_in sa{};
-      sa.sin_family = AF_INET;
-      sa.sin_port = htons(static_cast<uint16_t>(t.port));
-      sa.sin_addr.s_addr = htonl(t.ip);
+      int bail_streak = 0;
+      bool any_response = false;
 
-#ifdef WIN32
-      SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
-      if (fd == INVALID_SOCKET) continue;
-      u_long nb = 1;
-      ioctlsocket(fd, FIONBIO, &nb);
-#else
-      int fd = socket(AF_INET, SOCK_STREAM, 0);
-      if (fd < 0) continue;
-      int flags = fcntl(fd, F_GETFL, 0);
-      fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#endif
+      for (int port : ports) {
+        if (g_scan_interrupted.load(std::memory_order_relaxed)) break;
 
-      os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
-                              os_profile_get_for_target(
-                                  o.spoof_os,
-                                  os_profile_seed_from_ipv4(t.ip)));
+        int pr = probe_one(ip, port);
 
-      connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
-      fd_set wset;
-      FD_ZERO(&wset);
-      FD_SET(fd, &wset);
-      struct timeval tv;
-      tv.tv_sec = 2;
-      tv.tv_usec = 0;
-
-      bool open = false;
-#ifdef WIN32
-      if (select(0, nullptr, &wset, nullptr, &tv) > 0) {
-#else
-      if (select(fd + 1, nullptr, &wset, nullptr, &tv) > 0) {
-#endif
-        int err = 0;
-        socklen_t elen = sizeof(err);
-        getsockopt(fd, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&err), &elen);
-        open = (err == 0);
+        if (pr == 0 /* TIMEOUT */) {
+          bail_streak++;
+          if (bail_streak >= bail_after_timeouts && !any_response) break;
+        } else {
+          bail_streak = 0;
+          any_response = true;
+          if (pr == 1 /* OPEN */) {
+            std::lock_guard<std::mutex> lk(opens_mu);
+            opens.push_back({ip, port});
+          }
+        }
       }
-
-#ifdef WIN32
-      closesocket(fd);
-#else
-      close(fd);
-#endif
-
-      if (open) {
-        std::lock_guard<std::mutex> lk(opens_mu);
-        opens.push_back(t);
-      }
-    }
+    }  /* while (true) -- next IP */
   };
 
-  log_write(LOG_STDOUT, "  Probing %d (ip,port) pairs with %d workers...\n",
-            static_cast<int>(tasks.size()), worker_count);
+  log_write(LOG_STDOUT, "  Probing %d IPs (%d ports each) with %d workers"
+            " [timeout=%dms, bail_after=%d]...\n",
+            (int)targets.size(), (int)ports.size(), worker_count,
+            probe_timeout_ms, bail_after_timeouts);
 
   std::vector<std::thread> pool;
   pool.reserve(worker_count);
@@ -481,7 +525,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    * handle anyway, so concurrent inserts would just contend. */
   net_db_begin(wl_db);
   for (const auto &t : opens)
-    net_db_insert_host(wl_db, t.ip, t.port, "tcp", now_ts);
+    net_db_insert_host(wl_db, t.first, t.second, "tcp", now_ts);
   net_db_commit(wl_db);
   int found = static_cast<int>(opens.size());
   t_discovery_end = std::chrono::steady_clock::now();

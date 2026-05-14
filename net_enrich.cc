@@ -1161,328 +1161,344 @@ int run_enrichment(const char *data_dir, int batch_size) {
 
   int errors = 0;
 
+  /* Cross-shard pooled enrichment.
+   *
+   * The previous implementation iterated shards serially with a per-
+   * shard worker pool.  On a small bounded scan (--net-max-ips 150)
+   * with hosts spread across 25-30 shards, each shard had ~5 hosts
+   * and 35 of 40 workers per shard sat idle while the next shard
+   * waited its turn.  Cross-shard pooling collects every unenriched
+   * host from every shard into one global queue, runs ONE worker
+   * pool against the whole queue, then groups DB writes by shard at
+   * the end so each shard's transaction still bundles cleanly.
+   *
+   * Measured net effect on a 150-IP / 25-shard scan: enrichment
+   * wall time drops by roughly the number of effectively-empty
+   * shards we no longer wait through.
+   *
+   * Single global pool means workers can chew through the global
+   * queue with no idle gaps between shards.  Stage A (per-host
+   * net_db_get_host) and Stage C (per-host UPDATEs) still touch
+   * the right shard handle via the shard_idx tracked on every
+   * result entry. */
+  struct EnrichResult {
+    int shard_idx = -1;
+    std::string ip;
+    std::vector<int> ports;
+    std::vector<std::string> protos;
+    std::vector<std::string> services, versions, cves_json;
+    std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
+    std::vector<std::string> powered_by, x_generator, redirects;
+    std::vector<TlsCapture> tls_caps;
+    std::string hostname;
+    AsnInfo asn_info{};
+    int rc = 0;
+    bool empty_host = false;
+  };
+
+  /* Worker / retry counts read once, applied globally. */
+  int enrich_worker_count = 40;
+  if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
+    int v = atoi(env);
+    if (v > 0 && v <= 256) enrich_worker_count = v;
+  }
+  int enrich_retries = 0;
+  if (const char *env = getenv("KMAP_ENRICH_RETRIES")) {
+    int v = atoi(env);
+    if (v >= 0 && v <= 10) enrich_retries = v;
+  }
+
+  /* Open every shard upfront.  Skip shard files that don't exist
+   * on disk (sparse: a freshly-discovered scan only writes the
+   * shards whose IP space had open ports). */
+  std::vector<sqlite3 *> shard_dbs(NET_SHARD_COUNT, nullptr);
+  int64_t total_hosts_all = 0;
+  int64_t unenriched_total = 0;
   for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
-    std::string db_path = net_shard_path(data_dir, shard);
-
-    /* Check if shard file exists before trying to open */
-    FILE *test = fopen(db_path.c_str(), "r");
-    if (!test) continue;  /* shard doesn't exist -- skip */
+    std::string p = net_shard_path(data_dir, shard);
+    FILE *test = fopen(p.c_str(), "r");
+    if (!test) continue;
     fclose(test);
-
-    sqlite3 *db = net_db_open(db_path);
-    if (!db) {
-      log_write(LOG_STDOUT, "net-scan: WARNING: cannot open %s -- skipping.\n",
-                db_path.c_str());
+    shard_dbs[shard] = net_db_open(p);
+    if (!shard_dbs[shard]) {
+      log_write(LOG_STDOUT,
+        "net-scan: WARNING: cannot open %s -- skipping.\n", p.c_str());
       errors++;
       continue;
     }
-
-    /* Get total and unenriched counts for progress display */
-    int64_t total_hosts = net_db_count(db);
-    int64_t unenriched_total = net_db_count_unenriched(db);
-
-    if (unenriched_total <= 0) {
-      net_db_close(db);
-      continue;
-    }
-
-    /* Extract shard filename for display */
-    std::string shard_name = db_path;
-    size_t slash = shard_name.find_last_of("/\\");
-    if (slash != std::string::npos)
-      shard_name = shard_name.substr(slash + 1);
-
-    int64_t processed = 0;
-    int64_t enriched_start = total_hosts - unenriched_total;
-    time_t enrich_start_time = time(nullptr);
-
-    /* Per-shard parallel enrichment.
-     *
-     * The serial loop spent almost all its wall-time on the
-     * non-blocking connect() / select() / TLS-handshake / DNS-TXT
-     * round-trips inside enrich_single_host + lookup_asn +
-     * reverse_dns_lookup.  All three are independent per-host and
-     * the static SSL_CTX / OpenSSL state inside enrich_single_host
-     * is C++11-magic-static-safe, so we fan them out across a
-     * worker pool.  DB writes stay serial inside a single per-batch
-     * transaction because sqlite serializes writes through the
-     * shared db handle anyway.
-     *
-     * Default 10 workers, env override KMAP_NETSCAN_ENRICH_CONCURRENCY.
-     *
-     * In-scan retry: if enrich_single_host returns non-zero on the
-     * first attempt, retry up to KMAP_ENRICH_RETRIES additional times
-     * (default 1) before recording the failure.  Catches transient
-     * blip-failures (SYN dropped, TLS reset) so a single hiccup
-     * doesn't push a host into the cooldown queue. */
-    struct EnrichResult {
-      std::string ip;
-      std::vector<int> ports;
-      std::vector<std::string> protos;
-      std::vector<std::string> services, versions, cves_json;
-      std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
-      std::vector<std::string> powered_by, x_generator, redirects;
-      std::vector<TlsCapture> tls_caps;
-      std::string hostname;
-      AsnInfo asn_info{};
-      int rc = 0;
-      bool empty_host = false;
-    };
-
-    /* Default 40 workers (was 20, originally 10): sqlite writes
-     * already serialize via the per-shard handle in Stage C, so
-     * more enrichment workers just hide more per-host RTT.  Live
-     * resource metrics from the 150-IP scan show kmap at ~1-2% CPU
-     * and ~23MB RSS during discovery and similar low usage during
-     * enrichment -- 40 workers fit comfortably within those limits
-     * on any reasonable client machine.  256 cap unchanged. */
-    int enrich_worker_count = 40;
-    if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
-      int v = atoi(env);
-      if (v > 0 && v <= 256) enrich_worker_count = v;
-    }
-    /* Default 0 retries (was 1).  On a random-IPv4 sample with many
-     * flaky/firewalled hosts, retrying every transient banner-grab
-     * failure doubled total enrichment wall time without producing
-     * proportionally more enrichment hits.  Opt-in via
-     * KMAP_ENRICH_RETRIES=1+ for environments where probes hit reliable
-     * but slow services (corporate / lab networks). */
-    int enrich_retries = 0;
-    if (const char *env = getenv("KMAP_ENRICH_RETRIES")) {
-      int v = atoi(env);
-      if (v >= 0 && v <= 10) enrich_retries = v;
-    }
-
-    /* Process in batches */
-    while (true) {
-      std::vector<std::string> batch_ips =
-          net_db_get_unenriched(db, batch_size);
-      if (batch_ips.empty()) break;
-
-      /* Stage A: serial DB pre-fetch.  net_db_get_host hits the shared
-       * sqlite handle and we don't share it across worker threads, so
-       * we collect ports + stored prior service/version values here. */
-      std::vector<EnrichResult> results;
-      results.reserve(batch_ips.size());
-      for (const std::string &ip : batch_ips) {
-        EnrichResult r;
-        r.ip = ip;
-        std::vector<NetHost> host_ports = net_db_get_host(db, ip.c_str());
-        if (host_ports.empty()) {
-          r.empty_host = true;
-          results.push_back(std::move(r));
-          continue;
-        }
-        for (const auto &h : host_ports) {
-          r.ports.push_back(h.port);
-          r.protos.push_back(h.proto);
-        }
-        /* Pre-populate from prior-scan stored values -- a flaky banner
-         * grab on this scan won't disable CVE matching because
-         * enrich_single_host only overwrites these when its banner
-         * grab returned non-empty. */
-        r.services.resize(r.ports.size());
-        r.versions.resize(r.ports.size());
-        for (size_t j = 0; j < host_ports.size() && j < r.ports.size(); j++) {
-          r.services[j] = host_ports[j].service;
-          r.versions[j] = host_ports[j].version;
-        }
-        results.push_back(std::move(r));
-      }
-
-      /* Stage B: parallel network work.  Pre-size results so each
-       * worker writes only its own slot -- no result-vector mutex. */
-      int actual_workers = enrich_worker_count;
-      if (static_cast<size_t>(actual_workers) > results.size())
-        actual_workers = static_cast<int>(results.size());
-      if (actual_workers < 1) actual_workers = 1;
-
-      std::atomic<size_t> next_idx{0};
-      auto worker = [&]() {
-        while (true) {
-          size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
-          if (i >= results.size()) return;
-          EnrichResult &r = results[i];
-          if (r.empty_host) continue;
-
-          /* Try the full enrichment, retry on transient failure. */
-          int attempt = 0;
-          while (true) {
-            r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
-                       cve_db,
-                       ENRICH_CONNECT_TIMEOUT,
-                       r.services, r.versions, r.cves_json,
-                       r.web_titles, r.web_servers,
-                       r.web_headers, r.web_paths,
-                       r.powered_by, r.x_generator, r.redirects,
-                       &r.tls_caps);
-            if (r.rc == 0) break;
-            if (attempt >= enrich_retries) break;
-            attempt++;
-          }
-
-          if (r.rc == 0) {
-            r.hostname  = reverse_dns_lookup(r.ip.c_str());
-            r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
-          }
-        }
-      };
-
-      std::vector<std::thread> pool;
-      pool.reserve(actual_workers);
-      for (int i = 0; i < actual_workers; i++) pool.emplace_back(worker);
-      for (auto &th : pool) th.join();
-
-      /* Stage C: serial DB write phase, all in one transaction. */
-      net_db_begin(db);
-      for (auto &r : results) {
-        if (r.empty_host) continue;
-        if (r.rc != 0) {
-          if (o.verbose)
-            log_write(LOG_STDOUT,
-                      "  WARNING: enrichment failed for %s after retries, will retry later\n",
-                      r.ip.c_str());
-          char err_buf[64];
-          snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", r.rc);
-          for (size_t j = 0; j < r.ports.size(); j++) {
-            net_db_record_enrichment_error(db, r.ip.c_str(), r.ports[j], err_buf);
-          }
-          continue;
-        }
-
-        if (!r.hostname.empty())
-          net_db_set_hostname(db, r.ip.c_str(), r.hostname.c_str());
-
-        for (size_t j = 0; j < r.ports.size(); j++) {
-          net_db_update_enrichment(
-            db, r.ip.c_str(), r.ports[j],
-            j < r.services.size()    ? r.services[j].c_str()    : "",
-            j < r.versions.size()    ? r.versions[j].c_str()    : "",
-            j < r.cves_json.size()   ? r.cves_json[j].c_str()   : "",
-            j < r.web_titles.size()  ? r.web_titles[j].c_str()  : "",
-            j < r.web_servers.size() ? r.web_servers[j].c_str() : "",
-            j < r.web_headers.size() ? r.web_headers[j].c_str() : "",
-            j < r.web_paths.size()   ? r.web_paths[j].c_str()   : "",
-            j < r.powered_by.size()  ? r.powered_by[j].c_str()  : nullptr,
-            j < r.x_generator.size() ? r.x_generator[j].c_str() : nullptr,
-            j < r.redirects.size()   ? r.redirects[j].c_str()   : nullptr,
-            nullptr);
-
-          if (j < r.tls_caps.size()) {
-            const TlsCapture &tc = r.tls_caps[j];
-            bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
-                            !tc.sha256.empty()     || !tc.protocol.empty();
-            if (have_tls) {
-              net_db_update_tls(
-                db, r.ip.c_str(), r.ports[j],
-                tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
-                tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
-                tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
-                tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
-                tc.self_signed,
-                tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
-                tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
-            }
-          }
-        }
-
-        if (r.asn_info.asn > 0) {
-          net_db_update_asn(db, r.ip.c_str(), r.asn_info.asn,
-                            r.asn_info.as_name.c_str(),
-                            r.asn_info.country.c_str(),
-                            r.asn_info.bgp_prefix.c_str(),
-                            r.asn_info.registry.c_str(),
-                            r.asn_info.region.c_str());
-        }
-
-        uint32_t ip_u32 = ip_to_u32(r.ip.c_str());
-        if (ip_u32 != 0) {
-          int64_t fp_ts = static_cast<int64_t>(time(nullptr));
-          if (!r.hostname.empty()) {
-            net_db_insert_fingerprint(db, ip_u32, 0, "hostname",
-                                      r.hostname.c_str(), fp_ts);
-          }
-          for (size_t j = 0; j < r.ports.size(); j++) {
-            if (j < r.tls_caps.size()) {
-              const TlsCapture &tc = r.tls_caps[j];
-              if (!tc.sha256.empty()) {
-                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                          "tls_sha256",
-                                          tc.sha256.c_str(), fp_ts);
-              }
-              if (!tc.subject_cn.empty() && !fp_looks_like_ip(tc.subject_cn)) {
-                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                          "tls_subject_cn",
-                                          tc.subject_cn.c_str(), fp_ts);
-              }
-              if (!tc.san_json.empty()) {
-                std::vector<std::string> sans =
-                    fp_parse_san_json(tc.san_json);
-                for (const std::string &san : sans) {
-                  if (san.empty() || fp_looks_like_ip(san)) continue;
-                  net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                            "tls_san",
-                                            san.c_str(), fp_ts);
-                }
-              }
-            }
-
-            if (j < r.redirects.size() && !r.redirects[j].empty()) {
-              std::string rh = fp_extract_redirect_host(r.redirects[j]);
-              if (!rh.empty()) {
-                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                          "redirect_host",
-                                          rh.c_str(), fp_ts);
-              }
-            }
-          }
-        }
-        processed++;
-      }
-
-      net_db_commit(db);
-
-      /* Progress output with ETA */
-      int64_t done = enriched_start + processed;
-      double pct = (total_hosts > 0)
-                   ? (100.0 * static_cast<double>(done) /
-                      static_cast<double>(total_hosts))
-                   : 100.0;
-
-      /* ETA calculation */
-      time_t elapsed = time(nullptr) - enrich_start_time + 1;
-      double hosts_per_sec = (elapsed > 0 && processed > 0)
-                             ? (double)processed / (double)elapsed : 0;
-      int64_t hosts_left = unenriched_total - processed;
-      char eta_buf[32] = "...";
-      if (hosts_per_sec > 0 && hosts_left > 0) {
-        int64_t eta = static_cast<int64_t>((double)hosts_left / hosts_per_sec);
-        int hrs  = static_cast<int>(eta / 3600);
-        int mins = static_cast<int>((eta % 3600) / 60);
-        int secs = static_cast<int>(eta % 60);
-        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d", hrs, mins, secs);
-      }
-
-      log_write(LOG_STDOUT,
-        "Enriching %s: %s / %s [%.1f%%] ETA: %s\n",
-        shard_name.c_str(),
-        format_count(done).c_str(),
-        format_count(total_hosts).c_str(),
-        pct, eta_buf);
-    }
-
-    net_db_close(db);
+    total_hosts_all  += net_db_count(shard_dbs[shard]);
+    unenriched_total += net_db_count_unenriched(shard_dbs[shard]);
   }
 
-  if (errors > 0)
+  if (unenriched_total <= 0) {
     log_write(LOG_STDOUT,
-      "net-scan: enrichment complete with %d shard error(s).\n", errors);
-  else
-    log_write(LOG_STDOUT, "net-scan: enrichment complete.\n");
+      "net-scan: no unenriched hosts in any shard -- skipping enrichment.\n");
+    for (auto *db : shard_dbs) if (db) net_db_close(db);
+    if (cve_db) sqlite3_close(cve_db);
+    return errors > 0 ? 1 : 0;
+  }
+
+  log_write(LOG_STDOUT,
+    "net-scan: enriching %s host(s) across %d shards with %d workers...\n",
+    format_count(unenriched_total).c_str(), NET_SHARD_COUNT,
+    enrich_worker_count);
+
+  /* Stage A: pull unenriched IPs from every shard and pre-fetch each
+   * host's port list serially.  net_db_get_unenriched + net_db_get_host
+   * use the shared per-shard sqlite handles which we don't share
+   * across worker threads, so this stage stays serial.  Cheap: one
+   * SELECT per host, indexed lookup. */
+  std::vector<EnrichResult> results;
+  results.reserve(unenriched_total);
+  time_t enrich_start_time = time(nullptr);
+  for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
+    if (!shard_dbs[shard]) continue;
+    std::vector<std::string> batch_ips =
+        net_db_get_unenriched(shard_dbs[shard], batch_size);
+    for (const std::string &ip : batch_ips) {
+      EnrichResult r;
+      r.shard_idx = shard;
+      r.ip = ip;
+      std::vector<NetHost> host_ports =
+          net_db_get_host(shard_dbs[shard], ip.c_str());
+      if (host_ports.empty()) {
+        r.empty_host = true;
+        results.push_back(std::move(r));
+        continue;
+      }
+      for (const auto &h : host_ports) {
+        r.ports.push_back(h.port);
+        r.protos.push_back(h.proto);
+      }
+      r.services.resize(r.ports.size());
+      r.versions.resize(r.ports.size());
+      for (size_t j = 0; j < host_ports.size() && j < r.ports.size(); j++) {
+        r.services[j] = host_ports[j].service;
+        r.versions[j] = host_ports[j].version;
+      }
+      results.push_back(std::move(r));
+    }
+  }
+
+  /* Stage B: ONE global parallel worker pool over the entire results
+   * vector.  No mutex on results because each worker writes only its
+   * own slot. */
+  int actual_workers = enrich_worker_count;
+  if (static_cast<size_t>(actual_workers) > results.size())
+    actual_workers = static_cast<int>(results.size());
+  if (actual_workers < 1) actual_workers = 1;
+
+  std::atomic<size_t> next_idx{0};
+  std::atomic<int64_t> processed_atomic{0};
+  auto worker = [&]() {
+    while (true) {
+      size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
+      if (i >= results.size()) return;
+      EnrichResult &r = results[i];
+      if (r.empty_host) continue;
+
+      int attempt = 0;
+      while (true) {
+        r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
+                   cve_db,
+                   ENRICH_CONNECT_TIMEOUT,
+                   r.services, r.versions, r.cves_json,
+                   r.web_titles, r.web_servers,
+                   r.web_headers, r.web_paths,
+                   r.powered_by, r.x_generator, r.redirects,
+                   &r.tls_caps);
+        if (r.rc == 0) break;
+        if (attempt >= enrich_retries) break;
+        attempt++;
+      }
+
+      if (r.rc == 0) {
+        r.hostname  = reverse_dns_lookup(r.ip.c_str());
+        r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
+      }
+      processed_atomic.fetch_add(1, std::memory_order_relaxed);
+    }
+  };
+
+  /* Lightweight progress printer thread -- emits one line every 10 s
+   * with global progress so an operator running a long enrichment
+   * can tell something is happening. */
+  std::atomic<bool> printer_stop{false};
+  std::thread printer([&]() {
+    int last_done = 0;
+    while (!printer_stop.load(std::memory_order_relaxed)) {
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+      if (printer_stop.load()) break;
+      int64_t done = processed_atomic.load();
+      if (done == last_done) continue;
+      last_done = (int)done;
+      double pct = (results.size() > 0)
+                   ? 100.0 * (double)done / (double)results.size() : 100.0;
+      time_t elapsed = time(nullptr) - enrich_start_time + 1;
+      double hps = (elapsed > 0 && done > 0)
+                   ? (double)done / (double)elapsed : 0;
+      int64_t left = (int64_t)results.size() - done;
+      char eta_buf[32] = "...";
+      if (hps > 0 && left > 0) {
+        int64_t eta = (int64_t)((double)left / hps);
+        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d",
+                 (int)(eta / 3600), (int)((eta % 3600) / 60), (int)(eta % 60));
+      }
+      log_write(LOG_STDOUT,
+        "  Enriching: %s / %s hosts [%.1f%%]  rate=%.1f hps  ETA: %s\n",
+        format_count(done).c_str(),
+        format_count((int64_t)results.size()).c_str(),
+        pct, hps, eta_buf);
+    }
+  });
+
+  std::vector<std::thread> pool;
+  pool.reserve(actual_workers);
+  for (int i = 0; i < actual_workers; i++) pool.emplace_back(worker);
+  for (auto &th : pool) th.join();
+  printer_stop.store(true);
+  printer.join();
+
+  /* Stage C: serial DB writes, grouped by shard so each shard's
+   * UPDATEs land inside one transaction.  Iterate shards outer-most;
+   * for each shard, iterate results that belong to it. */
+  int64_t processed = 0;
+  for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
+    sqlite3 *db = shard_dbs[shard];
+    if (!db) continue;
+    /* Skip the transaction-begin entirely when this shard has no
+     * results, to avoid pointless write-locks. */
+    bool any_for_this_shard = false;
+    for (const auto &r : results) {
+      if (r.shard_idx == shard) { any_for_this_shard = true; break; }
+    }
+    if (!any_for_this_shard) continue;
+
+    net_db_begin(db);
+    for (auto &r : results) {
+      if (r.shard_idx != shard) continue;
+      if (r.empty_host) continue;
+      if (r.rc != 0) {
+        if (o.verbose) {
+          log_write(LOG_STDOUT,
+            "  WARNING: enrichment failed for %s after retries, "
+            "will retry later\n", r.ip.c_str());
+        }
+        char err_buf[64];
+        snprintf(err_buf, sizeof(err_buf),
+                 "enrich_single_host rc=%d", r.rc);
+        for (size_t j = 0; j < r.ports.size(); j++) {
+          net_db_record_enrichment_error(db, r.ip.c_str(),
+                                         r.ports[j], err_buf);
+        }
+        continue;
+      }
+
+      if (!r.hostname.empty())
+        net_db_set_hostname(db, r.ip.c_str(), r.hostname.c_str());
+
+      for (size_t j = 0; j < r.ports.size(); j++) {
+        net_db_update_enrichment(
+          db, r.ip.c_str(), r.ports[j],
+          j < r.services.size()    ? r.services[j].c_str()    : "",
+          j < r.versions.size()    ? r.versions[j].c_str()    : "",
+          j < r.cves_json.size()   ? r.cves_json[j].c_str()   : "",
+          j < r.web_titles.size()  ? r.web_titles[j].c_str()  : "",
+          j < r.web_servers.size() ? r.web_servers[j].c_str() : "",
+          j < r.web_headers.size() ? r.web_headers[j].c_str() : "",
+          j < r.web_paths.size()   ? r.web_paths[j].c_str()   : "",
+          j < r.powered_by.size()  ? r.powered_by[j].c_str()  : nullptr,
+          j < r.x_generator.size() ? r.x_generator[j].c_str() : nullptr,
+          j < r.redirects.size()   ? r.redirects[j].c_str()   : nullptr,
+          nullptr);
+
+        if (j < r.tls_caps.size()) {
+          const TlsCapture &tc = r.tls_caps[j];
+          bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
+                          !tc.sha256.empty()     || !tc.protocol.empty();
+          if (have_tls) {
+            net_db_update_tls(
+              db, r.ip.c_str(), r.ports[j],
+              tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
+              tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
+              tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
+              tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
+              tc.self_signed,
+              tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
+              tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
+          }
+        }
+      }
+
+      if (r.asn_info.asn > 0) {
+        net_db_update_asn(db, r.ip.c_str(), r.asn_info.asn,
+                          r.asn_info.as_name.c_str(),
+                          r.asn_info.country.c_str(),
+                          r.asn_info.bgp_prefix.c_str(),
+                          r.asn_info.registry.c_str(),
+                          r.asn_info.region.c_str());
+      }
+
+      uint32_t ip_u32 = ip_to_u32(r.ip.c_str());
+      if (ip_u32 != 0) {
+        int64_t fp_ts = static_cast<int64_t>(time(nullptr));
+        if (!r.hostname.empty()) {
+          net_db_insert_fingerprint(db, ip_u32, 0, "hostname",
+                                    r.hostname.c_str(), fp_ts);
+        }
+        for (size_t j = 0; j < r.ports.size(); j++) {
+          if (j < r.tls_caps.size()) {
+            const TlsCapture &tc = r.tls_caps[j];
+            if (!tc.sha256.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "tls_sha256",
+                                        tc.sha256.c_str(), fp_ts);
+            }
+            if (!tc.subject_cn.empty() && !fp_looks_like_ip(tc.subject_cn)) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "tls_subject_cn",
+                                        tc.subject_cn.c_str(), fp_ts);
+            }
+            if (!tc.san_json.empty()) {
+              std::vector<std::string> sans =
+                  fp_parse_san_json(tc.san_json);
+              for (const std::string &san : sans) {
+                if (san.empty() || fp_looks_like_ip(san)) continue;
+                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                          "tls_san",
+                                          san.c_str(), fp_ts);
+              }
+            }
+          }
+          if (j < r.redirects.size() && !r.redirects[j].empty()) {
+            std::string rh = fp_extract_redirect_host(r.redirects[j]);
+            if (!rh.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "redirect_host",
+                                        rh.c_str(), fp_ts);
+            }
+          }
+        }
+      }
+      processed++;
+    }
+    net_db_commit(db);
+  }
+
+  /* Close every shard handle. */
+  for (auto *db : shard_dbs) if (db) net_db_close(db);
+
+  log_write(LOG_STDOUT,
+    "net-scan: enrichment complete: %s host(s) written.\n",
+    format_count(processed).c_str());
+  if (errors > 0) {
+    log_write(LOG_STDOUT,
+      "net-scan: %d shard open error(s) during enrichment.\n", errors);
+  }
 
   /* Release the shared CVE DB handle now that every shard's worker
    * pool has joined.  This handle was opened once at the top of the
-   * function and shared across all 32 shard batches. */
+   * function and shared across the entire global pool. */
   if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
 
   return (errors > 0) ? 1 : 0;
