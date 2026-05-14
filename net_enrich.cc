@@ -505,6 +505,13 @@ struct EnrichCve {
   float       cvss;
   std::string severity;
   std::string description;
+  /* Tier-1 confidence fields (NULL in DB -> empty / -1 here, which
+     callers render as "(unknown confidence)"). cvss_vector is the
+     full CVSS v3 string; remote_unauthed is -1 unknown / 0 no / 1
+     yes for "this CVE can be triggered by a remote unauthed network
+     attacker". */
+  std::string cvss_vector;
+  int         remote_unauthed = -1;
 };
 
 /* Normalize a service/version pair to a product name for DB lookup.
@@ -598,7 +605,7 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
    * ~8 KB per port, negligible at shard scale. */
   const char *sql =
     "SELECT cve_id, cvss_score, severity, description, "
-    "version_min, version_max "
+    "version_min, version_max, cvss_vector, remote_unauthed "
     "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
     "ORDER BY cvss_score DESC LIMIT 100";
 
@@ -629,6 +636,11 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     e.cvss        = static_cast<float>(sqlite3_column_double(stmt, 1));
     e.severity    = col_str(2);
     e.description = col_str(3);
+    e.cvss_vector = col_str(6);
+    /* remote_unauthed: NULL -> -1 (unknown); 0/1 stored verbatim. */
+    e.remote_unauthed = (sqlite3_column_type(stmt, 7) == SQLITE_NULL)
+                          ? -1
+                          : sqlite3_column_int(stmt, 7);
     results.push_back(std::move(e));
   }
 
@@ -654,7 +666,12 @@ static std::string cves_to_json(const std::vector<EnrichCve> &cves) {
     oss << "{\"id\":\"" << json_escape(cves[i].id)
         << "\",\"cvss\":" << cvss_buf
         << ",\"severity\":\"" << json_escape(cves[i].severity)
-        << "\",\"desc\":\"" << json_escape(desc) << "\"}";
+        << "\",\"desc\":\"" << json_escape(desc) << "\"";
+    if (!cves[i].cvss_vector.empty())
+      oss << ",\"vec\":\"" << json_escape(cves[i].cvss_vector) << "\"";
+    if (cves[i].remote_unauthed >= 0)
+      oss << ",\"remote\":" << cves[i].remote_unauthed;
+    oss << "}";
   }
   oss << "]";
   return oss.str();

@@ -281,17 +281,25 @@ static void write_host_section(FILE *fp, const std::string &ip,
         std::string cvss_str = json_extract_number(obj, "cvss");
         std::string severity = json_extract_string(obj, "severity");
         std::string desc     = json_extract_string(obj, "desc");
+        std::string remote   = json_extract_number(obj, "remote");
 
         if (cve_id.empty()) continue;
         summary.cves_found++;
 
-        fprintf(fp, "    %-18sCVSS:%-6s%s\n",
+        /* Tier-1 confidence tag: REMOTE = network/no-auth/no-UI;
+           needs-auth/other = anything that requires auth or local access;
+           unknown = legacy CVE row not yet backfilled with a v3 vector. */
+        const char *conf_tag = "[unknown]";
+        if (remote == "1")      conf_tag = "[REMOTE]";
+        else if (remote == "0") conf_tag = "[needs-auth/other]";
+
+        fprintf(fp, "    %-18sCVSS:%-6s%-9s %s\n",
                 cve_id.c_str(),
                 cvss_str.empty() ? "N/A" : cvss_str.c_str(),
-                severity.c_str());
+                severity.c_str(),
+                conf_tag);
 
         if (!desc.empty()) {
-          /* Truncate description to 70 chars for display */
           if (desc.size() > 70) desc = desc.substr(0, 67) + "...";
           fprintf(fp, "      %s\n", desc.c_str());
         }

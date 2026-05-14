@@ -964,10 +964,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           if (!r.tls_not_after.empty()) fprintf(full_fp, "  exp=%s", r.tls_not_after.c_str());
           fprintf(full_fp, "\n");
         }
-        /* CVE summary -- compact "id (CVSS:X)" of the first entry plus
-         * a count of how many more, since the full list of 100 would
-         * overwhelm the report.  Operators wanting all CVE IDs run
-         * `kmap --net-query --nq-cve <substring>` against the DB. */
+        /* CVE summary -- compact "id [CONFIDENCE]" of the first entry plus
+         * a count of how many more, and an aggregate confidence tally that
+         * tells the operator which matches deserve immediate attention.
+         *
+         * Confidence comes from the per-CVE "remote" field that lookup_cves
+         * writes when the row's CVSS v3 vector is "AV:N / PR:N / UI:N" --
+         * i.e. a remote unauthed attacker can trigger it. Rows missing the
+         * vector entirely (legacy CVE-DB pre-Tier-1) count as "unknown" so
+         * a partial backfill does not blank out the report. */
         if (!r.cves.empty() && r.cves != "[]") {
           size_t id_pos = r.cves.find("\"id\":\"");
           if (id_pos != std::string::npos) {
@@ -975,13 +980,41 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
             size_t id_end = r.cves.find('"', id_pos);
             if (id_end != std::string::npos) {
               std::string cve_id = r.cves.substr(id_pos, id_end - id_pos);
+
+              /* Count entries + tally remote_unauthed = 1 / 0 / unknown.
+                 Each entry has exactly one "id":, so total comes from that
+                 occurrence count. */
               int count = 0;
               size_t scan = 0;
               while ((scan = r.cves.find("\"id\":", scan)) != std::string::npos) {
                 count++; scan++;
               }
-              fprintf(full_fp, "    CVE:      %s%s\n", cve_id.c_str(),
-                      count > 1 ? (" (+" + std::to_string(count - 1) + " more)").c_str() : "");
+              int remote_yes = 0, remote_no = 0;
+              for (size_t p = 0; (p = r.cves.find("\"remote\":1", p)) != std::string::npos; p++)
+                remote_yes++;
+              for (size_t p = 0; (p = r.cves.find("\"remote\":0", p)) != std::string::npos; p++)
+                remote_no++;
+              int unknown = count - remote_yes - remote_no;
+
+              /* Find the first CVE's remote field, if any, for the headline
+                 tag. Scan inside the first object only. */
+              const char *first_tag = "[unknown]";
+              size_t obj_close = r.cves.find('}', id_end);
+              if (obj_close != std::string::npos) {
+                std::string first_obj = r.cves.substr(0, obj_close);
+                if (first_obj.find("\"remote\":1") != std::string::npos)
+                  first_tag = "[REMOTE]";
+                else if (first_obj.find("\"remote\":0") != std::string::npos)
+                  first_tag = "[needs-auth/other]";
+              }
+
+              fprintf(full_fp, "    CVE:      %s %s", cve_id.c_str(), first_tag);
+              if (count > 1)
+                fprintf(full_fp, " (+%d more)", count - 1);
+              fprintf(full_fp, "\n");
+              fprintf(full_fp,
+                      "    Confidence: %d remote-unauth, %d needs-auth/other, %d unknown\n",
+                      remote_yes, remote_no, unknown);
             }
           }
         }

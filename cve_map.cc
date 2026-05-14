@@ -656,16 +656,28 @@ static ImportFileType detect_file_type(const std::string &path) {
  * Ensure the target database exists and has the correct schema
  * ----------------------------------------------------------------------- */
 static bool ensure_schema(sqlite3 *db) {
+  /* Base schema: cvss_vector and remote_unauthed are the Tier-1 confidence
+     columns. cvss_vector stores the full CVSS v3 string (e.g.
+     "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H") so callers can
+     re-derive any sub-field. remote_unauthed is the pre-computed flag
+     for the common case "network attack vector, no auth, no user
+     interaction" -- the matches a remote scanner can confirm are
+     real pre-auth concerns vs ones that need a foothold or specific
+     config. Both nullable so legacy rows imported before backfill
+     keep working (legacy rows render as "(unknown confidence)" in
+     reports). */
   const char *create_sql =
     "CREATE TABLE IF NOT EXISTS cves ("
-    "  cve_id      TEXT PRIMARY KEY,"
-    "  product     TEXT NOT NULL,"
-    "  vendor      TEXT,"
-    "  version_min TEXT,"
-    "  version_max TEXT,"
-    "  cvss_score  REAL,"
-    "  severity    TEXT,"
-    "  description TEXT"
+    "  cve_id          TEXT PRIMARY KEY,"
+    "  product         TEXT NOT NULL,"
+    "  vendor          TEXT,"
+    "  version_min     TEXT,"
+    "  version_max     TEXT,"
+    "  cvss_score      REAL,"
+    "  severity        TEXT,"
+    "  description     TEXT,"
+    "  cvss_vector     TEXT,"
+    "  remote_unauthed INTEGER"
     ");"
     "CREATE INDEX IF NOT EXISTS idx_product  ON cves(product);"
     "CREATE INDEX IF NOT EXISTS idx_severity ON cves(severity);";
@@ -676,6 +688,27 @@ static bool ensure_schema(sqlite3 *db) {
             errmsg ? errmsg : "unknown error");
     sqlite3_free(errmsg);
     return false;
+  }
+
+  /* Migration for pre-Tier-1 DBs: ALTER TABLE ... ADD COLUMN cannot use
+     IF NOT EXISTS, so we attempt each ADD and ignore the "duplicate
+     column" error sqlite returns when the column is already present.
+     This is the same pattern net_db.cc uses. */
+  const char *migrations[] = {
+    "ALTER TABLE cves ADD COLUMN cvss_vector TEXT",
+    "ALTER TABLE cves ADD COLUMN remote_unauthed INTEGER",
+  };
+  for (const char *m : migrations) {
+    errmsg = nullptr;
+    if (sqlite3_exec(db, m, nullptr, nullptr, &errmsg) != SQLITE_OK) {
+      /* Treat "duplicate column" as success; anything else is fatal. */
+      if (errmsg && !strstr(errmsg, "duplicate column")) {
+        fprintf(stderr, "ERROR: CVE DB migration failed: %s\n", errmsg);
+        sqlite3_free(errmsg);
+        return false;
+      }
+      sqlite3_free(errmsg);
+    }
   }
   return true;
 }
