@@ -521,8 +521,58 @@ static std::string normalize_product(const std::string &service,
   std::string svc  = str_lower(service);
   std::string ver  = str_lower(version);
 
-  if (ver.find("openssh") != std::string::npos || svc == "ssh")
-    return "openssh";
+  /* SSH service classification needs care: a bare "service==ssh" fallback
+     to product=openssh produced false-positive CVE matches for every
+     non-OpenSSH SSH implementation on the internet. AWS Transfer Family
+     (banner "AWS_SFTP"), Dropbear (busybox / embedded), libssh-based
+     servers (many appliances), Bitvise (Windows), Tectia (commercial),
+     and Erlang/OTP SSH all speak SSH protocol but are NOT OpenSSH source
+     and don't share OpenSSH's CVE history.
+
+     New rules:
+     1. Banner names a known non-OpenSSH SSH server -> return empty (or
+        the variant's product name once we have CVE rows for it). Empty
+        means "no match" because lookup_cves early-returns on empty
+        product. This drops 7 false REMOTE matches per AWS-SFTP-style
+        host in the 1000-IP test.
+     2. Banner explicitly names OpenSSH -> openssh.
+     3. Banner-less SSH service (svc=ssh, version empty/unknown) ->
+        empty. We can't claim openssh CVEs apply to a server whose
+        implementation we don't know. */
+  if (svc == "ssh" || ver.find("ssh") != std::string::npos) {
+    /* Non-OpenSSH variants: bow out of CVE matching rather than
+       producing 12 OpenSSH false positives. Once we add CVE coverage
+       for these products in the DB, return their product names here. */
+    if (ver.find("aws_sftp")  != std::string::npos ||
+        ver.find("aws sftp")  != std::string::npos ||
+        ver.find("aws-sftp")  != std::string::npos)
+      return "";  /* AWS Transfer Family SFTP */
+    if (ver.find("dropbear")  != std::string::npos)
+      return "";  /* Dropbear -- embedded / busybox */
+    if (ver.find("bitvise")   != std::string::npos ||
+        ver.find("wsshd")     != std::string::npos)
+      return "";  /* Bitvise SSH Server (Windows) */
+    if (ver.find("tectia")    != std::string::npos ||
+        ver.find("sshcom")    != std::string::npos)
+      return "";  /* SSH Communications Security / Tectia */
+    if (ver.find("erlangshell") != std::string::npos ||
+        ver.find("erlang")    != std::string::npos)
+      return "";  /* Erlang/OTP SSH daemon */
+    if (ver.find("paramiko")  != std::string::npos)
+      return "";  /* Paramiko -- often Python SSH bots / honeypots */
+    if (ver.find("libssh")    != std::string::npos &&
+        ver.find("openssh")   == std::string::npos)
+      return "";  /* libssh-based, not OpenSSH */
+
+    /* Default: only match OpenSSH CVEs when the banner explicitly says
+       OpenSSH. "OpenSSH_for_Windows_x.y" (Microsoft port -- still
+       OpenSSH-derived source) hits this branch correctly. */
+    if (ver.find("openssh") != std::string::npos)
+      return "openssh";
+
+    /* SSH service but unrecognized implementation -- refuse to match. */
+    return "";
+  }
   if (ver.find("apache") != std::string::npos &&
       (ver.find("http") != std::string::npos || svc == "http"))
     return "http_server";
