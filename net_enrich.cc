@@ -605,8 +605,17 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     std::string vmax = col_str(5);
 
     /* Version range filtering -- uses numeric version comparison,
-       same algorithm as cve_map.cc's ver_cmp(). */
-    if (!det_ver.empty() && (!vmin.empty() || !vmax.empty())) {
+       same algorithm as cve_map.cc's ver_cmp().
+
+       If the CVE row has version bounds but the host's banner produced no
+       dotted-decimal version (det_ver empty), we cannot prove this CVE
+       applies. Treat that as a non-match: skip the row rather than
+       reporting a version-bounded CVE for an unknown version. The prior
+       behavior accepted the row, which let CVEs for arbitrary version
+       ranges decorate hosts whose banner was just "openssh" with no
+       digits -- a real false-positive class. */
+    if (!vmin.empty() || !vmax.empty()) {
+      if (det_ver.empty()) continue;
       if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
       if (!vmax.empty() && ver_cmp_enrich(det_ver, vmax) > 0) continue;
     }

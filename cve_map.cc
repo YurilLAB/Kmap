@@ -369,21 +369,24 @@ static std::vector<CveEntry> query_cves(
     e.severity    = col_str(6);
     e.description = col_str(7);
 
-    /* Version range filter — only applied when we have a detected version
-       and the DB row has at least one bound */
-    if (!detected_ver.empty() && (!vmin.empty() || !vmax.empty())) {
+    /* Version range filter. If the row has bounds but the detected
+       version is missing or non-dotted (extract_ver returns ""), we
+       cannot prove applicability -- skip the row instead of letting it
+       through. Previously this only filtered when both detected_ver and
+       dver were non-empty, which turned every version-bounded CVE into a
+       potential false positive when the banner lacked a dotted version. */
+    if (!vmin.empty() || !vmax.empty()) {
       std::string dver = extract_ver(detected_ver);
-      if (!dver.empty()) {
-        if (!vmin.empty() && !vmax.empty()) {
-          if (ver_cmp(dver, vmin) < 0 || ver_cmp(dver, vmax) > 0)
-            continue;
-        } else if (!vmin.empty()) {
-          if (ver_cmp(dver, vmin) < 0)
-            continue;
-        } else {
-          if (ver_cmp(dver, vmax) > 0)
-            continue;
-        }
+      if (dver.empty()) continue;
+      if (!vmin.empty() && !vmax.empty()) {
+        if (ver_cmp(dver, vmin) < 0 || ver_cmp(dver, vmax) > 0)
+          continue;
+      } else if (!vmin.empty()) {
+        if (ver_cmp(dver, vmin) < 0)
+          continue;
+      } else {
+        if (ver_cmp(dver, vmax) > 0)
+          continue;
       }
     }
 

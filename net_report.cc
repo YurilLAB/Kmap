@@ -545,21 +545,29 @@ static void write_file_summary(FILE *fp, const FileSummary &summary) {
 int generate_findings(const char *data_dir, const char *findings_dir) {
   if (!data_dir || !findings_dir) return 1;
 
-  /* Create findings directory */
   report_mkdir(findings_dir);
 
-  /* Collect all IPs from all shards, ordered by IP.
-   * Shards are ordered by index (which corresponds to IP prefix blocks),
-   * so processing them in order gives us roughly IP-ordered output.
-   * We collect everything first, then sort by numeric IP for precision. */
+  /* Shards are partitioned by the top 5 bits of the IP (see
+     net_shard_index in net_db.cc), so iterating shards 0..31 in order
+     already gives globally IP-prefix-ordered output. Within each shard
+     we still need a numeric sort because lexicographic ordering of dotted
+     strings ("1.x" < "10." < "2.x") puts hosts in the wrong order.
+
+     The previous implementation loaded every host from every shard into
+     one std::vector before sorting -- O(total hosts) memory, fine for the
+     150-IP watchlist case but a non-starter for the full-IPv4 sweep this
+     tool is designed for. The streaming form below caps peak memory at
+     one shard's IP list plus a single HOSTS_PER_FILE-bounded batch
+     buffer that carries forward across shard boundaries so output files
+     keep the original even-sized batching. */
+
   struct IpEntry {
     std::string ip;
     int shard_idx;
   };
 
-  std::vector<IpEntry> all_ips;
   sqlite3 *shard_dbs[NET_SHARD_COUNT] = {};
-  int shards_opened = 0;
+  int64_t total_hosts = 0;
 
   log_write(LOG_STDOUT,
     "net-scan: collecting hosts from shard databases...\n");
@@ -567,7 +575,6 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
   for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
     std::string db_path = net_shard_path(data_dir, shard);
 
-    /* Check if shard file exists before trying to open */
     FILE *test = fopen(db_path.c_str(), "r");
     if (!test) continue;
     fclose(test);
@@ -580,27 +587,21 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
       continue;
     }
     shard_dbs[shard] = db;
-    shards_opened++;
 
-    /* Get all distinct IPs from this shard */
-    sqlite3_stmt *stmt = nullptr;
+    /* Count without materializing -- needed up front so progress
+       percentages and the trailing filename range (last batch may be
+       short) are correct as we stream. */
+    sqlite3_stmt *cnt = nullptr;
     if (sqlite3_prepare_v2(db,
-          "SELECT DISTINCT ip FROM hosts ORDER BY ip",
-          -1, &stmt, nullptr) == SQLITE_OK) {
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const unsigned char *txt = sqlite3_column_text(stmt, 0);
-        if (txt) {
-          all_ips.push_back({
-            std::string(reinterpret_cast<const char *>(txt)),
-            shard
-          });
-        }
-      }
-      sqlite3_finalize(stmt);
+          "SELECT COUNT(DISTINCT ip) FROM hosts",
+          -1, &cnt, nullptr) == SQLITE_OK) {
+      if (sqlite3_step(cnt) == SQLITE_ROW)
+        total_hosts += sqlite3_column_int64(cnt, 0);
+      sqlite3_finalize(cnt);
     }
   }
 
-  if (all_ips.empty()) {
+  if (total_hosts == 0) {
     log_write(LOG_STDOUT,
       "net-scan: no hosts found in shard databases.\n");
     for (int i = 0; i < NET_SHARD_COUNT; i++)
@@ -608,87 +609,54 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     return 0;
   }
 
-  /* Sort all IPs by their numeric value for consistent ordering.
-   * Pre-compute numeric IPs to avoid re-parsing in every comparison. */
-  std::vector<uint32_t> ip_keys(all_ips.size());
-  for (size_t i = 0; i < all_ips.size(); i++)
-    ip_keys[i] = ip_to_u32(all_ips[i].ip.c_str());
-
-  /* Build an index array and sort it by the pre-computed keys */
-  std::vector<size_t> order(all_ips.size());
-  for (size_t i = 0; i < order.size(); i++) order[i] = i;
-  std::sort(order.begin(), order.end(),
-    [&ip_keys](size_t a, size_t b) {
-      return ip_keys[a] < ip_keys[b];
-    });
-
-  /* Reorder all_ips in-place according to the sorted index */
-  {
-    std::vector<IpEntry> sorted;
-    sorted.reserve(all_ips.size());
-    for (size_t idx : order)
-      sorted.push_back(std::move(all_ips[idx]));
-    all_ips = std::move(sorted);
-  }
-
-  int64_t total_hosts = static_cast<int64_t>(all_ips.size());
   log_write(LOG_STDOUT,
     "net-scan: generating findings for %s hosts...\n",
     format_count(total_hosts).c_str());
 
-  /* Process hosts in groups of HOSTS_PER_FILE */
+  std::vector<IpEntry> batch;
+  batch.reserve(HOSTS_PER_FILE);
+  int64_t emitted_total = 0;
   int64_t file_count = 0;
-  int64_t host_idx = 0;
 
-  while (host_idx < total_hosts) {
-    int64_t batch_start = host_idx;
-    int64_t batch_end = std::min(host_idx + HOSTS_PER_FILE, total_hosts);
-    int64_t batch_count = batch_end - batch_start;
+  auto flush_batch = [&]() {
+    if (batch.empty()) return;
+    int64_t batch_start = emitted_total + 1;
+    int64_t batch_count = static_cast<int64_t>(batch.size());
+    int64_t batch_end = emitted_total + batch_count;
 
-    /* Build filename: findings_NNNNNNN-NNNNNNN.txt */
     char filename[512];
     snprintf(filename, sizeof(filename),
              "%s/findings_%07lld-%07lld.txt",
              findings_dir,
-             (long long)(batch_start + 1),
+             (long long)batch_start,
              (long long)batch_end);
 
     FILE *fp = fopen(filename, "w");
     if (!fp) {
       log_write(LOG_STDOUT,
         "net-scan: ERROR: cannot create %s\n", filename);
-      host_idx = batch_end;
+      emitted_total = batch_end;
       file_count++;
-      continue;
+      batch.clear();
+      return;
     }
 
-    /* Write file header */
     write_file_header(fp,
-                      all_ips[static_cast<size_t>(batch_start)].ip,
-                      all_ips[static_cast<size_t>(batch_end - 1)].ip,
+                      batch.front().ip,
+                      batch.back().ip,
                       batch_count);
 
     FileSummary summary{};
-
-    /* Write each host */
-    for (int64_t i = batch_start; i < batch_end; i++) {
-      const IpEntry &entry = all_ips[static_cast<size_t>(i)];
-
-      /* Fetch port records from the appropriate shard */
+    for (const auto &entry : batch) {
       sqlite3 *db = shard_dbs[entry.shard_idx];
       std::vector<NetHost> ports;
-      if (db) {
-        ports = net_db_get_host(db, entry.ip.c_str());
-      }
-
+      if (db) ports = net_db_get_host(db, entry.ip.c_str());
       write_host_section(fp, entry.ip, ports, summary);
     }
 
-    /* Write file summary footer */
     write_file_summary(fp, summary);
     fclose(fp);
 
-    /* Progress output */
     double pct = 100.0 * static_cast<double>(batch_end) /
                  static_cast<double>(total_hosts);
     log_write(LOG_STDOUT,
@@ -698,11 +666,55 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
       format_count(total_hosts).c_str(),
       pct);
 
-    host_idx = batch_end;
+    emitted_total = batch_end;
     file_count++;
+    batch.clear();
+  };
+
+  for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
+    sqlite3 *db = shard_dbs[shard];
+    if (!db) continue;
+
+    std::vector<IpEntry> shard_ips;
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db,
+          "SELECT DISTINCT ip FROM hosts",
+          -1, &stmt, nullptr) == SQLITE_OK) {
+      while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const unsigned char *txt = sqlite3_column_text(stmt, 0);
+        if (txt) {
+          shard_ips.push_back({
+            std::string(reinterpret_cast<const char *>(txt)),
+            shard
+          });
+        }
+      }
+      sqlite3_finalize(stmt);
+    }
+    if (shard_ips.empty()) continue;
+
+    /* Numeric sort within shard. Pre-compute keys so the comparator is
+       O(1) instead of re-parsing dotted-quad per compare. */
+    std::vector<uint32_t> keys(shard_ips.size());
+    for (size_t i = 0; i < shard_ips.size(); i++)
+      keys[i] = ip_to_u32(shard_ips[i].ip.c_str());
+
+    std::vector<size_t> order(shard_ips.size());
+    for (size_t i = 0; i < order.size(); i++) order[i] = i;
+    std::sort(order.begin(), order.end(),
+      [&keys](size_t a, size_t b) { return keys[a] < keys[b]; });
+
+    for (size_t idx : order) {
+      batch.push_back(std::move(shard_ips[idx]));
+      if (static_cast<int64_t>(batch.size()) >= HOSTS_PER_FILE)
+        flush_batch();
+    }
+    /* shard_ips + keys + order go out of scope here -- memory released
+       before opening the next shard. */
   }
 
-  /* Close all shard databases */
+  flush_batch();
+
   for (int i = 0; i < NET_SHARD_COUNT; i++) {
     if (shard_dbs[i]) net_db_close(shard_dbs[i]);
   }

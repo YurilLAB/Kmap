@@ -257,24 +257,31 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         continue;
       }
       uint32_t base = ip_to_u32(line.substr(0, slash).c_str());
-      if (prefix >= 24 && prefix <= 30) {
+      if (prefix >= 16 && prefix <= 30) {
+        /* Up to /16 (65,534 hosts) expands fully -- skip network + broadcast
+           addresses. /16 is the practical ceiling for a watchlist: it fits
+           in memory, finishes inside a single discovery batch, and matches
+           the "targeted asset list" use case the watchlist mode is designed
+           for. Larger prefixes are rejected below rather than silently
+           collapsing to the network address -- the previous behavior turned
+           an operator's office /14 into a single-IP scan with no warning. */
         uint32_t count = 1u << (32 - prefix);
         uint32_t mask = ~(count - 1);
         base &= mask;
-        for (uint32_t i = 1; i < count - 1; i++) /* skip network + broadcast */
+        for (uint32_t i = 1; i < count - 1; i++)
           targets.push_back(base + i);
       } else if (prefix == 31) {
-        /* /31: RFC 3021 point-to-point -- both addresses usable */
         uint32_t mask = ~1u;
         base &= mask;
         targets.push_back(base);
         targets.push_back(base + 1);
       } else if (prefix == 32) {
-        /* /32: single host */
         targets.push_back(base);
       } else {
-        /* Large range -- just add the base */
-        targets.push_back(base);
+        scan_log("WARN",
+          "CIDR prefix /%d in '%s' exceeds watchlist cap (/16 = 65,534 hosts) -- skipped",
+          prefix, line.c_str());
+        continue;
       }
     } else {
       uint32_t ip = ip_to_u32(line.c_str());
