@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 #include <signal.h>
 #else
 #include <winsock2.h>
@@ -48,7 +49,9 @@
 #include <direct.h>
 #include <io.h>
 #include <mmsystem.h>
+#include <psapi.h>
 #pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "psapi.lib")
 #endif
 
 extern KmapOps o;
@@ -721,6 +724,49 @@ int fast_syn_scan(const char *data_dir,
 
   log_write(LOG_STDOUT, "  Probing with %d workers...\n", worker_count);
 
+  /* Resource-metrics gather, cross-platform.  Caller keeps a "last"
+   * snapshot and we derive CPU% from the delta in process CPU time
+   * over the wall-clock interval since the last snapshot.  RSS is
+   * a point-in-time reading. */
+  struct ProcMetrics {
+    double  cpu_seconds;   /* user+kernel CPU time, total since start */
+    size_t  rss_kb;        /* current working set / resident set, KB */
+    int64_t wall_usec;     /* wall-clock at sample time, microseconds */
+  };
+  auto gather_metrics = []() -> ProcMetrics {
+    ProcMetrics m{};
+    m.wall_usec = now_usec();
+#ifdef WIN32
+    HANDLE proc = GetCurrentProcess();
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(proc, &pmc, sizeof(pmc))) {
+      m.rss_kb = (size_t)(pmc.WorkingSetSize / 1024);
+    }
+    FILETIME ftC, ftE, ftK, ftU;
+    if (GetProcessTimes(proc, &ftC, &ftE, &ftK, &ftU)) {
+      ULONGLONG kernel = ((ULONGLONG)ftK.dwHighDateTime << 32) | ftK.dwLowDateTime;
+      ULONGLONG user   = ((ULONGLONG)ftU.dwHighDateTime << 32) | ftU.dwLowDateTime;
+      /* FILETIME is in 100-ns units */
+      m.cpu_seconds = (double)(kernel + user) / 10000000.0;
+    }
+#else
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) == 0) {
+      /* Linux: ru_maxrss is kilobytes.  macOS: bytes (caller can
+       * normalize if cross-targeting; for now Linux assumption is fine
+       * since the Windows path is the production target.) */
+      m.rss_kb = (size_t)ru.ru_maxrss;
+      m.cpu_seconds =
+        (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1e6 +
+        (double)ru.ru_stime.tv_sec + (double)ru.ru_stime.tv_usec / 1e6;
+    }
+#endif
+    return m;
+  };
+
+  /* Prime so the first emit shows accurate CPU% rather than zero. */
+  ProcMetrics last_metrics = gather_metrics();
+
   std::vector<std::thread> pool;
   pool.reserve(worker_count);
   for (int i = 0; i < worker_count; i++) pool.emplace_back(worker);
@@ -746,6 +792,13 @@ int fast_syn_scan(const char *data_dir,
   }
   time_t last_progress_n = time(nullptr);
   time_t scan_start_time = time(nullptr);
+  /* Capture the slice anchor ONCE so periodic checkpoints (which
+   * mutate cp.next_index every 60 s) cannot shift the displayed
+   * percentage.  Without this, after a checkpoint cp.next_index ==
+   * cur_idx and the displayed slice_done collapses to 0 / (scan_end
+   * - cur_idx), which renders the progress line as "0/29 IPs (0.0%)"
+   * partway through a 150-IP scan instead of "121/150 (80.7%)". */
+  uint64_t scan_start_idx = cp.next_index;
   while (!scan_interrupted) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     uint64_t cur_idx  = probe_idx.load();
@@ -760,10 +813,14 @@ int fast_syn_scan(const char *data_dir,
     /* Pct relative to the SLICE we are actually scanning, not the
      * full IPv4 space.  For sample mode (max_ips > 0) the slice is
      * small and a 0.0001% number is useless; for a full sweep it
-     * collapses to the same thing because cp.next_index = 0. */
-    uint64_t slice_total = scan_end - cp.next_index;
-    uint64_t slice_done  = cur_idx > cp.next_index
-                           ? cur_idx - cp.next_index : 0;
+     * collapses to the same thing because scan_start_idx = 0.
+     *
+     * Uses the immutable scan_start_idx captured before the monitor
+     * loop, not the live cp.next_index which the per-60s checkpoint
+     * code mutates and would otherwise rebase the slice mid-scan. */
+    uint64_t slice_total = scan_end - scan_start_idx;
+    uint64_t slice_done  = cur_idx > scan_start_idx
+                           ? cur_idx - scan_start_idx : 0;
     double pct = (slice_total > 0)
                  ? 100.0 * (double)slice_done / (double)slice_total : 100.0;
     time_t scan_elapsed = now_time - scan_start_time + 1;
@@ -806,16 +863,30 @@ int fast_syn_scan(const char *data_dir,
     }
 
     /* Pipe-friendly progress line: same data, newline-terminated, less
-     * frequent.  Survives `kmap | tee` / log redirection / journalctl. */
+     * frequent.  Survives `kmap | tee` / log redirection / journalctl.
+     * Includes resource metrics so operators running long scans can
+     * tell at a glance whether the box is CPU-bound, memory-pressured,
+     * or just network-RTT bound. */
     if (now_time - last_progress_n >= progress_n_interval) {
+      ProcMetrics cur = gather_metrics();
+      double cpu_delta = cur.cpu_seconds - last_metrics.cpu_seconds;
+      double wall_delta_s = (double)(cur.wall_usec - last_metrics.wall_usec) / 1e6;
+      double cpu_pct = (wall_delta_s > 0.001)
+                       ? 100.0 * cpu_delta / wall_delta_s : 0.0;
+      double rss_mb  = (double)cur.rss_kb / 1024.0;
+      last_metrics = cur;
+
       log_write(LOG_STDOUT,
-        "  [%lds] discover: %llu/%llu IPs (%.1f%%)  opens=%llu  rate=%.0f pps  ETA %s\n",
+        "  [%lds] discover: %llu/%llu IPs (%.1f%%) opens=%llu rate=%.0f pps "
+        "| cpu=%.1f%% rss=%.0fMB | ETA %s\n",
         (long)(now_time - scan_start_time),
         (unsigned long long)slice_done,
         (unsigned long long)slice_total,
         pct,
         (unsigned long long)found,
         ips_per_sec,
+        cpu_pct,
+        rss_mb,
         eta_buf);
       fflush(stdout);
       last_progress_n = now_time;
@@ -840,6 +911,24 @@ int fast_syn_scan(const char *data_dir,
 
   /* All probes claimed (or interrupted): drain the worker pool. */
   for (auto &th : pool) th.join();
+
+  /* Final discovery metrics -- always emitted regardless of how long
+   * the scan ran so short bounded-sample scans (--net-max-ips) still
+   * surface resource usage in the log. */
+  {
+    ProcMetrics fin = gather_metrics();
+    double cpu_delta = fin.cpu_seconds - last_metrics.cpu_seconds;
+    double wall_delta_s =
+      (double)(fin.wall_usec - last_metrics.wall_usec) / 1e6;
+    double cpu_pct = (wall_delta_s > 0.001)
+                     ? 100.0 * cpu_delta / wall_delta_s : 0.0;
+    double rss_mb = (double)fin.rss_kb / 1024.0;
+    time_t scan_elapsed = time(nullptr) - scan_start_time;
+    log_write(LOG_STDOUT,
+      "  [%lds] discover DONE  cpu=%.1f%% rss=%.0fMB total_cpu=%.1fs\n",
+      (long)scan_elapsed, cpu_pct, rss_mb, fin.cpu_seconds);
+    fflush(stdout);
+  }
 
   /* Sync stats vector to atomic results before the final checkpoint. */
   cp.packets_sent = probes_done.load();

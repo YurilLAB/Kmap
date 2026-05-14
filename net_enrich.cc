@@ -1229,12 +1229,22 @@ int run_enrichment(const char *data_dir, int batch_size) {
       bool empty_host = false;
     };
 
-    int enrich_worker_count = 10;
+    /* Default 20 workers (was 10): sqlite writes already serialize
+     * via the per-shard handle in Stage C, so more enrichment workers
+     * just hide more per-host RTT.  256 cap retained as a sanity
+     * ceiling. */
+    int enrich_worker_count = 20;
     if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
       int v = atoi(env);
       if (v > 0 && v <= 256) enrich_worker_count = v;
     }
-    int enrich_retries = 1;
+    /* Default 0 retries (was 1).  On a random-IPv4 sample with many
+     * flaky/firewalled hosts, retrying every transient banner-grab
+     * failure doubled total enrichment wall time without producing
+     * proportionally more enrichment hits.  Opt-in via
+     * KMAP_ENRICH_RETRIES=1+ for environments where probes hit reliable
+     * but slow services (corporate / lab networks). */
+    int enrich_retries = 0;
     if (const char *env = getenv("KMAP_ENRICH_RETRIES")) {
       int v = atoi(env);
       if (v >= 0 && v <= 10) enrich_retries = v;
