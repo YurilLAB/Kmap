@@ -35,6 +35,7 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -454,6 +455,14 @@ static bool connect_probe(uint32_t ip, int port, int timeout_ms) {
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
+
+  /* TCP_NODELAY: scan probes are tiny one-shot exchanges; Nagle's
+   * coalescing buffers up to 200ms waiting for an ACK that may never
+   * come, adding latency without saving bytes.  Set before connect
+   * so the SYN itself goes out unbuffered. */
+  int nodelay = 1;
+  setsockopt(static_cast<int>(fd), IPPROTO_TCP, TCP_NODELAY,
+             reinterpret_cast<const char *>(&nodelay), sizeof(nodelay));
 
   /* Apply OS-spoofing profile (TTL, RCVBUF, MSS, ...) before connect.
      No-op when --spoof-os was not supplied. The per-target picker keeps

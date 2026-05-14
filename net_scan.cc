@@ -476,6 +476,22 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       scan_log("INFO", "CVE database: %s", cve_db_path.c_str());
     }
 
+    /* Open the CVE DB ONCE for the entire enrichment phase.  Sqlite
+     * is in default serialized threading mode, so a single read-only
+     * handle is safe to share across the worker pool below.  The
+     * previous design opened+closed the DB inside every call to
+     * enrich_single_host -- hundreds of thousands of redundant stat
+     * + open + page-cache-warm cycles on a full sweep. */
+    sqlite3 *cve_db = nullptr;
+    if (!cve_db_path.empty()) {
+      if (sqlite3_open_v2(cve_db_path.c_str(), &cve_db,
+                          SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+        if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
+        scan_log("WARN", "could not open CVE database %s -- continuing without CVE matches",
+                 cve_db_path.c_str());
+      }
+    }
+
     /* Parallel enrichment.
      *
      * The serial loop was O(N_hosts * (avg_ports*banner_timeout +
@@ -556,7 +572,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         HostResult &hr = results[i];
         if (hr.empty_host) continue;
         hr.erc = enrich_single_host(hr.ip.c_str(), hr.port_nums, hr.protos,
-                           cve_db_path.empty() ? nullptr : cve_db_path.c_str(),
+                           cve_db,
                            5000, hr.services, hr.versions, hr.cves_out,
                            hr.web_titles, hr.web_servers, hr.web_headers,
                            hr.web_paths, hr.powered_by, hr.x_generator,
@@ -646,6 +662,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     if (enrich_errors > 0)
       log_write(LOG_STDOUT, " (%d failed)", enrich_errors);
     log_write(LOG_STDOUT, "\n");
+
+    /* Release the single shared CVE DB handle now that workers have
+     * joined and the serial write phase is done. */
+    if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
   }
   }  /* end of (!g_scan_interrupted) guard */
   t_enrich_end = std::chrono::steady_clock::now();

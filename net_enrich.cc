@@ -44,6 +44,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>          /* getnameinfo, NI_MAXHOST, NI_NAMEREQD */
 #include <unistd.h>
@@ -113,6 +114,18 @@ static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_m
   if (fd < 0) return KMAP_INVALID_FD;
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
 #endif
+
+  /* TCP_NODELAY: enrichment HTTP probes are typically <200 bytes
+   * (just a GET / + headers); Nagle's algorithm holds them in the
+   * send buffer waiting for an ACK that this exchange will never
+   * benefit from coalescing.  Without TCP_NODELAY the kernel can
+   * delay the send by up to 200ms per probe.  Per-host enrichment
+   * sends one probe per port; 5 ports x 200ms = 1s of avoidable
+   * stall per host.  Set before connect so even the SYN goes out
+   * unbuffered. */
+  int nodelay = 1;
+  setsockopt(static_cast<int>(fd), IPPROTO_TCP, TCP_NODELAY,
+             reinterpret_cast<const char *>(&nodelay), sizeof(nodelay));
 
   /* OS spoofing profile (--spoof-os). No-op when not set. Stable per
      target IP so the multiple enrichment probes against one host present
@@ -328,8 +341,21 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
      a response (many HTTP servers wait for the client to speak first).
      Use the os_profile-built request so the banner-grab leg also carries
      the spoofed User-Agent. ip is passed as the Host so the request looks
-     plausible end-to-end. */
-  if (n <= 0) {
+     plausible end-to-end.
+
+     IMPORTANT: do NOT send the HTTP probe on known-TLS ports.  A TLS
+     server waits for a ClientHello, so n<=0 always; sending plaintext
+     GET / down the TCP stream gets a TLS Alert back, the response
+     fails every pattern match, and the function returns empty anyway.
+     Doing it wastes a second recv timeout AND pollutes any IDS that
+     watches for plaintext-on-TLS-port traffic.  TLS ports get their
+     real probing via tls_capture_cert; this guard only skips the
+     wasteful plaintext step.  A server that does speak first (SSH on
+     443 is a real pattern -- corporate-firewall bypass) is still
+     captured by the initial recv above. */
+  bool is_tls_port = (port == 443 || port == 4443 || port == 8443 ||
+                      port == 9443);
+  if (n <= 0 && !is_tls_port) {
     std::string http_probe = os_profile_http_request(
         "/", ip,
         os_profile_get_for_target(o.spoof_os,
@@ -971,7 +997,7 @@ static int tls_capture_cert(const char * /*ip*/, int /*port*/,
 int enrich_single_host(const char *ip,
                        const std::vector<int> &ports,
                        const std::vector<std::string> &protos,
-                       const char *cve_db_path,
+                       sqlite3 *cve_db,
                        int timeout_ms,
                        std::vector<std::string> &out_services,
                        std::vector<std::string> &out_versions,
@@ -997,15 +1023,16 @@ int enrich_single_host(const char *ip,
   out_redirects.resize(nports);
   if (out_tls) out_tls->assign(nports, TlsCapture{});
 
-  /* Open CVE database (read-only) if path provided */
-  sqlite3 *cve_db = nullptr;
-  if (cve_db_path && cve_db_path[0]) {
-    if (sqlite3_open_v2(cve_db_path, &cve_db,
-                        SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
-      if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
-      /* Non-fatal: continue without CVE lookups */
-    }
-  }
+  /* CVE DB is now passed in already-open by the caller (run_watchlist
+   * or run_enrichment).  Opening it once per call -- and 5x-10x per
+   * batch with the parallel enrichment workers -- was both wasteful
+   * (sqlite3_open_v2 does stat + open + page-cache warm-up every time)
+   * and silently expensive at scale: a 100k-IP scan with 5 ports each
+   * issued hundreds of thousands of redundant file opens before the
+   * caller cleanup.  cve_db == nullptr is still valid: it just means
+   * the caller could not find kmap-cve.db, and CVE lookups are
+   * skipped (the `if (cve_db && !out_services[i].empty())` gate
+   * below handles that case). */
 
   for (size_t i = 0; i < nports; i++) {
     /* Step 1: Banner grab / service detection.  Only overwrite
@@ -1030,8 +1057,15 @@ int enrich_single_host(const char *ip,
     }
 
     /* Step 3: HTTP recon on web ports -- reuse response from banner grab
-       if it already did an HTTP probe (avoids double TCP connection) */
-    if (is_http_port(ports[i], br.service)) {
+       if it already did an HTTP probe (avoids double TCP connection).
+       Skip on TLS ports: probe_http only speaks plaintext, so sending
+       GET / into a TLS stream gets a TLS Alert back, every field comes
+       out empty, and we wasted one more connection on top of the one
+       grab_banner already short-circuited.  --web-recon mode has full
+       TLS-aware HTTP probing via web_recon.cc for users who want
+       title / server-header / paths on HTTPS. */
+    if (is_http_port(ports[i], br.service) &&
+        !is_https_port(ports[i], br.service)) {
       WebResult wr = probe_http(ip, ports[i], timeout_ms, br.http_response);
       out_web_titles[i]   = wr.title;
       out_web_servers[i]  = wr.server;
@@ -1052,7 +1086,7 @@ int enrich_single_host(const char *ip,
     }
   }
 
-  if (cve_db) sqlite3_close(cve_db);
+  /* Don't close cve_db -- it's owned by the caller. */
   return 0;
 }
 
@@ -1105,6 +1139,24 @@ int run_enrichment(const char *data_dir, int batch_size) {
   } else {
     log_write(LOG_STDOUT,
       "net-scan: CVE database: %s\n", cve_path.c_str());
+  }
+
+  /* Open the CVE DB ONCE for the entire enrichment phase, shared
+   * read-only across all shards' worker pools.  sqlite is in default
+   * serialized threading mode so this handle is safe to share.
+   * Previously enrich_single_host opened+closed the DB on every host
+   * call -- 5x or more per batch with the parallel workers spinning
+   * through hundreds of thousands of stat+open+page-cache-warm cycles
+   * on a full sweep. */
+  sqlite3 *cve_db = nullptr;
+  if (!cve_path.empty()) {
+    if (sqlite3_open_v2(cve_path.c_str(), &cve_db,
+                        SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+      if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
+      log_write(LOG_STDOUT,
+        "net-scan: WARNING: could not open CVE database %s -- continuing.\n",
+        cve_path.c_str());
+    }
   }
 
   int errors = 0;
@@ -1244,7 +1296,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
           int attempt = 0;
           while (true) {
             r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
-                       cve_path.empty() ? nullptr : cve_path.c_str(),
+                       cve_db,
                        ENRICH_CONNECT_TIMEOUT,
                        r.services, r.versions, r.cves_json,
                        r.web_titles, r.web_servers,
@@ -1414,6 +1466,11 @@ int run_enrichment(const char *data_dir, int batch_size) {
       "net-scan: enrichment complete with %d shard error(s).\n", errors);
   else
     log_write(LOG_STDOUT, "net-scan: enrichment complete.\n");
+
+  /* Release the shared CVE DB handle now that every shard's worker
+   * pool has joined.  This handle was opened once at the top of the
+   * function and shared across all 32 shard batches. */
+  if (cve_db) { sqlite3_close(cve_db); cve_db = nullptr; }
 
   return (errors > 0) ? 1 : 0;
 }

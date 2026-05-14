@@ -48,7 +48,7 @@ int run_enrichment(const char *data_dir, int batch_size);
 int enrich_single_host(const char *ip,
                        const std::vector<int> &ports,
                        const std::vector<std::string> &protos,
-                       const char *cve_db_path,
+                       struct sqlite3 *cve_db,
                        int timeout_ms,
                        std::vector<std::string> &out_services,
                        std::vector<std::string> &out_versions,
