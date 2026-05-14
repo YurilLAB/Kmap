@@ -993,7 +993,8 @@ int run_net_scan() {
 
     int rate = o.net_rate > 0 ? o.net_rate : 25000;
 
-    rc = fast_syn_scan(data_dir, ports, rate, excludes, o.net_resume);
+    rc = fast_syn_scan(data_dir, ports, rate, excludes, o.net_resume,
+                       o.net_max_ips);
     if (rc != 0) {
       fprintf(stderr, "net-scan: discovery phase failed\n");
       return rc;

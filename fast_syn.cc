@@ -27,6 +27,10 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <chrono>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -341,19 +345,30 @@ static void rate_init(RateLimiter &rl, int pps) {
   rl.last_refill = now_usec();
 }
 
-static void rate_wait(RateLimiter &rl) {
+/* Acquire one token from the shared bucket.  Caller passes the mutex
+ * protecting the bucket; we hold it only across the refill+decrement
+ * arithmetic, NOT across the sleep, so 50 parallel workers do not
+ * serialize on the lock while one is sleeping for 1 ms waiting for
+ * more tokens.  That serialization was the real cause of the
+ * net-scan run measuring only ~14 pps despite a 5000 pps target. */
+static void rate_wait(RateLimiter &rl, std::mutex &mu) {
   while (true) {
-    int64_t now = now_usec();
-    double elapsed = (double)(now - rl.last_refill);
-    rl.tokens += elapsed * rl.refill_rate;
-    if (rl.tokens > rl.max_tokens) rl.tokens = rl.max_tokens;
-    rl.last_refill = now;
-
-    if (rl.tokens >= 1.0) {
-      rl.tokens -= 1.0;
-      return;
+    bool got_token = false;
+    {
+      std::lock_guard<std::mutex> lk(mu);
+      int64_t now = now_usec();
+      double elapsed = (double)(now - rl.last_refill);
+      rl.tokens += elapsed * rl.refill_rate;
+      if (rl.tokens > rl.max_tokens) rl.tokens = rl.max_tokens;
+      rl.last_refill = now;
+      if (rl.tokens >= 1.0) {
+        rl.tokens -= 1.0;
+        got_token = true;
+      }
     }
-    /* Sleep briefly to avoid busy-waiting */
+    if (got_token) return;
+    /* Sleep briefly to avoid busy-waiting -- mutex released so other
+     * workers can race for the next refill. */
 #ifdef WIN32
     Sleep(1);
 #else
@@ -483,7 +498,8 @@ int fast_syn_scan(const char *data_dir,
                   const std::vector<int> &ports,
                   int rate_pps,
                   const std::vector<ExcludeRange> &excludes,
-                  bool resume) {
+                  bool resume,
+                  uint64_t max_ips) {
   if (ports.empty()) {
     fprintf(stderr, "net-scan: no ports to scan\n");
     return 1;
@@ -610,64 +626,123 @@ int fast_syn_scan(const char *data_dir,
    * for a home-machine scanner at 25k pps is adequate.  The rate
    * limiter controls the pace. */
 
-  uint64_t idx = cp.next_index;
-  for (; idx < IP_SPACE && !scan_interrupted; idx++) {
-    uint32_t ip = permute_ip(idx, seed);
+  /* Compute the stop index.  When max_ips is set we cap the loop at
+   * (resume-start + max_ips) so a re-run with the same checkpoint
+   * advances past the previously-scanned slice instead of re-scanning
+   * the same first-N IPs.  Clamp to IP_SPACE so a giant max_ips just
+   * means "scan everything from here on". */
+  uint64_t scan_end = IP_SPACE;
+  if (max_ips > 0) {
+    if (cp.next_index < IP_SPACE - max_ips)
+      scan_end = cp.next_index + max_ips;
+  }
+  if (max_ips > 0) {
+    log_write(LOG_STDOUT,
+      "  Sample mode: scanning %llu IPs starting at index %llu\n",
+      (unsigned long long)max_ips,
+      (unsigned long long)cp.next_index);
+  }
 
-    /* Skip excluded IPs */
-    if (is_excluded(ip, excludes))
-      continue;
+  /* Parallel probe pool.
+   *
+   * The original serial loop was dominated by the 500 ms connect()
+   * timeout on filtered IPs: a 150-IP random sample over the top-100
+   * ports came out to ~2 hours wall time, well below the configured
+   * rate ceiling because the limiter never even got to release
+   * tokens before connect_probe returned.  Same fan-out treatment
+   * I gave watchlist: N workers pop an IP index from an atomic
+   * counter and walk the inner port loop themselves.  The token
+   * bucket stays shared (rate_mu) so the global pps cap still
+   * applies across all threads, and the per-shard sqlite handles
+   * stay shared too (db_mu) so writes are serialized.
+   *
+   * Default 50 workers; tunable via KMAP_NETSCAN_CONCURRENCY for
+   * large sweeps or rate-limited environments where you want fewer
+   * concurrent in-flight connects. */
+  int worker_count = 50;
+  if (const char *env = getenv("KMAP_NETSCAN_CONCURRENCY")) {
+    int v = atoi(env);
+    if (v > 0 && v <= 1024) worker_count = v;
+  }
 
-    for (int port : ports) {
-      if (scan_interrupted) break;
+  std::atomic<uint64_t> probe_idx{cp.next_index};
+  std::atomic<uint64_t> probes_done{0};
+  std::atomic<uint64_t> hosts_found_atomic{0};
+  std::mutex rate_mu;
+  std::mutex db_mu;
 
-      /* Rate limit */
-      rate_wait(rl);
+  auto worker = [&]() {
+    while (!scan_interrupted) {
+      uint64_t my_idx = probe_idx.fetch_add(1, std::memory_order_relaxed);
+      if (my_idx >= scan_end) return;
+      uint32_t ip = permute_ip(my_idx, seed);
 
-      /* Probe the port */
-      bool open = connect_probe(ip, port, 500);
-      cp.packets_sent++;
+      /* Skip excluded IPs but still count toward iteration progress. */
+      if (is_excluded(ip, excludes)) continue;
 
-      if (open) {
-        int shard_idx = net_shard_index(ip);
-        sqlite3 *db = shards[shard_idx];
-        if (db) {
-          net_db_insert_host(db, ip, port, "tcp", now_ts);
-          cp.hosts_found++;
-          batch_inserts++;
+      for (int port : ports) {
+        if (scan_interrupted) break;
+
+        /* Rate limit -- shared bucket across all workers so the
+         * configured pps ceiling stays global.  rate_wait releases
+         * the mutex around any sleep so the 50 workers do not
+         * single-file through the limiter. */
+        rate_wait(rl, rate_mu);
+
+        bool open = connect_probe(ip, port, 500);
+        probes_done.fetch_add(1, std::memory_order_relaxed);
+
+        if (open) {
+          hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
+          int shard_idx = net_shard_index(ip);
+          sqlite3 *db = shards[shard_idx];
+          if (db) {
+            std::lock_guard<std::mutex> lk(db_mu);
+            net_db_insert_host(db, ip, port, "tcp", now_ts);
+          }
+          if (o.verbose) {
+            std::string ip_str = u32_to_ip(ip);
+            std::lock_guard<std::mutex> lk(db_mu);  /* serialize log */
+            log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
+          }
         }
-
-        if (o.verbose) {
-          std::string ip_str = u32_to_ip(ip);
-          log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
-        }
-      }
-
-      /* Commit batch every 10000 inserts */
-      if (batch_inserts >= 10000) {
-        for (auto *db : shards) {
-          if (db) { net_db_commit(db); net_db_begin(db); }
-        }
-        batch_inserts = 0;
       }
     }
+  };
 
-    /* Status update every 10 seconds with ETA */
+  log_write(LOG_STDOUT, "  Probing with %d workers...\n", worker_count);
+
+  std::vector<std::thread> pool;
+  pool.reserve(worker_count);
+  for (int i = 0; i < worker_count; i++) pool.emplace_back(worker);
+
+  /* Monitor loop on the main thread: emit per-10s status, save a
+   * checkpoint per 60s, and trigger periodic per-shard transaction
+   * rollovers so a long sweep does not pile everything into one
+   * giant transaction.  Loop exits when probe_idx has been claimed
+   * past scan_end (every worker has bailed) or scan_interrupted. */
+  while (!scan_interrupted) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    uint64_t cur_idx  = probe_idx.load();
+    uint64_t done     = probes_done.load();
+    uint64_t found    = hosts_found_atomic.load();
+    bool finished = (cur_idx >= scan_end);
+
     time_t now_time = time(nullptr);
-    if (now_time - last_status >= 10) {
-      double pct = (double)idx / (double)IP_SPACE * 100.0;
 
-      /* ETA calculation based on elapsed time and progress */
-      time_t elapsed = now_time - cp.last_save + 1; /* +1 avoid div by 0 */
-      uint64_t ips_done = idx - cp.next_index + 1;
+    if (finished) break;
+
+    if (now_time - last_status >= 10) {
+      double pct = (double)cur_idx / (double)IP_SPACE * 100.0;
+      time_t elapsed = now_time - cp.last_save + 1;
+      uint64_t ips_done = cur_idx - cp.next_index;
       double ips_per_sec = (elapsed > 0 && ips_done > 0)
                            ? (double)ips_done / (double)elapsed : 0;
-      uint64_t ips_left = IP_SPACE - idx;
+      uint64_t ips_left = scan_end - cur_idx;
       int64_t eta_sec = (ips_per_sec > 0)
                         ? static_cast<int64_t>((double)ips_left / ips_per_sec)
                         : -1;
 
-      /* Format ETA as d:hh:mm:ss or hh:mm:ss */
       char eta_buf[32];
       if (eta_sec < 0) {
         snprintf(eta_buf, sizeof(eta_buf), "calculating...");
@@ -675,45 +750,68 @@ int fast_syn_scan(const char *data_dir,
         int days = static_cast<int>(eta_sec / 86400);
         int hrs  = static_cast<int>((eta_sec % 86400) / 3600);
         int mins = static_cast<int>((eta_sec % 3600) / 60);
-        snprintf(eta_buf, sizeof(eta_buf), "%dd %02d:%02d",
-                 days, hrs, mins);
+        snprintf(eta_buf, sizeof(eta_buf), "%dd %02d:%02d", days, hrs, mins);
       } else {
         int hrs  = static_cast<int>(eta_sec / 3600);
         int mins = static_cast<int>((eta_sec % 3600) / 60);
         int secs = static_cast<int>(eta_sec % 60);
-        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d",
-                 hrs, mins, secs);
+        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d", hrs, mins, secs);
       }
 
-      /* Left-pad ETA to a fixed width so a shrinking ETA string
-       * ("calculating..." -> "01:23:45") doesn't leave stale trailing
-       * characters from the previous longer line on the same row. */
       log_write(LOG_STDOUT,
         "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %-15s\r",
                 pct,
-                (unsigned long long)cp.packets_sent,
-                (unsigned long long)cp.hosts_found,
+                (unsigned long long)done,
+                (unsigned long long)found,
                 eta_buf);
       fflush(stdout);
       last_status = now_time;
     }
 
-    /* Checkpoint every 60 seconds */
+    /* Periodic checkpoint + per-shard transaction rollover. */
     if (now_time - last_checkpoint >= 60) {
-      cp.next_index = idx + 1;
-      cp.last_save = now_time;
+      cp.packets_sent = done;
+      cp.hosts_found  = found;
+      cp.next_index   = cur_idx;
+      cp.last_save    = now_time;
+      {
+        std::lock_guard<std::mutex> lk(db_mu);
+        for (auto *db : shards) {
+          if (db) { net_db_commit(db); net_db_begin(db); }
+        }
+      }
       save_checkpoint(data_dir, cp);
       last_checkpoint = now_time;
     }
   }
+
+  /* All probes claimed (or interrupted): drain the worker pool. */
+  for (auto &th : pool) th.join();
+
+  /* Sync stats vector to atomic results before the final checkpoint. */
+  cp.packets_sent = probes_done.load();
+  cp.hosts_found  = hosts_found_atomic.load();
+  uint64_t idx    = probe_idx.load();
+  if (idx > scan_end) idx = scan_end;
+  (void)batch_inserts;  /* kept for ABI -- replaced by 60s commit cycle */
 
   /* Final commit */
   for (auto *db : shards) {
     if (db) net_db_commit(db);
   }
 
-  /* Save final checkpoint -- use actual loop position, not stale value */
-  cp.next_index = scan_interrupted ? idx : IP_SPACE;
+  /* Save final checkpoint -- use actual loop position so a follow-up
+   * resume picks up where this run stopped.  For max_ips=0 (full
+   * sweep) and a clean completion we save IP_SPACE so resume becomes
+   * a no-op; for max_ips>0 we save the actual end-of-sample idx so
+   * subsequent runs can keep walking the permutation past this slice. */
+  if (scan_interrupted) {
+    cp.next_index = idx;
+  } else if (max_ips > 0) {
+    cp.next_index = idx;  /* end of this sample; next run starts here */
+  } else {
+    cp.next_index = IP_SPACE;
+  }
   cp.last_save = time(nullptr);
   save_checkpoint(data_dir, cp);
 

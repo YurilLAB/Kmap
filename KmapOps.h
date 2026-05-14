@@ -300,6 +300,7 @@ class KmapOps {
   bool net_report_only;     /* Only run report generation */
   bool net_resume;          /* Resume interrupted scan */
   int  net_rate;            /* Packets per second (default 25000) */
+  uint64_t net_max_ips;     /* Cap iteration at N IPs (0 = full sweep) */
   char *net_exclude_file;   /* Custom exclusion list */
   char *net_data_dir;       /* Shard database directory */
   char *net_findings_dir;   /* Findings output directory */

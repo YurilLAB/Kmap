@@ -1068,16 +1068,33 @@ static std::string format_count(int64_t n) {
 int run_enrichment(const char *data_dir, int batch_size) {
   if (batch_size <= 0) batch_size = 1000;
 
-  /* Locate kmap-cve.db for CVE lookups */
+  /* Locate kmap-cve.db for CVE lookups.  Mirrors run_watchlist's
+   * lookup: try kmap_fetchfile first (which searches --datadir,
+   * $KMAPDIR, %APPDATA%/kmap, exe-dir, ...) then fall back to
+   * ./kmap-cve.db so users running kmap from the source tree get
+   * CVE matches without having to install or copy the DB into
+   * exe-dir.  Previously the WARN fired in net-scan mode even when
+   * a perfectly good DB sat in the CWD, silently disabling CVE
+   * enrichment for the whole scan. */
   std::string cve_path;
   {
     char buf[1024];
-    if (kmap_fetchfile(buf, sizeof(buf), "kmap-cve.db") > 0)
+    if (kmap_fetchfile(buf, sizeof(buf), "kmap-cve.db") > 0) {
       cve_path = buf;
+    } else {
+      FILE *cwd_db = fopen("kmap-cve.db", "rb");
+      if (cwd_db) {
+        fclose(cwd_db);
+        cve_path = "kmap-cve.db";
+      }
+    }
   }
   if (cve_path.empty()) {
     log_write(LOG_STDOUT,
       "net-scan: WARNING: kmap-cve.db not found -- CVE enrichment skipped.\n");
+  } else {
+    log_write(LOG_STDOUT,
+      "net-scan: CVE database: %s\n", cve_path.c_str());
   }
 
   int errors = 0;

@@ -260,6 +260,12 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "rate") == 0) {
     o.net_rate = parse_int_arg("rate", arg, 1, 10000000);
     return true;
+  } else if (strcmp(name, "net-max-ips") == 0) {
+    long long v = strtoll(arg, nullptr, 10);
+    if (v < 1) fatal("--net-max-ips must be >= 1");
+    o.net_max_ips = static_cast<uint64_t>(v);
+    o.net_scan = true;
+    return true;
   } else if (strcmp(name, "exclude-file") == 0) {
     o.net_exclude_file = strdup(arg); return true;
   } else if (strcmp(name, "data-dir") == 0) {
@@ -529,6 +535,7 @@ static void printusage() {
          "  --report-only: Only generate findings reports from enriched data\n"
          "  --net-resume: Resume an interrupted net-scan\n"
          "  --rate <pps>: Packets per second for discovery (default: 25000)\n"
+         "  --net-max-ips <N>: Cap discovery at N IPs (sample scan, default: unlimited)\n"
          "  --exclude-file <file>: Additional IP ranges to exclude\n"
          "  --data-dir <dir>: Shard database directory (default: kmap-data)\n"
          "  --findings-dir <dir>: Findings output directory (default: Findings)\n"
@@ -917,6 +924,7 @@ void parse_options(int argc, char **argv) {
     {"enrich-only", no_argument, 0, 0},
     {"report-only", no_argument, 0, 0},
     {"net-resume", no_argument, 0, 0},
+    {"net-max-ips", required_argument, 0, 0},
     {"rate", required_argument, 0, 0},
     {"exclude-file", required_argument, 0, 0},
     {"data-dir", required_argument, 0, 0},

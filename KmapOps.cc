@@ -337,6 +337,7 @@ void KmapOps::Initialize() {
   net_report_only  = false;
   net_resume       = false;
   net_rate         = 25000;
+  net_max_ips      = 0;
   net_exclude_file = nullptr;
   net_data_dir     = nullptr;
   net_findings_dir = nullptr;

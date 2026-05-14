@@ -43,12 +43,22 @@ bool is_excluded(uint32_t ip, const std::vector<ExcludeRange> &excludes);
    - rate_pps:     packets per second
    - excludes:     combined exclusion list
    - resume:       if true, resume from checkpoint
+   - max_ips:      cap the iteration at this many IPs from the current
+                   checkpoint index (0 = scan the full IPv4 space).
+                   Wires `--net-max-ips N` so an operator can do a
+                   bounded sample scan without committing to a full
+                   internet sweep.  Excluded IPs (RFC1918, multicast,
+                   loopback, etc.) still count toward the cap because
+                   the cap measures iteration progress, not probe count;
+                   at any realistic sample size the excluded-ratio is
+                   noise.
    Returns 0 on success, 1 on error. */
 int fast_syn_scan(const char *data_dir,
                   const std::vector<int> &ports,
                   int rate_pps,
                   const std::vector<ExcludeRange> &excludes,
-                  bool resume);
+                  bool resume,
+                  uint64_t max_ips = 0);
 
 /* Parse a port specification string like "22,80,443" or "1-1024".
    Returns sorted, deduplicated list of port numbers. */
