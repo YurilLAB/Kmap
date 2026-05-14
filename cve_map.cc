@@ -307,6 +307,19 @@ static std::vector<CveEntry> query_cves(
 {
   std::vector<CveEntry> results;
 
+  /* Refuse to match CVEs when the host's banner did not produce a
+     dotted-decimal version. Many DB rows have NULL version_min/version_max
+     even when the CVE itself is version-specific (Apache CVE-2021-41773
+     describes 2.4.49 but the bounds are NULL; libexpat CVEs are mistagged
+     product=http_server; Oracle HTTP Server plug-in CVEs likewise). The
+     row-has-bounds case is filtered below, but rows with no bounds would
+     match every host tagged with that product regardless of version --
+     dozens of false positives per host whose Server header was just
+     "Apache". Without a detected version we have no way to assess
+     applicability, so the conservative answer is "no matches" rather
+     than "match everything". */
+  if (extract_ver(detected_ver).empty()) return results;
+
   const char *sql_exact_vendor =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "

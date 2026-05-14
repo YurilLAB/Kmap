@@ -573,6 +573,21 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
   std::string product = normalize_product(service, version);
   if (product.empty()) return results;
 
+  /* Refuse to match CVEs when the host's banner did not produce a
+     dotted-decimal version. Many CVE rows in the DB have NULL version
+     bounds even when the CVE itself is version-specific (e.g. Apache
+     CVE-2021-41773 explicitly names 2.4.49 but the bounds are empty in
+     the DB; libexpat CVEs are sometimes tagged product=http_server).
+     Without a detected version we cannot decide whether any of those
+     apply, so the conservative answer is "no matches" rather than
+     "match every row tagged with this product" -- the latter produces
+     dozens of false positives on hosts whose Server header is just
+     "Apache" or whose SSH banner lacks a version. The Finding 8 fix
+     below catches the row-has-bounds case; this catches the row-has-
+     no-bounds case. */
+  std::string det_ver = extract_version_number(version);
+  if (det_ver.empty()) return results;
+
   /* LIMIT raised from 15 to 100.  The previous ceiling silently evicted
    * lower-CVSS CVEs from the hosts.cves column on each rescan: a product
    * with 16+ applicable CVEs would lose every CVE past rank 15, and a
@@ -593,8 +608,6 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
 
   sqlite3_bind_text(stmt, 1, product.c_str(), -1, SQLITE_TRANSIENT);
 
-  std::string det_ver = extract_version_number(version);
-
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     auto col_str = [&](int c) -> std::string {
       const unsigned char *p = sqlite3_column_text(stmt, c);
@@ -604,21 +617,12 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
 
-    /* Version range filtering -- uses numeric version comparison,
-       same algorithm as cve_map.cc's ver_cmp().
-
-       If the CVE row has version bounds but the host's banner produced no
-       dotted-decimal version (det_ver empty), we cannot prove this CVE
-       applies. Treat that as a non-match: skip the row rather than
-       reporting a version-bounded CVE for an unknown version. The prior
-       behavior accepted the row, which let CVEs for arbitrary version
-       ranges decorate hosts whose banner was just "openssh" with no
-       digits -- a real false-positive class. */
-    if (!vmin.empty() || !vmax.empty()) {
-      if (det_ver.empty()) continue;
-      if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
-      if (!vmax.empty() && ver_cmp_enrich(det_ver, vmax) > 0) continue;
-    }
+    /* Version range filtering. We already returned early above if
+       det_ver was empty, so any row that has explicit bounds gets a
+       real numeric comparison here. Same algorithm as cve_map.cc's
+       ver_cmp(). */
+    if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
+    if (!vmax.empty() && ver_cmp_enrich(det_ver, vmax) > 0) continue;
 
     EnrichCve e;
     e.id          = col_str(0);
