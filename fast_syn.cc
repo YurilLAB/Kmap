@@ -671,7 +671,13 @@ int fast_syn_scan(const char *data_dir,
    * Default 50 workers; tunable via KMAP_NETSCAN_CONCURRENCY for
    * large sweeps or rate-limited environments where you want fewer
    * concurrent in-flight connects. */
-  int worker_count = 50;
+  /* Default 100 workers (was 50): the metric emit added in this commit
+   * confirmed kmap discovery runs at ~1-2% CPU and ~23MB RSS during
+   * a 150-IP probe wave -- the bottleneck is purely network RTT on
+   * filtered ports, not local resources.  100 saturates the RTT
+   * waits without straining a typical client machine.  1024 cap
+   * retained as the sanity ceiling. */
+  int worker_count = 100;
   if (const char *env = getenv("KMAP_NETSCAN_CONCURRENCY")) {
     int v = atoi(env);
     if (v > 0 && v <= 1024) worker_count = v;

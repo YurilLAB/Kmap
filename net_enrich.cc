@@ -1229,11 +1229,14 @@ int run_enrichment(const char *data_dir, int batch_size) {
       bool empty_host = false;
     };
 
-    /* Default 20 workers (was 10): sqlite writes already serialize
-     * via the per-shard handle in Stage C, so more enrichment workers
-     * just hide more per-host RTT.  256 cap retained as a sanity
-     * ceiling. */
-    int enrich_worker_count = 20;
+    /* Default 40 workers (was 20, originally 10): sqlite writes
+     * already serialize via the per-shard handle in Stage C, so
+     * more enrichment workers just hide more per-host RTT.  Live
+     * resource metrics from the 150-IP scan show kmap at ~1-2% CPU
+     * and ~23MB RSS during discovery and similar low usage during
+     * enrichment -- 40 workers fit comfortably within those limits
+     * on any reasonable client machine.  256 cap unchanged. */
+    int enrich_worker_count = 40;
     if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
       int v = atoi(env);
       if (v > 0 && v <= 256) enrich_worker_count = v;

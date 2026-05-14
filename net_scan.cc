@@ -45,14 +45,60 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 #include <signal.h>
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <direct.h>
+#include <psapi.h>
+#pragma comment(lib, "psapi.lib")
 #endif
 
 extern KmapOps o;
+
+/* -----------------------------------------------------------------------
+ * Resource metrics gather
+ *
+ * Same shape as the helper in fast_syn.cc -- duplicated here rather
+ * than factored out because both files already include their own
+ * platform socket / Windows-API headers and pulling in a shared header
+ * just to share 30 lines isn't worth the include shuffle.
+ *
+ * Reports current RSS (kB) plus accumulated process CPU time
+ * (seconds, user+kernel).  Caller derives CPU% from the delta over
+ * the interval between samples.
+ * ----------------------------------------------------------------------- */
+struct ProcMetrics {
+  double  cpu_seconds;
+  size_t  rss_kb;
+};
+
+static ProcMetrics gather_proc_metrics() {
+  ProcMetrics m{};
+#ifdef WIN32
+  HANDLE proc = GetCurrentProcess();
+  PROCESS_MEMORY_COUNTERS pmc;
+  if (GetProcessMemoryInfo(proc, &pmc, sizeof(pmc))) {
+    m.rss_kb = (size_t)(pmc.WorkingSetSize / 1024);
+  }
+  FILETIME ftC, ftE, ftK, ftU;
+  if (GetProcessTimes(proc, &ftC, &ftE, &ftK, &ftU)) {
+    ULONGLONG kernel = ((ULONGLONG)ftK.dwHighDateTime << 32) | ftK.dwLowDateTime;
+    ULONGLONG user   = ((ULONGLONG)ftU.dwHighDateTime << 32) | ftU.dwLowDateTime;
+    m.cpu_seconds = (double)(kernel + user) / 10000000.0;
+  }
+#else
+  struct rusage ru;
+  if (getrusage(RUSAGE_SELF, &ru) == 0) {
+    m.rss_kb = (size_t)ru.ru_maxrss;
+    m.cpu_seconds =
+      (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1e6 +
+      (double)ru.ru_stime.tv_sec + (double)ru.ru_stime.tv_usec / 1e6;
+  }
+#endif
+  return m;
+}
 
 /* -----------------------------------------------------------------------
  * Scan interrupt flag
@@ -349,7 +395,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::vector<ProbeTask> opens;
   std::mutex opens_mu;
 
-  int worker_count = 50;
+  /* Default 100 (was 50) -- matches the net-scan default after
+   * resource metrics showed kmap discovery is RTT-bound, not
+   * CPU/RAM-bound. */
+  int worker_count = 100;
   if (const char *env = getenv("KMAP_WATCHLIST_CONCURRENCY")) {
     int v = atoi(env);
     if (v > 0 && v <= 1024) worker_count = v;
@@ -554,7 +603,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     /* Stage B: parallel enrichment.  Workers do all the network /
      * pattern-matching work; the results vector is pre-sized so
      * each worker writes only to its own slot (no mutex needed). */
-    int enrich_worker_count = 10;
+    /* Default 40 (was 10) -- same reasoning as the net-scan
+     * enrichment bump.  Stage C DB writes still serialize. */
+    int enrich_worker_count = 40;
     if (const char *env = getenv("KMAP_WATCHLIST_ENRICH_CONCURRENCY")) {
       int v = atoi(env);
       if (v > 0 && v <= 256) enrich_worker_count = v;
@@ -918,6 +969,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   double report_s    = elapsed_s(t_enrich_end, t_report_end);
   double total_s     = elapsed_s(t_phase_start, t_report_end);
 
+  /* Final resource metrics.  cpu_pct here is "average CPU across the
+   * whole scan" (total CPU seconds / wall seconds), which is more
+   * useful at scan-end than the instantaneous-delta the periodic
+   * progress line shows. */
+  ProcMetrics fin_metrics = gather_proc_metrics();
+  double avg_cpu_pct = (total_s > 0.001)
+                       ? 100.0 * fin_metrics.cpu_seconds / total_s : 0.0;
+  double rss_mb = (double)fin_metrics.rss_kb / 1024.0;
+
   /* Post-scan summary -- the easy-to-find pointer block.  Operators
    * scrolling through hundreds of probe lines should land on this and
    * know exactly where to look next without rummaging in kmap-data/. */
@@ -936,6 +996,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   log_write(LOG_STDOUT, "    Report:         %.1fs\n", report_s);
   log_write(LOG_STDOUT, "    Total:          %.1fs\n", total_s);
   log_write(LOG_STDOUT, "\n");
+  log_write(LOG_STDOUT, "  Resources:\n");
+  log_write(LOG_STDOUT, "    Avg CPU:        %.1f%%\n", avg_cpu_pct);
+  log_write(LOG_STDOUT, "    Peak RSS:       %.0f MB\n", rss_mb);
+  log_write(LOG_STDOUT, "    Total CPU time: %.1fs\n", fin_metrics.cpu_seconds);
+  log_write(LOG_STDOUT, "\n");
   log_write(LOG_STDOUT, "  Reports:\n");
   log_write(LOG_STDOUT, "    Diff:           %s\n", diff_path.c_str());
   log_write(LOG_STDOUT, "    Full:           %s\n", full_path.c_str());
@@ -949,10 +1014,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   log_write(LOG_STDOUT, "    kmap --net-query --nq-device web\n");
   log_write(LOG_STDOUT, "================================================================================\n");
 
-  scan_log("INFO", "watchlist scan %s: %d ports across %d targets (discovery=%.1fs enrich=%.1fs report=%.1fs total=%.1fs)",
+  scan_log("INFO", "watchlist scan %s: %d ports across %d targets "
+           "(discovery=%.1fs enrich=%.1fs report=%.1fs total=%.1fs) "
+           "| cpu_avg=%.1f%% rss=%.0fMB cpu_total=%.1fs",
            g_scan_interrupted.load() ? "interrupted" : "complete",
            (int)current.size(), (int)targets.size(),
-           discovery_s, enrich_s, report_s, total_s);
+           discovery_s, enrich_s, report_s, total_s,
+           avg_cpu_pct, rss_mb, fin_metrics.cpu_seconds);
   scan_log_close();
   return g_scan_interrupted.load() ? 130 : 0;
 }
