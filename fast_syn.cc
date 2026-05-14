@@ -720,7 +720,23 @@ int fast_syn_scan(const char *data_dir,
    * checkpoint per 60s, and trigger periodic per-shard transaction
    * rollovers so a long sweep does not pile everything into one
    * giant transaction.  Loop exits when probe_idx has been claimed
-   * past scan_end (every worker has bailed) or scan_interrupted. */
+   * past scan_end (every worker has bailed) or scan_interrupted.
+   *
+   * Progress emission is two-track:
+   *   - `\r`-rewritten line every 10s for interactive terminals
+   *   - `\n`-terminated line every KMAP_PROGRESS_INTERVAL_SECS
+   *     (default 30s) so pipes / logs / scrollback all capture the
+   *     progress even when stdout is not a TTY.  Without the \n
+   *     variant, `kmap --net-scan | tee log.txt` shows no progress
+   *     at all because every \r line overwrites the previous one in
+   *     the pipe buffer. */
+  int progress_n_interval = 30;
+  if (const char *env = getenv("KMAP_PROGRESS_INTERVAL_SECS")) {
+    int v = atoi(env);
+    if (v > 0 && v <= 3600) progress_n_interval = v;
+  }
+  time_t last_progress_n = time(nullptr);
+  time_t scan_start_time = time(nullptr);
   while (!scan_interrupted) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     uint64_t cur_idx  = probe_idx.load();
@@ -732,40 +748,68 @@ int fast_syn_scan(const char *data_dir,
 
     if (finished) break;
 
-    if (now_time - last_status >= 10) {
-      double pct = (double)cur_idx / (double)IP_SPACE * 100.0;
-      time_t elapsed = now_time - cp.last_save + 1;
-      uint64_t ips_done = cur_idx - cp.next_index;
-      double ips_per_sec = (elapsed > 0 && ips_done > 0)
-                           ? (double)ips_done / (double)elapsed : 0;
-      uint64_t ips_left = scan_end - cur_idx;
-      int64_t eta_sec = (ips_per_sec > 0)
-                        ? static_cast<int64_t>((double)ips_left / ips_per_sec)
-                        : -1;
+    /* Pct relative to the SLICE we are actually scanning, not the
+     * full IPv4 space.  For sample mode (max_ips > 0) the slice is
+     * small and a 0.0001% number is useless; for a full sweep it
+     * collapses to the same thing because cp.next_index = 0. */
+    uint64_t slice_total = scan_end - cp.next_index;
+    uint64_t slice_done  = cur_idx > cp.next_index
+                           ? cur_idx - cp.next_index : 0;
+    double pct = (slice_total > 0)
+                 ? 100.0 * (double)slice_done / (double)slice_total : 100.0;
+    time_t scan_elapsed = now_time - scan_start_time + 1;
+    double ips_per_sec = (scan_elapsed > 0 && slice_done > 0)
+                         ? (double)slice_done / (double)scan_elapsed : 0;
+    uint64_t ips_left = scan_end - cur_idx;
+    int64_t eta_sec = (ips_per_sec > 0)
+                      ? static_cast<int64_t>((double)ips_left / ips_per_sec)
+                      : -1;
 
-      char eta_buf[32];
-      if (eta_sec < 0) {
-        snprintf(eta_buf, sizeof(eta_buf), "calculating...");
-      } else if (eta_sec > 86400) {
-        int days = static_cast<int>(eta_sec / 86400);
-        int hrs  = static_cast<int>((eta_sec % 86400) / 3600);
-        int mins = static_cast<int>((eta_sec % 3600) / 60);
-        snprintf(eta_buf, sizeof(eta_buf), "%dd %02d:%02d", days, hrs, mins);
+    auto fmt_eta = [](int64_t s, char *buf, size_t n) {
+      if (s < 0) { snprintf(buf, n, "calculating..."); return; }
+      if (s > 86400) {
+        int days = (int)(s / 86400);
+        int hrs  = (int)((s % 86400) / 3600);
+        int mins = (int)((s % 3600) / 60);
+        snprintf(buf, n, "%dd %02d:%02d", days, hrs, mins);
       } else {
-        int hrs  = static_cast<int>(eta_sec / 3600);
-        int mins = static_cast<int>((eta_sec % 3600) / 60);
-        int secs = static_cast<int>(eta_sec % 60);
-        snprintf(eta_buf, sizeof(eta_buf), "%02d:%02d:%02d", hrs, mins, secs);
+        int hrs  = (int)(s / 3600);
+        int mins = (int)((s % 3600) / 60);
+        int secs = (int)(s % 60);
+        snprintf(buf, n, "%02d:%02d:%02d", hrs, mins, secs);
       }
+    };
+    char eta_buf[32];
+    fmt_eta(eta_sec, eta_buf, sizeof(eta_buf));
 
+    if (now_time - last_status >= 10) {
       log_write(LOG_STDOUT,
-        "  Progress: %.4f%% | Packets: %llu | Found: %llu | ETA: %-15s\r",
+        "  Progress: %.2f%% | IPs: %llu/%llu | Packets: %llu | Found: %llu | %.0f pps | ETA: %-15s\r",
                 pct,
+                (unsigned long long)slice_done,
+                (unsigned long long)slice_total,
                 (unsigned long long)done,
                 (unsigned long long)found,
+                ips_per_sec,
                 eta_buf);
       fflush(stdout);
       last_status = now_time;
+    }
+
+    /* Pipe-friendly progress line: same data, newline-terminated, less
+     * frequent.  Survives `kmap | tee` / log redirection / journalctl. */
+    if (now_time - last_progress_n >= progress_n_interval) {
+      log_write(LOG_STDOUT,
+        "  [%lds] discover: %llu/%llu IPs (%.1f%%)  opens=%llu  rate=%.0f pps  ETA %s\n",
+        (long)(now_time - scan_start_time),
+        (unsigned long long)slice_done,
+        (unsigned long long)slice_total,
+        pct,
+        (unsigned long long)found,
+        ips_per_sec,
+        eta_buf);
+      fflush(stdout);
+      last_progress_n = now_time;
     }
 
     /* Periodic checkpoint + per-shard transaction rollover. */

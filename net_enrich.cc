@@ -36,6 +36,9 @@
 #include <cstdlib>
 #include <ctime>
 #include <sstream>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -817,24 +820,31 @@ static bool is_https_port(int port, const std::string &service) {
    details. */
 
 #ifdef HAVE_OPENSSL
-/* Shared SSL_CTX — created once per process.  Mirrors web_recon.cc's
+/* Shared SSL_CTX -- created once per process.  Mirrors web_recon.cc's
    pattern; VERIFY_NONE because we want the cert details even when the
    chain doesn't validate (self-signed certs are the whole point of one of
-   the fields we capture). */
+   the fields we capture).
+
+   std::call_once + once_flag because the parallel enrichment workers
+   added in the parallel-run_enrichment / parallel-watchlist commits
+   can all race past `if (!ctx)` simultaneously and double-construct
+   the SSL_CTX, leaking one and racing on which pointer the static
+   ends up holding.  call_once guarantees the lambda body runs exactly
+   once across all threads, and any thread that arrives later blocks
+   until the first invocation completes.  OpenSSL 1.1+ auto-initializes
+   on first use of any libssl/libcrypto function; SSL_library_init and
+   SSL_load_error_strings are no-ops since 1.1 and deprecated in 3.0,
+   so they are not called here. */
+static SSL_CTX *enrich_ssl_ctx_inst = nullptr;
+static std::once_flag enrich_ssl_ctx_once;
+
 static SSL_CTX *enrich_get_ssl_ctx() {
-  static SSL_CTX *ctx = nullptr;
-  if (!ctx) {
-    /* OpenSSL 1.1+ auto-initializes on first use of any libssl/libcrypto
-     * function (OPENSSL_init_ssl is called implicitly).  SSL_library_init
-     * and SSL_load_error_strings are no-ops since 1.1 and deprecated as
-     * of 3.0.  We require 1.1+ already via TLS_client_method() (it does
-     * not exist before 1.1), so calling them did nothing and produced a
-     * -Wdeprecated-declarations warning under modern toolchains. */
-    ctx = SSL_CTX_new(TLS_client_method());
-    if (ctx)
-      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
-  }
-  return ctx;
+  std::call_once(enrich_ssl_ctx_once, [](){
+    enrich_ssl_ctx_inst = SSL_CTX_new(TLS_client_method());
+    if (enrich_ssl_ctx_inst)
+      SSL_CTX_set_verify(enrich_ssl_ctx_inst, SSL_VERIFY_NONE, nullptr);
+  });
+  return enrich_ssl_ctx_inst;
 }
 
 static int tls_capture_cert(const char *ip, int port, int timeout_ms,
@@ -1134,89 +1144,172 @@ int run_enrichment(const char *data_dir, int batch_size) {
     int64_t enriched_start = total_hosts - unenriched_total;
     time_t enrich_start_time = time(nullptr);
 
+    /* Per-shard parallel enrichment.
+     *
+     * The serial loop spent almost all its wall-time on the
+     * non-blocking connect() / select() / TLS-handshake / DNS-TXT
+     * round-trips inside enrich_single_host + lookup_asn +
+     * reverse_dns_lookup.  All three are independent per-host and
+     * the static SSL_CTX / OpenSSL state inside enrich_single_host
+     * is C++11-magic-static-safe, so we fan them out across a
+     * worker pool.  DB writes stay serial inside a single per-batch
+     * transaction because sqlite serializes writes through the
+     * shared db handle anyway.
+     *
+     * Default 10 workers, env override KMAP_NETSCAN_ENRICH_CONCURRENCY.
+     *
+     * In-scan retry: if enrich_single_host returns non-zero on the
+     * first attempt, retry up to KMAP_ENRICH_RETRIES additional times
+     * (default 1) before recording the failure.  Catches transient
+     * blip-failures (SYN dropped, TLS reset) so a single hiccup
+     * doesn't push a host into the cooldown queue. */
+    struct EnrichResult {
+      std::string ip;
+      std::vector<int> ports;
+      std::vector<std::string> protos;
+      std::vector<std::string> services, versions, cves_json;
+      std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
+      std::vector<std::string> powered_by, x_generator, redirects;
+      std::vector<TlsCapture> tls_caps;
+      std::string hostname;
+      AsnInfo asn_info{};
+      int rc = 0;
+      bool empty_host = false;
+    };
+
+    int enrich_worker_count = 10;
+    if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
+      int v = atoi(env);
+      if (v > 0 && v <= 256) enrich_worker_count = v;
+    }
+    int enrich_retries = 1;
+    if (const char *env = getenv("KMAP_ENRICH_RETRIES")) {
+      int v = atoi(env);
+      if (v >= 0 && v <= 10) enrich_retries = v;
+    }
+
     /* Process in batches */
     while (true) {
       std::vector<std::string> batch_ips =
           net_db_get_unenriched(db, batch_size);
       if (batch_ips.empty()) break;
 
-      net_db_begin(db);
-
+      /* Stage A: serial DB pre-fetch.  net_db_get_host hits the shared
+       * sqlite handle and we don't share it across worker threads, so
+       * we collect ports + stored prior service/version values here. */
+      std::vector<EnrichResult> results;
+      results.reserve(batch_ips.size());
       for (const std::string &ip : batch_ips) {
-        /* Get all ports for this IP */
+        EnrichResult r;
+        r.ip = ip;
         std::vector<NetHost> host_ports = net_db_get_host(db, ip.c_str());
-        if (host_ports.empty()) continue;
-
-        std::vector<int> ports;
-        std::vector<std::string> protos;
-        for (const auto &h : host_ports) {
-          ports.push_back(h.port);
-          protos.push_back(h.proto);
+        if (host_ports.empty()) {
+          r.empty_host = true;
+          results.push_back(std::move(r));
+          continue;
         }
+        for (const auto &h : host_ports) {
+          r.ports.push_back(h.port);
+          r.protos.push_back(h.proto);
+        }
+        /* Pre-populate from prior-scan stored values -- a flaky banner
+         * grab on this scan won't disable CVE matching because
+         * enrich_single_host only overwrites these when its banner
+         * grab returned non-empty. */
+        r.services.resize(r.ports.size());
+        r.versions.resize(r.ports.size());
+        for (size_t j = 0; j < host_ports.size() && j < r.ports.size(); j++) {
+          r.services[j] = host_ports[j].service;
+          r.versions[j] = host_ports[j].version;
+        }
+        results.push_back(std::move(r));
+      }
 
-        /* Run enrichment -- isolated per-host so one failure
-           does not abort the entire shard */
-        std::vector<std::string> services, versions, cves_json;
-        std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
-        std::vector<std::string> powered_by, x_generator, redirects;
-        std::vector<TlsCapture> tls_caps;
+      /* Stage B: parallel network work.  Pre-size results so each
+       * worker writes only its own slot -- no result-vector mutex. */
+      int actual_workers = enrich_worker_count;
+      if (static_cast<size_t>(actual_workers) > results.size())
+        actual_workers = static_cast<int>(results.size());
+      if (actual_workers < 1) actual_workers = 1;
 
-        int rc = enrich_single_host(ip.c_str(), ports, protos,
-                                    cve_path.empty() ? nullptr : cve_path.c_str(),
-                                    ENRICH_CONNECT_TIMEOUT,
-                                    services, versions, cves_json,
-                                    web_titles, web_servers,
-                                    web_headers, web_paths,
-                                    powered_by, x_generator, redirects,
-                                    &tls_caps);
-        if (rc != 0) {
-          /* Record the failure with a timestamp so the row becomes
-             eligible to retry after NET_DB_ENRICH_RETRY_SECONDS. */
+      std::atomic<size_t> next_idx{0};
+      auto worker = [&]() {
+        while (true) {
+          size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
+          if (i >= results.size()) return;
+          EnrichResult &r = results[i];
+          if (r.empty_host) continue;
+
+          /* Try the full enrichment, retry on transient failure. */
+          int attempt = 0;
+          while (true) {
+            r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
+                       cve_path.empty() ? nullptr : cve_path.c_str(),
+                       ENRICH_CONNECT_TIMEOUT,
+                       r.services, r.versions, r.cves_json,
+                       r.web_titles, r.web_servers,
+                       r.web_headers, r.web_paths,
+                       r.powered_by, r.x_generator, r.redirects,
+                       &r.tls_caps);
+            if (r.rc == 0) break;
+            if (attempt >= enrich_retries) break;
+            attempt++;
+          }
+
+          if (r.rc == 0) {
+            r.hostname  = reverse_dns_lookup(r.ip.c_str());
+            r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
+          }
+        }
+      };
+
+      std::vector<std::thread> pool;
+      pool.reserve(actual_workers);
+      for (int i = 0; i < actual_workers; i++) pool.emplace_back(worker);
+      for (auto &th : pool) th.join();
+
+      /* Stage C: serial DB write phase, all in one transaction. */
+      net_db_begin(db);
+      for (auto &r : results) {
+        if (r.empty_host) continue;
+        if (r.rc != 0) {
           if (o.verbose)
-            log_write(LOG_STDOUT, "  WARNING: enrichment failed for %s, will retry later\n",
-                      ip.c_str());
+            log_write(LOG_STDOUT,
+                      "  WARNING: enrichment failed for %s after retries, will retry later\n",
+                      r.ip.c_str());
           char err_buf[64];
-          snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", rc);
-          for (size_t j = 0; j < ports.size(); j++) {
-            net_db_record_enrichment_error(db, ip.c_str(), ports[j], err_buf);
+          snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", r.rc);
+          for (size_t j = 0; j < r.ports.size(); j++) {
+            net_db_record_enrichment_error(db, r.ip.c_str(), r.ports[j], err_buf);
           }
           continue;
         }
 
-        /* Reverse DNS — one PTR lookup per host, applied to every port row.
-           Empty string when the IP has no PTR record (very common). */
-        std::string hostname = reverse_dns_lookup(ip.c_str());
-        if (!hostname.empty())
-          net_db_set_hostname(db, ip.c_str(), hostname.c_str());
+        if (!r.hostname.empty())
+          net_db_set_hostname(db, r.ip.c_str(), r.hostname.c_str());
 
-        /* Write enrichment results back to DB — check bounds to avoid
-           out-of-range access if output vectors are somehow short */
-        for (size_t j = 0; j < ports.size(); j++) {
+        for (size_t j = 0; j < r.ports.size(); j++) {
           net_db_update_enrichment(
-            db, ip.c_str(), ports[j],
-            j < services.size()    ? services[j].c_str()    : "",
-            j < versions.size()    ? versions[j].c_str()    : "",
-            j < cves_json.size()   ? cves_json[j].c_str()   : "",
-            j < web_titles.size()  ? web_titles[j].c_str()  : "",
-            j < web_servers.size() ? web_servers[j].c_str()  : "",
-            j < web_headers.size() ? web_headers[j].c_str()  : "",
-            j < web_paths.size()   ? web_paths[j].c_str()   : "",
-            j < powered_by.size()  ? powered_by[j].c_str()  : nullptr,
-            j < x_generator.size() ? x_generator[j].c_str() : nullptr,
-            j < redirects.size()   ? redirects[j].c_str()   : nullptr,
-            nullptr /* robots_disallowed_json — net_enrich does not probe
-                       robots.txt; populated by per-target web_recon. */);
+            db, r.ip.c_str(), r.ports[j],
+            j < r.services.size()    ? r.services[j].c_str()    : "",
+            j < r.versions.size()    ? r.versions[j].c_str()    : "",
+            j < r.cves_json.size()   ? r.cves_json[j].c_str()   : "",
+            j < r.web_titles.size()  ? r.web_titles[j].c_str()  : "",
+            j < r.web_servers.size() ? r.web_servers[j].c_str() : "",
+            j < r.web_headers.size() ? r.web_headers[j].c_str() : "",
+            j < r.web_paths.size()   ? r.web_paths[j].c_str()   : "",
+            j < r.powered_by.size()  ? r.powered_by[j].c_str()  : nullptr,
+            j < r.x_generator.size() ? r.x_generator[j].c_str() : nullptr,
+            j < r.redirects.size()   ? r.redirects[j].c_str()   : nullptr,
+            nullptr);
 
-          /* TLS cert details — only emit when we have at least one piece
-             of TLS data (handshake succeeded).  Empty TlsCapture leaves
-             every column NULL via COALESCE, so no wasted UPDATE. */
-          if (j < tls_caps.size()) {
-            const TlsCapture &tc = tls_caps[j];
+          if (j < r.tls_caps.size()) {
+            const TlsCapture &tc = r.tls_caps[j];
             bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
                             !tc.sha256.empty()     || !tc.protocol.empty();
             if (have_tls) {
               net_db_update_tls(
-                db, ip.c_str(), ports[j],
+                db, r.ip.c_str(), r.ports[j],
                 tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
                 tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
                 tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
@@ -1228,82 +1321,57 @@ int run_enrichment(const char *data_dir, int batch_size) {
           }
         }
 
-        /* ASN/GeoIP lookup -- one per IP, applied to all ports */
-        AsnInfo asn_info = lookup_asn(ip.c_str(), 2000);
-        if (asn_info.asn > 0) {
-          net_db_update_asn(db, ip.c_str(), asn_info.asn,
-                            asn_info.as_name.c_str(),
-                            asn_info.country.c_str(),
-                            asn_info.bgp_prefix.c_str(),
-                            asn_info.registry.c_str(),
-                            asn_info.region.c_str());
+        if (r.asn_info.asn > 0) {
+          net_db_update_asn(db, r.ip.c_str(), r.asn_info.asn,
+                            r.asn_info.as_name.c_str(),
+                            r.asn_info.country.c_str(),
+                            r.asn_info.bgp_prefix.c_str(),
+                            r.asn_info.registry.c_str(),
+                            r.asn_info.region.c_str());
         }
 
-        /* Fingerprint derivation — seed the relationship-matching index
-           with every shareable identifier we collected.  Inserts UPSERT
-           on (ip_u32, kind, value), so re-scans just refresh observed_at
-           and the cluster cohort stays stable across runs.  All inserts
-           are inside the existing transaction so a shard-level failure
-           rolls back the whole batch cleanly.
-
-           Kinds emitted here:
-             hostname       — per-IP, reverse-DNS PTR.
-             tls_sha256     — per-port, DER cert hash; primary cluster key.
-             tls_subject_cn — per-port, skipped when the CN is just the IP.
-             tls_san        — per-port, ONE row per DNS SAN (fan-out).
-             redirect_host  — per-port, host from a 3xx Location header. */
-        uint32_t ip_u32 = ip_to_u32(ip.c_str());
+        uint32_t ip_u32 = ip_to_u32(r.ip.c_str());
         if (ip_u32 != 0) {
           int64_t fp_ts = static_cast<int64_t>(time(nullptr));
-
-          /* Per-IP fingerprint: reverse DNS (port=0 -> stored as NULL). */
-          if (!hostname.empty()) {
+          if (!r.hostname.empty()) {
             net_db_insert_fingerprint(db, ip_u32, 0, "hostname",
-                                      hostname.c_str(), fp_ts);
+                                      r.hostname.c_str(), fp_ts);
           }
-
-          /* Per-port fingerprints. */
-          for (size_t j = 0; j < ports.size(); j++) {
-            /* TLS cert fingerprints. */
-            if (j < tls_caps.size()) {
-              const TlsCapture &tc = tls_caps[j];
+          for (size_t j = 0; j < r.ports.size(); j++) {
+            if (j < r.tls_caps.size()) {
+              const TlsCapture &tc = r.tls_caps[j];
               if (!tc.sha256.empty()) {
-                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                           "tls_sha256",
                                           tc.sha256.c_str(), fp_ts);
               }
               if (!tc.subject_cn.empty() && !fp_looks_like_ip(tc.subject_cn)) {
-                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                           "tls_subject_cn",
                                           tc.subject_cn.c_str(), fp_ts);
               }
-              /* SAN DNS names — fan out one row per name.  Skips empty
-                 strings and IP-literal SANs (same reasoning as CN). */
               if (!tc.san_json.empty()) {
                 std::vector<std::string> sans =
                     fp_parse_san_json(tc.san_json);
                 for (const std::string &san : sans) {
                   if (san.empty() || fp_looks_like_ip(san)) continue;
-                  net_db_insert_fingerprint(db, ip_u32, ports[j],
+                  net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                             "tls_san",
                                             san.c_str(), fp_ts);
                 }
               }
             }
 
-            /* HTTP redirect target — pivots to whatever host the service
-               points clients at (often the canonical hostname of a fleet). */
-            if (j < redirects.size() && !redirects[j].empty()) {
-              std::string rh = fp_extract_redirect_host(redirects[j]);
+            if (j < r.redirects.size() && !r.redirects[j].empty()) {
+              std::string rh = fp_extract_redirect_host(r.redirects[j]);
               if (!rh.empty()) {
-                net_db_insert_fingerprint(db, ip_u32, ports[j],
+                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                           "redirect_host",
                                           rh.c_str(), fp_ts);
               }
             }
           }
         }
-
         processed++;
       }
 

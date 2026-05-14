@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <mutex>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -193,12 +194,12 @@ struct DnsCacheEntry {
   time_t      expires;
 };
 static std::map<std::string, DnsCacheEntry> dns_cache;
+static std::mutex dns_cache_mu;
 static const int DNS_CACHE_TTL_SECS = 300; /* 5-minute TTL */
 static const size_t DNS_CACHE_MAX = 100000; /* hard cap to bound memory */
 
 /* Evict expired entries, and if still over cap, drop everything.
- * A full flush is simpler and safer than LRU ordering, and the DNS TTL
- * keeps the working set bounded anyway. */
+ * Caller MUST hold dns_cache_mu. */
 static void dns_cache_maybe_evict(time_t now) {
   if (dns_cache.size() < DNS_CACHE_MAX) return;
   for (auto it = dns_cache.begin(); it != dns_cache.end();) {
@@ -221,12 +222,18 @@ static uint16_t dns_txid() {
  * Returns the TXT record content, or empty string on failure.
  * Results are cached to avoid redundant queries. */
 static std::string dns_txt_query(const char *qname, int timeout_ms) {
-  /* Check the DNS cache first */
+  /* Check the DNS cache first.  Lock-protected against concurrent
+   * insertion / eviction: the parallel-enrichment workers added in
+   * the watchlist + run_enrichment commits all hit this path
+   * concurrently, and std::map is not internally synchronized. */
   std::string cache_key(qname);
   time_t now = time(nullptr);
-  auto it = dns_cache.find(cache_key);
-  if (it != dns_cache.end() && it->second.expires > now) {
-    return it->second.result;
+  {
+    std::lock_guard<std::mutex> lk(dns_cache_mu);
+    auto it = dns_cache.find(cache_key);
+    if (it != dns_cache.end() && it->second.expires > now) {
+      return it->second.result;
+    }
   }
 
   /* Build query packet */
@@ -299,12 +306,18 @@ static std::string dns_txt_query(const char *qname, int timeout_ms) {
 
   std::string result = dns_extract_txt(resp, static_cast<size_t>(rlen));
 
-  /* Store in cache with TTL */
-  dns_cache_maybe_evict(now);
-  DnsCacheEntry entry;
-  entry.result = result;
-  entry.expires = now + DNS_CACHE_TTL_SECS;
-  dns_cache[cache_key] = entry;
+  /* Store in cache with TTL.  Same lock as above for the eviction
+   * sweep -- without it, two workers racing past the cache miss
+   * above could each maybe-evict + insert concurrently, corrupting
+   * std::map's internal structure. */
+  {
+    std::lock_guard<std::mutex> lk(dns_cache_mu);
+    dns_cache_maybe_evict(now);
+    DnsCacheEntry entry;
+    entry.result = result;
+    entry.expires = now + DNS_CACHE_TTL_SECS;
+    dns_cache[cache_key] = entry;
+  }
 
   return result;
 }
@@ -416,6 +429,7 @@ static std::string country_to_region(const std::string &country) {
  * ----------------------------------------------------------------------- */
 
 static std::map<std::string, AsnInfo> asn_cache;
+static std::mutex asn_cache_mu;
 static const size_t ASN_CACHE_MAX = 200000; /* hard cap to bound memory */
 
 /* -----------------------------------------------------------------------
@@ -428,11 +442,15 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
 
   if (!ip || !ip[0]) return info;
 
-  /* Check the ASN cache first */
+  /* Check the ASN cache first.  Mutex same reasoning as dns_cache_mu --
+   * parallel enrichment workers all call lookup_asn concurrently. */
   std::string ip_str(ip);
-  auto cache_it = asn_cache.find(ip_str);
-  if (cache_it != asn_cache.end()) {
-    return cache_it->second;
+  {
+    std::lock_guard<std::mutex> lk(asn_cache_mu);
+    auto cache_it = asn_cache.find(ip_str);
+    if (cache_it != asn_cache.end()) {
+      return cache_it->second;
+    }
   }
 
   /* Parse the IP into octets for reversed query */
@@ -466,9 +484,13 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
     info.region = country_to_region(info.country);
   }
 
-  /* Store in ASN cache (with hard cap — flush when full). */
-  if (asn_cache.size() >= ASN_CACHE_MAX) asn_cache.clear();
-  asn_cache[ip_str] = info;
+  /* Store in ASN cache (with hard cap -- flush when full).  Lock as
+   * above. */
+  {
+    std::lock_guard<std::mutex> lk(asn_cache_mu);
+    if (asn_cache.size() >= ASN_CACHE_MAX) asn_cache.clear();
+    asn_cache[ip_str] = info;
+  }
 
   return info;
 }
