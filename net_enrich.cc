@@ -1165,77 +1165,101 @@ int enrich_single_host(const char *ip,
     return rem > 0 ? rem : 0;
   };
 
-  /* Dead-host fast path: if the first two ports produce no banner AND
-     no port has answered anything, we skip the remaining HTTP / TLS
-     probes for the rest of this host. Those would just burn full
-     timeouts on filtered ports without recovering anything useful. */
-  bool any_response = false;
-  int  consecutive_blank = 0;
-  const int blank_bail = 2;
+  /* Phase 0 parallel-ports model. The sequential for-loop here used to
+     run each port's banner -> CVE -> HTTP -> TLS pipeline back-to-back,
+     so a host with 5 filtered ports took 5 * (banner_timeout +
+     http_timeout + tls_timeout) of wall time before the worker could
+     move on. Even with the 15-second per-host budget bounding the
+     worst case, the average wall per host stayed near the budget
+     ceiling because every port's timeout stacked sequentially.
 
-  bool budget_hit = false;
-  size_t ports_done = 0;
+     Now: up to KMAP_HOST_PORT_PARALLELISM ports (default 8) run their
+     full pipeline concurrently within the host. Each port-worker
+     thread atomically claims the next port index, does its
+     banner/CVE/HTTP/TLS work independently, and writes only to its
+     own slot in out_*[i] (no shared-vector mutex needed). Wall time
+     per host drops from O(nports * step_timeout) to roughly
+     O(step_timeout) for hosts with <= 8 open ports, which is the
+     common case at scan scale.
 
-  for (size_t i = 0; i < nports; i++) {
-    /* Hard budget check at each port boundary. */
-    if (budget_remaining() == 0) {
-      budget_hit = true;
-      break;
-    }
-
-    /* Reduce the per-step timeout to fit the remaining budget so the
-       last port can't overrun. */
-    int port_timeout = timeout_ms;
-    int rem = budget_remaining();
-    if (rem < port_timeout) port_timeout = rem;
-
-    /* Step 1: Banner grab / service detection. */
-    BannerResult br = grab_banner(ip, ports[i], port_timeout);
-    if (!br.service.empty()) out_services[i] = br.service;
-    if (!br.version.empty()) out_versions[i] = br.version;
-
-    if (!br.service.empty()) {
-      any_response = true;
-      consecutive_blank = 0;
-    } else {
-      consecutive_blank++;
-    }
-
-    /* Step 2: CVE lookup -- cheap (indexed local DB) so no budget gate. */
-    if (cve_db && !out_services[i].empty()) {
-      std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
-      out_cves[i] = cves_to_json(cves);
-    }
-
-    /* Skip step 3/4 (HTTP/TLS) entirely if the host has shown no signs
-       of life on the first blank_bail ports. */
-    bool skip_deep_probes = !any_response && consecutive_blank >= blank_bail;
-
-    /* Step 3: HTTP recon on plaintext web ports. */
-    rem = budget_remaining();
-    if (!skip_deep_probes && rem > 0 &&
-        is_http_port(ports[i], br.service) &&
-        !is_https_port(ports[i], br.service)) {
-      int http_timeout = timeout_ms < rem ? timeout_ms : rem;
-      WebResult wr = probe_http(ip, ports[i], http_timeout, br.http_response);
-      out_web_titles[i]   = wr.title;
-      out_web_servers[i]  = wr.server;
-      out_web_headers[i]  = wr.headers_json;
-      out_web_paths[i]    = wr.paths_json;
-      out_powered_by[i]   = wr.powered_by;
-      out_x_generator[i]  = wr.x_generator;
-      out_redirects[i]    = wr.redirect_target;
-    }
-
-    /* Step 4: TLS handshake on HTTPS ports. */
-    rem = budget_remaining();
-    if (!skip_deep_probes && rem > 0 && out_tls &&
-        is_https_port(ports[i], br.service)) {
-      int tls_timeout = timeout_ms < rem ? timeout_ms : rem;
-      tls_capture_cert(ip, ports[i], tls_timeout, (*out_tls)[i]);
-    }
-    ports_done++;
+     The shared deadline-based budget still bounds total wall time
+     (any thread that finds budget_remaining() == 0 returns early), so
+     the "one slow host stalls a worker" guarantee from the previous
+     commit is preserved. The dead-host fast-path skipped HTTP/TLS on
+     filtered ports; we drop that here because in parallel mode each
+     filtered port already costs only one banner_timeout regardless,
+     and we no longer have "first N ports" to gate on. */
+  int port_parallelism = 8;
+  if (const char *env = getenv("KMAP_HOST_PORT_PARALLELISM")) {
+    int v = atoi(env);
+    if (v >= 1 && v <= 32) port_parallelism = v;
   }
+  size_t worker_count = static_cast<size_t>(port_parallelism);
+  if (worker_count > nports) worker_count = nports;
+  if (worker_count < 1) worker_count = 1;
+
+  std::atomic<size_t> next_port_idx{0};
+  std::atomic<int> budget_hit_count{0};
+
+  auto port_worker = [&]() {
+    while (true) {
+      size_t i = next_port_idx.fetch_add(1, std::memory_order_relaxed);
+      if (i >= nports) return;
+
+      int rem = budget_remaining();
+      if (rem == 0) {
+        budget_hit_count.fetch_add(1, std::memory_order_relaxed);
+        return;
+      }
+      int port_timeout = timeout_ms < rem ? timeout_ms : rem;
+
+      /* Step 1: Banner grab / service detection. */
+      BannerResult br = grab_banner(ip, ports[i], port_timeout);
+      if (!br.service.empty()) out_services[i] = br.service;
+      if (!br.version.empty()) out_versions[i] = br.version;
+
+      /* Step 2: CVE lookup. Microseconds against the indexed local DB;
+         lookup_cves is safe to call from multiple threads (sqlite in
+         serialized default mode + read-only handle = thread-safe). */
+      if (cve_db && !out_services[i].empty()) {
+        std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
+        out_cves[i] = cves_to_json(cves);
+      }
+
+      /* Step 3: HTTP recon on plaintext web ports. */
+      rem = budget_remaining();
+      if (rem > 0 &&
+          is_http_port(ports[i], br.service) &&
+          !is_https_port(ports[i], br.service)) {
+        int http_timeout = timeout_ms < rem ? timeout_ms : rem;
+        WebResult wr = probe_http(ip, ports[i], http_timeout, br.http_response);
+        out_web_titles[i]   = wr.title;
+        out_web_servers[i]  = wr.server;
+        out_web_headers[i]  = wr.headers_json;
+        out_web_paths[i]    = wr.paths_json;
+        out_powered_by[i]   = wr.powered_by;
+        out_x_generator[i]  = wr.x_generator;
+        out_redirects[i]    = wr.redirect_target;
+      }
+
+      /* Step 4: TLS handshake on HTTPS ports. */
+      rem = budget_remaining();
+      if (rem > 0 && out_tls && is_https_port(ports[i], br.service)) {
+        int tls_timeout = timeout_ms < rem ? timeout_ms : rem;
+        tls_capture_cert(ip, ports[i], tls_timeout, (*out_tls)[i]);
+      }
+    }
+  };
+
+  {
+    std::vector<std::thread> port_threads;
+    port_threads.reserve(worker_count);
+    for (size_t w = 0; w < worker_count; w++)
+      port_threads.emplace_back(port_worker);
+    for (auto &t : port_threads) t.join();
+  }
+
+  bool budget_hit = budget_hit_count.load(std::memory_order_relaxed) > 0;
 
   /* Metrics: total wall time, max-seen, budget-bail counter. */
   uint64_t elapsed_ms = static_cast<uint64_t>(
@@ -1250,7 +1274,6 @@ int enrich_single_host(const char *ip,
   if (budget_hit) {
     g_enrich_budget_bails.fetch_add(1, std::memory_order_relaxed);
   }
-  (void)ports_done;
 
   return 0;
 }

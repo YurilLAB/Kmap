@@ -151,7 +151,14 @@ bool is_excluded(uint32_t ip, const std::vector<ExcludeRange> &excludes) {
 std::vector<int> parse_port_spec(const char *spec) {
   std::set<int> ports;
   if (!spec || !spec[0]) {
-    /* Default: top 100 common ports */
+    /* Default: top 100 common ports, numeric order. Tried reordering
+       most-common-first to make the early-bail fire faster -- it
+       actually slightly hurt coverage on a real 1000-IP sweep, because
+       legacy low-number ports (7/20/21/etc) tend to elicit CLOSED RSTs
+       from real hosts which reset the bail streak and let us continue
+       probing weird-port-only services. Common ports (80/443/22/etc)
+       are more often firewall-DROPped (no response) which builds the
+       streak instead. Numeric order it is. */
     static const int top100[] = {
       7,20,21,22,23,25,43,53,67,68,69,79,80,88,110,111,113,119,123,
       135,137,138,139,143,161,162,179,194,389,443,445,465,514,515,
@@ -709,6 +716,14 @@ int fast_syn_scan(const char *data_dir,
    * single early CLOSED reply resets the counter -- so a host that
    * is up but firewalled on most ports still gets fully scanned
    * because the RST tells us it's alive. */
+  /* Default 8. Tested 5 and 7: bail=5 collapsed host count 727 -> 150
+     on a 1000-IP random sweep (real alive hosts got bailed before we
+     reached their listening port). bail=7 cost about the same time as
+     bail=8 with slightly worse coverage, so there is no benefit to
+     lowering it -- discovery wall time is dominated by responsive hosts
+     probing all 100 ports, not by bail-streak-on-dead-hosts. Real perf
+     wins come from parallelizing within-host enrichment (Phase 0) and
+     async I/O (Phase 1), not from tightening this counter. */
   int bail_after_timeouts = 8;
   if (const char *env = getenv("KMAP_BAIL_AFTER_TIMEOUTS")) {
     int v = atoi(env);
