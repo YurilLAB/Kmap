@@ -736,66 +736,91 @@ int fast_syn_scan(const char *data_dir,
   std::mutex rate_mu;
   std::mutex db_mu;
 
+  /* Per-IP port parallelism. Same idea as enrich_single_host's Phase 0:
+     instead of probing N ports sequentially for one IP, spawn up to
+     KMAP_DISCOVERY_PORT_PARALLELISM threads that work-steal ports off
+     a per-IP atomic index. Wall time per IP drops roughly N-fold for
+     responsive hosts that probe the whole port list.
+
+     The bail logic translates cleanly: timeout_count is atomic, and
+     once it crosses bail_after_timeouts AND no port has answered
+     anything (any_response_atomic == false), bail_flag is set and all
+     inner threads return. Behavior matches the sequential version in
+     the steady state -- a host that gets one RST early flips
+     any_response_atomic and the bail check stops firing. */
+  int port_parallelism = 8;
+  if (const char *env = getenv("KMAP_DISCOVERY_PORT_PARALLELISM")) {
+    int v = atoi(env);
+    if (v >= 1 && v <= 32) port_parallelism = v;
+  }
+  int inner_workers = port_parallelism;
+  if (inner_workers > static_cast<int>(ports.size()))
+    inner_workers = static_cast<int>(ports.size());
+  if (inner_workers < 1) inner_workers = 1;
+
   auto worker = [&]() {
     while (!scan_interrupted) {
       uint64_t my_idx = probe_idx.fetch_add(1, std::memory_order_relaxed);
       if (my_idx >= scan_end) return;
       uint32_t ip = permute_ip(my_idx, seed);
 
-      /* Skip excluded IPs but still count toward iteration progress. */
       if (is_excluded(ip, excludes)) continue;
 
-      /* Per-IP state for the early-bail heuristic.  bail_streak counts
-       * consecutive timeouts; reset to 0 on any CLOSED (host alive,
-       * port not listening) or OPEN.  Once it crosses the threshold
-       * AND we have not yet seen any open ports, skip the rest of
-       * this IP. */
-      int  bail_streak  = 0;
-      bool any_response = false;
-      bool any_open     = false;
+      /* Per-IP shared state for the parallel inner workers. */
+      std::atomic<size_t> port_cursor{0};
+      std::atomic<int>    timeout_count{0};
+      std::atomic<bool>   any_response_atomic{false};
+      std::atomic<bool>   bail_flag{false};
 
-      for (int port : ports) {
-        if (scan_interrupted) break;
+      auto port_worker = [&]() {
+        while (!scan_interrupted && !bail_flag.load(std::memory_order_relaxed)) {
+          size_t i = port_cursor.fetch_add(1, std::memory_order_relaxed);
+          if (i >= ports.size()) return;
 
-        rate_wait(rl, rate_mu);
+          rate_wait(rl, rate_mu);
 
-        ProbeResult pr = connect_probe(ip, port, probe_timeout_ms);
-        probes_done.fetch_add(1, std::memory_order_relaxed);
+          int port = ports[i];
+          ProbeResult pr = connect_probe(ip, port, probe_timeout_ms);
+          probes_done.fetch_add(1, std::memory_order_relaxed);
 
-        if (pr == ProbeResult::TIMEOUT) {
-          bail_streak++;
-          if (bail_streak >= bail_after_timeouts && !any_response) {
-            /* Host has shown zero life across N consecutive port
-             * probes -- almost certainly filtered or offline.  Skip
-             * the remaining ports.  Saves (ports.size() - already_done)
-             * * timeout_ms per dead host, which dominates filtered-
-             * sample wall time. */
-            break;
-          }
-        } else {
-          /* CLOSED counts as a sign of life and resets the streak.
-           * Real production hosts with one or two open ports + 90+
-           * RST'd ports are common and we want to scan them all. */
-          bail_streak = 0;
-          any_response = true;
-          if (pr == ProbeResult::OPEN) {
-            any_open = true;
-            hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
-            int shard_idx = net_shard_index(ip);
-            sqlite3 *db = shards[shard_idx];
-            if (db) {
-              std::lock_guard<std::mutex> lk(db_mu);
-              net_db_insert_host(db, ip, port, "tcp", now_ts);
+          if (pr == ProbeResult::TIMEOUT) {
+            int tc = timeout_count.fetch_add(1, std::memory_order_relaxed) + 1;
+            if (tc >= bail_after_timeouts &&
+                !any_response_atomic.load(std::memory_order_relaxed)) {
+              /* Host has shown zero life across N probes -- almost
+                 certainly filtered or offline. Set the bail flag; all
+                 inner threads will check it and return. Saves
+                 (ports.size() - already_done) * timeout_ms per dead
+                 host -- the dominant cost on filtered random samples. */
+              bail_flag.store(true, std::memory_order_relaxed);
             }
-            if (o.verbose) {
-              std::string ip_str = u32_to_ip(ip);
-              std::lock_guard<std::mutex> lk(db_mu);
-              log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
+          } else {
+            /* CLOSED counts as a sign of life. Once flipped, the bail
+               check stops firing (any_response_atomic is sticky). */
+            any_response_atomic.store(true, std::memory_order_relaxed);
+            if (pr == ProbeResult::OPEN) {
+              hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
+              int shard_idx = net_shard_index(ip);
+              sqlite3 *db = shards[shard_idx];
+              if (db) {
+                std::lock_guard<std::mutex> lk(db_mu);
+                net_db_insert_host(db, ip, port, "tcp", now_ts);
+              }
+              if (o.verbose) {
+                std::string ip_str = u32_to_ip(ip);
+                std::lock_guard<std::mutex> lk(db_mu);
+                log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
+              }
             }
           }
         }
-      }
-      (void)any_open;  /* used by future per-IP stats; silence unused */
+      };
+
+      std::vector<std::thread> inner_threads;
+      inner_threads.reserve(inner_workers);
+      for (int w = 0; w < inner_workers; w++)
+        inner_threads.emplace_back(port_worker);
+      for (auto &t : inner_threads) t.join();
     }
   };
 
