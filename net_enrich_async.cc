@@ -494,12 +494,29 @@ static std::string a_cves_to_json(const std::vector<AsyncEnrichCve> &cves) {
  * Per-host state
  * ----------------------------------------------------------------------- */
 
-/* Stage in the host's pipeline.  Phase 1a stops at BANNER_RECV; Phase 1b
-   will append HTTP_CONNECT / HTTP_SEND / HTTP_RECV; Phase 1c TLS_*. */
+/* Stage in a single port's pipeline. Phase 1a stops at BANNER_RECV;
+   Phase 1b will append HTTP_*; Phase 1c TLS_*. Stages live per-port
+   so all of a host's ports can be in different stages concurrently. */
 enum AsyncStage {
   STAGE_BANNER_CONNECT,
   STAGE_BANNER_RECV,
   STAGE_DONE
+};
+
+struct AsyncHostState;  /* fwd */
+
+/* Per-port work item. All ports of a host launch in parallel; each has
+   its own iod + stage and writes to its own slot in the host's output
+   vectors. Phase 1a-2 change: this used to be implicit (HostState.iod
+   was the single-in-flight slot, port_idx walked sequentially). Now
+   each port is independent, matching the sync path's 8-way port-
+   parallelism that Phase 0 introduced. */
+struct AsyncPortItem {
+  AsyncHostState *host;     /* back-pointer to the host owning this port */
+  size_t          port_idx; /* index into host->ports / out_* arrays */
+  int             port_num; /* cached for the nsock_connect_tcp call */
+  AsyncStage      stage;
+  nsock_iod       iod;
 };
 
 struct AsyncHostState {
@@ -514,21 +531,18 @@ struct AsyncHostState {
   std::vector<std::string> *out_versions;
   std::vector<std::string> *out_cves;
 
-  /* Walk pointer */
-  size_t       port_idx;
-  AsyncStage   stage;
-
-  /* Live nsock resources for the in-flight event on this host.  iod is
-     re-created per port (one connect+read per fd) so a closed/half-open
-     fd from port N doesn't bleed into port N+1. */
-  nsock_iod    iod;
+  /* Per-port work items. All launched concurrently when the host is
+     admitted; each completes independently. ports_remaining counts
+     down to zero, at which point the host finalizes. */
+  std::vector<AsyncPortItem> port_items;
+  std::atomic<int> ports_remaining{0};
 
   /* Pre-resolved socket address for this host, computed once on admit. */
   struct sockaddr_storage ss;
   socklen_t    sslen;
   bool         addr_ok;
 
-  /* Deadline for the whole host. */
+  /* Deadline for the whole host -- shared by every port-item. */
   std::chrono::steady_clock::time_point deadline;
 };
 
@@ -561,8 +575,8 @@ struct AsyncEnrichBatch {
 /* Forward declarations for the callback web. */
 static void on_banner_connect(nsock_pool nsp, nsock_event nse, void *udata);
 static void on_banner_recv  (nsock_pool nsp, nsock_event nse, void *udata);
-static void submit_connect  (AsyncEnrichBatch *b, AsyncHostState *h);
-static void advance_port    (AsyncEnrichBatch *b, AsyncHostState *h);
+static void submit_port_connect(AsyncEnrichBatch *b, AsyncPortItem *p);
+static void port_done       (AsyncEnrichBatch *b, AsyncPortItem *p);
 static void finalize_host   (AsyncEnrichBatch *b, AsyncHostState *h);
 static void try_admit       (AsyncEnrichBatch *b);
 
@@ -608,144 +622,139 @@ static bool resolve_ip(const std::string &ip, struct sockaddr_storage *ss,
  * State machine
  * ----------------------------------------------------------------------- */
 
-/* Allocate a fresh nsock_iod for this host and issue the connect for
-   the current port_idx.  Caller must guarantee port_idx < ports.size()
-   and budget not yet expired. */
-static void submit_connect(AsyncEnrichBatch *b, AsyncHostState *h) {
-  int port = (*h->ports)[h->port_idx];
+/* Allocate a fresh nsock_iod for a port and issue the TCP connect. The
+   port's own iod / stage are stored on the AsyncPortItem so multiple
+   ports of one host can be in different stages concurrently. */
+static void submit_port_connect(AsyncEnrichBatch *b, AsyncPortItem *p) {
+  AsyncHostState *h = p->host;
   int to = step_timeout(b, h);
   if (to <= 0) {
-    /* Budget exhausted right at the entry; bail through advance_port,
-       which will see remaining_ms()==0 and finalize. */
-    advance_port(b, h);
+    /* Budget already exhausted (e.g. very tight per_step_timeout, or
+       this host's deadline already passed). Mark this port done. */
+    port_done(b, p);
     return;
   }
 
-  h->iod = nsock_iod_new(b->pool, h);
-  if (h->iod == NULL) {
-    /* No fd available, skip port. */
-    advance_port(b, h);
+  p->iod = nsock_iod_new(b->pool, p);
+  if (p->iod == NULL) {
+    /* No fd available; treat as if the port completed with no data. */
+    port_done(b, p);
     return;
   }
 
-  h->stage = STAGE_BANNER_CONNECT;
+  p->stage = STAGE_BANNER_CONNECT;
   b->ports_attempted.fetch_add(1, std::memory_order_relaxed);
 
-  nsock_connect_tcp(b->pool, h->iod, on_banner_connect, to, h,
+  nsock_connect_tcp(b->pool, p->iod, on_banner_connect, to, p,
                     reinterpret_cast<struct sockaddr *>(&h->ss),
-                    h->sslen, static_cast<unsigned short>(port));
+                    h->sslen, static_cast<unsigned short>(p->port_num));
 }
 
 /* nsock callback: TCP connect attempt completed (or timed out / errored). */
 static void on_banner_connect(nsock_pool nsp, nsock_event nse, void *udata) {
   AsyncEnrichBatch *b = static_cast<AsyncEnrichBatch *>(nsock_pool_get_udata(nsp));
-  AsyncHostState *h = static_cast<AsyncHostState *>(udata);
+  AsyncPortItem *p = static_cast<AsyncPortItem *>(udata);
   enum nse_status st = nse_status(nse);
 
   /* KILL means the pool is being torn down -- bow out without touching
      anything else; the pool_delete path is releasing resources for us. */
   if (st == NSE_STATUS_KILL) {
-    h->iod = NULL;
+    p->iod = NULL;
     return;
   }
 
   if (st == NSE_STATUS_SUCCESS) {
     /* Connect ok -- issue the banner read.  Use remaining step_timeout
-       (budget-clamped) so a host that already ate most of its budget
-       on connect can't then sit on a 5-second read. */
-    int to = step_timeout(b, h);
+       (budget-clamped) so a port that already ate most of the host's
+       budget on connect can't then sit on a 5-second read. */
+    int to = step_timeout(b, p->host);
     if (to <= 0) {
-      /* Budget out: close iod, advance (which will finalize). */
-      if (h->iod) { nsock_iod_delete(h->iod, NSOCK_PENDING_SILENT); h->iod = NULL; }
-      advance_port(b, h);
+      if (p->iod) { nsock_iod_delete(p->iod, NSOCK_PENDING_SILENT); p->iod = NULL; }
+      port_done(b, p);
       return;
     }
-    h->stage = STAGE_BANNER_RECV;
-    nsock_read(b->pool, h->iod, on_banner_recv, to, h);
+    p->stage = STAGE_BANNER_RECV;
+    nsock_read(b->pool, p->iod, on_banner_recv, to, p);
     return;
   }
 
   /* Connect failed -- closed/filtered port, timeout, or proxy error.
-     Close the iod and try the next port. */
-  if (h->iod) { nsock_iod_delete(h->iod, NSOCK_PENDING_SILENT); h->iod = NULL; }
-  advance_port(b, h);
+     Close the iod and mark the port done. */
+  if (p->iod) { nsock_iod_delete(p->iod, NSOCK_PENDING_SILENT); p->iod = NULL; }
+  port_done(b, p);
 }
 
 /* nsock callback: banner read completed. */
 static void on_banner_recv(nsock_pool nsp, nsock_event nse, void *udata) {
   AsyncEnrichBatch *b = static_cast<AsyncEnrichBatch *>(nsock_pool_get_udata(nsp));
-  AsyncHostState *h = static_cast<AsyncHostState *>(udata);
+  AsyncPortItem *p = static_cast<AsyncPortItem *>(udata);
+  AsyncHostState *h = p->host;
   enum nse_status st = nse_status(nse);
 
   if (st == NSE_STATUS_KILL) {
-    h->iod = NULL;
+    p->iod = NULL;
     return;
   }
 
   if (st == NSE_STATUS_SUCCESS) {
-    /* We have at least one byte.  nse_readbuf returns a borrowed pointer
-       owned by the event (freed when the callback returns), so we must
-       consume / copy here. */
+    /* nse_readbuf returns a borrowed pointer owned by the event; copy
+       before the callback returns. */
     int nbytes = 0;
     char *rb = nse_readbuf(nse, &nbytes);
     if (nbytes > ASYNC_ENRICH_BANNER_MAX) nbytes = ASYNC_ENRICH_BANNER_MAX;
 
-    int port = (*h->ports)[h->port_idx];
-    AsyncBannerResult br = classify_banner(rb, nbytes, port);
+    AsyncBannerResult br = classify_banner(rb, nbytes, p->port_num);
 
     if (!br.service.empty()) {
-      (*h->out_services)[h->port_idx] = br.service;
+      (*h->out_services)[p->port_idx] = br.service;
       b->banners_classified.fetch_add(1, std::memory_order_relaxed);
     }
     if (!br.version.empty()) {
-      (*h->out_versions)[h->port_idx] = br.version;
+      (*h->out_versions)[p->port_idx] = br.version;
     }
 
-    /* CVE lookup (sync, microseconds).  Phase 1a does not retry / soften
-       on null cve_db -- a_lookup_cves handles that internally. */
+    /* CVE lookup (sync, microseconds against indexed local DB). */
     if (b->cve_db && !br.service.empty()) {
       std::vector<AsyncEnrichCve> cves =
         a_lookup_cves(b->cve_db, br.service, br.version);
-      (*h->out_cves)[h->port_idx] = a_cves_to_json(cves);
+      (*h->out_cves)[p->port_idx] = a_cves_to_json(cves);
     }
   }
-  /* NSE_STATUS_TIMEOUT / EOF / ERROR / CANCELLED: nothing to record.
-     The synchronous path leaves the slot empty in the same way (and
-     also does an HTTP probe on silent ports -- Phase 1b territory). */
+  /* NSE_STATUS_TIMEOUT / EOF / ERROR / CANCELLED: nothing to record. */
 
-  if (h->iod) { nsock_iod_delete(h->iod, NSOCK_PENDING_SILENT); h->iod = NULL; }
-  advance_port(b, h);
+  if (p->iod) { nsock_iod_delete(p->iod, NSOCK_PENDING_SILENT); p->iod = NULL; }
+  port_done(b, p);
 }
 
-/* Step the host's port walker forward; either schedule the next port or
-   finalize. */
-static void advance_port(AsyncEnrichBatch *b, AsyncHostState *h) {
-  h->port_idx++;
-  if (h->port_idx >= h->ports->size() || remaining_ms(h) <= 0) {
-    if (h->port_idx < h->ports->size())
-      b->budget_bails.fetch_add(1, std::memory_order_relaxed);
-    finalize_host(b, h);
-    return;
+/* A port has finished (success, timeout, or error). Decrement the host's
+   port counter; when zero, finalize the host. */
+static void port_done(AsyncEnrichBatch *b, AsyncPortItem *p) {
+  p->stage = STAGE_DONE;
+  AsyncHostState *h = p->host;
+  int remaining = h->ports_remaining.fetch_sub(1, std::memory_order_acq_rel) - 1;
+  if (remaining > 0) return;
+
+  /* All this host's ports have completed. Account for budget bails:
+     if the host's deadline expired while ports were still in flight,
+     each of those ports completed via STATUS_TIMEOUT but we should still
+     log the bail once per host. */
+  if (remaining_ms(h) == 0) {
+    b->budget_bails.fetch_add(1, std::memory_order_relaxed);
   }
-  submit_connect(b, h);
+  finalize_host(b, h);
 }
 
-/* Finalize the host: mark stage DONE, drop from the active count, and
-   try to admit a replacement from the pending queue. */
+/* Drop the host from the active count and try to admit a replacement. */
 static void finalize_host(AsyncEnrichBatch *b, AsyncHostState *h) {
-  if (h->iod) {
-    nsock_iod_delete(h->iod, NSOCK_PENDING_SILENT);
-    h->iod = NULL;
-  }
-  h->stage = STAGE_DONE;
   b->active_count--;
   b->hosts_completed.fetch_add(1, std::memory_order_relaxed);
   try_admit(b);
 }
 
-/* Pull a pending host off the queue, resolve its address, kick off its
-   first port connect.  Repeats until we hit max_in_flight or the queue
-   drains. */
+/* Pull pending hosts off the queue. For each, resolve its address, build
+   per-port work items, and submit connects for ALL of its ports
+   simultaneously (Phase 1a-2 parallel-ports-per-host model). Repeats
+   until max_in_flight (counted in hosts) or the queue drains. */
 static void try_admit(AsyncEnrichBatch *b) {
   while (b->active_count < b->max_in_flight && !b->pending_idx.empty()) {
     size_t idx = b->pending_idx.front();
@@ -754,28 +763,52 @@ static void try_admit(AsyncEnrichBatch *b) {
 
     /* Empty port list: nothing to do, finalize immediately. */
     if (h->ports->empty()) {
-      h->stage = STAGE_DONE;
       b->hosts_completed.fetch_add(1, std::memory_order_relaxed);
       continue;
     }
 
-    /* Resolve the IP exactly once per host.  An unparseable IP just
-       skips the host with empty outputs; we don't fail the whole batch. */
+    /* Resolve the IP exactly once per host. */
     if (!resolve_ip(h->ip, &h->ss, &h->sslen)) {
-      h->stage = STAGE_DONE;
       b->hosts_completed.fetch_add(1, std::memory_order_relaxed);
       continue;
     }
     h->addr_ok = true;
 
-    /* Start the deadline clock NOW (not at batch admission) so each
-       host gets the full budget even if it was queued for a while. */
+    /* Start the deadline clock NOW so each host gets its full budget
+       even if it was queued for a while. */
     h->deadline = std::chrono::steady_clock::now() +
                   std::chrono::milliseconds(b->budget_ms);
-    h->port_idx = 0;
+
+    /* Allocate one work item per port; each gets its own iod and walks
+       its own state machine concurrently with the rest. ports_remaining
+       is set FIRST so any callback completing before we finish the loop
+       sees a consistent value. */
+    size_t nports = h->ports->size();
+    h->port_items.clear();
+    h->port_items.reserve(nports);
+    h->ports_remaining.store(static_cast<int>(nports),
+                             std::memory_order_relaxed);
 
     b->active_count++;
-    submit_connect(b, h);
+
+    for (size_t pi = 0; pi < nports; pi++) {
+      AsyncPortItem item;
+      item.host     = h;
+      item.port_idx = pi;
+      item.port_num = (*h->ports)[pi];
+      item.stage    = STAGE_BANNER_CONNECT;
+      item.iod      = NULL;
+      h->port_items.push_back(item);
+    }
+    /* Now that the vector is fully populated, submit each port's
+       connect. Pointer stability matters here: nsock holds the
+       AsyncPortItem* and dereferences it from callbacks, so we must
+       not push_back after submitting (would invalidate references).
+       The reserve() above + finished-pushes-first ordering guarantees
+       that. */
+    for (size_t pi = 0; pi < nports; pi++) {
+      submit_port_connect(b, &h->port_items[pi]);
+    }
   }
 }
 
@@ -837,26 +870,27 @@ int async_enrich_batch(
   batch.banners_classified.store(0, std::memory_order_relaxed);
   batch.budget_bails.store(0, std::memory_order_relaxed);
 
-  /* Build host state list and pending queue.  Pointer stability of
-     std::deque elements is documented (insert/erase at ends preserves
-     all references) -- and we only push_back here, so the raw AsyncHostState*
-     we hand to nsock callbacks below stays valid for the whole batch. */
+  /* Build host state list and pending queue. AsyncHostState contains
+     std::atomic<int> (ports_remaining), which is neither copyable nor
+     movable, so we cannot push_back a temporary. Use emplace_back to
+     default-construct in place, then assign fields via reference. The
+     in-class initializer ports_remaining{0} ensures the atomic starts
+     at zero on default construction. Pointer stability across deque
+     push_back is documented and guarantees the AsyncHostState* we
+     hand to nsock callbacks stays valid for the whole batch. */
   for (size_t i = 0; i < N; i++) {
-    AsyncHostState h;
+    batch.hosts.emplace_back();
+    AsyncHostState &h = batch.hosts.back();
     h.batch_idx     = i;
     h.ip            = ips[i];
     h.ports         = &ports_per_host[i];
     h.out_services  = &out_services_per_host[i];
     h.out_versions  = &out_versions_per_host[i];
     h.out_cves      = &out_cves_per_host[i];
-    h.port_idx      = 0;
-    h.stage         = STAGE_BANNER_CONNECT;
-    h.iod           = NULL;
     h.sslen         = 0;
     h.addr_ok       = false;
-    /* deadline set on admit */
+    /* deadline set on admit; ports_remaining set on admit too */
     std::memset(&h.ss, 0, sizeof(h.ss));
-    batch.hosts.push_back(std::move(h));
     batch.pending_idx.push_back(i);
   }
 

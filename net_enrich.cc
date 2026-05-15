@@ -1198,6 +1198,19 @@ int enrich_single_host(const char *ip,
   if (worker_count > nports) worker_count = nports;
   if (worker_count < 1) worker_count = 1;
 
+  /* Async-preset skip: when the caller has already filled
+     out_services/out_versions/out_cves via an upstream async pre-pass
+     (Phase 1a's async_enrich_batch), we have no reason to re-grab the
+     banner -- we'd just spend a TCP RTT to confirm what the async pass
+     already learned. KMAP_ASYNC_ENRICH=1 is the caller-set contract:
+     "everything in out_*[i] that is already non-empty was filled
+     authoritatively; do not overwrite it". HTTP/TLS still run because
+     Phase 1a doesn't cover them yet (deferred to Phase 1b/1c). */
+  bool async_preset_mode = false;
+  if (const char *env = getenv("KMAP_ASYNC_ENRICH")) {
+    if (atoi(env) > 0) async_preset_mode = true;
+  }
+
   std::atomic<size_t> next_port_idx{0};
   std::atomic<int> budget_hit_count{0};
 
@@ -1213,15 +1226,25 @@ int enrich_single_host(const char *ip,
       }
       int port_timeout = timeout_ms < rem ? timeout_ms : rem;
 
-      /* Step 1: Banner grab / service detection. */
-      BannerResult br = grab_banner(ip, ports[i], port_timeout);
-      if (!br.service.empty()) out_services[i] = br.service;
-      if (!br.version.empty()) out_versions[i] = br.version;
+      /* Step 1: Banner grab. Skip when async pre-pass already filled
+         this slot. The async path's classifier is the same code (copied
+         to net_enrich_async.cc) so we can trust its verdict. */
+      BannerResult br;
+      bool skip_banner = async_preset_mode && !out_services[i].empty();
+      if (!skip_banner) {
+        br = grab_banner(ip, ports[i], port_timeout);
+        if (!br.service.empty()) out_services[i] = br.service;
+        if (!br.version.empty()) out_versions[i] = br.version;
+      } else {
+        /* Use pre-populated values for downstream branching
+           (is_http_port / is_https_port read br.service). */
+        br.service = out_services[i];
+        br.version = out_versions[i];
+      }
 
-      /* Step 2: CVE lookup. Microseconds against the indexed local DB;
-         lookup_cves is safe to call from multiple threads (sqlite in
-         serialized default mode + read-only handle = thread-safe). */
-      if (cve_db && !out_services[i].empty()) {
+      /* Step 2: CVE lookup. Skip in async-preset mode too -- already
+         done by the async pass. */
+      if (!skip_banner && cve_db && !out_services[i].empty()) {
         std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
         out_cves[i] = cves_to_json(cves);
       }

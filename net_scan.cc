@@ -13,6 +13,7 @@
 #include "net_db.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
+#include "net_enrich_async.h"
 #include "net_report.h"
 #include "net_query.h"
 #include "asn_lookup.h"
@@ -649,6 +650,72 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         hr.versions[i] = host_ports[i].version;
       }
       results.push_back(std::move(hr));
+    }
+
+    /* Stage B-pre (opt-in async pre-pass): when KMAP_ASYNC_ENRICH=1, run
+       banner-grab + CVE for every host via async_enrich_batch
+       (nsock-driven, one or more parallel pools). The sync Stage B
+       below honours the same env and skips banner/CVE on slots already
+       filled by the async pass, so the net effect is: async covers the
+       network-heavy banner+CVE half, sync still covers HTTP probe and
+       TLS handshake (Phase 1b/1c will migrate those into the state
+       machine). Per-host budget still applies; metrics still reported.
+
+       Defaulting OFF for now -- Phase 1a is an A/B experiment. Set
+       KMAP_ASYNC_ENRICH=1 to opt in. */
+    bool async_enrich_mode = false;
+    if (const char *env = getenv("KMAP_ASYNC_ENRICH")) {
+      if (atoi(env) > 0) async_enrich_mode = true;
+    }
+    if (async_enrich_mode) {
+      /* Build flat vectors for async_enrich_batch. */
+      std::vector<std::string> async_ips;
+      std::vector<std::vector<int>> async_ports;
+      std::vector<size_t> async_back_idx;  /* map result-list slot -> results[] */
+      async_ips.reserve(results.size());
+      async_ports.reserve(results.size());
+      async_back_idx.reserve(results.size());
+      for (size_t i = 0; i < results.size(); i++) {
+        if (results[i].empty_host) continue;
+        async_ips.push_back(results[i].ip);
+        async_ports.push_back(results[i].port_nums);
+        async_back_idx.push_back(i);
+      }
+
+      log_write(LOG_STDOUT,
+        "  Async pre-pass: banner+CVE for %d hosts via nsock event loop...\n",
+        (int)async_ips.size());
+
+      std::vector<std::vector<std::string>> async_svcs, async_vers, async_cves;
+      auto async_start = std::chrono::steady_clock::now();
+      async_enrich_batch(async_ips, async_ports, 3000, cve_db,
+                         async_svcs, async_vers, async_cves);
+      auto async_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - async_start).count();
+      log_write(LOG_STDOUT,
+        "  Async pre-pass: %d hosts in %.2fs (%.1f hps)\n",
+        (int)async_ips.size(),
+        static_cast<double>(async_elapsed) / 1000.0,
+        async_elapsed > 0
+          ? static_cast<double>(async_ips.size()) * 1000.0 /
+            static_cast<double>(async_elapsed)
+          : 0.0);
+
+      /* Fold async results back into HostResult vectors. The sync Stage
+         B will see services/versions/cves filled and skip banner+CVE
+         under KMAP_ASYNC_ENRICH=1; HTTP/TLS still run normally.
+         cves_out is sized here because the sync path resizes it
+         internally; we need a populated slot to write into. */
+      for (size_t k = 0; k < async_back_idx.size(); k++) {
+        HostResult &hr = results[async_back_idx[k]];
+        if (hr.cves_out.size() < hr.port_nums.size())
+          hr.cves_out.resize(hr.port_nums.size());
+        for (size_t p = 0; p < hr.port_nums.size() && p < async_svcs[k].size(); p++) {
+          if (!async_svcs[k][p].empty()) hr.services[p] = async_svcs[k][p];
+          if (!async_vers[k][p].empty()) hr.versions[p] = async_vers[k][p];
+          if (!async_cves[k][p].empty()) hr.cves_out[p] = async_cves[k][p];
+        }
+      }
     }
 
     /* Stage B: parallel enrichment.  Workers do all the network /
