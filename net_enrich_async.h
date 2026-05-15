@@ -2,9 +2,15 @@
  * net_enrich_async.h -- Async (event-driven) enrichment for Kmap net-scan.
  *
  * Phase 1a: banner-grab + CVE lookup for many hosts in parallel inside a
- * single worker thread, using the vendored nsock event loop.  HTTP probe
- * and TLS handshake remain on the synchronous path in net_enrich.cc and
- * will be migrated in Phase 1b/1c.
+ * single worker thread, using the vendored nsock event loop.
+ * Phase 1b: async HTTP probe (GET /, parse Server/title/Location/X-*).
+ * Phase 1c: async TLS handshake + X509 capture (subject CN, issuer,
+ *           SAN list, notAfter, self-signed flag, protocol, SHA-256).
+ *
+ * After Phase 1c the async path is feature-complete with enrich_single_host
+ * for banner+CVE+HTTP+TLS.  Reverse-DNS (PTR) and ASN lookup remain on the
+ * synchronous path; both are CPU-bound / non-network bottlenecks on the
+ * scale we care about (Phase 1d / 3 territory).
  *
  * The synchronous enrich_single_host (net_enrich.cc) is unchanged and still
  * the default; this async path is opt-in via a caller-side flag.  Both
@@ -15,21 +21,25 @@
 #ifndef NET_ENRICH_ASYNC_H
 #define NET_ENRICH_ASYNC_H
 
+#include "net_enrich.h"   /* TlsCapture struct */
+
 #include <string>
 #include <vector>
 
 struct sqlite3;
 
 /*
- * async_enrich_batch -- banner-grab + CVE lookup for a batch of hosts
+ * async_enrich_batch -- banner-grab + CVE + HTTP + TLS for a batch of hosts
  * driven by a single nsock event loop in the calling thread.
  *
- * Each host's port list is walked in order; for each port we issue an
- * async TCP connect followed by an async read (banner grab), classify
- * the banner verbatim using the same patterns as the synchronous
- * grab_banner() (SSH/HTTP/FTP/SMTP/IMAP/POP3/MySQL/Redis/MongoDB/Postgres),
- * and -- on a non-empty classification -- run a local SQLite CVE lookup
- * against the caller-supplied read-only handle.
+ * Each host's port list is dispatched concurrently; for each port we issue
+ * an async TCP connect followed by an async read (banner grab) and -- on
+ * a non-empty classification -- a local SQLite CVE lookup against the
+ * caller-supplied read-only handle.  HTTP-ish ports then drive an HTTP
+ * GET / via async write + read; HTTPS-ish ports drive a TLS handshake
+ * via nsock_connect_ssl with the pool's shared SSL_CTX, after which the
+ * X509 cert is extracted synchronously inside the callback (microseconds
+ * of CPU work).
  *
  * The function holds up to KMAP_ASYNC_ENRICH_INFLIGHT hosts in flight
  * concurrently (default 64) so the per-thread blocking ceiling of the
@@ -43,18 +53,26 @@ struct sqlite3;
  *
  * Outputs (pre-resized to N here; inner vectors resized to each host's
  * ports.size()):
- *   out_services_per_host  — service name (ssh/http/ftp/...) or empty
- *   out_versions_per_host  — version string lifted from the banner or empty
- *   out_cves_per_host      — JSON array string of matched CVE rows or empty
+ *   out_services_per_host      — service name (ssh/http/ftp/...) or empty
+ *   out_versions_per_host      — version string lifted from the banner or empty
+ *   out_cves_per_host          — JSON array string of matched CVE rows or empty
+ *   out_web_titles_per_host    — HTML <title> for HTTP responses
+ *   out_web_servers_per_host   — Server header
+ *   out_web_headers_per_host   — JSON object of selected headers
+ *   out_web_paths_per_host     — JSON array of probed paths (just "/")
+ *   out_powered_by_per_host    — X-Powered-By header (broken-out)
+ *   out_x_generator_per_host   — X-Generator header (broken-out)
+ *   out_redirects_per_host     — Location header for 3xx responses
+ *   out_tls_per_host           — (optional, pass NULL to skip) TLS cert capture
  *
- * timeout_ms — per-step (connect, read) timeout in milliseconds; nsock
- *              enforces it independently for each event.
+ * timeout_ms — per-step (connect, read, send) timeout in milliseconds;
+ *              nsock enforces it independently for each event.
  * cve_db     — caller-owned read-only sqlite3* used from this thread only.
  *              May be NULL: CVE lookup is then skipped, banner data still
  *              fills services/versions.
  *
- * Returns 0 on completion.  Phase 1a never propagates a fatal error code;
- * unreachable hosts simply finish with empty per-port entries.
+ * Returns 0 on completion.  This function never propagates a fatal error
+ * code; unreachable hosts simply finish with empty per-port entries.
  *
  * Thread-safety: this function must be called from one thread per nsock
  * pool; the caller may spin up many parallel invocations on disjoint
@@ -70,6 +88,14 @@ int async_enrich_batch(
     struct sqlite3 *cve_db,
     std::vector<std::vector<std::string>> &out_services_per_host,
     std::vector<std::vector<std::string>> &out_versions_per_host,
-    std::vector<std::vector<std::string>> &out_cves_per_host);
+    std::vector<std::vector<std::string>> &out_cves_per_host,
+    std::vector<std::vector<std::string>> &out_web_titles_per_host,
+    std::vector<std::vector<std::string>> &out_web_servers_per_host,
+    std::vector<std::vector<std::string>> &out_web_headers_per_host,
+    std::vector<std::vector<std::string>> &out_web_paths_per_host,
+    std::vector<std::vector<std::string>> &out_powered_by_per_host,
+    std::vector<std::vector<std::string>> &out_x_generator_per_host,
+    std::vector<std::vector<std::string>> &out_redirects_per_host,
+    std::vector<std::vector<TlsCapture>> *out_tls_per_host);
 
 #endif /* NET_ENRICH_ASYNC_H */

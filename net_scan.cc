@@ -683,13 +683,21 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       }
 
       log_write(LOG_STDOUT,
-        "  Async pre-pass: banner+CVE for %d hosts via nsock event loop...\n",
+        "  Async pre-pass: banner+CVE+HTTP+TLS for %d hosts via nsock event loop...\n",
         (int)async_ips.size());
 
       std::vector<std::vector<std::string>> async_svcs, async_vers, async_cves;
+      std::vector<std::vector<std::string>> async_wtitles, async_wservers,
+                                            async_wheaders, async_wpaths,
+                                            async_powered_by, async_x_generator,
+                                            async_redirects;
+      std::vector<std::vector<TlsCapture>> async_tls;
       auto async_start = std::chrono::steady_clock::now();
       async_enrich_batch(async_ips, async_ports, 3000, cve_db,
-                         async_svcs, async_vers, async_cves);
+                         async_svcs, async_vers, async_cves,
+                         async_wtitles, async_wservers, async_wheaders,
+                         async_wpaths, async_powered_by, async_x_generator,
+                         async_redirects, &async_tls);
       auto async_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - async_start).count();
       log_write(LOG_STDOUT,
@@ -701,19 +709,43 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
             static_cast<double>(async_elapsed)
           : 0.0);
 
-      /* Fold async results back into HostResult vectors. The sync Stage
-         B will see services/versions/cves filled and skip banner+CVE
-         under KMAP_ASYNC_ENRICH=1; HTTP/TLS still run normally.
-         cves_out is sized here because the sync path resizes it
-         internally; we need a populated slot to write into. */
+      /* Fold async results back into HostResult vectors.  After Phase 1c
+         the async pass covers banner+CVE+HTTP+TLS; the sync Stage B
+         checks each slot under KMAP_ASYNC_ENRICH=1 and skips the
+         corresponding step when it is already populated, so we just
+         dump the async outputs into the HostResult fields.  Reverse-DNS
+         and ASN still run synchronously after enrich_single_host. */
       for (size_t k = 0; k < async_back_idx.size(); k++) {
         HostResult &hr = results[async_back_idx[k]];
-        if (hr.cves_out.size() < hr.port_nums.size())
-          hr.cves_out.resize(hr.port_nums.size());
-        for (size_t p = 0; p < hr.port_nums.size() && p < async_svcs[k].size(); p++) {
-          if (!async_svcs[k][p].empty()) hr.services[p] = async_svcs[k][p];
-          if (!async_vers[k][p].empty()) hr.versions[p] = async_vers[k][p];
-          if (!async_cves[k][p].empty()) hr.cves_out[p] = async_cves[k][p];
+        size_t np = hr.port_nums.size();
+        if (hr.cves_out.size()    < np) hr.cves_out.resize(np);
+        if (hr.web_titles.size()  < np) hr.web_titles.resize(np);
+        if (hr.web_servers.size() < np) hr.web_servers.resize(np);
+        if (hr.web_headers.size() < np) hr.web_headers.resize(np);
+        if (hr.web_paths.size()   < np) hr.web_paths.resize(np);
+        if (hr.powered_by.size()  < np) hr.powered_by.resize(np);
+        if (hr.x_generator.size() < np) hr.x_generator.resize(np);
+        if (hr.redirects.size()   < np) hr.redirects.resize(np);
+        if (hr.tls_caps.size()    < np) hr.tls_caps.resize(np);
+        for (size_t p = 0; p < np && p < async_svcs[k].size(); p++) {
+          if (!async_svcs   [k][p].empty()) hr.services   [p] = async_svcs   [k][p];
+          if (!async_vers   [k][p].empty()) hr.versions   [p] = async_vers   [k][p];
+          if (!async_cves   [k][p].empty()) hr.cves_out   [p] = async_cves   [k][p];
+          if (!async_wtitles[k][p].empty()) hr.web_titles [p] = async_wtitles[k][p];
+          if (!async_wservers[k][p].empty()) hr.web_servers[p] = async_wservers[k][p];
+          if (!async_wheaders[k][p].empty()) hr.web_headers[p] = async_wheaders[k][p];
+          if (!async_wpaths [k][p].empty()) hr.web_paths  [p] = async_wpaths [k][p];
+          if (!async_powered_by [k][p].empty()) hr.powered_by [p] = async_powered_by [k][p];
+          if (!async_x_generator[k][p].empty()) hr.x_generator[p] = async_x_generator[k][p];
+          if (!async_redirects  [k][p].empty()) hr.redirects  [p] = async_redirects  [k][p];
+          if (p < async_tls[k].size()) {
+            const TlsCapture &tc = async_tls[k][p];
+            /* self_signed != -1 means the async TLS stage ran far enough
+               to inspect the cert; copy the whole struct in that case. */
+            if (tc.self_signed != -1 || !tc.subject_cn.empty() ||
+                !tc.issuer.empty() || !tc.sha256.empty())
+              hr.tls_caps[p] = tc;
+          }
         }
       }
     }

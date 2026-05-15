@@ -1134,7 +1134,11 @@ int enrich_single_host(const char *ip,
   out_powered_by.resize(nports);
   out_x_generator.resize(nports);
   out_redirects.resize(nports);
-  if (out_tls) out_tls->assign(nports, TlsCapture{});
+  /* resize, not assign: preserves any pre-populated TlsCapture entries
+     (e.g. from an async pre-pass under KMAP_ASYNC_ENRICH=1). The other
+     out_* vectors use resize() for the same reason; this one used to
+     use assign() and clobbered async-filled cert data. */
+  if (out_tls) out_tls->resize(nports);
 
   /* Per-host wall-clock budget. The hard requirement: one slow host
      must not block the worker pool indefinitely. A box with 30 filtered
@@ -1199,13 +1203,15 @@ int enrich_single_host(const char *ip,
   if (worker_count < 1) worker_count = 1;
 
   /* Async-preset skip: when the caller has already filled
-     out_services/out_versions/out_cves via an upstream async pre-pass
-     (Phase 1a's async_enrich_batch), we have no reason to re-grab the
-     banner -- we'd just spend a TCP RTT to confirm what the async pass
-     already learned. KMAP_ASYNC_ENRICH=1 is the caller-set contract:
-     "everything in out_*[i] that is already non-empty was filled
-     authoritatively; do not overwrite it". HTTP/TLS still run because
-     Phase 1a doesn't cover them yet (deferred to Phase 1b/1c). */
+     out_services/out_versions/out_cves (and after Phase 1b/1c, web_* and
+     TLS) via an upstream async pre-pass (async_enrich_batch), we have no
+     reason to re-do that work -- we'd just spend TCP RTTs to confirm what
+     the async pass already learned.  KMAP_ASYNC_ENRICH=1 is the
+     caller-set contract: "everything in out_*[i] that is already
+     non-empty was filled authoritatively; do not overwrite it".  After
+     Phase 1c the async path covers banner+CVE+HTTP+TLS; only reverse-DNS
+     and ASN lookup remain on the sync side (and those happen in the
+     caller, not in this function). */
   bool async_preset_mode = false;
   if (const char *env = getenv("KMAP_ASYNC_ENRICH")) {
     if (atoi(env) > 0) async_preset_mode = true;
@@ -1249,9 +1255,18 @@ int enrich_single_host(const char *ip,
         out_cves[i] = cves_to_json(cves);
       }
 
-      /* Step 3: HTTP recon on plaintext web ports. */
+      /* Step 3: HTTP recon on plaintext web ports.  Skip when async
+         pre-pass already filled this slot -- the heuristic "out_web_servers
+         is non-empty OR out_web_headers is non-empty" is the cleanest
+         signal that the async HTTP stage ran (a server with no Server
+         header and no parseable response is rare; if it happens we redo
+         a tiny extra probe rather than miss data on the common case). */
+      bool skip_http = async_preset_mode &&
+                       (!out_web_servers[i].empty() ||
+                        !out_web_headers[i].empty() ||
+                        !out_web_titles[i].empty());
       rem = budget_remaining();
-      if (rem > 0 &&
+      if (!skip_http && rem > 0 &&
           is_http_port(ports[i], br.service) &&
           !is_https_port(ports[i], br.service)) {
         int http_timeout = timeout_ms < rem ? timeout_ms : rem;
@@ -1265,9 +1280,17 @@ int enrich_single_host(const char *ip,
         out_redirects[i]    = wr.redirect_target;
       }
 
-      /* Step 4: TLS handshake on HTTPS ports. */
+      /* Step 4: TLS handshake on HTTPS ports.  Skip when async pre-pass
+         already populated a TlsCapture (self_signed != -1 means the
+         async TLS stage at least observed the connect succeed; a non-
+         empty subject/issuer/sha256 confirms cert details were captured). */
+      bool skip_tls = async_preset_mode && out_tls && i < out_tls->size() &&
+                      ((*out_tls)[i].self_signed != -1 ||
+                       !(*out_tls)[i].subject_cn.empty() ||
+                       !(*out_tls)[i].issuer.empty()     ||
+                       !(*out_tls)[i].sha256.empty());
       rem = budget_remaining();
-      if (rem > 0 && out_tls && is_https_port(ports[i], br.service)) {
+      if (!skip_tls && rem > 0 && out_tls && is_https_port(ports[i], br.service)) {
         int tls_timeout = timeout_ms < rem ? timeout_ms : rem;
         tls_capture_cert(ip, ports[i], tls_timeout, (*out_tls)[i]);
       }
