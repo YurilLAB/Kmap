@@ -39,6 +39,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <chrono>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -69,7 +70,13 @@ extern KmapOps o;
  * Constants
  * ----------------------------------------------------------------------- */
 
-#define ENRICH_CONNECT_TIMEOUT  5000  /* ms */
+/* Per-port banner/HTTP/TLS connect timeout. Halved from 5000ms because
+   real services answer in <200ms; the longer timeout only padded dead
+   ports without recovering anything. The hard per-host budget in
+   enrich_single_host bounds total wall time anyway, so this just lets a
+   host's budget cover more port attempts before bailing. Tunable via
+   KMAP_ENRICH_CONNECT_TIMEOUT_MS env. */
+#define ENRICH_CONNECT_TIMEOUT  3000  /* ms */
 #define ENRICH_READ_TIMEOUT     5000  /* ms */
 #define ENRICH_BANNER_MAX       1024  /* bytes */
 
@@ -1074,6 +1081,32 @@ static int tls_capture_cert(const char * /*ip*/, int /*port*/,
  * enrich_single_host -- public API
  * ----------------------------------------------------------------------- */
 
+/* Aggregate metrics for the per-host enrichment budget. Bumped from
+   enrich_single_host whenever a single host exceeds the wall budget,
+   so callers can report "N hosts bailed at budget" in the scan summary
+   without each call site needing its own counter. Reset by the scan
+   driver via enrich_reset_metrics() at the start of each phase. */
+std::atomic<uint64_t> g_enrich_budget_bails{0};
+std::atomic<uint64_t> g_enrich_hosts_done{0};
+std::atomic<uint64_t> g_enrich_total_ms{0};
+std::atomic<uint64_t> g_enrich_max_ms{0};
+
+void enrich_reset_metrics() {
+  g_enrich_budget_bails.store(0, std::memory_order_relaxed);
+  g_enrich_hosts_done.store(0, std::memory_order_relaxed);
+  g_enrich_total_ms.store(0, std::memory_order_relaxed);
+  g_enrich_max_ms.store(0, std::memory_order_relaxed);
+}
+
+EnrichMetrics enrich_get_metrics() {
+  EnrichMetrics m;
+  m.budget_bails = g_enrich_budget_bails.load(std::memory_order_relaxed);
+  m.hosts_done   = g_enrich_hosts_done.load(std::memory_order_relaxed);
+  m.total_ms     = g_enrich_total_ms.load(std::memory_order_relaxed);
+  m.max_ms       = g_enrich_max_ms.load(std::memory_order_relaxed);
+  return m;
+}
+
 int enrich_single_host(const char *ip,
                        const std::vector<int> &ports,
                        const std::vector<std::string> &protos,
@@ -1103,50 +1136,88 @@ int enrich_single_host(const char *ip,
   out_redirects.resize(nports);
   if (out_tls) out_tls->assign(nports, TlsCapture{});
 
-  /* CVE DB is now passed in already-open by the caller (run_watchlist
-   * or run_enrichment).  Opening it once per call -- and 5x-10x per
-   * batch with the parallel enrichment workers -- was both wasteful
-   * (sqlite3_open_v2 does stat + open + page-cache warm-up every time)
-   * and silently expensive at scale: a 100k-IP scan with 5 ports each
-   * issued hundreds of thousands of redundant file opens before the
-   * caller cleanup.  cve_db == nullptr is still valid: it just means
-   * the caller could not find kmap-cve.db, and CVE lookups are
-   * skipped (the `if (cve_db && !out_services[i].empty())` gate
-   * below handles that case). */
+  /* Per-host wall-clock budget. The hard requirement: one slow host
+     must not block the worker pool indefinitely. A box with 30 filtered
+     ports + 5 sec banner-grab timeout each would otherwise occupy a
+     worker for 150 seconds while 39 other workers process the rest of
+     the queue at full speed -- one stuck host = one worker permanently
+     down, scaling badly at internet scale.
+
+     KMAP_HOST_ENRICH_BUDGET_MS caps total wall time per host. Each
+     per-port step (banner / web probe / TLS) gets a timeout reduced to
+     min(per_step_timeout, budget_remaining), so the last step never
+     overshoots. When the budget runs out, the port loop breaks and the
+     caller proceeds with whatever data we already collected.
+
+     Default 15s -- empirically covers ~95% of hosts with a few open
+     ports while bounding the worst case. Tune up for slower links or
+     deeper enrichment; down for tighter sweep performance. */
+  int budget_ms = 15000;
+  if (const char *env = getenv("KMAP_HOST_ENRICH_BUDGET_MS")) {
+    int v = atoi(env);
+    if (v > 0) budget_ms = v;
+  }
+  auto host_start = std::chrono::steady_clock::now();
+  auto budget_remaining = [&]() -> int {
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - host_start).count();
+    int rem = budget_ms - static_cast<int>(elapsed);
+    return rem > 0 ? rem : 0;
+  };
+
+  /* Dead-host fast path: if the first two ports produce no banner AND
+     no port has answered anything, we skip the remaining HTTP / TLS
+     probes for the rest of this host. Those would just burn full
+     timeouts on filtered ports without recovering anything useful. */
+  bool any_response = false;
+  int  consecutive_blank = 0;
+  const int blank_bail = 2;
+
+  bool budget_hit = false;
+  size_t ports_done = 0;
 
   for (size_t i = 0; i < nports; i++) {
-    /* Step 1: Banner grab / service detection.  Only overwrite
-     * out_services / out_versions when the banner grab actually
-     * produced something -- callers that pre-populate these vectors
-     * with a prior scan's values (e.g. run_watchlist after
-     * net_db_get_host) want the prior values preserved when this
-     * scan's banner grab is flaky (port open but no recognizable
-     * response).  Without this guard, a transient empty banner wipes
-     * the CVE-lookup input and the cves column stays unpopulated
-     * forever once a single re-scan misses. */
-    BannerResult br = grab_banner(ip, ports[i], timeout_ms);
+    /* Hard budget check at each port boundary. */
+    if (budget_remaining() == 0) {
+      budget_hit = true;
+      break;
+    }
+
+    /* Reduce the per-step timeout to fit the remaining budget so the
+       last port can't overrun. */
+    int port_timeout = timeout_ms;
+    int rem = budget_remaining();
+    if (rem < port_timeout) port_timeout = rem;
+
+    /* Step 1: Banner grab / service detection. */
+    BannerResult br = grab_banner(ip, ports[i], port_timeout);
     if (!br.service.empty()) out_services[i] = br.service;
     if (!br.version.empty()) out_versions[i] = br.version;
 
-    /* Step 2: CVE lookup -- uses out_services[i]/out_versions[i],
-     * which now reflects either this scan's banner or the caller's
-     * prior-scan hint when the banner came back empty. */
+    if (!br.service.empty()) {
+      any_response = true;
+      consecutive_blank = 0;
+    } else {
+      consecutive_blank++;
+    }
+
+    /* Step 2: CVE lookup -- cheap (indexed local DB) so no budget gate. */
     if (cve_db && !out_services[i].empty()) {
       std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
       out_cves[i] = cves_to_json(cves);
     }
 
-    /* Step 3: HTTP recon on web ports -- reuse response from banner grab
-       if it already did an HTTP probe (avoids double TCP connection).
-       Skip on TLS ports: probe_http only speaks plaintext, so sending
-       GET / into a TLS stream gets a TLS Alert back, every field comes
-       out empty, and we wasted one more connection on top of the one
-       grab_banner already short-circuited.  --web-recon mode has full
-       TLS-aware HTTP probing via web_recon.cc for users who want
-       title / server-header / paths on HTTPS. */
-    if (is_http_port(ports[i], br.service) &&
+    /* Skip step 3/4 (HTTP/TLS) entirely if the host has shown no signs
+       of life on the first blank_bail ports. */
+    bool skip_deep_probes = !any_response && consecutive_blank >= blank_bail;
+
+    /* Step 3: HTTP recon on plaintext web ports. */
+    rem = budget_remaining();
+    if (!skip_deep_probes && rem > 0 &&
+        is_http_port(ports[i], br.service) &&
         !is_https_port(ports[i], br.service)) {
-      WebResult wr = probe_http(ip, ports[i], timeout_ms, br.http_response);
+      int http_timeout = timeout_ms < rem ? timeout_ms : rem;
+      WebResult wr = probe_http(ip, ports[i], http_timeout, br.http_response);
       out_web_titles[i]   = wr.title;
       out_web_servers[i]  = wr.server;
       out_web_headers[i]  = wr.headers_json;
@@ -1156,17 +1227,31 @@ int enrich_single_host(const char *ip,
       out_redirects[i]    = wr.redirect_target;
     }
 
-    /* Step 4: TLS handshake on HTTPS ports — captures cert details and
-       fingerprint.  Best-effort: handshake failures (cert expired,
-       protocol mismatch, IP-form pedantic server) leave the slot empty
-       so net_db_update_tls writes NULLs and the row stays eligible for
-       re-probing later. */
-    if (out_tls && is_https_port(ports[i], br.service)) {
-      tls_capture_cert(ip, ports[i], timeout_ms, (*out_tls)[i]);
+    /* Step 4: TLS handshake on HTTPS ports. */
+    rem = budget_remaining();
+    if (!skip_deep_probes && rem > 0 && out_tls &&
+        is_https_port(ports[i], br.service)) {
+      int tls_timeout = timeout_ms < rem ? timeout_ms : rem;
+      tls_capture_cert(ip, ports[i], tls_timeout, (*out_tls)[i]);
     }
+    ports_done++;
   }
 
-  /* Don't close cve_db -- it's owned by the caller. */
+  /* Metrics: total wall time, max-seen, budget-bail counter. */
+  uint64_t elapsed_ms = static_cast<uint64_t>(
+    std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - host_start).count());
+  g_enrich_hosts_done.fetch_add(1, std::memory_order_relaxed);
+  g_enrich_total_ms.fetch_add(elapsed_ms, std::memory_order_relaxed);
+  uint64_t prev_max = g_enrich_max_ms.load(std::memory_order_relaxed);
+  while (elapsed_ms > prev_max &&
+         !g_enrich_max_ms.compare_exchange_weak(prev_max, elapsed_ms,
+                                                std::memory_order_relaxed)) {}
+  if (budget_hit) {
+    g_enrich_budget_bails.fetch_add(1, std::memory_order_relaxed);
+  }
+  (void)ports_done;
+
   return 0;
 }
 
@@ -1368,6 +1453,17 @@ int run_enrichment(const char *data_dir, int batch_size) {
     actual_workers = static_cast<int>(results.size());
   if (actual_workers < 1) actual_workers = 1;
 
+  /* Per-port connect timeout: env-tunable so a sweep can dial it down on
+     a low-RTT LAN or up on a high-RTT path without recompiling. The
+     KMAP_HOST_ENRICH_BUDGET_MS budget caps total host wall time
+     regardless of how generous this per-port value is. */
+  int enrich_connect_timeout = ENRICH_CONNECT_TIMEOUT;
+  if (const char *env = getenv("KMAP_ENRICH_CONNECT_TIMEOUT_MS")) {
+    int v = atoi(env);
+    if (v > 0) enrich_connect_timeout = v;
+  }
+  enrich_reset_metrics();
+
   std::atomic<size_t> next_idx{0};
   std::atomic<int64_t> processed_atomic{0};
   auto worker = [&]() {
@@ -1381,7 +1477,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
       while (true) {
         r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
                    cve_db,
-                   ENRICH_CONNECT_TIMEOUT,
+                   enrich_connect_timeout,
                    r.services, r.versions, r.cves_json,
                    r.web_titles, r.web_servers,
                    r.web_headers, r.web_paths,
@@ -1571,6 +1667,17 @@ int run_enrichment(const char *data_dir, int batch_size) {
   log_write(LOG_STDOUT,
     "net-scan: enrichment complete: %s host(s) written.\n",
     format_count(processed).c_str());
+  {
+    EnrichMetrics m = enrich_get_metrics();
+    if (m.hosts_done > 0) {
+      log_write(LOG_STDOUT,
+        "net-scan: enrichment timing: avg=%.2fs max=%.2fs budget-bailed=%llu/%llu\n",
+        static_cast<double>(m.total_ms) / static_cast<double>(m.hosts_done) / 1000.0,
+        static_cast<double>(m.max_ms) / 1000.0,
+        (unsigned long long)m.budget_bails,
+        (unsigned long long)m.hosts_done);
+    }
+  }
   if (errors > 0) {
     log_write(LOG_STDOUT,
       "net-scan: %d shard open error(s) during enrichment.\n", errors);

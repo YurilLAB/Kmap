@@ -11,6 +11,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 /* TLS handshake capture for a single (ip, port).  Populated by
  * enrich_single_host when the port is HTTPS-looking and the build has
@@ -61,6 +62,21 @@ int enrich_single_host(const char *ip,
                        std::vector<std::string> &out_x_generator,
                        std::vector<std::string> &out_redirects,
                        std::vector<TlsCapture> *out_tls = nullptr);
+
+/* Per-host enrichment metrics exposed for scan-summary reporting.
+   budget_bails: hosts whose total wall time exceeded
+   KMAP_HOST_ENRICH_BUDGET_MS and were cut short. hosts_done: total
+   enrich_single_host calls completed since the last reset. total_ms +
+   max_ms: aggregate / worst per-host wall time, for average + worst-host
+   computation. Reset at the start of each enrichment phase. */
+struct EnrichMetrics {
+  uint64_t budget_bails;
+  uint64_t hosts_done;
+  uint64_t total_ms;
+  uint64_t max_ms;
+};
+void          enrich_reset_metrics();
+EnrichMetrics enrich_get_metrics();
 
 /* fp_* fingerprint-derivation helpers were moved into net_fp_helpers.h
    so the test harness can link them without dragging in this header's

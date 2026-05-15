@@ -687,12 +687,30 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
     log_write(LOG_STDOUT, "  Enriching %d hosts with %d workers...\n",
               (int)results.size(), enrich_worker_count);
+    enrich_reset_metrics();
     {
       std::vector<std::thread> epool;
       epool.reserve(enrich_worker_count);
       for (int i = 0; i < enrich_worker_count; i++)
         epool.emplace_back(enrich_worker);
       for (auto &th : epool) th.join();
+    }
+    {
+      EnrichMetrics m = enrich_get_metrics();
+      if (m.hosts_done > 0) {
+        log_write(LOG_STDOUT,
+          "  Enrichment timing: avg=%.2fs max=%.2fs budget-bailed=%u/%u\n",
+          static_cast<double>(m.total_ms) / static_cast<double>(m.hosts_done) / 1000.0,
+          static_cast<double>(m.max_ms) / 1000.0,
+          static_cast<unsigned>(m.budget_bails),
+          static_cast<unsigned>(m.hosts_done));
+        scan_log("INFO",
+          "enrichment: hosts=%llu avg_ms=%llu max_ms=%llu budget_bails=%llu",
+          (unsigned long long)m.hosts_done,
+          (unsigned long long)(m.hosts_done ? m.total_ms / m.hosts_done : 0),
+          (unsigned long long)m.max_ms,
+          (unsigned long long)m.budget_bails);
+      }
     }
 
     /* Stage C: serial DB write phase.  All sqlite UPDATEs go through
