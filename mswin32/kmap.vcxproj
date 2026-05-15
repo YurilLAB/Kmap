@@ -255,6 +255,7 @@
     <ClCompile Include="..\net_db.cc" />
     <ClCompile Include="..\fast_syn.cc" />
     <ClCompile Include="..\net_enrich.cc" />
+    <ClCompile Include="..\net_enrich_async.cc" />
     <ClCompile Include="..\net_fp_helpers.cc" />
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
@@ -330,6 +331,7 @@
     <ClInclude Include="..\net_db.h" />
     <ClInclude Include="..\fast_syn.h" />
     <ClInclude Include="..\net_enrich.h" />
+    <ClInclude Include="..\net_enrich_async.h" />
     <ClInclude Include="..\net_fp_helpers.h" />
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />
