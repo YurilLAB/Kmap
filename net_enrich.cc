@@ -21,6 +21,7 @@
 #include "asn_lookup.h"
 #include "KmapOps.h"
 #include "kmap.h"
+#include "kmap_dns.h"
 #include "output.h"
 #include "os_profile.h"
 
@@ -1514,6 +1515,67 @@ int run_enrichment(const char *data_dir, int batch_size) {
     }
   }
 
+  /* Stage A-bis (Phase 1d): batched parallel reverse-DNS via the
+     existing kmap_mass_dns resolver (nsock-driven under the hood).
+     Replaces per-host blocking getnameinfo() calls that the workers
+     used to do. Each EnrichResult.hostname is filled in-place here so
+     the worker loop just reads from it.
+
+     At 7000-host scale the sync per-host PTR took ~5s each (often
+     timeouts on PTR-less IPs) -- about 16 min of cumulative DNS wall
+     time even across 40 workers. kmap_mass_dns resolves the whole
+     batch in seconds. KMAP_NO_DNS=1 skips the batch entirely
+     (workers leave hostname empty) for operators who don't want
+     reverse-DNS traffic on a scan. */
+  bool do_reverse_dns = true;
+  if (const char *env = getenv("KMAP_NO_DNS")) {
+    if (atoi(env) > 0) do_reverse_dns = false;
+  }
+  if (do_reverse_dns && !results.empty()) {
+    std::vector<DNS::Request> dns_requests(results.size());
+    int dns_query_count = 0;
+    for (size_t i = 0; i < results.size(); i++) {
+      if (results[i].empty_host) continue;
+      struct sockaddr_storage ss{};
+      socklen_t slen = 0;
+      struct sockaddr_in  *sa4 = reinterpret_cast<struct sockaddr_in  *>(&ss);
+      struct sockaddr_in6 *sa6 = reinterpret_cast<struct sockaddr_in6 *>(&ss);
+      if (inet_pton(AF_INET, results[i].ip.c_str(), &sa4->sin_addr) == 1) {
+        sa4->sin_family = AF_INET;
+        slen = sizeof(struct sockaddr_in);
+      } else if (inet_pton(AF_INET6, results[i].ip.c_str(), &sa6->sin6_addr) == 1) {
+        sa6->sin6_family = AF_INET6;
+        slen = sizeof(struct sockaddr_in6);
+      } else {
+        continue;  /* unparseable IP, leave hostname empty */
+      }
+      (void)slen;
+      dns_requests[i].ssv.push_back(ss);
+      dns_requests[i].type = DNS::PTR;
+      dns_query_count++;
+    }
+    if (dns_query_count > 0) {
+      auto dns_start = std::chrono::steady_clock::now();
+      log_write(LOG_STDOUT,
+        "net-scan: batched reverse DNS for %d hosts...\n", dns_query_count);
+      kmap_mass_dns(dns_requests.data(),
+                    static_cast<int>(dns_requests.size()));
+      auto dns_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - dns_start).count();
+      int resolved = 0;
+      for (size_t i = 0; i < results.size(); i++) {
+        if (!dns_requests[i].name.empty()) {
+          results[i].hostname = dns_requests[i].name;
+          resolved++;
+        }
+      }
+      log_write(LOG_STDOUT,
+        "net-scan: reverse DNS: %d/%d resolved in %.2fs\n",
+        resolved, dns_query_count,
+        static_cast<double>(dns_ms) / 1000.0);
+    }
+  }
+
   /* Stage B: ONE global parallel worker pool over the entire results
    * vector.  No mutex on results because each worker writes only its
    * own slot. */
@@ -1558,7 +1620,10 @@ int run_enrichment(const char *data_dir, int batch_size) {
       }
 
       if (r.rc == 0) {
-        r.hostname  = reverse_dns_lookup(r.ip.c_str());
+        /* r.hostname was filled by the batched kmap_mass_dns pre-pass
+           above (or left empty if KMAP_NO_DNS=1). Skip the per-host
+           sync getnameinfo call -- it was the dominant Stage B cost
+           on 7000-host scans. */
         r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
       }
       processed_atomic.fetch_add(1, std::memory_order_relaxed);
