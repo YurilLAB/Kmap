@@ -123,7 +123,7 @@ int cpe_get_part(const char *cpe);
 char *mmapfile(char *fname, s64 *length, int openflags);
 
 #ifdef WIN32
-int win32_mukmap(char *filestr, int filelen);
+int win32_munmap(char *filestr, int filelen);
 #endif /* WIN32 */
 
 #endif /* UTILS_H */

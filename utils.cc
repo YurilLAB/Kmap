@@ -542,7 +542,7 @@ static int open2mmap_flags(int open_flags)
    beginning of the file. The mmap'ed length is returned inside the length
    parameter. If there is a problem, NULL is returned, the value of length is
    undefined, and errno is set to something appropriate. The user is responsible
-   for doing an mukmap(ptr, length) when finished with it. openflags should be
+   for doing an munmap(ptr, length) when finished with it. openflags should be
    O_RDONLY or O_RDWR, or O_WRONLY. */
 char *mmapfile(char *fname, s64 *length, int openflags) {
   struct stat st;
@@ -654,7 +654,7 @@ char *mmapfile(char *fname, s64 *length, int openflags) {
 
 /* FIXME:  This only works if the file was mapped by mmapfile (and only
    works if the file is the most recently mapped one */
-int win32_mukmap(char *filestr, int filelen) {
+int win32_munmap(char *filestr, int filelen) {
   if (gmap == 0)
     fatal("%s: no current mapping !\n", __func__);
   FlushViewOfFile(filestr, filelen);

@@ -3477,7 +3477,7 @@ destroy_ring(pcap_t *handle)
 	/* if ring is mapped, ukmap it*/
 	if (handlep->mmapbuf) {
 		/* do not test for mmap failure, as we can't recover from any error */
-		(void)mukmap(handlep->mmapbuf, handlep->mmapbuflen);
+		(void)munmap(handlep->mmapbuf, handlep->mmapbuflen);
 		handlep->mmapbuf = NULL;
 	}
 }

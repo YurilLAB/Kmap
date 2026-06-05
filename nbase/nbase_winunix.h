@@ -132,7 +132,7 @@
 
 #endif
 
-#define mukmap(ptr, len) win32_mukmap(ptr, len)
+#define munmap(ptr, len) win32_munmap(ptr, len)
 
 /* Windows error message names */
 #undef  ECONNABORTED
