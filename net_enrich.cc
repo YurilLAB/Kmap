@@ -275,27 +275,29 @@ static std::string str_lower(const std::string &s) {
   return r;
 }
 
-/* Numeric version comparison -- returns -1/0/1 for a<b, a==b, a>b.
-   Parses "2.4.49p1" -> {2, 4, 49} and compares component-by-component. */
-static int ver_cmp_enrich(const std::string &a, const std::string &b) {
-  auto parse = [](const std::string &s) -> std::vector<int> {
-    std::vector<int> parts;
-    std::istringstream ss(s);
-    std::string tok;
-    while (std::getline(ss, tok, '.')) {
-      std::string digits;
-      for (char c : tok) {
-        if (isdigit(static_cast<unsigned char>(c))) digits += c;
-        else break;
-      }
-      if (!digits.empty()) {
-        try { parts.push_back(std::stoi(digits)); }
-        catch (...) {}
-      }
+/* Parse "2.4.49p1" -> {2, 4, 49} (component-wise, stops at first non-digit
+   within each dotted token). */
+static std::vector<int> parse_ver_enrich(const std::string &s) {
+  std::vector<int> parts;
+  std::istringstream ss(s);
+  std::string tok;
+  while (std::getline(ss, tok, '.')) {
+    std::string digits;
+    for (char c : tok) {
+      if (isdigit(static_cast<unsigned char>(c))) digits += c;
+      else break;
     }
-    return parts;
-  };
-  auto va = parse(a), vb = parse(b);
+    if (!digits.empty()) {
+      try { parts.push_back(std::stoi(digits)); }
+      catch (...) {}
+    }
+  }
+  return parts;
+}
+
+/* Compare two already-parsed version vectors -- returns -1/0/1. */
+static int ver_cmp_parsed(const std::vector<int> &va,
+                          const std::vector<int> &vb) {
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
     int ai = (i < va.size()) ? va[i] : 0;
@@ -304,6 +306,12 @@ static int ver_cmp_enrich(const std::string &a, const std::string &b) {
     if (ai > bi) return  1;
   }
   return 0;
+}
+
+/* Numeric version comparison -- returns -1/0/1 for a<b, a==b, a>b.
+   Parses "2.4.49p1" -> {2, 4, 49} and compares component-by-component. */
+static int ver_cmp_enrich(const std::string &a, const std::string &b) {
+  return ver_cmp_parsed(parse_ver_enrich(a), parse_ver_enrich(b));
 }
 
 /* Escape a string for JSON embedding (minimal: backslash and double-quote) */
@@ -674,6 +682,11 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
 
   sqlite3_bind_text(stmt, 1, product.c_str(), -1, SQLITE_TRANSIENT);
 
+  /* det_ver is constant for this lookup, so parse it once instead of
+     re-parsing it inside ver_cmp_enrich for every one of the (up to 100)
+     candidate rows. */
+  const std::vector<int> det_parts = parse_ver_enrich(det_ver);
+
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     auto col_str = [&](int c) -> std::string {
       const unsigned char *p = sqlite3_column_text(stmt, c);
@@ -687,8 +700,10 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
        det_ver was empty, so any row that has explicit bounds gets a
        real numeric comparison here. Same algorithm as cve_map.cc's
        ver_cmp(). */
-    if (!vmin.empty() && ver_cmp_enrich(det_ver, vmin) < 0) continue;
-    if (!vmax.empty() && ver_cmp_enrich(det_ver, vmax) > 0) continue;
+    if (!vmin.empty() &&
+        ver_cmp_parsed(det_parts, parse_ver_enrich(vmin)) < 0) continue;
+    if (!vmax.empty() &&
+        ver_cmp_parsed(det_parts, parse_ver_enrich(vmax)) > 0) continue;
 
     EnrichCve e;
     e.id          = col_str(0);
