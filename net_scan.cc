@@ -367,7 +367,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    * below picks them up by comparing prev_state (in-memory snapshot
    * from before the scan) against current (rows whose last_seen was
    * advanced by this scan -- see scan_start_ts gate). */
-  std::vector<int> ports = parse_port_spec(nullptr); /* top 100 */
+  /* Honor an explicit -p just like the full net-scan path (line ~1281);
+   * fall back to the built-in top-100 set when the user gave no -p.
+   * Previously this hardcoded nullptr, so a watchlist of assets on
+   * non-standard ports (e.g. -p 8080,9000) silently scanned the default
+   * top-100 instead and reported zero open ports. */
+  std::vector<int> ports = parse_port_spec(o.portlist ? o.portlist : nullptr);
   int64_t scan_start_ts = static_cast<int64_t>(time(nullptr));
   int64_t now_ts = scan_start_ts;
 
