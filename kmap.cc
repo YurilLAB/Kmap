@@ -155,6 +155,7 @@
 #include "net_db.h"  /* ip_to_u32 for --topo-around */
 #include "tracemap.h"
 #include "os_profile.h"
+#include "sys_resources.h"
 
 /* global options */
 extern char *optarg;
@@ -371,6 +372,25 @@ static bool parse_kmap_option(const char *name, const char *arg) {
             arg, os_profile_names());
     o.spoof_os = strdup(arg);
     return true;
+  /* --efficient / --fast resource-aware performance modes */
+  } else if (strcmp(name, "efficient") == 0) {
+    if (o.perf_mode == 2 /* KMAP_PERF_FAST */)
+      fatal("--efficient and --fast are mutually exclusive");
+    o.perf_mode = 1; /* KMAP_PERF_EFFICIENT */
+    return true;
+  } else if (strcmp(name, "fast") == 0) {
+    if (o.perf_mode == 1 /* KMAP_PERF_EFFICIENT */)
+      fatal("--efficient and --fast are mutually exclusive");
+    o.perf_mode = 2; /* KMAP_PERF_FAST */
+    return true;
+  } else if (strcmp(name, "fast-cpu-percent") == 0) {
+    o.fast_cpu_percent = parse_float_arg("fast-cpu-percent", arg, 1.0, 100.0);
+    if (o.perf_mode != 1) o.perf_mode = 2; /* implies --fast tuning */
+    return true;
+  } else if (strcmp(name, "fast-mem-percent") == 0) {
+    o.fast_mem_percent = parse_float_arg("fast-mem-percent", arg, 1.0, 100.0);
+    if (o.perf_mode != 1) o.perf_mode = 2; /* implies --fast tuning */
+    return true;
   }
   return false;
 }
@@ -495,6 +515,13 @@ static void printusage() {
          "  --scan-delay/--max-scan-delay <time>: Adjust delay between probes\n"
          "  --min-rate <number>: Send packets no slower than <number> per second\n"
          "  --max-rate <number>: Send packets no faster than <number> per second\n"
+         "  --efficient: Low-footprint mode -- small worker pools, gentle on the\n"
+         "      host and network (good for background/shared machines)\n"
+         "  --fast: Resource-aware speed-up -- auto-scales worker pools to the\n"
+         "      detected CPU/RAM, capped at a share of the machine (default ~50%%\n"
+         "      CPU, ~25%% RAM) so it never starves the box\n"
+         "  --fast-cpu-percent <1-100>: CPU share --fast may use (default 50)\n"
+         "  --fast-mem-percent <1-100>: RAM share --fast may use (default 25)\n"
          "FIREWALL/IDS EVASION AND SPOOFING:\n"
          "  -f; --mtu <val>: fragment packets (optionally w/given MTU)\n"
          "  -D <decoy1,decoy2[,ME],...>: Cloak a scan with decoys\n"
@@ -963,6 +990,11 @@ void parse_options(int argc, char **argv) {
     {"topo-asn", required_argument, 0, 0},
     /* --spoof-os: net-scan OS fingerprint spoofing profile */
     {"spoof-os", required_argument, 0, 0},
+    /* --efficient / --fast: resource-aware performance modes */
+    {"efficient", no_argument, 0, 0},
+    {"fast", no_argument, 0, 0},
+    {"fast-cpu-percent", required_argument, 0, 0},
+    {"fast-mem-percent", required_argument, 0, 0},
     {0, 0, 0, 0}
   };
 
@@ -1789,6 +1821,18 @@ void  apply_delayed_options() {
 
   // Default IPv4
   o.setaf(delayed_options.af == AF_UNSPEC ? AF_INET : delayed_options.af);
+
+  /* Resource-aware performance modes (--efficient / --fast): fold the
+   * detected-hardware tuning into the regular per-host scan knobs (only
+   * where the operator did not set them explicitly), then announce the
+   * resolved profile. The custom net-scan/watchlist/enrichment pools read
+   * the same profile directly at their worker-count sites. */
+  if (o.perf_mode != KMAP_PERF_NORMAL) {
+    kmap_perf_apply_to_scan();
+    char perfbuf[256];
+    kmap_perf_describe(perfbuf, sizeof(perfbuf));
+    log_write(LOG_STDOUT, "Kmap %s\n", perfbuf);
+  }
 
   if (o.verbose > 0) {
     for (std::vector<std::string>::iterator it = delayed_options.verbose_out.begin(); it != delayed_options.verbose_out.end(); ++it) {

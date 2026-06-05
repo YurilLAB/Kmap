@@ -20,6 +20,7 @@
 #include "net_db.h"
 #include "asn_lookup.h"
 #include "KmapOps.h"
+#include "sys_resources.h"
 #include "kmap.h"
 #include "kmap_dns.h"
 #include "output.h"
@@ -1433,6 +1434,13 @@ int run_enrichment(const char *data_dir, int batch_size) {
 
   /* Worker / retry counts read once, applied globally. */
   int enrich_worker_count = 40;
+  /* --efficient / --fast derive a resource-aware default; the env var
+   * still overrides (checked after) so explicit tuning wins. */
+  {
+    const KmapPerfProfile &pp = kmap_perf_profile();
+    if (pp.mode != KMAP_PERF_NORMAL && pp.enrich_workers > 0)
+      enrich_worker_count = pp.enrich_workers;
+  }
   if (const char *env = getenv("KMAP_NETSCAN_ENRICH_CONCURRENCY")) {
     int v = atoi(env);
     if (v > 0 && v <= 256) enrich_worker_count = v;

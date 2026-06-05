@@ -380,6 +380,9 @@ void KmapOps::Initialize() {
   topo_around_depth  = 1;
   topo_asn_filter    = 0;
   spoof_os         = nullptr;
+  perf_mode        = 0;     /* KMAP_PERF_NORMAL */
+  fast_cpu_percent = 0.0;   /* 0 => use built-in default (50%) */
+  fast_mem_percent = 0.0;   /* 0 => use built-in default (25%) */
   memset(logfd, 0, sizeof(FILE *) * LOG_NUM_FILES);
   ttl = -1;
   badsum = false;

@@ -343,6 +343,13 @@ class KmapOps {
      (TTL, RCVBUF, HTTP User-Agent + Accept-* headers). NULL = no spoofing.
      Validated against os_profile_is_valid() at parse time. */
   char *spoof_os;
+  /* --efficient / --fast resource-aware performance modes.
+   * perf_mode: KMAP_PERF_NORMAL/EFFICIENT/FAST (see sys_resources.h).
+   * fast_cpu_percent / fast_mem_percent: tunable share of the machine the
+   * --fast mode may use (<=0 means "use the built-in default"). */
+  int   perf_mode;
+  double fast_cpu_percent;
+  double fast_mem_percent;
   int ttl; // Time to live
   bool badsum;
   char *datadir;

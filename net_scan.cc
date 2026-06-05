@@ -18,6 +18,7 @@
 #include "net_query.h"
 #include "asn_lookup.h"
 #include "KmapOps.h"
+#include "sys_resources.h"
 #include "kmap.h"
 #include "output.h"
 #include "os_profile.h"
@@ -412,6 +413,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    * resource metrics showed kmap discovery is RTT-bound, not
    * CPU/RAM-bound. */
   int worker_count = 100;
+  /* --efficient / --fast derive a resource-aware default; the env var
+   * still overrides (checked after) so explicit tuning wins. */
+  {
+    const KmapPerfProfile &pp = kmap_perf_profile();
+    if (pp.mode != KMAP_PERF_NORMAL && pp.discovery_workers > 0)
+      worker_count = pp.discovery_workers;
+  }
   if (const char *env = getenv("KMAP_WATCHLIST_CONCURRENCY")) {
     int v = atoi(env);
     if (v > 0 && v <= 1024) worker_count = v;

@@ -14,6 +14,7 @@
 #include "kmap.h"
 #include "tcpip.h"
 #include "KmapOps.h"
+#include "sys_resources.h"
 #include "output.h"
 #include "os_profile.h"
 
@@ -688,6 +689,14 @@ int fast_syn_scan(const char *data_dir,
    * waits without straining a typical client machine.  1024 cap
    * retained as the sanity ceiling. */
   int worker_count = 100;
+  /* --efficient / --fast derive a resource-aware default from the detected
+   * CPU/RAM. The KMAP_NETSCAN_CONCURRENCY env var still wins (checked
+   * after), so explicit operator overrides keep their priority. */
+  {
+    const KmapPerfProfile &pp = kmap_perf_profile();
+    if (pp.mode != KMAP_PERF_NORMAL && pp.discovery_workers > 0)
+      worker_count = pp.discovery_workers;
+  }
   if (const char *env = getenv("KMAP_NETSCAN_CONCURRENCY")) {
     int v = atoi(env);
     if (v > 0 && v <= 1024) worker_count = v;
