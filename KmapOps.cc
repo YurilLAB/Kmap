@@ -164,8 +164,15 @@ KmapOps::~KmapOps() {
   if (spoof_os) { free(spoof_os); spoof_os = NULL; }
 
 #ifndef NOLUA
-  if (scriptversion || script)
-    close_nse();
+  /* NOTE: do *not* close_nse() here. This destructor runs for the global
+   * KmapOps object during exit-time static destruction, which happens
+   * AFTER OpenSSL has already run its own atexit cleanup (registered
+   * lazily on first crypto use, so it tears down earlier under LIFO).
+   * Closing the Lua state now triggers GC finalizers that call
+   * OSSL_PROVIDER_unload() against already-freed OpenSSL locks, crashing
+   * with a NULL rwlock. The Lua state is closed at the safe time from
+   * kmap_free_mem() (under --release-memory); otherwise the OS reclaims
+   * it at exit, matching upstream behavior. */
   if (scriptargs) {
     free(scriptargs);
     scriptargs = NULL;

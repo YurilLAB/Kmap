@@ -71,3 +71,8 @@ libz/configure.log
 !macosx/Makefile
 !mswin32/Makefile
 !zekmap/share/zekmap/locale/Makefile
+
+# Core dumps from crashes/debugging
+core
+core.*
+vgcore.*
