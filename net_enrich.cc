@@ -21,6 +21,7 @@
 #include "asn_lookup.h"
 #include "KmapOps.h"
 #include "sys_resources.h"
+#include "cpu_meter.h"
 #include "kmap.h"
 #include "kmap_dns.h"
 #include "output.h"
@@ -1650,6 +1651,10 @@ int run_enrichment(const char *data_dir, int batch_size) {
         r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
       }
       processed_atomic.fetch_add(1, std::memory_order_relaxed);
+
+      /* --fast / --efficient: hold sustained CPU at/below the configured
+       * share. No-op in normal mode or when CPU is unmeasurable. */
+      kmap_cpu_governor_throttle();
     }
   };
 
@@ -1684,6 +1689,10 @@ int run_enrichment(const char *data_dir, int batch_size) {
         pct, hps, eta_buf);
     }
   });
+
+  /* Arm the CPU governor with a fresh baseline right before the CPU-heavy
+   * enrichment pool runs (--fast/--efficient only). */
+  kmap_cpu_governor_init(kmap_perf_cpu_target_cores());
 
   std::vector<std::thread> pool;
   pool.reserve(actual_workers);

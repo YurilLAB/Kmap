@@ -69,4 +69,9 @@ void kmap_perf_describe(char *buf, size_t buflen);
  * No-op in KMAP_PERF_NORMAL. Call once after option parsing. */
 void kmap_perf_apply_to_scan(void);
 
+/* CPU target for the live governor, in units of logical cores (e.g. 50% of
+ * an 8-core box => 4.0). Returns 0.0 in KMAP_PERF_NORMAL, which disables the
+ * governor. Feed this to kmap_cpu_governor_init() (see cpu_meter.h). */
+double kmap_perf_cpu_target_cores(void);
+
 #endif /* KMAP_SYS_RESOURCES_H */

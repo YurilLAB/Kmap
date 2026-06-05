@@ -535,6 +535,14 @@ the `KMAP_*_CONCURRENCY` environment variables always take priority. The
 resolved profile (detected CPU/RAM and chosen worker counts) is printed at
 startup.
 
+Beyond sizing the worker pools up front, both modes run a **live CPU
+governor** during the (CPU-heavy) enrichment phase: it samples the
+process's real CPU usage and injects cooperative micro-sleeps to hold
+sustained utilization at or below the configured share, so `--fast
+--fast-cpu-percent 50` actually keeps Kmap near ~50% of the machine rather
+than just hoping the thread count works out. Set `KMAP_NO_CPU_GOVERNOR=1`
+to disable the governor (worker-pool sizing still applies).
+
 ### Output Options
 
 | Option | Description |

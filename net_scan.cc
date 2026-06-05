@@ -19,6 +19,7 @@
 #include "asn_lookup.h"
 #include "KmapOps.h"
 #include "sys_resources.h"
+#include "cpu_meter.h"
 #include "kmap.h"
 #include "output.h"
 #include "os_profile.h"
@@ -770,6 +771,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     /* Default 40 (was 10) -- same reasoning as the net-scan
      * enrichment bump.  Stage C DB writes still serialize. */
     int enrich_worker_count = 40;
+    /* --efficient / --fast derive a resource-aware default; env still wins. */
+    {
+      const KmapPerfProfile &pp = kmap_perf_profile();
+      if (pp.mode != KMAP_PERF_NORMAL && pp.enrich_workers > 0)
+        enrich_worker_count = pp.enrich_workers;
+    }
     if (const char *env = getenv("KMAP_WATCHLIST_ENRICH_CONCURRENCY")) {
       int v = atoi(env);
       if (v > 0 && v <= 256) enrich_worker_count = v;
@@ -795,12 +802,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         if (hr.erc == 0) {
           hr.asn_info = lookup_asn(hr.ip.c_str(), 2000);
         }
+        /* --fast / --efficient CPU governor (no-op in normal mode). */
+        kmap_cpu_governor_throttle();
       }
     };
 
     log_write(LOG_STDOUT, "  Enriching %d hosts with %d workers...\n",
               (int)results.size(), enrich_worker_count);
     enrich_reset_metrics();
+    kmap_cpu_governor_init(kmap_perf_cpu_target_cores());
     {
       std::vector<std::thread> epool;
       epool.reserve(enrich_worker_count);

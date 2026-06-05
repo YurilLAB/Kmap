@@ -255,6 +255,14 @@ void kmap_perf_describe(char *buf, size_t buflen) {
 static const unsigned int KMAP_DEFAULT_MIN_HOSTGROUP = 1;
 static const unsigned int KMAP_DEFAULT_MAX_HOSTGROUP = 100000;
 
+double kmap_perf_cpu_target_cores(void) {
+  const KmapPerfProfile &p = kmap_perf_profile();
+  if (p.mode == KMAP_PERF_NORMAL) return 0.0;
+  double t = static_cast<double>(p.cpu_count) * (p.cpu_percent / 100.0);
+  if (t < 0.1) t = 0.1; /* never throttle to a full stop */
+  return t;
+}
+
 void kmap_perf_apply_to_scan(void) {
   const KmapPerfProfile &p = kmap_perf_profile();
   if (p.mode == KMAP_PERF_NORMAL) return;
