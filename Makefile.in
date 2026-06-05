@@ -114,6 +114,14 @@ export HDRS = charpool.h FingerPrintResults.h FPEngine.h idle_scan.h MACLookup.h
 
 OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o kmap_dns.o kmap_error.o kmap.o kmap_ftp.o KmapOps.o KmapOutputTable.o kmap_tty.o osscan2.o osscan.o output.o output_json.o yuril_export.o default_creds.o web_recon.o cve_map.o net_scan.o net_db.o fast_syn.o net_enrich.o net_enrich_async.o net_fp_helpers.o net_report.o net_query.o asn_lookup.o tracemap.o os_profile.o sqlite/sqlite3.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o scan_lists.o service_scan.o services.o string_pool.o NewTargets.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
 
+# Ensure a bare `make` builds (and links) everything via the `all` target.
+# Without this, the first explicit target rule below (sqlite/sqlite3.o)
+# becomes GNU make's default goal, so `make` with no arguments silently
+# builds only that one object and never compiles or links kmap. That
+# defect let real Linux build breaks pass CI (which runs a bare `make`)
+# completely undetected.
+.DEFAULT_GOAL := all
+
 # %.o : %.cc -- nope this is a GNU extension
 .cc.o:
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@

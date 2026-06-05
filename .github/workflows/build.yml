@@ -104,8 +104,29 @@ jobs:
           sudo apt-get install -y build-essential clang tree libpcap-dev libnet-dev libpcre2-dev
           ./configure
           make
+          # Fail loudly if the binary was not actually produced. A bare `make`
+          # previously exited 0 while building only sqlite3.o (wrong default
+          # goal), so build breaks passed CI undetected.
+          test -x ./kmap || { echo "::error::kmap binary was not built"; exit 1; }
           make install DESTDIR=/tmp
           tree /tmp/usr
+
+      - name: Smoke test Linux
+        if: startsWith(matrix.name,'ubuntu') && matrix.arch != 'arm64'
+        run: |
+          set -e
+          # Catch crash-on-exit / runtime regressions that a build-only job
+          # misses (e.g. the OpenSSL teardown SIGSEGV after -sV).
+          ./kmap --version
+          python3 -m http.server 8088 --bind 127.0.0.1 >/dev/null 2>&1 &
+          srv=$!
+          sleep 1
+          rc=0
+          ./kmap -sV -p 8088 127.0.0.1 || rc=$?
+          kill "$srv" 2>/dev/null || true
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::kmap -sV exited with $rc (expected 0)"; exit "$rc"
+          fi
 
       - name: Build Linux ARM64
         if: startsWith(matrix.name,'ubuntu') && matrix.arch == 'arm64'
