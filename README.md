@@ -58,6 +58,7 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | Watchlist monitoring | `--watchlist <file>` | Re-scan owned/client assets and detect changes |
 | Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS, ASN, country |
 | Network topology mapping | `--tracemap <targets>` | Maps network paths, detects gateways, ASN boundaries, hub routers |
+| Resource-aware speed modes | `--efficient` / `--fast` | Auto-scale worker pools to the machine's CPU/RAM; `--fast` is capped at a tunable share (default ~50% CPU / ~25% RAM) |
 
 All per-host features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
 
@@ -502,6 +503,37 @@ kmap --net-query --nq-ip-range 93.184.0.0/16
 | `--cve-min-score <score>` | Minimum CVSS score to report (default: 7.0) |
 | `--screenshot` | Capture PNG screenshots of web ports |
 | `--screenshot-dir <dir>` | Screenshot output directory (default: `kmap-screenshots`) |
+
+### Performance Modes
+
+Kmap auto-tunes its scanning concurrency to the machine it runs on. Two
+resource-aware modes scale the discovery, enrichment, and watchlist worker
+pools (and nudge regular per-host scan parallelism) based on the detected
+CPU count and RAM — nothing is hardcoded to a fixed thread count.
+
+| Option | Description |
+|---|---|
+| `--efficient` | Low-footprint mode. Small worker pools, gentle on the host and network — good for background scans or shared machines. |
+| `--fast` | Resource-aware speed-up. Auto-scales worker pools to the detected CPU/RAM, capped at a configurable share of the machine (default ~50% CPU, ~25% RAM) so it never starves the box. |
+| `--fast-cpu-percent <1-100>` | CPU share `--fast` may use (default: 50). |
+| `--fast-mem-percent <1-100>` | RAM share `--fast` may use (default: 25). |
+
+```bash
+# Aggressive, resource-aware internet sweep that still leaves the box usable
+kmap --net-scan --fast
+
+# Push the CPU/RAM share higher on a dedicated scanning host
+kmap --net-scan --fast --fast-cpu-percent 80 --fast-mem-percent 50
+
+# Quiet, low-impact monitoring run on a shared server
+kmap --net-scan --watchlist clients.txt --efficient
+```
+
+`--efficient` and `--fast` are mutually exclusive. The mode sets smart
+defaults only; an explicit `-T`, `--min-parallelism`, `--min-hostgroup`, or
+the `KMAP_*_CONCURRENCY` environment variables always take priority. The
+resolved profile (detected CPU/RAM and chosen worker counts) is printed at
+startup.
 
 ### Output Options
 
