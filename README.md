@@ -8,6 +8,8 @@
 
 > **License:** Kmap inherits the Nmap Public Source License (NPSL). See `LICENSE` for full terms.
 
+> **Part of the Yuril suite — ypanel.** Kmap is driven from **ypanel**, Yuril Security's unified operator control panel (`https://yurillab.dev/ypanel`): dispatch scans remotely, browse the discovered attack surface, and triage CVE/NSE findings. See [`docs/ypanel.md`](docs/ypanel.md) for the connection model + current status.
+
 ---
 
 ## Background
