@@ -663,19 +663,26 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
   std::string det_ver = extract_version_number(version);
   if (det_ver.empty()) return results;
 
-  /* LIMIT raised from 15 to 100.  The previous ceiling silently evicted
-   * lower-CVSS CVEs from the hosts.cves column on each rescan: a product
-   * with 16+ applicable CVEs would lose every CVE past rank 15, and a
-   * fresh top-15 CVE published since the previous scan would push an
-   * older still-applicable CVE out of the stored list.  100 covers every
+  /* Stored-result cap is 100 *applicable* CVEs (KMAP_CVE_RESULT_CAP, the
+   * break below).  History: the cap was 15, which silently evicted
+   * lower-CVSS CVEs from the hosts.cves column on each rescan -- a product
+   * with 16+ applicable CVEs lost every CVE past rank 15.  100 covers every
    * mainstream product's real-world CVE count (Apache 2.2, OpenSSH 7.x,
-   * legacy nginx) without bloating the row: 100 rows of CVE JSON is
-   * ~8 KB per port, negligible at shard scale. */
+   * legacy nginx) without bloating the row: 100 rows of CVE JSON is ~8 KB
+   * per port, negligible at shard scale.
+   *
+   * The SQL LIMIT (2000) is a backstop, NOT the cap.  The version-range
+   * filter runs in C++ below, so applying LIMIT 100 in SQL would keep the
+   * 100 highest-CVSS rows *before* version filtering and drop an older CVE
+   * that actually applies to the detected version but ranks beyond 100 by
+   * CVSS for a product with many high-severity entries.  Walk up to 2000
+   * rows (indexed on product) and stop once 100 applicable ones collect. */
+  const int KMAP_CVE_RESULT_CAP = 100;
   const char *sql =
     "SELECT cve_id, cvss_score, severity, description, "
     "version_min, version_max, cvss_vector, remote_unauthed "
     "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -684,8 +691,7 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
   sqlite3_bind_text(stmt, 1, product.c_str(), -1, SQLITE_TRANSIENT);
 
   /* det_ver is constant for this lookup, so parse it once instead of
-     re-parsing it inside ver_cmp_enrich for every one of the (up to 100)
-     candidate rows. */
+     re-parsing it inside ver_cmp_enrich for every candidate row. */
   const std::vector<int> det_parts = parse_ver_enrich(det_ver);
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -717,6 +723,7 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
                           ? -1
                           : sqlite3_column_int(stmt, 7);
     results.push_back(std::move(e));
+    if (static_cast<int>(results.size()) >= KMAP_CVE_RESULT_CAP) break;
   }
 
   sqlite3_finalize(stmt);

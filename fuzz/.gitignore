@@ -1,0 +1,6 @@
+# Build artifacts and transient run logs from the fuzz harnesses.
+# The harness *source* (.cc) is tracked; everything it produces is not.
+*.exe
+*.log
+*.o
+_*.png

@@ -638,7 +638,11 @@ int fast_syn_scan(const char *data_dir,
     if (db) net_db_begin(db);
   }
 
-  int64_t now_ts = static_cast<int64_t>(time(nullptr));
+  /* Discovery timestamp stamped on every inserted host. Refreshed on the
+     60s checkpoint cadence (below) so a multi-day sweep records each host's
+     actual discovery window instead of freezing every row at scan-start.
+     Atomic because the insert reads it from worker threads. */
+  std::atomic<int64_t> now_ts{static_cast<int64_t>(time(nullptr))};
   time_t last_status = time(nullptr);
   time_t last_checkpoint = time(nullptr);
   uint64_t batch_inserts = 0;
@@ -813,7 +817,8 @@ int fast_syn_scan(const char *data_dir,
               sqlite3 *db = shards[shard_idx];
               if (db) {
                 std::lock_guard<std::mutex> lk(db_mu);
-                net_db_insert_host(db, ip, port, "tcp", now_ts);
+                net_db_insert_host(db, ip, port, "tcp",
+                                   now_ts.load(std::memory_order_relaxed));
               }
               if (o.verbose) {
                 std::string ip_str = u32_to_ip(ip);
@@ -1005,6 +1010,9 @@ int fast_syn_scan(const char *data_dir,
 
     /* Periodic checkpoint + per-shard transaction rollover. */
     if (now_time - last_checkpoint >= 60) {
+      /* Advance the host-insert timestamp so rows discovered in this window
+         are stamped with the current time, not the scan-start time. */
+      now_ts.store(static_cast<int64_t>(now_time), std::memory_order_relaxed);
       cp.packets_sent = done;
       cp.hosts_found  = found;
       cp.next_index   = cur_idx;

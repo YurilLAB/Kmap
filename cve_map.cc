@@ -324,25 +324,35 @@ static std::vector<CveEntry> query_cves(
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product = ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
 
   const char *sql_exact =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product = ? AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
 
   const char *sql_like_vendor =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product LIKE ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
 
   const char *sql_like =
     "SELECT cve_id, product, vendor, version_min, version_max, "
     "cvss_score, severity, description "
     "FROM cves WHERE product LIKE ? AND cvss_score >= ? "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
+
+  /* The SQL LIMIT (2000) is a safety backstop, NOT the result cap. The
+     version-range filter below runs in C++, so the real cap is "first 100
+     rows that actually apply to the detected version" (the break after the
+     push_back). Applying LIMIT 100 in SQL would truncate to the 100
+     highest-CVSS rows *before* version filtering, silently dropping a CVE
+     that applies to the detected version but ranks beyond 100 by CVSS for a
+     product with many high-severity entries. The backstop bounds worst-case
+     work on a pathologically large DB; rows are indexed on product. */
+  const int KMAP_CVE_RESULT_CAP = 100;
 
   const char *sql;
   bool has_vendor = !pq.vendor_pattern.empty();
@@ -404,6 +414,7 @@ static std::vector<CveEntry> query_cves(
     }
 
     results.push_back(e);
+    if (static_cast<int>(results.size()) >= KMAP_CVE_RESULT_CAP) break;
   }
 
   sqlite3_finalize(stmt);

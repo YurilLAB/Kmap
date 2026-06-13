@@ -55,8 +55,16 @@ long kmap_cpu_throttle_step_us(double used_cores, double target_cores,
   /* +-3% deadband around the target to avoid hunting once converged. */
   const double hi = target_cores * 1.03;
   const double lo = target_cores * 0.97;
-  if (used_cores <= hi && used_cores >= lo)
-    return cur_sleep_us; /* in band: hold */
+  if (used_cores <= hi && used_cores >= lo) {
+    /* In band: hold the current sleep -- but still enforce the ceiling and
+     * floor so the function's postcondition (0 <= result <= MAX_SLEEP_US)
+     * is unconditional regardless of the value the caller passed in. The
+     * recompute paths below already clamp; without this the hold path was
+     * the one way an out-of-range sleep could pass straight through. */
+    if (cur_sleep_us < 0) return 0;
+    if (cur_sleep_us > MAX_SLEEP_US) return MAX_SLEEP_US;
+    return cur_sleep_us;
+  }
 
   /* Multiplicative (damped) control: CPU utilisation falls roughly as the
    * duty cycle work/(work+sleep), so nudging the sleep by a damped power of
