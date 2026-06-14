@@ -12,6 +12,8 @@
 
 > **Built for gaming PCs, not server farms.** Kmap's discovery path is RTT-bound (≈1–2% CPU during a probe wave), so an ordinary desktop can drive internet-scale scans. The `--fast` / `--efficient` modes scale to your hardware and stay capped so the box remains usable. See [`docs/performance.md`](docs/performance.md) for modes, tuning flags, the full env-var reference, and gaming-PC recipes.
 
+> **Query what you collected.** After a scan, `--net-query` searches the persisted store by port, service, CVE, CVSS, ASN, country, web fingerprint, or device class — no re-scan needed. See [`docs/querying.md`](docs/querying.md) for the full filter reference and examples.
+
 ---
 
 ## Background
