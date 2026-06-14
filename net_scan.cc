@@ -218,6 +218,32 @@ void net_event_log(const char *severity, const char *fmt, ...) {
  * previous results in watchlist.db, outputs diff + full report.
  * ----------------------------------------------------------------------- */
 
+/* Raise the open-file-descriptor soft limit toward the hard limit so a
+   high-concurrency watchlist sweep (KMAP_WATCHLIST_CONCURRENCY up to 1024)
+   can hold one socket per worker without socket() failing EMFILE -- which
+   connect_probe would otherwise report as a closed host (silent false
+   negative). Only raises, never lowers; best-effort. No-op on Windows. */
+static void raise_fd_limit(int desired) {
+#ifndef WIN32
+  struct rlimit r;
+  if (getrlimit(RLIMIT_NOFILE, &r) != 0) return;
+  if (r.rlim_cur == RLIM_INFINITY || r.rlim_cur >= (rlim_t)desired) return;
+  r.rlim_cur = (r.rlim_max == RLIM_INFINITY || (rlim_t)desired < r.rlim_max)
+                 ? (rlim_t)desired : r.rlim_max;
+  setrlimit(RLIMIT_NOFILE, &r);   /* best-effort */
+  if (getrlimit(RLIMIT_NOFILE, &r) == 0 &&
+      r.rlim_cur != RLIM_INFINITY && r.rlim_cur < (rlim_t)desired) {
+    log_write(LOG_STDOUT,
+      "  WARNING: open-file limit is %lu but this scan needs ~%d descriptors; "
+      "raise it (ulimit -Hn) or lower KMAP_WATCHLIST_CONCURRENCY, otherwise "
+      "some probes will fail with EMFILE and those hosts get marked closed.\n",
+      (unsigned long)r.rlim_cur, desired);
+  }
+#else
+  (void)desired;
+#endif
+}
+
 static int run_watchlist(const char *targets_file, const char *data_dir,
                          const char *findings_dir) {
   /* Open the persistent scan log so every WARN/ERROR survives the
@@ -575,6 +601,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       }
     }  /* while (true) -- next IP */
   };
+
+  /* One socket per worker plus the watchlist DB, log and std streams. */
+  raise_fd_limit(worker_count + 64);
 
   log_write(LOG_STDOUT, "  Probing %d IPs (%d ports each) with %d workers"
             " [timeout=%dms, bail_after=%d]...\n",

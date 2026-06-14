@@ -476,6 +476,37 @@ static void close_all_shards(std::vector<sqlite3 *> &shards) {
  * arrives in microseconds and tells us the host is alive.  TIMEOUT =
  * select() expired with no response, the costly outcome and the one
  * we want to detect-and-bail on.  OPEN = SYN-ACK accepted. */
+/* Raise the open-file-descriptor soft limit toward the hard limit so a
+   high-concurrency sweep can actually hold `desired` sockets at once.
+   Without this, KMAP_NETSCAN_CONCURRENCY near the recommended 1024 hits the
+   default RLIMIT_NOFILE (1024 on most Linux); socket() then fails with EMFILE
+   and connect_probe reports the host CLOSED -- a silent false negative that
+   makes a mass scan quietly under-report. Only ever raises, never lowers;
+   best-effort (a failure is non-fatal). No-op on Windows, whose handle table
+   is not governed by this limit. */
+static void raise_fd_limit(int desired) {
+#ifndef WIN32
+  struct rlimit r;
+  if (getrlimit(RLIMIT_NOFILE, &r) != 0) return;
+  if (r.rlim_cur == RLIM_INFINITY || r.rlim_cur >= (rlim_t)desired) return;
+  r.rlim_cur = (r.rlim_max == RLIM_INFINITY || (rlim_t)desired < r.rlim_max)
+                 ? (rlim_t)desired : r.rlim_max;
+  setrlimit(RLIMIT_NOFILE, &r);   /* best-effort */
+  /* If the hard limit still can't cover the pool, tell the operator -- this
+     is the root cause of the "mass scan finds almost nothing" report. */
+  if (getrlimit(RLIMIT_NOFILE, &r) == 0 &&
+      r.rlim_cur != RLIM_INFINITY && r.rlim_cur < (rlim_t)desired) {
+    log_write(LOG_STDOUT,
+      "  WARNING: open-file limit is %lu but this scan needs ~%d descriptors; "
+      "raise it (ulimit -Hn) or lower KMAP_NETSCAN_CONCURRENCY, otherwise some "
+      "probes will fail with EMFILE and those hosts get marked closed.\n",
+      (unsigned long)r.rlim_cur, desired);
+  }
+#else
+  (void)desired;
+#endif
+}
+
 enum class ProbeResult { OPEN, CLOSED, TIMEOUT };
 
 static ProbeResult connect_probe(uint32_t ip, int port, int timeout_ms) {
@@ -950,6 +981,10 @@ int fast_syn_scan(const char *data_dir,
       worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
     }
   };
+
+  /* Make room for one socket per worker plus the shard DBs, CVE DB, log and
+     the std streams before the pool starts opening connections. */
+  raise_fd_limit(static_cast<int>(total_workers) + 128);
 
   log_write(LOG_STDOUT, "  Probing with %ld workers...\n", total_workers);
 
