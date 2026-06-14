@@ -185,9 +185,20 @@ by watching a slow progress bar.
 | `KMAP_HOST_ENRICH_BUDGET_MS`        | 15000   | > 0      | Per-host wall-time budget; caps a slow host's worst case |
 | `KMAP_ENRICH_CONNECT_TIMEOUT_MS`    | 3000    | > 0      | Per-port connect timeout during enrichment              |
 | `KMAP_ENRICH_RETRIES`               | 0       | 0–10     | Extra attempts after a transient enrichment failure     |
-| `KMAP_ASYNC_ENRICH_INFLIGHT`        | 64      | 1–99999  | Max concurrent connections in the async enrich pre-pass |
+| `KMAP_ASYNC_ENRICH`                 | off     | 0/1      | `1` enables the experimental async enrich pre-pass (note below) |
+| `KMAP_ASYNC_ENRICH_INFLIGHT`        | 64      | 1–99999  | Hosts the async pre-pass keeps in flight (needs `KMAP_ASYNC_ENRICH=1`) |
 | `KMAP_NO_DNS`                       | off     | 0/1      | `1` disables reverse-DNS lookups during enrichment      |
 | `KMAP_NO_CPU_GOVERNOR`              | off     | 0/1      | `1` disables the `--fast`/`--efficient` CPU governor    |
+
+> **Async enrich pre-pass (experimental, opt-in).** `KMAP_ASYNC_ENRICH=1` runs
+> the banner-grab + CVE + HTTP + TLS portion of enrichment through a single
+> nsock event loop that holds many connections in flight at once, instead of
+> one blocking host per worker thread. On large sweeps this lifts the per-host
+> blocking ceiling that otherwise caps enrichment throughput;
+> `KMAP_ASYNC_ENRICH_INFLIGHT` bounds how many hosts it drives concurrently.
+> It is off by default while it is validated — the synchronous path stays the
+> default and still fills any step the pre-pass leaves blank. Reverse-DNS and
+> ASN lookups always run on the synchronous path.
 
 ---
 
