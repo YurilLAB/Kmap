@@ -66,11 +66,22 @@ in-flight memory footprint stays inside the RAM budget):
 
 ## The CPU governor
 
-In `--fast`/`--efficient`, a cooperative governor keeps **sustained** CPU near
-the target share (e.g. 50% of an 8-core box ≈ 4 cores). Enrichment workers call
-it between hosts; it injects small micro-sleeps when usage runs hot, with a
-±3% deadband so it doesn't hunt once converged and a hard ceiling of 250 ms of
-sleep per call. It is a no-op in normal mode.
+The CPU share is enforced by a **cooperative governor**, layered on top of the
+two *hard* caps that do most of the work: the bounded worker pools (above) and
+the memory budget. The governor only runs during the **enrichment** phase
+(discovery is already ~1–2% CPU, RTT-bound, so it needs no throttling).
+Enrichment workers call it between hosts; it injects small micro-sleeps when
+sustained CPU runs hot, with a ±3% deadband so it doesn't hunt once converged
+and a hard ceiling of 250 ms of sleep per call. It is a no-op in normal mode.
+
+It is a **soft** target, not a hard real-time clamp: because enrichment is
+I/O-bound (workers spend most of their time blocked on TLS/HTTP/banner RTTs),
+actual CPU sits well under the share in practice and the governor rarely needs
+to engage hard. Under an artificial sustained pure-CPU load it *reduces* CPU
+rather than pinning it to the exact target — the firm guarantees are the
+bounded thread count and the memory budget, with the governor smoothing the
+CPU on top. (`fuzz/test_governor.cc` is a live harness that drives the real
+governor and measures this behavior.)
 
 Disable it entirely (let enrichment run unthrottled) with:
 
