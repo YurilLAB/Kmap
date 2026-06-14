@@ -82,14 +82,18 @@ sqlite3 kmap-data/shard_000.db \
 
 ## The `fingerprints` table
 
-A relationship index: each row is `(ip_u32, kind, value)` — e.g.
-`('…','tls_sha256','<hex>')`, `('…','hostname','example.com')`,
+A relationship index: each row is `(ip_u32, kind, value)`. The five `kind`s
+are `tls_sha256` (leaf-cert hash), `tls_subject_cn`, `tls_san`, `hostname`
+(reverse-DNS / discovered), and `redirect_host` (where an HTTP probe was
+redirected) — e.g. `('…','tls_sha256','<hex>')`,
 `('…','tls_san','*.example.com')`. The inverse index `(kind, value)` answers
 "which **other** hosts carry this same cert / SAN / hostname?" in one indexed
-lookup, even on a billions-of-rows table. `ip_u32` is the 32-bit integer IP
-(compact, since this table outnumbers `hosts` after a big sweep), and `port` is
-informational only (not part of the PK — one cert served on 443 and 8443 is a
-single row).
+lookup, even on a billions-of-rows table — this is exactly what
+[`--net-cluster`](pivoting-and-topology.md#--net-cluster--infrastructure-correlation-by-shared-fingerprints)
+walks. `ip_u32` is the 32-bit integer IP (compact, since this table outnumbers
+`hosts` after a big sweep), and `port` is informational only (not part of the
+PK — one cert served on 443 and 8443 is a single row, its port stamp tracking
+the most recent sighting).
 
 ## Topology + string interning
 

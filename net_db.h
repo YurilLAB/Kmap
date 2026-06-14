@@ -238,7 +238,9 @@ struct NetFingerprint {
 };
 
 /* Insert (or refresh observed_at on) a single fingerprint. Idempotent —
-   primary key is (ip_u32, kind, value, port).  Returns 0 on success. */
+   primary key is (ip_u32, kind, value); port is NOT part of the key, so the
+   same cert/hostname seen on two ports collapses to one row whose port stamp
+   tracks the most recent observation.  Returns 0 on success. */
 int net_db_insert_fingerprint(sqlite3 *db,
                               uint32_t ip_u32, int port,
                               const char *kind, const char *value,
