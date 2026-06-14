@@ -480,11 +480,21 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
                       const char *asn_registry, const char *asn_region) {
   if (!db || !ip) return -1;
 
-  /* COALESCE on registry/region so legacy callers without those values can
-     still update asn/as_name/country/bgp_prefix without wiping previously-
-     captured registry data. */
+  /* COALESCE every text field so a partial re-lookup never wipes good data.
+     asn is captured by Team Cymru's origin query (asn/bgp/country/registry
+     together), but as_name comes from a SEPARATE AS-name query that can fail
+     on its own -- so a re-scan can legitimately arrive with asn>0 yet an empty
+     as_name. The old direct `as_name=?` then bound NULL and erased a
+     previously-captured AS name; the same wipe hit country/bgp_prefix on any
+     partial result. COALESCE(?, col) keeps the prior value when the caller
+     passes NULL (empty), matching net_db_update_enrichment. asn itself stays a
+     direct assignment: the caller only calls this when asn>0 (an int, never
+     NULL-bound), so there is nothing to preserve. */
   static const char *sql =
-    "UPDATE hosts SET asn=?, as_name=?, country=?, bgp_prefix=?, "
+    "UPDATE hosts SET asn=?, "
+    "as_name=COALESCE(?, as_name), "
+    "country=COALESCE(?, country), "
+    "bgp_prefix=COALESCE(?, bgp_prefix), "
     "asn_registry=COALESCE(?, asn_registry), "
     "asn_region=COALESCE(?, asn_region) "
     "WHERE ip=?";
