@@ -4,6 +4,13 @@ on:
   push:
     paths:
       - ".github/workflows/build.yml"
+      # Windows-build inputs: without these a vcxproj/sln/Build.bat change
+      # (toolset, source parity, deps) silently skips CI and only surfaces a
+      # break on the next source push. (See the libnetutil/liblinear LTCG and
+      # the sys_resources/cpu_meter parity breaks -- both vcxproj-only.)
+      - "**/*.vcxproj"
+      - "**/*.sln"
+      - "**/*.bat"
       - "**/*.c"
       - "**/*.cc"
       - "**/*.cpp"
