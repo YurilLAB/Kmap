@@ -117,12 +117,24 @@ with `atoi`; out-of-range values are ignored and the default is kept.
 
 | Variable                          | Default | Range      | Controls                                              |
 |-----------------------------------|---------|------------|-------------------------------------------------------|
-| `KMAP_NETSCAN_CONCURRENCY`        | 100     | 1–1024     | Parallel IP workers in `--net-scan` discovery         |
+| `KMAP_NETSCAN_CONCURRENCY`        | 100     | 1–1024     | Base discovery workers in `--net-scan` (see note)     |
 | `KMAP_WATCHLIST_CONCURRENCY`      | 100     | 1–1024     | Parallel IP workers in `--watchlist` discovery        |
-| `KMAP_DISCOVERY_PORT_PARALLELISM` | 8       | 1–32       | Ports probed concurrently within one IP               |
+| `KMAP_DISCOVERY_PORT_PARALLELISM` | 8       | 1–32       | Discovery-worker multiplier (see note)                |
 | `KMAP_PROBE_TIMEOUT_MS`           | 500     | 50–30000   | Per-probe TCP connect timeout (shared by both paths)  |
 | `KMAP_BAIL_AFTER_TIMEOUTS`        | 8       | 1–100      | Consecutive timeouts (no opens) before skipping an IP |
 | `KMAP_PROGRESS_INTERVAL_SECS`     | 30      | 1–3600     | How often the `\n` progress line is emitted           |
+
+> **Discovery concurrency note.** `--net-scan` discovery uses one flat pool
+> of persistent probe workers; the total number of concurrent `connect()`
+> probes is `KMAP_NETSCAN_CONCURRENCY × KMAP_DISCOVERY_PORT_PARALLELISM`
+> (default `100 × 8 = 800`, clamped at 4096). The multiplier is itself capped
+> at the number of ports being scanned, so a single-port sweep — the canonical
+> internet-scale workload — runs exactly `KMAP_NETSCAN_CONCURRENCY` workers.
+> Each worker probes one IP's ports in sequence, so raising either knob adds
+> more concurrent in-flight probes — the single biggest lever on discovery
+> throughput when the scan is network-RTT bound (which it usually is) rather
+> than rate-limited. The `--rate` ceiling still caps the aggregate send rate
+> on top of this.
 
 ### Enrichment (banner / CVE / HTTP / TLS)
 

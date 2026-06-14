@@ -760,18 +760,27 @@ int fast_syn_scan(const char *data_dir,
   std::mutex rate_mu;
   std::mutex db_mu;
 
-  /* Per-IP port parallelism. Same idea as enrich_single_host's Phase 0:
-     instead of probing N ports sequentially for one IP, spawn up to
-     KMAP_DISCOVERY_PORT_PARALLELISM threads that work-steal ports off
-     a per-IP atomic index. Wall time per IP drops roughly N-fold for
-     responsive hosts that probe the whole port list.
+  /* Discovery concurrency is a single flat pool of persistent workers.
+     The previous design was two-level -- worker_count outer threads each
+     spawning up to KMAP_DISCOVERY_PORT_PARALLELISM *inner* threads PER IP
+     to probe that IP's ports in parallel, then joining them. On a
+     multi-port sweep that created and destroyed inner_workers threads for
+     every single IP: cheap-looking per IP, catastrophic in aggregate
+     (a multi-port internet sweep would churn billions of thread
+     create/destroy cycles -- pure scheduler/handle overhead on a desktop).
 
-     The bail logic translates cleanly: timeout_count is atomic, and
-     once it crosses bail_after_timeouts AND no port has answered
-     anything (any_response_atomic == false), bail_flag is set and all
-     inner threads return. Behavior matches the sequential version in
-     the steady state -- a host that gets one RST early flips
-     any_response_atomic and the bail check stops firing. */
+     This pool folds the two levels into one: total_workers persistent
+     threads, each of which claims an IP and probes its ports SEQUENTIALLY
+     with a thread-local bail counter, then moves to the next IP. The peak
+     number of concurrent connect() probes -- and therefore aggregate probe
+     throughput, since every probe still draws from the one shared
+     rate-limiter token bucket -- is unchanged (total_workers ==
+     worker_count * inner_workers at the old peak). We simply keep more
+     distinct IPs in flight instead of more ports of fewer IPs, and pay the
+     thread create/destroy cost once per worker for the whole scan instead
+     of once per IP. For a single-port sweep (inner_workers == 1, the
+     canonical internet-scale workload) total_workers == worker_count, so
+     that path is unchanged. */
   int port_parallelism = 8;
   if (const char *env = getenv("KMAP_DISCOVERY_PORT_PARALLELISM")) {
     int v = atoi(env);
@@ -782,6 +791,16 @@ int fast_syn_scan(const char *data_dir,
     inner_workers = static_cast<int>(ports.size());
   if (inner_workers < 1) inner_workers = 1;
 
+  /* Flat worker total = old (outer x inner) peak concurrency. Clamped so
+     that cranking both knobs to their maxima (1024 * 32) cannot request a
+     pathological number of persistent threads; 4096 concurrent connects is
+     already far past what a residential uplink can usefully drive. */
+  long total_workers = static_cast<long>(worker_count) *
+                       static_cast<long>(inner_workers);
+  const long TOTAL_WORKER_CAP = 4096;
+  if (total_workers > TOTAL_WORKER_CAP) total_workers = TOTAL_WORKER_CAP;
+  if (total_workers < 1) total_workers = 1;
+
   auto worker = [&]() {
     while (!scan_interrupted) {
       uint64_t my_idx = probe_idx.fetch_add(1, std::memory_order_relaxed);
@@ -790,79 +809,56 @@ int fast_syn_scan(const char *data_dir,
 
       if (is_excluded(ip, excludes)) continue;
 
-      /* Per-IP shared state for the parallel inner workers. */
-      std::atomic<size_t> port_cursor{0};
-      std::atomic<int>    timeout_count{0};
-      std::atomic<bool>   any_response_atomic{false};
-      std::atomic<bool>   bail_flag{false};
+      /* Thread-local per-IP bail state -- no atomics needed because one
+         worker owns the whole IP. Matches the established bail semantics:
+         after bail_after_timeouts no-response probes from the start of the
+         IP's port list (i.e. before any sign of life), skip the remaining
+         ports. Any CLOSED/OPEN reply marks the host alive (sticky) and
+         permanently disables the bail for this IP, so a host that is up but
+         firewalled on most ports still gets every port probed. */
+      int  timeout_streak = 0;
+      bool any_response   = false;
 
-      auto port_worker = [&]() {
-        while (!scan_interrupted && !bail_flag.load(std::memory_order_relaxed)) {
-          size_t i = port_cursor.fetch_add(1, std::memory_order_relaxed);
-          if (i >= ports.size()) return;
+      for (size_t i = 0; i < ports.size(); i++) {
+        if (scan_interrupted) return;
 
-          rate_wait(rl, rate_mu);
+        rate_wait(rl, rate_mu);
 
-          int port = ports[i];
-          ProbeResult pr = connect_probe(ip, port, probe_timeout_ms);
-          probes_done.fetch_add(1, std::memory_order_relaxed);
+        int port = ports[i];
+        ProbeResult pr = connect_probe(ip, port, probe_timeout_ms);
+        probes_done.fetch_add(1, std::memory_order_relaxed);
 
-          if (pr == ProbeResult::TIMEOUT) {
-            int tc = timeout_count.fetch_add(1, std::memory_order_relaxed) + 1;
-            if (tc >= bail_after_timeouts &&
-                !any_response_atomic.load(std::memory_order_relaxed)) {
-              /* Host has shown zero life across N probes -- almost
-                 certainly filtered or offline. Set the bail flag; all
-                 inner threads will check it and return. Saves
-                 (ports.size() - already_done) * timeout_ms per dead
-                 host -- the dominant cost on filtered random samples. */
-              bail_flag.store(true, std::memory_order_relaxed);
+        if (pr == ProbeResult::TIMEOUT) {
+          if (!any_response && ++timeout_streak >= bail_after_timeouts) {
+            /* Host has shown zero life across N probes from the start --
+               almost certainly filtered or offline. Skip the rest of its
+               ports; the dominant time sink on filtered random samples. */
+            break;
+          }
+        } else {
+          /* CLOSED counts as a sign of life and is sticky for this IP. */
+          any_response = true;
+          if (pr == ProbeResult::OPEN) {
+            hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
+            int shard_idx = net_shard_index(ip);
+            sqlite3 *db = shards[shard_idx];
+            if (db) {
+              std::lock_guard<std::mutex> lk(db_mu);
+              net_db_insert_host(db, ip, port, "tcp",
+                                 now_ts.load(std::memory_order_relaxed));
             }
-          } else {
-            /* CLOSED counts as a sign of life. Once flipped, the bail
-               check stops firing (any_response_atomic is sticky). */
-            any_response_atomic.store(true, std::memory_order_relaxed);
-            if (pr == ProbeResult::OPEN) {
-              hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
-              int shard_idx = net_shard_index(ip);
-              sqlite3 *db = shards[shard_idx];
-              if (db) {
-                std::lock_guard<std::mutex> lk(db_mu);
-                net_db_insert_host(db, ip, port, "tcp",
-                                   now_ts.load(std::memory_order_relaxed));
-              }
-              if (o.verbose) {
-                std::string ip_str = u32_to_ip(ip);
-                std::lock_guard<std::mutex> lk(db_mu);
-                log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
-              }
+            if (o.verbose) {
+              std::string ip_str = u32_to_ip(ip);
+              std::lock_guard<std::mutex> lk(db_mu);
+              log_write(LOG_STDOUT, "  OPEN %s:%d\n", ip_str.c_str(), port);
             }
           }
         }
-      };
-
-      /* Single-worker fast path: when only one port-worker would run
-         (a single-port mass sweep -- the canonical fast_syn workload, e.g.
-         a /0 scan of port 443), skip the thread spawn+join entirely and run
-         the port loop inline in this outer worker. Semantically identical:
-         port_worker touches only shared atomics + db_mu and has no
-         thread-local state, and the outer worker holds no lock here so there
-         is no deadlock. This removes one thread create/destroy per IP --
-         billions avoided on an internet-wide single-port sweep, which is
-         pure scheduler/handle overhead on a desktop. */
-      if (inner_workers <= 1) {
-        port_worker();
-      } else {
-        std::vector<std::thread> inner_threads;
-        inner_threads.reserve(inner_workers);
-        for (int w = 0; w < inner_workers; w++)
-          inner_threads.emplace_back(port_worker);
-        for (auto &t : inner_threads) t.join();
       }
     }
   };
 
-  log_write(LOG_STDOUT, "  Probing with %d workers...\n", worker_count);
+  log_write(LOG_STDOUT, "  Probing with %ld workers...\n", total_workers);
 
   /* Resource-metrics gather, cross-platform.  Caller keeps a "last"
    * snapshot and we derive CPU% from the delta in process CPU time
@@ -908,8 +904,8 @@ int fast_syn_scan(const char *data_dir,
   ProcMetrics last_metrics = gather_metrics();
 
   std::vector<std::thread> pool;
-  pool.reserve(worker_count);
-  for (int i = 0; i < worker_count; i++) pool.emplace_back(worker);
+  pool.reserve(total_workers);
+  for (long i = 0; i < total_workers; i++) pool.emplace_back(worker);
 
   /* Monitor loop on the main thread: emit per-10s status, save a
    * checkpoint per 60s, and trigger periodic per-shard transaction
