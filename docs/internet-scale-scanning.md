@@ -57,7 +57,9 @@ Three properties make it internet-scale-safe:
 - **Reserved/private ranges are skipped automatically.** The built-in exclude
   list covers RFC 1918 private space, loopback, link-local, CGNAT, multicast,
   documentation/benchmark ranges, and assorted reserved/DoD blocks. Add your
-  own with `--exclude-file`.
+  own with `--exclude-file` (one CIDR or IP per line, `#` comments allowed).
+  A malformed line is reported to stderr and skipped rather than silently
+  misinterpreted, so a typo can't accidentally widen or void your exclusions.
 - **Early-bail on dead hosts.** After 8 consecutive no-response probes on a
   host that has shown zero signs of life, the remaining ports for that host are
   skipped. A single `RST` (closed port) counts as "alive" and resets the bail,

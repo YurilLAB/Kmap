@@ -77,8 +77,21 @@ static bool parse_cidr(const char *line, uint32_t &net, uint32_t &mask) {
     if (ip_len >= sizeof(ip_buf)) return false;
     memcpy(ip_buf, line, ip_len);
     ip_buf[ip_len] = '\0';
-    prefix = atoi(slash + 1);
-    if (prefix < 0 || prefix > 32) return false;
+    /* Parse the prefix STRICTLY. atoi() silently returns 0 for a
+     * non-numeric or empty prefix ("1.2.3.4/abc", "1.2.3.4/"), which made
+     * cidr_mask(0) produce mask=0 -- and a {net=0, mask=0} range matches
+     * EVERY IP in is_excluded(). A single typo in a user exclude file would
+     * therefore silently exclude the entire internet and the scan would
+     * find nothing. Require a non-empty, all-digits prefix and reject the
+     * line otherwise; an explicit "x.x.x.x/0" is still honored as the
+     * legitimate "match everything" CIDR. */
+    const char *pp = slash + 1;
+    if (*pp == '\0') return false;            /* empty prefix */
+    char *endp = nullptr;
+    long pv = strtol(pp, &endp, 10);
+    if (endp == pp || *endp != '\0') return false;  /* non-numeric/trailing junk */
+    if (pv < 0 || pv > 32) return false;
+    prefix = static_cast<int>(pv);
   } else {
     strncpy(ip_buf, line, sizeof(ip_buf) - 1);
     ip_buf[sizeof(ip_buf) - 1] = '\0';
@@ -131,8 +144,16 @@ std::vector<ExcludeRange> load_exclude_list(const char *path) {
     if (line.empty() || line[0] == '#') continue;
 
     ExcludeRange er;
-    if (parse_cidr(line.c_str(), er.network, er.mask))
+    if (parse_cidr(line.c_str(), er.network, er.mask)) {
       list.push_back(er);
+    } else {
+      /* Surface malformed lines instead of dropping them silently -- a
+       * bad CIDR that we ignore could otherwise leave the operator
+       * believing a range is excluded when it is not. */
+      fprintf(stderr,
+        "net-scan: WARNING: ignoring malformed exclude line: %s\n",
+        line.c_str());
+    }
   }
   return list;
 }
