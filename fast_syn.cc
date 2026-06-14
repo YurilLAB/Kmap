@@ -830,11 +830,24 @@ int fast_syn_scan(const char *data_dir,
         }
       };
 
-      std::vector<std::thread> inner_threads;
-      inner_threads.reserve(inner_workers);
-      for (int w = 0; w < inner_workers; w++)
-        inner_threads.emplace_back(port_worker);
-      for (auto &t : inner_threads) t.join();
+      /* Single-worker fast path: when only one port-worker would run
+         (a single-port mass sweep -- the canonical fast_syn workload, e.g.
+         a /0 scan of port 443), skip the thread spawn+join entirely and run
+         the port loop inline in this outer worker. Semantically identical:
+         port_worker touches only shared atomics + db_mu and has no
+         thread-local state, and the outer worker holds no lock here so there
+         is no deadlock. This removes one thread create/destroy per IP --
+         billions avoided on an internet-wide single-port sweep, which is
+         pure scheduler/handle overhead on a desktop. */
+      if (inner_workers <= 1) {
+        port_worker();
+      } else {
+        std::vector<std::thread> inner_threads;
+        inner_threads.reserve(inner_workers);
+        for (int w = 0; w < inner_workers; w++)
+          inner_threads.emplace_back(port_worker);
+        for (auto &t : inner_threads) t.join();
+      }
     }
   };
 
