@@ -1083,7 +1083,17 @@ int fast_syn_scan(const char *data_dir,
       now_ts.store(static_cast<int64_t>(now_time), std::memory_order_relaxed);
       cp.packets_sent = done;
       cp.hosts_found  = found;
-      cp.next_index   = cur_idx;
+      /* Rewind the saved resume position by the in-flight worker window.
+         probe_idx is the next index to CLAIM, so up to total_workers indices
+         in [cur_idx - total_workers, cur_idx) have been claimed (fetch_add)
+         but may not have finished probing + inserting their open ports. A
+         crash right after this checkpoint would otherwise resume at cur_idx
+         and skip them. Re-covering that overlap on resume is harmless: the
+         permutation seed is preserved (so they map to the same IPs) and host
+         inserts are idempotent UPSERTs. cur_idx itself is untouched, so the
+         live progress display is unaffected. */
+      cp.next_index   = (cur_idx > (uint64_t)total_workers)
+                          ? cur_idx - (uint64_t)total_workers : 0;
       cp.last_save    = now_time;
       {
         std::lock_guard<std::mutex> lk(db_mu);
@@ -1135,7 +1145,16 @@ int fast_syn_scan(const char *data_dir,
    * a no-op; for max_ips>0 we save the actual end-of-sample idx so
    * subsequent runs can keep walking the permutation past this slice. */
   if (scan_interrupted) {
-    cp.next_index = idx;
+    /* Same in-flight rewind as the periodic checkpoint: on interrupt,
+       workers abandon their claimed-but-unfinished IP (they check
+       scan_interrupted at the loop top / port loop and return), so resume
+       must restart before that window, not at the next-to-claim index.
+       Harmless overlap on resume (seed preserved, inserts idempotent). A
+       clean completion below needs no rewind: a worker finishes processing
+       each claimed index < scan_end before it claims the out-of-range index
+       that makes it return, so nothing is left in flight. */
+    cp.next_index = (idx > (uint64_t)total_workers)
+                      ? idx - (uint64_t)total_workers : 0;
   } else if (max_ips > 0) {
     cp.next_index = idx;  /* end of this sample; next run starts here */
   } else {
