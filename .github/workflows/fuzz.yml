@@ -45,9 +45,11 @@ jobs:
           CXXFLAGS="-O1 -g -std=gnu++17 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
           # Each harness either runs an oracle (nonzero exit on mismatch) or
           # drives a parser over millions of inputs (ASan aborts on a fault).
-          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry fuzz_text; do
+          # -pthread is harmless for the non-threaded harnesses and required
+          # by test_lowwater (real worker-pool crash-snapshot stress).
+          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater fuzz_text; do
             echo "::group::$h"
-            g++ $CXXFLAGS "fuzz/$h.cc" -o "/tmp/fz/$h"
+            g++ $CXXFLAGS -pthread "fuzz/$h.cc" -o "/tmp/fz/$h"
             # two seeds widen input coverage between runs
             "/tmp/fz/$h" 1
             "/tmp/fz/$h" 1337

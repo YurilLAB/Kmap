@@ -823,13 +823,65 @@ int fast_syn_scan(const char *data_dir,
   if (total_workers > TOTAL_WORKER_CAP) total_workers = TOTAL_WORKER_CAP;
   if (total_workers < 1) total_workers = 1;
 
-  auto worker = [&]() {
+  /* Per-worker in-flight index tracking for an EXACT resume low-water-mark.
+     Each worker publishes the index it is currently probing; INFLIGHT_NONE
+     means it holds nothing (idle between claims, or exited). The checkpoint's
+     resume position is min(probe_idx, every worker's in-flight index) -- i.e.
+     the lowest index claimed but not yet fully probed+inserted.
+
+     This replaces the old "cur_idx - total_workers" rewind heuristic, which
+     under-rewound whenever a worker stalled on a slow LIVE host (bail
+     disabled -> every port probed at up to probe_timeout_ms) while the rest
+     of the pool raced thousands of indices ahead -- they share one global
+     rate limiter, not a per-worker budget, so probe_idx can outrun a stalled
+     worker by far more than total_workers. A crash-resume then skipped the
+     stalled host. Re-covering the exact in-flight window on resume is
+     harmless: the permutation seed is preserved (same indices -> same IPs)
+     and host inserts are idempotent UPSERTs. */
+  static const uint64_t INFLIGHT_NONE = UINT64_MAX;
+  std::vector<std::atomic<uint64_t>> worker_inflight(total_workers);
+  for (long wi = 0; wi < total_workers; wi++)
+    worker_inflight[wi].store(INFLIGHT_NONE, std::memory_order_relaxed);
+
+  auto compute_low_water = [&]() -> uint64_t {
+    uint64_t p  = probe_idx.load(std::memory_order_acquire);
+    uint64_t lw = p;
+    /* (a) Slow PROCESSING workers: each publishes its index before probing,
+       so the exact minimum of the published in-flight set covers a worker
+       stalled on a slow live host -- the case the old heuristic missed. */
+    for (long w = 0; w < total_workers; w++) {
+      uint64_t v = worker_inflight[w].load(std::memory_order_acquire);
+      if (v != INFLIGHT_NONE && v < lw) lw = v;
+    }
+    /* (b) The fetch_add(claim) -> store(publish) gap: an index claimed but
+       not yet published is invisible to (a). That gap is non-blocking (two
+       atomics + a permute), so such indices are always within total_workers
+       of probe_idx. Floor by (probe_idx - total_workers) to cover them.
+       Combined, every claimed-but-unfinished index is >= the saved position,
+       so resume never skips one; the extra overlap is harmless (seed
+       preserved, inserts idempotent). */
+    uint64_t floor = (p > (uint64_t)total_workers)
+                       ? p - (uint64_t)total_workers : 0;
+    if (floor < lw) lw = floor;
+    return lw;
+  };
+
+  auto worker = [&](long w) {
     while (!scan_interrupted) {
       uint64_t my_idx = probe_idx.fetch_add(1, std::memory_order_relaxed);
-      if (my_idx >= scan_end) return;
+      if (my_idx >= scan_end) {
+        worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
+        return;
+      }
+      /* Publish the claim BEFORE any probing so a checkpoint racing this
+         worker always sees the index as in-flight and never skips it. */
+      worker_inflight[w].store(my_idx, std::memory_order_release);
       uint32_t ip = permute_ip(my_idx, seed);
 
-      if (is_excluded(ip, excludes)) continue;
+      if (is_excluded(ip, excludes)) {
+        worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
+        continue;
+      }
 
       /* Thread-local per-IP bail state -- no atomics needed because one
          worker owns the whole IP. Matches the established bail semantics:
@@ -877,6 +929,11 @@ int fast_syn_scan(const char *data_dir,
           }
         }
       }
+      /* Index fully probed and any opens inserted -- release it from the
+         in-flight set so the resume low-water-mark can advance past it.
+         The scan_interrupted return inside the port loop deliberately does
+         NOT reach here, so an abandoned index stays published for re-cover. */
+      worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
     }
   };
 
@@ -954,7 +1011,7 @@ int fast_syn_scan(const char *data_dir,
 
   std::vector<std::thread> pool;
   pool.reserve(total_workers);
-  for (long i = 0; i < total_workers; i++) pool.emplace_back(worker);
+  for (long i = 0; i < total_workers; i++) pool.emplace_back(worker, i);
 
   /* Monitor loop on the main thread: emit per-10s status, save a
    * checkpoint per 60s, and trigger periodic per-shard transaction
@@ -1084,17 +1141,15 @@ int fast_syn_scan(const char *data_dir,
       now_ts.store(static_cast<int64_t>(now_time), std::memory_order_relaxed);
       cp.packets_sent = done;
       cp.hosts_found  = found;
-      /* Rewind the saved resume position by the in-flight worker window.
-         probe_idx is the next index to CLAIM, so up to total_workers indices
-         in [cur_idx - total_workers, cur_idx) have been claimed (fetch_add)
-         but may not have finished probing + inserting their open ports. A
-         crash right after this checkpoint would otherwise resume at cur_idx
-         and skip them. Re-covering that overlap on resume is harmless: the
-         permutation seed is preserved (so they map to the same IPs) and host
-         inserts are idempotent UPSERTs. cur_idx itself is untouched, so the
-         live progress display is unaffected. */
-      cp.next_index   = (cur_idx > (uint64_t)total_workers)
-                          ? cur_idx - (uint64_t)total_workers : 0;
+      /* Save the EXACT in-flight low-water-mark (see worker_inflight): the
+         lowest index any worker is still probing, or probe_idx if every
+         worker is idle. A crash right after this checkpoint resumes here and
+         re-covers exactly the in-flight window -- no skips (the old
+         cur_idx - total_workers heuristic under-rewound whenever a worker
+         stalled while the pool raced ahead) and no needless rescan past it.
+         cur_idx itself is untouched, so the live progress display is
+         unaffected. */
+      cp.next_index   = compute_low_water();
       cp.last_save    = now_time;
       {
         std::lock_guard<std::mutex> lk(db_mu);
@@ -1146,16 +1201,16 @@ int fast_syn_scan(const char *data_dir,
    * a no-op; for max_ips>0 we save the actual end-of-sample idx so
    * subsequent runs can keep walking the permutation past this slice. */
   if (scan_interrupted) {
-    /* Same in-flight rewind as the periodic checkpoint: on interrupt,
-       workers abandon their claimed-but-unfinished IP (they check
-       scan_interrupted at the loop top / port loop and return), so resume
-       must restart before that window, not at the next-to-claim index.
-       Harmless overlap on resume (seed preserved, inserts idempotent). A
-       clean completion below needs no rewind: a worker finishes processing
-       each claimed index < scan_end before it claims the out-of-range index
-       that makes it return, so nothing is left in flight. */
-    cp.next_index = (idx > (uint64_t)total_workers)
-                      ? idx - (uint64_t)total_workers : 0;
+    /* Exact in-flight low-water-mark, computed after the pool has joined:
+       workers that abandoned a claimed-but-unfinished index on interrupt
+       left it published in worker_inflight, so resume restarts before the
+       lowest such index. Harmless overlap on resume (seed preserved, inserts
+       idempotent). A clean completion below needs no rewind: a worker
+       finishes processing each claimed index < scan_end before it claims the
+       out-of-range index that makes it return, so nothing is left in flight
+       (and every worker_inflight slot is INFLIGHT_NONE, so this would equal
+       idx anyway). */
+    cp.next_index = compute_low_water();
   } else if (max_ips > 0) {
     cp.next_index = idx;  /* end of this sample; next run starts here */
   } else {
