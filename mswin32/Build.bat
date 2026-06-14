@@ -25,9 +25,16 @@ for /f "usebackq delims=" %%i in ("%TEMP%\vspath.txt") do call "%%i\VC\Auxiliary
 set VS_GENERATOR=Visual Studio 17 2022
 for /f "usebackq delims=" %%v in ("%TEMP%\vsver.txt") do (
   set VSVER=%%v
-  if "%%v:~0,2%%" == "16" set VS_GENERATOR=Visual Studio 16 2019
-  if "%%v:~0,2%%" == "17" set VS_GENERATOR=Visual Studio 17 2022
-  if "%%v:~0,2%%" == "18" set VS_GENERATOR=Visual Studio 18 2025
+  rem Extract the MAJOR version (e.g. "17" from "17.14.36304"). A substring on
+  rem a FOR variable -- %%v:~0,2 -- does NOT work in batch (substrings only
+  rem apply to regular %VAR% variables), so the previous code was a no-op that
+  rem always left the default generator, silently mis-detecting VS2019 and
+  rem VS2026. Split on '.' with an inner FOR to get the major reliably.
+  for /f "tokens=1 delims=." %%a in ("%%v") do (
+    if "%%a" == "16" set VS_GENERATOR=Visual Studio 16 2019
+    if "%%a" == "17" set VS_GENERATOR=Visual Studio 17 2022
+    if "%%a" == "18" set VS_GENERATOR=Visual Studio 18 2026
+  )
 )
 
 :generator_set
