@@ -96,6 +96,39 @@ doesn't spike your NIC or a downstream IDS.
 
 ---
 
+## What enrichment captures
+
+For every open port discovery finds, the enrichment phase re-connects and
+gathers a fingerprint. Nothing here re-scans the network from scratch — it
+only touches the hosts already in the store.
+
+- **Service & version.** Banner grab + pattern match identifies
+  `ssh`, `http`, `https`, `ftp`, `smtp`, `imap`, `pop3`, `mysql`,
+  `postgresql`, `mongodb`, and `redis`, and extracts a version string where
+  the banner carries one (e.g. `OpenSSH 8.2p1`, `nginx 1.18.0`). Anything
+  that responds but matches no signature is recorded as `unknown` with the
+  raw first line kept.
+- **CVE matching.** Detected product + version are cross-referenced against
+  `kmap-cve.db` with strict version-bound comparison, and each match is
+  tagged `[REMOTE]` / needs-auth / unknown from its CVSS vector so you can
+  tell network-exploitable findings from local/auth-required ones. (No DB on
+  disk → a `WARN kmap-cve.db not found` line and empty CVE columns.)
+- **Web recon** (HTTP/S ports): page title, `Server` / `X-Powered-By` /
+  `X-Generator` headers, redirect target, and a probe of a few interesting
+  paths.
+- **TLS** (on TLS ports): subject CN, issuer, SAN list, not-after, the
+  self-signed flag, negotiated protocol, and the cert SHA-256 fingerprint.
+- **ASN / geo / reverse-DNS.** Origin ASN, AS name, BGP prefix, registry,
+  and country (via Team Cymru), plus a batched reverse-DNS hostname.
+  `KMAP_NO_DNS=1` skips the reverse-DNS traffic.
+
+All of this is queryable afterward without re-scanning — `--net-query` also
+buckets hosts into device classes (`web`, `ssh`, `ftp`, `telnet`, `mail`,
+`dns`, `db`, `rdp`, `vnc`, `snmp`, `smb`, `router`, `iot`) derived from the
+detected service. See [querying.md](querying.md).
+
+---
+
 ## Sampling and resuming
 
 A full IPv4 sweep is enormous. Two flags let you work in slices.
