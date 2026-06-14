@@ -6,11 +6,14 @@ name: kmap fuzz + sanitizers
 # on Linux we get ASan's allocator red-zones and full UBSan diagnostics, which
 # catch the same out-of-bounds / overflow / UB classes with richer reports.
 #
-# Scope note: this job builds the SELF-CONTAINED harnesses (no kmap/sqlite
-# linkage). The sqlite-backed tests (test_netdb, test_netquery) and the
-# Windows-only guard-page fuzzers (fuzz_core/dns/proto, which use VirtualAlloc)
-# are run elsewhere; porting those to Linux libFuzzer/ClusterFuzzLite is tracked
-# separately.
+# Scope: this job builds and runs, under ASan+UBSan, every standalone harness
+# in fuzz/ -- the self-contained parser fuzzers/oracles, the guard-page fuzzers
+# (fuzz_core/dns/proto, ported from their original VirtualAlloc form to
+# mmap/mprotect so they run here too), and the sqlite-backed LIVE tests
+# (test_netdb links the real net_db.cc; test_netquery exercises net_query's
+# verbatim filter logic) -- the latter two linked against a freshly built
+# sqlite amalgamation. The libFuzzer/OSS-Fuzz targets under fuzz/ossfuzz/ run
+# separately via cflite_pr.yml (PRs) and cflite_batch.yml (scheduled).
 
 on:
   push:
@@ -73,6 +76,21 @@ jobs:
             "/tmp/fz/$h" 1337 300000
             echo "::endgroup::"
           done
+
+          # SQLite-backed LIVE tests: these link the REAL net_db.cc (and
+          # net_query's verbatim filter logic) against a real database, so they
+          # catch storage / predicate regressions the parser fuzzers cannot --
+          # e.g. the drain-loop invariant that net_db_count_unenriched() and
+          # net_db_get_unenriched() stay in lockstep. Build the sqlite
+          # amalgamation once (plain -O1; it is upstream and well-tested) and
+          # link it into each test compiled with the sanitizers.
+          echo "::group::sqlite-backed live tests"
+          cc -O1 -c sqlite/sqlite3.c -o /tmp/fz/sqlite3.o
+          g++ $CXXFLAGS -I. fuzz/test_netdb.cc net_db.cc /tmp/fz/sqlite3.o \
+            -lpthread -ldl -o /tmp/fz/test_netdb && /tmp/fz/test_netdb
+          g++ $CXXFLAGS -I. fuzz/test_netquery.cc /tmp/fz/sqlite3.o \
+            -lpthread -ldl -o /tmp/fz/test_netquery && /tmp/fz/test_netquery
+          echo "::endgroup::"
 
       - name: Summary
         if: always()

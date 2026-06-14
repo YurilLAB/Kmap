@@ -112,6 +112,42 @@ int main() {
   CHECK(r443.version == "1.1",   "port 443 version unchanged by port-80 re-enrich");
   CHECK(r443.prev_version.empty(),"port 443 prev_* untouched (enriched once)");
 
+  /* ---- drain-loop invariant: net_db_count_unenriched() and
+     net_db_get_unenriched() must agree on whether work remains. run_net_scan's
+     Phase-2 loop runs `while (count_unenriched_all() > 0) run_enrichment()`,
+     where run_enrichment pulls work via get_unenriched. If the two predicates
+     (or their NET_DB_ENRICH_RETRY_SECONDS cooldown defaults) ever diverge the
+     loop spins forever (count>0, get empty) or stops with eligible rows left
+     (count==0, get non-empty). Pin the lockstep here against the live DB. ---- */
+  {
+    int64_t cnt = net_db_count_unenriched(db);
+    auto ids = net_db_get_unenriched(db, 100000);
+    CHECK((cnt == 0) == ids.empty(),
+          "count_unenriched()==0 iff get_unenriched() empty (drain terminates)");
+    CHECK((int64_t)ids.size() <= cnt,
+          "distinct unenriched IPs <= unenriched row count");
+
+    /* Fresh host (own timestamps, independent of the future-ts rows above):
+       counted + listed when new, and drops from BOTH once fully enriched. */
+    uint32_t ip2 = ip_to_u32("203.0.113.9");
+    const char *IP2 = "203.0.113.9";
+    int64_t base = (int64_t)time(nullptr);
+    net_db_insert_host(db, ip2, 22, "tcp", base);
+    int64_t cnt_new = net_db_count_unenriched(db);
+    auto ids_new = net_db_get_unenriched(db, 100000);
+    bool listed = false; for (auto &i : ids_new) if (i == IP2) listed = true;
+    CHECK(cnt_new >= 1 && listed, "fresh host counted and listed as unenriched");
+    CHECK((cnt_new == 0) == ids_new.empty(), "count/get agree with fresh host present");
+
+    net_db_update_enrichment(db, IP2, 22, "ssh", "9.0", "[]",
+                             "t", "OpenSSH", "{}", "[]");
+    auto ids_enr = net_db_get_unenriched(db, 100000);
+    bool still = false; for (auto &i : ids_enr) if (i == IP2) still = true;
+    CHECK(!still, "fully-enriched fresh host drops out of get_unenriched");
+    CHECK((net_db_count_unenriched(db) == 0) == ids_enr.empty(),
+          "count/get still agree after enriching the fresh host");
+  }
+
   printf("\nnet_db live test: %d passed, %d failed\n", passes, fails);
   remove("test_netdb.db");
   return fails ? 1 : 0;
