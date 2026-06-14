@@ -15,7 +15,7 @@
 # so the build is trivial and robust. The same sources build locally with
 # fuzz/ossfuzz/standalone_main.cc under plain g++ for verification without clang.
 
-TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape"
+TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape fuzz_proto"
 
 for t in $TARGETS; do
   echo "Building $t"

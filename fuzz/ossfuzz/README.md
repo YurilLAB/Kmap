@@ -11,6 +11,7 @@ kmap/sqlite linkage is needed and the build is trivial.
 | `fuzz_dns.cc` | `asn_lookup.cc` `dns_skip_name` / `dns_extract_txt` | raw DNS responses incl. name-compression pointers |
 | `fuzz_cidr.cc` | `fast_syn.cc` `parse_cidr` (+ `ip_to_u32`) | exclude-file CIDR/IP lines |
 | `fuzz_jsonescape.cc` | `net_enrich.cc` `json_escape` | RFC 8259 escaping of arbitrary banner bytes |
+| `fuzz_proto.cc` | `default_creds.cc` MySQL/PostgreSQL parses + `net_enrich.cc` banner classifier | binary protocol handshakes (pointer-math over hostile bytes; `scramble[20]`/`salt[4]` get ASan red-zones) |
 
 ## How it's built
 
