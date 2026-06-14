@@ -10,6 +10,8 @@
 
 > **Part of the Yuril suite — ypanel.** Kmap is driven from **ypanel**, Yuril Security's unified operator control panel (`https://yurillab.dev/ypanel`): dispatch scans remotely, browse the discovered attack surface, and triage CVE/NSE findings. See [`docs/ypanel.md`](docs/ypanel.md) for the connection model + current status.
 
+> **Built for gaming PCs, not server farms.** Kmap's discovery path is RTT-bound (≈1–2% CPU during a probe wave), so an ordinary desktop can drive internet-scale scans. The `--fast` / `--efficient` modes scale to your hardware and stay capped so the box remains usable. See [`docs/performance.md`](docs/performance.md) for modes, tuning flags, the full env-var reference, and gaming-PC recipes.
+
 ---
 
 ## Background
