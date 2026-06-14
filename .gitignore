@@ -72,6 +72,15 @@ libz/configure.log
 !mswin32/Makefile
 !zekmap/share/zekmap/locale/Makefile
 
+# Test-harness scratch databases left behind when a fuzz/test_*.exe is run
+# from the repo root instead of from fuzz/ (sqlite + WAL/SHM sidecars).
+/test_netdb.db
+/test_netdb.db-shm
+/test_netdb.db-wal
+/test_netquery.db
+/test_netquery.db-shm
+/test_netquery.db-wal
+
 # Core dumps from crashes/debugging
 core
 core.*
