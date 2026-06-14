@@ -472,6 +472,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     int nodelay = 1;
     setsockopt(static_cast<int>(fd), IPPROTO_TCP, TCP_NODELAY,
                reinterpret_cast<const char *>(&nodelay), sizeof(nodelay));
+    /* Abortive close (RST, not FIN): a successful probe must not leave the
+       local ephemeral port in TIME_WAIT, which would exhaust the dynamic-port
+       range on a dense scan. Harmless for filtered/closed probes. See
+       fuzz/test_linger.cc for the RST-on-close proof. */
+    struct linger lg; lg.l_onoff = 1; lg.l_linger = 0;
+    setsockopt(fd, SOL_SOCKET, SO_LINGER,
+               reinterpret_cast<const char *>(&lg), sizeof(lg));
     os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
                             os_profile_get_for_target(
                                 o.spoof_os,

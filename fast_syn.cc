@@ -477,6 +477,17 @@ static ProbeResult connect_probe(uint32_t ip, int port, int timeout_ms) {
   setsockopt(static_cast<int>(fd), IPPROTO_TCP, TCP_NODELAY,
              reinterpret_cast<const char *>(&nodelay), sizeof(nodelay));
 
+  /* Abortive close (RST, not FIN) so a successful probe does not park the
+     local ephemeral port in TIME_WAIT. A dense mass scan that connects to
+     many open ports would otherwise exhaust the ~16k Windows dynamic-port
+     range within minutes and stall; SO_LINGER{1,0} returns the port
+     immediately. Harmless for filtered/closed probes -- there is no
+     established connection to linger over. (RST-on-close verified in
+     fuzz/test_linger.cc.) */
+  struct linger lg; lg.l_onoff = 1; lg.l_linger = 0;
+  setsockopt(fd, SOL_SOCKET, SO_LINGER,
+             reinterpret_cast<const char *>(&lg), sizeof(lg));
+
   os_profile_apply_socket(static_cast<intptr_t>(fd), AF_INET,
                           os_profile_get_for_target(
                               o.spoof_os,
