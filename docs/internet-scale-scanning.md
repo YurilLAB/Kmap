@@ -30,6 +30,13 @@ kmap --net-scan -p 443 --net-max-ips 100000
 Each phase can be run on its own (see [Running phases independently](#running-phases-independently)),
 which is how you split a long sweep across sessions or machines.
 
+Enrichment processes hosts in bounded batches (a deliberate memory cap so a
+sweep that finds millions of open hosts never loads them all into RAM at once),
+but it **drains the full backlog automatically** — it keeps running batches
+until every discovered host has been enriched, so you don't need to re-run
+`--enrich-only` by hand to mop up the overflow. Hosts whose enrichment errors
+are parked on a one-hour cool-down and retried on a later run.
+
 ---
 
 ## How discovery works

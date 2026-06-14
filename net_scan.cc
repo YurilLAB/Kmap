@@ -1261,6 +1261,28 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
  * Main orchestrator
  * ----------------------------------------------------------------------- */
 
+/* Sum the eligible-for-enrichment host count across every shard on disk.
+ * Mirrors the predicate run_enrichment uses (enriched=0 OR re-seen, and
+ * not inside the error cool-down), so this is the authoritative "is there
+ * more enrichment work?" signal that drives the drain loop below.  Opens
+ * each shard read-only, counts, closes -- cheap relative to a batch of
+ * network enrichment, and avoids holding 32 handles open between passes. */
+static int64_t net_count_unenriched_all(const char *data_dir) {
+  int64_t total = 0;
+  for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
+    std::string p = net_shard_path(data_dir, shard);
+    FILE *test = fopen(p.c_str(), "r");
+    if (!test) continue;           /* shard never created -- nothing here */
+    fclose(test);
+    sqlite3 *db = net_db_open(p);
+    if (!db) continue;
+    int64_t c = net_db_count_unenriched(db);
+    if (c > 0) total += c;
+    net_db_close(db);
+  }
+  return total;
+}
+
 int run_net_scan() {
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   const char *findings_dir = o.net_findings_dir ? o.net_findings_dir : "Findings";
@@ -1323,13 +1345,60 @@ int run_net_scan() {
     if (o.net_discover_only) return 0;
   }
 
-  /* Phase 2: Enrich */
+  /* Phase 2: Enrich.
+   *
+   * run_enrichment processes at most batch_size (1000) hosts PER shard
+   * per call -- a deliberate memory bound so a sweep that finds millions
+   * of open hosts does not load them all into RAM at once.  A single call
+   * therefore tops out near 1000 * 32 = 32k hosts; an internet-scale
+   * discovery can easily exceed that, and the overflow used to sit
+   * permanently unenriched until an operator happened to re-run
+   * --enrich-only.  Drain it here instead: loop until no eligible host
+   * remains, one bounded batch per pass.  net_count_unenriched_all uses
+   * the same predicate run_enrichment does, so a host that was enriched
+   * (enriched=1) or that errored (and is now inside the retry cool-down)
+   * drops out of the count -- the loop strictly converges to zero.  A
+   * no-progress guard breaks defensively if a pass somehow marks nothing
+   * (e.g. the unreachable empty-host row Stage C skips), so this can
+   * never spin forever. */
   if (!o.net_discover_only && !o.net_report_only) {
     log_write(LOG_STDOUT, "\nnet-scan: Starting enrichment phase\n");
-    rc = run_enrichment(data_dir, 1000);
-    if (rc != 0) {
-      fprintf(stderr, "net-scan: enrichment phase had errors (continuing to report)\n");
-      /* Non-fatal -- generate report with whatever was enriched */
+    int64_t prev_remaining = -1;
+    int pass = 0;
+    for (;;) {
+      int prc = run_enrichment(data_dir, 1000);
+      if (prc != 0) {
+        rc = prc;
+        fprintf(stderr,
+          "net-scan: enrichment pass %d had errors (continuing)\n", pass + 1);
+        /* Non-fatal -- keep draining / fall through to report. */
+      }
+      pass++;
+
+      if (g_scan_interrupted.load()) {
+        log_write(LOG_STDOUT,
+          "net-scan: enrichment interrupted; remaining hosts kept for "
+          "--enrich-only\n");
+        break;
+      }
+
+      int64_t remaining = net_count_unenriched_all(data_dir);
+      if (remaining <= 0) break;            /* fully drained */
+
+      if (prev_remaining >= 0 && remaining >= prev_remaining) {
+        /* The pool did not shrink -- nothing this pass could mark. Bail
+         * rather than loop forever; surface it so the operator knows
+         * some rows still need attention. */
+        log_write(LOG_STDOUT,
+          "net-scan: WARNING: enrichment made no progress with %lld host(s) "
+          "still eligible after pass %d; re-run with --enrich-only to retry\n",
+          (long long)remaining, pass);
+        break;
+      }
+      prev_remaining = remaining;
+      log_write(LOG_STDOUT,
+        "net-scan: %lld host(s) still need enrichment; continuing (pass %d)\n",
+        (long long)remaining, pass + 1);
     }
 
     if (o.net_enrich_only) return 0;
