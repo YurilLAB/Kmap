@@ -83,8 +83,15 @@ jobs:
           - name: solaris-11-clang
             os: ubuntu-latest
             cc: clang
-          - name: windows-latest-msvc
-            os: windows-latest
+          - name: windows-2022-msvc
+            # Pinned to windows-2022 (Visual Studio 2022 / v143). GitHub is
+            # migrating `windows-latest` to windows-2025 + VS 2026, which has no
+            # VS 2022 -- and mswin32/Build.bat asks CMake for the "Visual Studio
+            # 17 2022" generator when building libpcre2, so on the new image
+            # CMake aborts with "could not find any instance of Visual Studio".
+            # Pinning keeps the toolchain matched to Build.bat's generator until
+            # its VS-version detection is made version-agnostic.
+            os: windows-2022
             cc: msvc
 
     runs-on: ${{ matrix.os }}
