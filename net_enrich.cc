@@ -54,6 +54,7 @@
 #include <netdb.h>          /* getnameinfo, NI_MAXHOST, NI_NAMEREQD */
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 #else
 #include <winsock2.h>
@@ -92,6 +93,38 @@ extern KmapOps o;
    on 64-bit Windows (SOCKET is UINT_PTR = 64 bits on Win64). */
 typedef intptr_t kmap_fd_t;
 #define KMAP_INVALID_FD ((kmap_fd_t)-1)
+
+/* Wait for fd readiness (write when want_write, else read) or timeout.
+   Returns >0 ready, 0 timeout, <0 error.
+
+   poll() on POSIX, NOT select(): an fd_set is a fixed bitmask indexed by the
+   fd VALUE and capped at FD_SETSIZE (1024). The enrichment workers keep many
+   sockets open at once (KMAP_NETSCAN_ENRICH_CONCURRENCY * KMAP_HOST_PORT_
+   PARALLELISM, plus the 32 shard DBs and the log), so an fd value can climb
+   past 1024 -- FD_SET(fd >= 1024, &set) then writes past the end of the
+   fd_set and corrupts the stack. poll passes the fd by value in a one-element
+   array with no FD_SETSIZE ceiling. Windows fd_set is a counted array of
+   SOCKET handles, so a single-fd select there is safe at any handle value. */
+static int enrich_wait_fd(kmap_fd_t fd, bool want_write, int timeout_ms) {
+#ifdef WIN32
+  fd_set set;
+  FD_ZERO(&set);
+  FD_SET(static_cast<SOCKET>(fd), &set);
+  struct timeval tv;
+  tv.tv_sec  = timeout_ms / 1000;
+  tv.tv_usec = (timeout_ms % 1000) * 1000;
+  return select(static_cast<int>(fd) + 1,
+                want_write ? nullptr : &set,
+                want_write ? &set : nullptr,
+                nullptr, &tv);
+#else
+  struct pollfd pfd;
+  pfd.fd      = static_cast<int>(fd);
+  pfd.events  = want_write ? POLLOUT : POLLIN;
+  pfd.revents = 0;
+  return poll(&pfd, 1, timeout_ms);
+#endif
+}
 
 static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
@@ -148,14 +181,7 @@ static kmap_fd_t enrich_tcp_connect(const char *ip, uint16_t port, int timeout_m
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 
-  fd_set wset;
-  FD_ZERO(&wset);
-  FD_SET(fd, &wset);
-  struct timeval tv;
-  tv.tv_sec  = timeout_ms / 1000;
-  tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-  if (select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv) <= 0) {
+  if (enrich_wait_fd(fd, /*want_write=*/true, timeout_ms) <= 0) {
 #ifdef WIN32
     closesocket(fd);
 #else
@@ -209,17 +235,7 @@ static bool enrich_fd_send(kmap_fd_t fd, const char *buf, size_t len) {
 }
 
 static int enrich_fd_recv(kmap_fd_t fd, char *buf, size_t len, int timeout_ms) {
-  fd_set rset;
-  FD_ZERO(&rset);
-#ifdef WIN32
-  FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-  FD_SET(static_cast<int>(fd), &rset);
-#endif
-  struct timeval tv;
-  tv.tv_sec  = timeout_ms / 1000;
-  tv.tv_usec = (timeout_ms % 1000) * 1000;
-  if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
+  if (enrich_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
     return -1;
 #ifdef WIN32
   return static_cast<int>(recv(static_cast<SOCKET>(fd), buf, static_cast<int>(len), 0));
@@ -867,17 +883,7 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     response.reserve(4096);
     char chunk[4096];
     while (response.size() < 65536) {
-      fd_set rset;
-      FD_ZERO(&rset);
-#ifdef WIN32
-      FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-      FD_SET(static_cast<int>(fd), &rset);
-#endif
-      struct timeval tv;
-      tv.tv_sec  = timeout_ms / 1000;
-      tv.tv_usec = (timeout_ms % 1000) * 1000;
-      if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
+      if (enrich_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
         break;
 #ifdef WIN32
       int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));

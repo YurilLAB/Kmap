@@ -40,6 +40,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -517,15 +518,32 @@ static ProbeResult connect_probe(uint32_t ip, int port, int timeout_ms) {
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
 
+  ProbeResult result = ProbeResult::TIMEOUT;
+  int sel;
+#ifdef WIN32
+  /* Windows fd_set is a count-bounded array of SOCKET handles, so adding a
+     single socket is safe regardless of the handle's numeric value. */
   fd_set wset;
   FD_ZERO(&wset);
   FD_SET(fd, &wset);
   struct timeval tv;
   tv.tv_sec = timeout_ms / 1000;
   tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-  ProbeResult result = ProbeResult::TIMEOUT;
-  int sel = select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv);
+  sel = select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv);
+#else
+  /* poll(), NOT select(): on POSIX an fd_set is a fixed bitmask indexed by the
+     fd VALUE and capped at FD_SETSIZE (1024). A high-concurrency sweep
+     (KMAP_NETSCAN_CONCURRENCY up to 1024, which the perf guide recommends for
+     filtered space) keeps ~that many sockets open at once, so fd values
+     routinely climb past 1024 -- FD_SET(fd >= 1024, &set) then writes past the
+     end of the fd_set and corrupts the stack. poll takes the fd by value in a
+     one-element array with no FD_SETSIZE ceiling, so it scales to any fd. */
+  struct pollfd pfd;
+  pfd.fd = fd;
+  pfd.events = POLLOUT;
+  pfd.revents = 0;
+  sel = poll(&pfd, 1, timeout_ms);
+#endif
   if (sel > 0) {
     int err = 0;
     socklen_t elen = sizeof(err);
