@@ -1062,11 +1062,17 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     fprintf(diff_fp, "================================================================================\n");
     fprintf(diff_fp, "  Targets scanned: %d\n", (int)targets.size());
 
-    /* Build lookup maps */
+    /* Build lookup maps. Keep the prior service/version per key so a port
+       open in BOTH scans can be checked for service/version drift -- the
+       "changed" half of the report, which the loop below previously never
+       emitted despite the docs describing it. */
     std::set<std::string> prev_keys, curr_keys;
+    std::map<std::string, std::string> prev_svc, prev_ver;
     for (const auto &pe : prev_state) {
       std::string key = pe.ip + ":" + std::to_string(pe.port);
       prev_keys.insert(key);
+      prev_svc[key] = pe.service;
+      prev_ver[key] = pe.version;
     }
     for (const auto &h : current) {
       std::string key = h.ip + ":" + std::to_string(h.port);
@@ -1075,7 +1081,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
     int changes = 0;
 
-    /* New ports */
+    /* New + changed ports */
     for (const auto &h : current) {
       std::string key = h.ip + ":" + std::to_string(h.port);
       if (prev_keys.find(key) == prev_keys.end()) {
@@ -1083,6 +1089,25 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         if (!h.service.empty())
           fprintf(diff_fp, "    Service: %s  Version: %s\n", h.service.c_str(), h.version.c_str());
         changes++;
+      } else {
+        /* Open in both scans -- report a service or version change. Guard on a
+           non-empty NEW value so a transient enrichment miss this run (which
+           leaves service/version empty) is not misreported as a change. */
+        const std::string &ps = prev_svc[key];
+        const std::string &pv = prev_ver[key];
+        bool svc_changed = !h.service.empty() && h.service != ps;
+        bool ver_changed = !h.version.empty() && h.version != pv;
+        if (svc_changed || ver_changed) {
+          fprintf(diff_fp, "\n  [CHANGED] %s:%d/%s\n",
+                  h.ip.c_str(), h.port, h.proto.c_str());
+          if (svc_changed)
+            fprintf(diff_fp, "    Service: %s -> %s\n",
+                    ps.empty() ? "(none)" : ps.c_str(), h.service.c_str());
+          if (ver_changed)
+            fprintf(diff_fp, "    Version: %s -> %s\n",
+                    pv.empty() ? "(none)" : pv.c_str(), h.version.c_str());
+          changes++;
+        }
       }
     }
 
