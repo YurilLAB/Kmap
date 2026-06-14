@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="kmap_logo.png" alt="Kmap Logo" width="600">
+  <img src="kmap-logo.png" alt="Kmap Logo" width="600">
 </p>
 
 # Kmap
