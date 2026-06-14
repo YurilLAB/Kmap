@@ -1,0 +1,44 @@
+name: ClusterFuzzLite PR fuzzing
+
+# Runs the libFuzzer targets in fuzz/ossfuzz/ (built via .clusterfuzzlite/) on
+# pull requests, fuzzing only the code touched by the PR for a short budget.
+# This is OSS-Fuzz's engine (libFuzzer + ASan/UBSan) run in this repo's own CI,
+# no separate OSS-Fuzz onboarding required. To also enrol in the central
+# OSS-Fuzz service later, the same fuzz/ossfuzz/*.cc + .clusterfuzzlite/build.sh
+# are reused by a projects/kmap/ entry in google/oss-fuzz.
+
+on:
+  pull_request:
+    paths:
+      - "fuzz/ossfuzz/**"
+      - ".clusterfuzzlite/**"
+      - ".github/workflows/cflite_pr.yml"
+      - "**/*.cc"
+      - "**/*.h"
+
+permissions:
+  contents: read
+
+jobs:
+  PR:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    steps:
+      - name: Build fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        with:
+          language: c++
+          sanitizer: ${{ matrix.sanitizer }}
+      - name: Run fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 300
+          mode: "code-change"
+          sanitizer: ${{ matrix.sanitizer }}
+          output-sarif: true

@@ -1,0 +1,28 @@
+#!/bin/bash -eu
+#
+# OSS-Fuzz / ClusterFuzzLite build script.
+#
+# Compiles each libFuzzer target in fuzz/ossfuzz/ with the toolchain the
+# fuzzing infra provides via the environment:
+#   $CXX                 clang++ from the oss-fuzz base-builder image
+#   $CXXFLAGS            includes -fsanitize=fuzzer-no-link plus the chosen
+#                        sanitizer (address / undefined / memory)
+#   $LIB_FUZZING_ENGINE  the libFuzzer (or AFL++) engine to link against
+#   $OUT                 directory the built fuzzers are dropped into
+#
+# Each target is a single self-contained .cc that copies the shipping parser
+# verbatim and exposes LLVMFuzzerTestOneInput -- no kmap/sqlite linkage needed,
+# so the build is trivial and robust. The same sources build locally with
+# fuzz/ossfuzz/standalone_main.cc under plain g++ for verification without clang.
+
+TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape"
+
+for t in $TARGETS; do
+  echo "Building $t"
+  "$CXX" $CXXFLAGS -std=gnu++17 \
+    "fuzz/ossfuzz/${t}.cc" \
+    $LIB_FUZZING_ENGINE \
+    -o "$OUT/${t}"
+done
+
+echo "Built: $TARGETS"
