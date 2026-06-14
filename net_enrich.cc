@@ -839,9 +839,15 @@ struct WebResult {
   std::string redirect_target;  /* Location: header (3xx responses) */
 };
 
+/* Extract a header value. `lower_resp` MUST be str_lower(resp) — the caller
+   passes it in so a response with many interesting headers is lowercased once
+   instead of once per header (the HTTP enrichment hot path pulls ~8 headers
+   per host; at internet scale that redundant copy of a 64 KB response dominated
+   the per-host CPU). `resp` (original case) is used only to slice the value so
+   the stored header keeps its original casing. */
 static std::string extract_header_val(const std::string &resp,
+                                      const std::string &lower_resp,
                                       const char *name) {
-  std::string lower_resp = str_lower(resp);
   std::string lower_name = str_lower(std::string(name));
   /* Anchor to start of header line: require '\n' before the header name so a
    * search for "Server" does not match "X-Server:" or "Last-Modified-Server:". */
@@ -933,11 +939,13 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
   std::string body = (body_start != std::string::npos)
                      ? response.substr(body_start + 4) : "";
 
-  wr.title           = extract_html_title(body);
-  wr.server          = extract_header_val(response, "Server");
-  wr.powered_by      = extract_header_val(response, "X-Powered-By");
-  wr.x_generator     = extract_header_val(response, "X-Generator");
-  wr.redirect_target = extract_header_val(response, "Location");
+  wr.title = extract_html_title(body);
+
+  /* Lowercase the response ONCE here; every header lookup below reuses it
+     (extract_header_val no longer lowercases internally).  The dedicated
+     columns (Server / X-Powered-By / X-Generator) are captured from the same
+     single pass that builds the headers JSON, so each header is located once. */
+  std::string lower_resp = str_lower(response);
 
   /* Build headers JSON object with selected interesting headers */
   std::ostringstream hdr_json;
@@ -948,16 +956,23 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     "X-Frame-Options", "Content-Type", "Set-Cookie", nullptr
   };
   for (const char **hp = interesting; *hp; hp++) {
-    std::string val = extract_header_val(response, *hp);
-    if (!val.empty()) {
-      if (!first) hdr_json << ",";
-      hdr_json << "\"" << json_escape(*hp) << "\":\""
-               << json_escape(val) << "\"";
-      first = false;
-    }
+    std::string val = extract_header_val(response, lower_resp, *hp);
+    if (val.empty()) continue;
+    /* Mirror the ones we persist as dedicated WebResult columns. */
+    if      (strcmp(*hp, "Server") == 0)       wr.server      = val;
+    else if (strcmp(*hp, "X-Powered-By") == 0) wr.powered_by  = val;
+    else if (strcmp(*hp, "X-Generator") == 0)  wr.x_generator = val;
+    if (!first) hdr_json << ",";
+    hdr_json << "\"" << json_escape(*hp) << "\":\""
+             << json_escape(val) << "\"";
+    first = false;
   }
   hdr_json << "}";
   if (!first) wr.headers_json = hdr_json.str();
+
+  /* Location is not in the JSON header set but is needed for redirect
+     analysis; extract it from the same lowercased response. */
+  wr.redirect_target = extract_header_val(response, lower_resp, "Location");
 
   /* Build paths JSON -- just the root path result */
   int status = extract_status(response);
