@@ -94,6 +94,15 @@ jobs:
             -lpthread -ldl -o /tmp/fz/test_cve_limit && /tmp/fz/test_cve_limit
           echo "::endgroup::"
 
+          # LIVE test linking the real os_profile.cc -- pins the HTTP probe
+          # request builder (used by every enrichment + recon path) as
+          # well-formed (Host header, single CRLFCRLF terminator, IPv6
+          # bracketing). setsockopt resolves in libc on Linux.
+          echo "::group::test_osprofile"
+          g++ $CXXFLAGS -I. fuzz/test_osprofile.cc os_profile.cc \
+            -o /tmp/fz/test_osprofile && /tmp/fz/test_osprofile
+          echo "::endgroup::"
+
       - name: Summary
         if: always()
         run: echo "Parser harnesses completed under ASan+UBSan."
