@@ -1351,7 +1351,14 @@ void run_screenshot_capture(std::vector<Target *> &targets,
             if (!is_http && !is_https) continue;
 
             std::string proto = is_https ? "https" : "http";
-            std::string url = proto + "://" + ip + ":" + std::to_string(port->portno) + "/";
+            /* Bracket IPv6 literals so the URL is RFC 3986-valid (mirrors the
+               Host-header bracketing elsewhere in this file). Without it
+               "http://2001:db8::1:80/" is ambiguous and the browser fails to
+               load it, so IPv6 web screenshots silently produced nothing. */
+            std::string url_host = ip;
+            if (url_host.find(':') != std::string::npos)
+                url_host = "[" + url_host + "]";
+            std::string url = proto + "://" + url_host + ":" + std::to_string(port->portno) + "/";
 
             /* Output filename: ip_port.png */
             std::string safe_ip = ip;
