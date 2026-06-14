@@ -1377,7 +1377,16 @@ static void kmap_mass_dns_core(DNS::Request *requests, int num_requests) {
     std::map<NameRecord, sockaddr_storage>::const_iterator it;
     switch (reqt.type) {
       case DNS::PTR:
-        assert(reqt.ssv.size() > 0);
+        /* A PTR request needs exactly one address to resolve. Guard the empty
+           case rather than relying on assert() alone: assert() compiles out
+           under NDEBUG, so ssv.front() below would be undefined behaviour in a
+           release build if a caller ever queued an address-less PTR request.
+           Well-behaved callers leave such slots type==NONE (handled below), so
+           this never triggers today -- it just makes the dereference safe by
+           construction for an internet-scale sweep. */
+        if (reqt.ssv.empty()) {
+          continue;
+        }
         if (host_cache.lookup(reqt.ssv.front(), reqt.name)) {
           continue;
         }
