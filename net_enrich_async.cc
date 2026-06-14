@@ -788,6 +788,16 @@ struct AsyncEnrichBatch {
   std::deque<size_t>    pending_idx;
   size_t                active_count;
 
+  /* Re-entrancy guard for try_admit. A host can finalize synchronously
+     inside try_admit (when submit_port_connect's nsock_iod_new fails --
+     e.g. FD exhaustion once max_in_flight*ports exceeds the process FD
+     limit), and finalize_host calls try_admit again. Without this guard
+     that recursion goes one level deep per pending host -> stack overflow
+     on a large batch. The outer try_admit loop already re-checks
+     active_count every iteration, so a re-entrant call can safely no-op
+     and let the in-progress loop pick up the freed slot. */
+  bool                  in_try_admit;
+
   std::atomic<uint64_t> hosts_completed;
   std::atomic<uint64_t> ports_attempted;
   std::atomic<uint64_t> banners_classified;
@@ -1341,6 +1351,12 @@ static void finalize_host(AsyncEnrichBatch *b, AsyncHostState *h) {
 }
 
 static void try_admit(AsyncEnrichBatch *b) {
+  /* See in_try_admit comment: a synchronous finalize during the admit loop
+     re-enters here via finalize_host. Bounce that re-entrant call -- the
+     loop below re-checks active_count each iteration and will admit the
+     freed slot itself, turning unbounded recursion into iteration. */
+  if (b->in_try_admit) return;
+  b->in_try_admit = true;
   while (b->active_count < b->max_in_flight && !b->pending_idx.empty()) {
     size_t idx = b->pending_idx.front();
     b->pending_idx.pop_front();
@@ -1379,6 +1395,7 @@ static void try_admit(AsyncEnrichBatch *b) {
       submit_port_connect(b, &h->port_items[pi]);
     }
   }
+  b->in_try_admit = false;
 }
 
 /* -----------------------------------------------------------------------
@@ -1455,6 +1472,7 @@ int async_enrich_batch(
     if (v > 0 && v < 100000) batch.max_in_flight = static_cast<size_t>(v);
   }
   batch.active_count = 0;
+  batch.in_try_admit = false;
   batch.hosts_completed.store(0, std::memory_order_relaxed);
   batch.ports_attempted.store(0, std::memory_order_relaxed);
   batch.banners_classified.store(0, std::memory_order_relaxed);
