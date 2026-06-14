@@ -153,7 +153,11 @@ kmap --net-query --nq-min-cvss 9.0 --nq-count
 
 ## Building from Source
 
-### Requirements
+Kmap builds and runs on both **Linux** and **Windows 11** (and other
+Unix-likes). Use the autotools flow on Linux/macOS/BSD and the Visual Studio
+solution on Windows.
+
+### Linux / macOS / BSD — requirements
 
 - GCC 7+ or Clang 5+ (C++17)
 - libssh2 (SSH credential probing)
@@ -184,6 +188,39 @@ sudo make install
 ```
 
 The `kmap-cve.db` SQLite database is installed alongside the binary and located automatically at runtime.
+
+### Windows 11 (Visual Studio)
+
+**Requirements:**
+- Visual Studio 2019 or 2022 (or the standalone Build Tools) with the
+  **Desktop development with C++** workload.
+- A `kmap-mswin32-aux` directory **next to** the repo checkout (i.e.
+  `..\kmap-mswin32-aux\` relative to the repo root) containing the Windows
+  builds of the two external dependencies:
+  - `kmap-mswin32-aux\Npcap\{Include,Lib}` — the [Npcap SDK](https://npcap.com/#download)
+  - `kmap-mswin32-aux\OpenSSL\{include,lib}` — an OpenSSL Windows build
+
+  All other libraries (libssh2, libz, libpcre2, liblua, nbase, nsock,
+  libdnet, liblinear) are vendored in-tree and built by the solution.
+
+**Build:**
+```bat
+cd mswin32
+Build.bat                 :: auto-detects VS, builds pcre2, then kmap.sln (Release / Win32)
+```
+or open `mswin32\kmap.sln` in Visual Studio, select **Release / Win32**, and
+build. The output `kmap.exe` is dropped in `mswin32\Release\` together with the
+`libssh2.dll` and `zlibwapi.dll` it needs.
+
+> **Npcap is delay-loaded.** `kmap.exe` starts and runs `--net-scan`
+> (connect-based discovery) without Npcap installed — you'll see a one-time
+> "Could not import all necessary Npcap functions" warning, which is harmless
+> for the internet-scale path. Install [Npcap](https://npcap.com) only if you
+> want the raw-packet / OS-detection nmap modes.
+
+> When adding a new `.cc`/`.h`, it must be listed in **both** `Makefile.in`
+> (Linux) and `mswin32\kmap.vcxproj` (Windows) or it will link on one platform
+> and fail on the other.
 
 ---
 
