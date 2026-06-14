@@ -151,8 +151,10 @@ struct Pool {
   }
 };
 
-static std::atomic<int> g_busy_sink{0};
-static void busy(int spins) { int x = 0; for (int i = 0; i < spins; i++) x += i; g_busy_sink.store(x, std::memory_order_relaxed); }
+/* unsigned accumulator: defined modular wraparound, so a large spin count
+   can't trip UBSan's signed-overflow check (the loop is only a time sink). */
+static std::atomic<unsigned> g_busy_sink{0};
+static void busy(int spins) { unsigned x = 0; for (int i = 0; i < spins; i++) x += (unsigned)i; g_busy_sink.store(x, std::memory_order_relaxed); }
 
 static void worker_fn(Pool *pl, long w, uint64_t tseed) {
   uint64_t r = tseed | 1;
