@@ -27,6 +27,7 @@ All guides render on GitHub under [`docs/`](docs/):
 | [Internet-scale scanning](docs/internet-scale-scanning.md) | The core `--net-scan` workflow end-to-end: discover → enrich → report, single-port vs multi-port, `--rate`, sampling (`--net-max-ips`), resuming, phase splitting, excludes, 32-shard layout, and watchlist monitoring |
 | [Performance & resource tuning](docs/performance.md) | `--fast` / `--efficient` modes, the CPU governor, discovery/enrichment concurrency, the full environment-variable reference, and gaming-PC tuning recipes |
 | [Querying collected data](docs/querying.md) | `--net-query` filters (port, service, CVE, CVSS, ASN, country, web title/server, device class) and output formats |
+| [Troubleshooting](docs/troubleshooting.md) | Fixes for the common issues: slow scans, missing CVEs/ASN, resume failures, the Windows Npcap warning, and where results land |
 | [ypanel integration](docs/ypanel.md) | Driving Kmap remotely from the ypanel operator control plane |
 
 The full nmap-derived manual lives in [`docs/kmap.1`](docs/kmap.1) (`man kmap`).
