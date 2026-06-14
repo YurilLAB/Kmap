@@ -20,7 +20,12 @@
 #include <string>
 #include <vector>
 #include <csignal>
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 /* ===== fast_syn.cc verbatim ===== */
 static uint32_t cidr_mask(int prefix_len) {
@@ -95,17 +100,38 @@ static long kmap_cpu_throttle_step_us(double used_cores, double target_cores,
   return static_cast<long>(next);
 }
 
-/* ===== guard-page C-string for parse_cidr over-read detection ===== */
-static SIZE_T g_page;
+/* ===== guard-page C-string for parse_cidr over-read detection =====
+   Guard page via VirtualAlloc/VirtualProtect on Windows, mmap/mprotect
+   (PROT_NONE) on POSIX, so this harness runs in the Linux ASan/UBSan CI
+   loop, not only on Windows. */
+static size_t g_page;
 static char *make_guarded_str(const char *s, size_t len, char **out) {
   size_t need = len + 1; /* include NUL */
   size_t npages = (need + g_page - 1) / g_page; if (!npages) npages = 1;
   size_t total = (npages + 1) * g_page;
+#ifdef _WIN32
   char *base = (char *)VirtualAlloc(NULL, total, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+  if (!base) { fprintf(stderr,"VirtualAlloc failed\n"); exit(2); }
   DWORD o; VirtualProtect(base + npages*g_page, g_page, PAGE_NOACCESS, &o);
+#else
+  char *base = (char *)mmap(NULL, total, PROT_READ|PROT_WRITE,
+                            MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  if (base == MAP_FAILED) { fprintf(stderr,"mmap failed\n"); exit(2); }
+  mprotect(base + npages*g_page, g_page, PROT_NONE);
+#endif
   char *p = base + npages*g_page - need;
   memcpy(p, s, len); p[len] = '\0';
   *out = p; return base;
+}
+/* len must match the make_guarded_str call so POSIX munmap gets the size. */
+static void free_guarded(char *base, size_t len) {
+#ifdef _WIN32
+  (void)len; VirtualFree(base, 0, MEM_RELEASE);
+#else
+  size_t need = len + 1;
+  size_t npages = (need + g_page - 1) / g_page; if (!npages) npages = 1;
+  munmap(base, (npages + 1) * g_page);
+#endif
 }
 
 static long long g_iter; static const char *g_fn = "?";
@@ -113,17 +139,25 @@ static void onfail(int sig){ fprintf(stderr,"\n*** FAULT sig=%d fn=%s iter=%lld\
 static uint64_t rs; static uint64_t rng(){ rs^=rs<<13; rs^=rs>>7; rs^=rs<<17; return rs; }
 
 int main(int argc, char **argv) {
-  SYSTEM_INFO si; GetSystemInfo(&si); g_page = si.dwPageSize;
+#ifdef _WIN32
+  SYSTEM_INFO si; GetSystemInfo(&si); g_page = (size_t)si.dwPageSize;
+#else
+  g_page = (size_t)sysconf(_SC_PAGESIZE);
+#endif
   signal(SIGSEGV,onfail); signal(SIGILL,onfail); signal(SIGABRT,onfail);
   rs = (argc>1)? strtoull(argv[1],NULL,10) : 0xBEEFULL;
+  /* Optional argv[2] caps each loop (and the permute window) so CI can run a
+     fast slice; 0/absent = full depth for deep local runs. */
+  long long lim = (argc>2)? atoll(argv[2]) : 0;
 
   /* --- 1. permute_ip bijection over contiguous windows (no dup/skip) --- */
   /* A linear map with odd multiplier is a bijection mod 2^32; verify the
      implementation by checking every output in a window is distinct AND the
      window's outputs form a permutation of themselves (popcount == size). */
   {
-    const uint64_t WIN = 1ULL << 28; /* 256M indices, 32MB bitset */
-    std::vector<uint64_t> seen(WIN/64, 0);
+    uint64_t WIN = 1ULL << 28; /* 256M indices, 32MB bitset */
+    if (lim > 0 && (uint64_t)lim < WIN) WIN = (uint64_t)lim;
+    std::vector<uint64_t> seen(WIN/64 + 1, 0);
     uint64_t seed = rng();
     uint64_t base = (rng() % (IP_SPACE - WIN));
     g_fn = "permute_ip:distinct";
@@ -159,7 +193,7 @@ int main(int argc, char **argv) {
   g_fn = "cidr_mask";
   for (int p = -2; p <= 34; p++) { volatile uint32_t m = cidr_mask(p); (void)m; }
   g_fn = "ip_to_u32";
-  for (long long k = 0; k < 3000000; k++) {
+  for (long long k = 0; k < (lim>0?lim:3000000); k++) {
     g_iter = k;
     unsigned a=rng()%300,b=rng()%300,c=rng()%300,d=rng()%300;
     char s[64]; snprintf(s,sizeof(s),"%u.%u.%u.%u",a,b,c,d);
@@ -174,7 +208,7 @@ int main(int argc, char **argv) {
   /* --- 3. parse_cidr with guard-page strings (overlong / weird) --- */
   g_fn = "parse_cidr";
   const char *al = "0123456789./ \t-ABCxyz";
-  for (long long k = 0; k < 2000000; k++) {
+  for (long long k = 0; k < (lim>0?lim:2000000); k++) {
     g_iter = k;
     size_t len = rng() % 200; /* deliberately exceed ip_buf[64] sometimes */
     std::string s; for (size_t i=0;i<len;i++) s += al[rng()%strlen(al)];
@@ -183,13 +217,13 @@ int main(int argc, char **argv) {
     }
     char *gp; char *base = make_guarded_str(s.c_str(), s.size(), &gp);
     uint32_t net, mask; volatile bool ok = parse_cidr(gp, net, mask); (void)ok;
-    VirtualFree(base,0,MEM_RELEASE);
+    free_guarded(base, s.size());
   }
 
   /* --- 4. governor control law: bounded output, no NaN-cast on finite input --- */
   g_fn = "governor";
   const long MAXS = 250000;
-  for (long long k = 0; k < 5000000; k++) {
+  for (long long k = 0; k < (lim>0?lim:5000000); k++) {
     g_iter = k;
     /* realistic finite domain: used 0..64 cores, target 0..32 cores, sleep 0..1e6us */
     double used   = (double)(rng()%6400)/100.0;

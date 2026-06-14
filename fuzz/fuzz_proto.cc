@@ -21,16 +21,46 @@
 #include <algorithm>
 #include <string>
 #include <csignal>
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
-static SIZE_T g_page;
+/* Guard page via VirtualAlloc/VirtualProtect on Windows, mmap/mprotect
+   (PROT_NONE) on POSIX -- so this harness runs in the Linux ASan/UBSan CI
+   loop, not only on Windows. */
+static size_t g_page;
+static uint8_t *guard_map(size_t total, size_t guard_off) {
+#ifdef _WIN32
+  uint8_t *base = (uint8_t *)VirtualAlloc(NULL, total, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+  if (!base) { fprintf(stderr,"VirtualAlloc failed\n"); exit(2); }
+  DWORD o; VirtualProtect(base + guard_off, g_page, PAGE_NOACCESS, &o);
+#else
+  uint8_t *base = (uint8_t *)mmap(NULL, total, PROT_READ|PROT_WRITE,
+                                  MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  if (base == MAP_FAILED) { fprintf(stderr,"mmap failed\n"); exit(2); }
+  mprotect(base + guard_off, g_page, PROT_NONE);
+#endif
+  return base;
+}
+/* `sz` must match the make call so POSIX munmap gets the mapping size. */
+static void free_guarded(uint8_t *base, size_t sz) {
+#ifdef _WIN32
+  (void)sz; VirtualFree(base, 0, MEM_RELEASE);
+#else
+  size_t need = sz ? sz : 1;
+  size_t npages = (need + g_page - 1) / g_page; if (!npages) npages = 1;
+  munmap(base, (npages + 1) * g_page);
+#endif
+}
 /* Place `len` bytes flush against a trailing guard page; returns base to free. */
 static uint8_t *guard_before(const void *data, size_t len, uint8_t **out) {
   size_t need = len ? len : 1;
   size_t npages = (need + g_page - 1) / g_page; if (!npages) npages = 1;
   size_t total = (npages + 1) * g_page;
-  uint8_t *base = (uint8_t *)VirtualAlloc(NULL, total, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-  DWORD o; VirtualProtect(base + npages*g_page, g_page, PAGE_NOACCESS, &o);
+  uint8_t *base = guard_map(total, npages*g_page);
   uint8_t *p = base + npages*g_page - len;
   if (len) memcpy(p, data, len);
   *out = p; return base;
@@ -39,8 +69,7 @@ static uint8_t *guard_before(const void *data, size_t len, uint8_t **out) {
 static uint8_t *guard_arr(size_t sz, uint8_t **out) {
   size_t npages = (sz + g_page - 1)/g_page; if(!npages) npages=1;
   size_t total=(npages+1)*g_page;
-  uint8_t *base=(uint8_t*)VirtualAlloc(NULL,total,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
-  DWORD o; VirtualProtect(base+npages*g_page,g_page,PAGE_NOACCESS,&o);
+  uint8_t *base = guard_map(total, npages*g_page);
   *out = base+npages*g_page - sz;
   return base;
 }
@@ -119,7 +148,11 @@ static const char *banner_classify_bin(const char *buf, int n,
 }
 
 int main(int argc, char **argv) {
-  SYSTEM_INFO si; GetSystemInfo(&si); g_page=si.dwPageSize;
+#ifdef _WIN32
+  SYSTEM_INFO si; GetSystemInfo(&si); g_page=(size_t)si.dwPageSize;
+#else
+  g_page=(size_t)sysconf(_SC_PAGESIZE);
+#endif
   signal(SIGSEGV,onfail); signal(SIGILL,onfail); signal(SIGABRT,onfail);
   rs=(argc>1)?strtoull(argv[1],NULL,10):0x5151ULL;
   long long N=(argc>2)?atoll(argv[2]):20000000LL;
@@ -142,11 +175,11 @@ int main(int argc, char **argv) {
 
     uint8_t *sb, *scr; sb=guard_arr(20,&scr); memset(scr,0,20);
     g_fn="mysql_parse"; mysql_parse(inp,n,scr);
-    VirtualFree(sb,0,MEM_RELEASE);
+    free_guarded(sb,20);
 
     uint8_t *pb, *salt; pb=guard_arr(4,&salt);
     g_fn="pg_parse"; pg_parse(inp,n,salt);
-    VirtualFree(pb,0,MEM_RELEASE);
+    free_guarded(pb,4);
 
     g_fn="banner_mysql"; volatile auto v=banner_mysql((const char*)inp,n); (void)v;
 
@@ -154,7 +187,7 @@ int main(int argc, char **argv) {
     { std::string bv; volatile auto cls=banner_classify_bin((const char*)inp,n,bv);
       (void)cls; (void)bv; }
 
-    VirtualFree(ib,0,MEM_RELEASE);
+    free_guarded(ib,(size_t)n);
     if ((g_iter&0xFFFFF)==0){ fprintf(stderr,"\r iter=%lld",g_iter); fflush(stderr); }
   }
   fprintf(stderr,"\nPROTO fuzz OK: %lld iterations, no faults (seed=%s)\n",

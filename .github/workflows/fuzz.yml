@@ -56,17 +56,23 @@ jobs:
             echo "::endgroup::"
           done
 
-          # Guard-page fuzzer (mmap/mprotect PROT_NONE): exact-boundary
-          # over-read detection for the asn_lookup.cc DNS wire parser, which
-          # handles untrusted network-adversary-controllable data. It maps a
-          # guard page per iteration so it is slower than the no-alloc
-          # harnesses above -- run a smaller per-push budget here; deep runs
-          # use the 20M default locally.
-          echo "::group::fuzz_dns"
-          g++ $CXXFLAGS "fuzz/fuzz_dns.cc" -o "/tmp/fz/fuzz_dns"
-          "/tmp/fz/fuzz_dns" 1 300000
-          "/tmp/fz/fuzz_dns" 1337 300000
-          echo "::endgroup::"
+          # Guard-page fuzzers (mmap/mprotect PROT_NONE): exact-boundary
+          # over-read detection for untrusted-input parsers --
+          #   fuzz_dns   : asn_lookup.cc DNS wire parser (network data)
+          #   fuzz_proto : default_creds/net_enrich binary protocol parsers
+          #   fuzz_core  : fast_syn cidr/permute + cpu governor control law
+          # They map a guard page per iteration so they are slower than the
+          # no-alloc harnesses above; run a smaller per-push budget here (the
+          # 2nd arg caps iterations / the permute window). Deep runs use the
+          # 20M / full default locally. These were Windows-only until ported
+          # to mmap, which is why they were absent from CI before.
+          for h in fuzz_dns fuzz_proto fuzz_core; do
+            echo "::group::$h"
+            g++ $CXXFLAGS "fuzz/$h.cc" -o "/tmp/fz/$h"
+            "/tmp/fz/$h" 1 300000
+            "/tmp/fz/$h" 1337 300000
+            echo "::endgroup::"
+          done
 
       - name: Summary
         if: always()
