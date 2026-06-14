@@ -28,6 +28,7 @@ All guides render on GitHub under [`docs/`](docs/):
 | [Performance & resource tuning](docs/performance.md) | `--fast` / `--efficient` modes, the CPU governor, discovery/enrichment concurrency, the full environment-variable reference, and gaming-PC tuning recipes |
 | [Querying collected data](docs/querying.md) | `--net-query` filters (port, service, CVE, CVSS, ASN, country, web title/server, device class) and output formats |
 | [Pivoting & topology](docs/pivoting-and-topology.md) | `--net-cluster` (correlate hosts by shared TLS/host fingerprints), `--tracemap` / `--topo-export` (path & ASN topology graphs), and `--spoof-os` (OS/browser personality for enrichment) |
+| [Reading the findings report](docs/findings-report.md) | The `Findings/findings_NNN.txt` layout: file naming/ordering, the PORT TABLE / CVE MAP (`[REMOTE]` tags) / PATCH STATUS / WEB RECON sections, the file summary, and grep recipes |
 | [Data model](docs/data-model.md) | On-disk storage: 32-shard SQLite layout, the `hosts`/`fingerprints` schema, rescan/history semantics, and direct `sqlite3` queries |
 | [Troubleshooting](docs/troubleshooting.md) | Fixes for the common issues: slow scans, missing CVEs/ASN, resume failures, the Windows Npcap warning, and where results land |
 | [ypanel integration](docs/ypanel.md) | Driving Kmap remotely from the ypanel operator control plane |
