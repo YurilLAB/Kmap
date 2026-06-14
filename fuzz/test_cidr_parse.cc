@@ -75,6 +75,42 @@ static bool is_excluded(uint32_t ip, const std::vector<ExcludeRange> &ex) {
   return false;
 }
 
+/* FIXED net_query.cc parse_cidr variant (different mask formula + a valid
+ * flag instead of a bool return; same strict-prefix fix). The --nq-ip-range
+ * filter used atoi() too, so "10.0.0.0/abc" silently matched every IP and
+ * the range filter returned the whole dataset. */
+struct CidrRange { uint32_t network, mask; bool valid; };
+static CidrRange parse_cidr_query(const char *cidr) {
+  CidrRange r{}; r.valid = false;
+  if (!cidr || !cidr[0]) return r;
+  char buf[64];
+  size_t slen = strlen(cidr);
+  if (slen >= sizeof(buf)) return r;
+  memcpy(buf, cidr, slen + 1);
+  char *slash = strchr(buf, '/');
+  int prefix_len = 32;
+  if (slash) {
+    *slash = '\0';
+    const char *pp = slash + 1;
+    if (*pp == '\0') return r;
+    char *endp = nullptr;
+    long pv = strtol(pp, &endp, 10);
+    if (endp == pp || *endp != '\0') return r;
+    if (pv < 0 || pv > 32) return r;
+    prefix_len = (int)pv;
+  }
+  uint32_t ip = ip_to_u32(buf);
+  if (ip == 0 && strcmp(buf, "0.0.0.0") != 0) return r;
+  if (prefix_len == 0) r.mask = 0;
+  else r.mask = 0xFFFFFFFFU << (32 - prefix_len);
+  r.network = ip & r.mask;
+  r.valid = true;
+  return r;
+}
+static bool ip_in_cidr(uint32_t ip, const CidrRange &c) {
+  return (ip & c.mask) == c.network;
+}
+
 /* ---- independent oracle for whether a token is a valid prefix 0..32 ---- */
 static bool valid_prefix_token(const std::string &t) {
   if (t.empty()) return false;
@@ -139,6 +175,40 @@ int main(int argc, char **argv) {
     parse_cidr("0.0.0.0/0", er.network, er.mask); ex.push_back(er);
     if (is_excluded(rnd(), ex) && is_excluded(0x08080808, ex)) passed++;
     else { failed++; printf("  FAIL [explicit-/0 should match all]\n"); }
+  }
+
+  /* ---- net_query.cc parse_cidr variant (--nq-ip-range filter) ---- */
+  {
+    struct QC { const char *in; bool valid; uint32_t net; uint32_t mask; };
+    std::vector<QC> qcases = {
+      {"93.184.0.0/16", true,  0x5DB80000, 0xFFFF0000},
+      {"10.0.0.0/8",    true,  0x0A000000, 0xFF000000},
+      {"8.8.8.8",       true,  0x08080808, 0xFFFFFFFF},   /* bare -> /32 */
+      {"0.0.0.0/0",     true,  0x00000000, 0x00000000},   /* explicit all */
+      {"10.0.0.0/abc",  false, 0, 0},                     /* THE BUG: rejected */
+      {"10.0.0.0/",     false, 0, 0},
+      {"10.0.0.0/16x",  false, 0, 0},
+      {"10.0.0.0/40",   false, 0, 0},
+      {"bad.ip/16",     false, 0, 0},
+    };
+    for (auto &q : qcases) {
+      CidrRange r = parse_cidr_query(q.in);
+      bool good = (r.valid == q.valid) &&
+                  (!r.valid || (r.network == q.net && r.mask == q.mask));
+      if (good) passed++;
+      else { failed++; printf("  FAIL [nq '%s']: valid=%d(exp %d) net=%08X(exp %08X) mask=%08X(exp %08X)\n",
+                              q.in, r.valid, q.valid, r.network, q.net, r.mask, q.mask); }
+    }
+    /* a malformed --nq-ip-range must NOT silently match the whole dataset:
+       the caller rejects invalid ranges, so parse must report valid=false. */
+    if (!parse_cidr_query("10.0.0.0/abc").valid) passed++;
+    else { failed++; printf("  FAIL [nq malformed should be invalid, not match-all]\n"); }
+    /* a real /16 must include in-range and exclude out-of-range IPs */
+    {
+      CidrRange r = parse_cidr_query("93.184.0.0/16");
+      if (r.valid && ip_in_cidr(0x5DB80101, r) && !ip_in_cidr(0x08080808, r)) passed++;
+      else { failed++; printf("  FAIL [nq /16 membership]\n"); }
+    }
   }
 
   /* ---- randomized fuzz: parse_cidr accept/reject vs independent oracle ---- */

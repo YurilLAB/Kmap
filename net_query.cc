@@ -84,8 +84,18 @@ static CidrRange parse_cidr(const char *cidr) {
   int prefix_len = 32;
   if (slash) {
     *slash = '\0';
-    prefix_len = atoi(slash + 1);
-    if (prefix_len < 0 || prefix_len > 32) return r;
+    /* Strict prefix parse. atoi() silently returns 0 for a non-numeric or
+     * empty prefix ("10.0.0.0/abc", "10.0.0.0/"), which would set mask=0 and
+     * make ip_in_cidr() match EVERY IP -- so the --nq-ip-range filter would
+     * silently return the entire dataset instead of the requested range. Be
+     * strict and leave r.valid=false so the caller reports a clean error. */
+    const char *pp = slash + 1;
+    if (*pp == '\0') return r;
+    char *endp = nullptr;
+    long pv = strtol(pp, &endp, 10);
+    if (endp == pp || *endp != '\0') return r;
+    if (pv < 0 || pv > 32) return r;
+    prefix_len = static_cast<int>(pv);
   }
 
   uint32_t ip = ip_to_u32(buf);
