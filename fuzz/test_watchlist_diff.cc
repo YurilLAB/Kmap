@@ -97,6 +97,39 @@ int main(void) {
   Diff d4 = compute_diff(prev, prev);
   expect(d4.neu.empty() && d4.changed.empty() && d4.closed.empty(), "identical scans -> no diff");
 
+  /* --- prev_state gating model (the [CLOSED]-staleness fix) ---
+     The DB is cumulative; prev_state is scoped to rows with
+     last_seen >= prev_scan_ts (the previous run). A port that went dark BEFORE
+     the previous run is NOT in the gated prev set, so it is not re-reported
+     [CLOSED] every run. */
+  struct RowTs { std::string ip; int port; std::string svc; std::string ver; long last_seen; };
+  auto gate = [](const std::vector<RowTs> &rows, long prev_scan_ts) {
+    std::vector<Row> out;
+    for (const auto &r : rows)
+      if (prev_scan_ts == 0 || r.last_seen >= prev_scan_ts)
+        out.push_back({r.ip, r.port, r.svc, r.ver});
+    return out;
+  };
+  /* Timeline: run@100 opened :80 and :443. run@200 :443 closed (last_seen of
+     :443 stays 100; :80 refreshed to 200). Now run@300: prev_scan_ts=200. */
+  std::vector<RowTs> db = {
+    {"5.5.5.5",80,"nginx","1.0",200},   /* still open at run@200 */
+    {"5.5.5.5",443,"nginx","1.0",100},  /* went dark at run@200, last_seen frozen at 100 */
+  };
+  long prev_scan_ts = 200;              /* boundary = previous (run@200) start */
+  std::vector<Row> gated_prev = gate(db, prev_scan_ts);
+  std::vector<Row> cur_300 = {{"5.5.5.5",80,"nginx","1.0"}};  /* run@300 finds :80 only */
+  Diff d5 = compute_diff(gated_prev, cur_300);
+  expect(d5.closed.empty(),
+         ":443 (closed before prev run) is NOT re-reported [CLOSED]");
+  expect(d5.neu.empty() && d5.changed.empty(), "stable :80 -> no spurious diff at run@300");
+
+  /* Contrast: WITHOUT gating (prev_scan_ts=0, the old all-history behavior)
+     :443 WOULD be re-reported [CLOSED] -- demonstrates the bug the gate fixes. */
+  Diff d6 = compute_diff(gate(db, 0), cur_300);
+  expect(d6.closed.size()==1 && d6.closed[0]=="5.5.5.5:443",
+         "ungated (old behavior) re-reports the stale [CLOSED] -- bug confirmed");
+
   printf("%s\n", g_fail==0 ? "watchlist-diff test: ALL PASS" : "watchlist-diff test: FAILURES");
   return g_fail==0 ? 0 : 1;
 }

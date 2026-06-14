@@ -375,6 +375,28 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     return 1;
   }
 
+  /* Per-watchlist-DB metadata. Remembers the previous scan's start timestamp
+     so the diff below can scope "previously open" to the PRIOR run rather than
+     the entire cumulative history -- otherwise a port that opened once and
+     closed permanently is re-reported [CLOSED] on every subsequent run forever.
+     A separate table is safe to add to an existing DB: CREATE TABLE IF NOT
+     EXISTS materializes a whole new table (unlike ADD COLUMN it needs no
+     migration-list entry). Read here, rewritten at the end of a completed run. */
+  sqlite3_exec(wl_db,
+    "CREATE TABLE IF NOT EXISTS scan_meta (key TEXT PRIMARY KEY, value INTEGER)",
+    nullptr, nullptr, nullptr);
+  int64_t prev_scan_ts = 0;
+  {
+    sqlite3_stmt *st = nullptr;
+    if (sqlite3_prepare_v2(wl_db,
+          "SELECT value FROM scan_meta WHERE key='last_scan_ts'",
+          -1, &st, nullptr) == SQLITE_OK) {
+      if (sqlite3_step(st) == SQLITE_ROW)
+        prev_scan_ts = sqlite3_column_int64(st, 0);
+      sqlite3_finalize(st);
+    }
+  }
+
   /* Load previous state for diff */
   struct PrevEntry {
     std::string ip;
@@ -387,10 +409,19 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::vector<PrevEntry> prev_state;
   {
     sqlite3_stmt *stmt = nullptr;
-    sqlite3_prepare_v2(wl_db,
-      "SELECT ip, port, service, version, cves, web_title FROM hosts",
-      -1, &stmt, nullptr);
+    /* Scope to the previous run's open set when we know when that was: a port
+       that went dark BEFORE the previous run is already-reported history and
+       must not resurface as [CLOSED] every run. Since nothing but a watchlist
+       run writes this DB, every row open as of the prior run has
+       last_seen >= prev_scan_ts, and earlier closures have less. On the first
+       run under this scheme (prev_scan_ts == 0) fall back to all rows. */
+    const char *prev_sql = (prev_scan_ts > 0)
+      ? "SELECT ip, port, service, version, cves, web_title FROM hosts "
+        "WHERE last_seen >= ?"
+      : "SELECT ip, port, service, version, cves, web_title FROM hosts";
+    sqlite3_prepare_v2(wl_db, prev_sql, -1, &stmt, nullptr);
     if (stmt) {
+      if (prev_scan_ts > 0) sqlite3_bind_int64(stmt, 1, prev_scan_ts);
       while (sqlite3_step(stmt) == SQLITE_ROW) {
         PrevEntry pe;
         auto col = [&](int c) -> std::string {
@@ -1127,6 +1158,22 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     fclose(diff_fp);
 
     log_write(LOG_STDOUT, "  Diff report: %s (%d changes)\n", diff_path.c_str(), changes);
+  }
+
+  /* Advance the diff boundary to this run's start so the NEXT run compares
+     against what THIS run found open. Only on a completed run -- an
+     interrupted run saw a partial set, and advancing would make the next run
+     misreport the unreached ports as [CLOSED]; leaving the boundary at the
+     last full run keeps the next diff correct. */
+  if (!g_scan_interrupted.load()) {
+    sqlite3_stmt *st = nullptr;
+    if (sqlite3_prepare_v2(wl_db,
+          "INSERT OR REPLACE INTO scan_meta(key,value) VALUES('last_scan_ts',?)",
+          -1, &st, nullptr) == SQLITE_OK) {
+      sqlite3_bind_int64(st, 1, scan_start_ts);
+      sqlite3_step(st);
+      sqlite3_finalize(st);
+    }
   }
 
   /* Write full report.
