@@ -1329,6 +1329,22 @@ int run_net_scan() {
 
   int rc = 0;
 
+  /* Persistent event log for the discover -> enrich -> report path, mirroring
+     watchlist mode. A mass sweep can run unattended for hours; kmap.log
+     records the lifecycle (start, per-phase outcome + timing, completion)
+     with ISO timestamps so an operator can reconstruct what happened after
+     stdout has scrolled away or the terminal closed. Every scan_log line is
+     fflush'd immediately, so the trail survives even a hard kill. Each early
+     return below closes it (scan_log_close is null-guarded, so the repeated
+     calls are harmless). */
+  scan_log_open(data_dir);
+  time_t ns_start = time(nullptr);
+  scan_log("INFO", "net-scan starting%s%s",
+           o.net_discover_only ? " [discover-only]"
+             : o.net_enrich_only ? " [enrich-only]"
+             : o.net_report_only ? " [report-only]" : "",
+           o.net_resume ? " [resume]" : "");
+
   /* Phase 1: Discover */
   if (!o.net_enrich_only && !o.net_report_only) {
     /* Build exclusion list */
@@ -1344,14 +1360,28 @@ int run_net_scan() {
 
     int rate = o.net_rate > 0 ? o.net_rate : 25000;
 
+    scan_log("INFO",
+             "discovery starting: %d port(s), rate=%d pps, %d exclude range(s)%s",
+             (int)ports.size(), rate, (int)excludes.size(),
+             o.net_max_ips ? " (sampled)" : "");
+    time_t disc_t0 = time(nullptr);
     rc = fast_syn_scan(data_dir, ports, rate, excludes, o.net_resume,
                        o.net_max_ips);
     if (rc != 0) {
+      scan_log("ERROR", "discovery phase failed (rc=%d)", rc);
       fprintf(stderr, "net-scan: discovery phase failed\n");
+      scan_log_close();
       return rc;
     }
+    scan_log("INFO", "discovery phase complete (%lds)",
+             (long)(time(nullptr) - disc_t0));
 
-    if (o.net_discover_only) return 0;
+    if (o.net_discover_only) {
+      scan_log("INFO", "net-scan finished: discover-only (%lds total)",
+               (long)(time(nullptr) - ns_start));
+      scan_log_close();
+      return 0;
+    }
   }
 
   /* Phase 2: Enrich.
@@ -1372,6 +1402,8 @@ int run_net_scan() {
    * never spin forever. */
   if (!o.net_discover_only && !o.net_report_only) {
     log_write(LOG_STDOUT, "\nnet-scan: Starting enrichment phase\n");
+    scan_log("INFO", "enrichment phase starting");
+    time_t enr_t0 = time(nullptr);
     int64_t prev_remaining = -1;
     int pass = 0;
     for (;;) {
@@ -1409,19 +1441,35 @@ int run_net_scan() {
         "net-scan: %lld host(s) still need enrichment; continuing (pass %d)\n",
         (long long)remaining, pass + 1);
     }
+    scan_log("INFO", "enrichment phase complete (%lds, %d pass%s)",
+             (long)(time(nullptr) - enr_t0), pass, pass == 1 ? "" : "es");
 
-    if (o.net_enrich_only) return 0;
+    if (o.net_enrich_only) {
+      scan_log("INFO", "net-scan finished: enrich-only (%lds total)",
+               (long)(time(nullptr) - ns_start));
+      scan_log_close();
+      return 0;
+    }
   }
 
   /* Phase 3: Report */
   if (!o.net_discover_only && !o.net_enrich_only) {
     log_write(LOG_STDOUT, "\nnet-scan: Generating findings reports\n");
+    time_t rep_t0 = time(nullptr);
     rc = generate_findings(data_dir, findings_dir);
     if (rc != 0) {
+      scan_log("ERROR", "report generation had errors (rc=%d)", rc);
       fprintf(stderr, "net-scan: report generation had errors\n");
+    } else {
+      scan_log("INFO", "report phase complete (%lds)",
+               (long)(time(nullptr) - rep_t0));
     }
   }
 
+  scan_log("INFO", "net-scan %s (%lds total)",
+           g_scan_interrupted.load() ? "interrupted" : "complete",
+           (long)(time(nullptr) - ns_start));
+  scan_log_close();
   return rc;
 }
 
