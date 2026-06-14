@@ -414,13 +414,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    *
    * The new loop builds the (ip, port) task list up front, dispatches
    * to a thread pool of `worker_count` workers (env override
-   * KMAP_WATCHLIST_CONCURRENCY, default 50), and collects opens into a
+   * KMAP_WATCHLIST_CONCURRENCY, default 100), and collects opens into a
    * mutex-guarded vector.  net_db inserts happen serially after the
    * probe phase because SQLite serializes writes anyway -- doing them
    * inside workers would just contend on the wl_db handle without
    * speed-up.
    *
-   * 50 concurrent connects is well under any practical OS fd limit
+   * 100 concurrent connects is well under any practical OS fd limit
    * (Linux default 1024, Windows kernel handle table is unbounded) and
    * stays under the noise floor of any reasonable upstream firewall.
    * Wall time on the same 10-host / 100-port set drops from ~33 min

@@ -714,11 +714,7 @@ int fast_syn_scan(const char *data_dir,
    * counter and walk the inner port loop themselves.  The token
    * bucket stays shared (rate_mu) so the global pps cap still
    * applies across all threads, and the per-shard sqlite handles
-   * stay shared too (db_mu) so writes are serialized.
-   *
-   * Default 50 workers; tunable via KMAP_NETSCAN_CONCURRENCY for
-   * large sweeps or rate-limited environments where you want fewer
-   * concurrent in-flight connects. */
+   * stay shared too (db_mu) so writes are serialized. */
   /* Default 100 workers (was 50): the metric emit added in this commit
    * confirmed kmap discovery runs at ~1-2% CPU and ~23MB RSS during
    * a 150-IP probe wave -- the bottleneck is purely network RTT on
