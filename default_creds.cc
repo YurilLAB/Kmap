@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 #else
 #include <winsock2.h>
@@ -423,6 +424,27 @@ static std::vector<LoadedCred> load_creds(const char *creds_file) {
 typedef intptr_t cred_fd_t;
 #define CRED_INVALID_FD ((cred_fd_t)-1)
 
+/* Single-fd readiness wait (write when want_write, else read). poll() on
+   POSIX, NOT select(): an fd_set is a value-indexed bitmask capped at
+   FD_SETSIZE (1024), so FD_SET(fd >= 1024) corrupts the stack when many fds
+   are open. poll passes the fd by value with no ceiling. Windows fd_set is a
+   counted handle array, value-safe for a single fd. >0 ready, 0 timeout, <0 err. */
+static int cred_wait_fd(cred_fd_t fd, bool want_write, int timeout_ms) {
+#ifdef WIN32
+  fd_set set; FD_ZERO(&set); FD_SET(static_cast<SOCKET>(fd), &set);
+  struct timeval tv;
+  tv.tv_sec  = timeout_ms / 1000;
+  tv.tv_usec = (timeout_ms % 1000) * 1000;
+  return select(static_cast<int>(fd) + 1,
+                want_write ? nullptr : &set, want_write ? &set : nullptr,
+                nullptr, &tv);
+#else
+  struct pollfd pfd; pfd.fd = static_cast<int>(fd);
+  pfd.events = want_write ? POLLOUT : POLLIN; pfd.revents = 0;
+  return poll(&pfd, 1, timeout_ms);
+#endif
+}
+
 static cred_fd_t tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
   int af;
@@ -467,14 +489,7 @@ static cred_fd_t tcp_connect(const char *ip, uint16_t port, int timeout_ms) {
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
 
-  fd_set wset;
-  FD_ZERO(&wset);
-  FD_SET(fd, &wset);
-  struct timeval tv;
-  tv.tv_sec  = timeout_ms / 1000;
-  tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-  if (select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv) <= 0) {
+  if (cred_wait_fd(fd, /*want_write=*/true, timeout_ms) <= 0) {
 #ifdef WIN32
     closesocket(fd);
 #else
@@ -528,17 +543,7 @@ static bool fd_send(cred_fd_t fd, const char *buf, size_t len) {
 }
 
 static int fd_recv(cred_fd_t fd, char *buf, size_t len, int timeout_ms) {
-  fd_set rset;
-  FD_ZERO(&rset);
-#ifdef WIN32
-  FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-  FD_SET(static_cast<int>(fd), &rset);
-#endif
-  struct timeval tv;
-  tv.tv_sec  = timeout_ms / 1000;
-  tv.tv_usec = (timeout_ms % 1000) * 1000;
-  if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
+  if (cred_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
     return -1;
 #ifdef WIN32
   return static_cast<int>(recv(static_cast<SOCKET>(fd), buf, static_cast<int>(len), 0));

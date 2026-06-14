@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -156,6 +157,26 @@ static const char *builtin_paths[] = {
 typedef intptr_t wr_fd_t;
 #define WR_INVALID_FD ((wr_fd_t)-1)
 
+/* Single-fd readiness wait (write when want_write, else read). poll() on
+   POSIX, NOT select(): an fd_set is a value-indexed bitmask capped at
+   FD_SETSIZE (1024); FD_SET(fd >= 1024) corrupts the stack when many fds are
+   open. poll passes the fd by value with no ceiling. Windows fd_set is a
+   counted handle array, so a single-fd select is value-safe. Returns >0
+   ready, 0 timeout, <0 error. */
+static int wr_wait_fd(wr_fd_t fd, bool want_write, int timeout_ms) {
+#ifdef WIN32
+  fd_set set; FD_ZERO(&set); FD_SET(static_cast<SOCKET>(fd), &set);
+  struct timeval tv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
+  return select(static_cast<int>(fd) + 1,
+                want_write ? nullptr : &set, want_write ? &set : nullptr,
+                nullptr, &tv);
+#else
+  struct pollfd pfd; pfd.fd = static_cast<int>(fd);
+  pfd.events = want_write ? POLLOUT : POLLIN; pfd.revents = 0;
+  return poll(&pfd, 1, timeout_ms);
+#endif
+}
+
 static wr_fd_t tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
   struct sockaddr_storage ss{};
   int af;
@@ -198,9 +219,7 @@ static wr_fd_t tcp_connect_wr(const char *ip, uint16_t port, int timeout_ms) {
                               os_profile_seed_from_text(ip)));
 
   connect(fd, reinterpret_cast<struct sockaddr *>(&ss), slen);
-  fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
-  struct timeval tv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
-  if (select(static_cast<int>(fd) + 1, nullptr, &wset, nullptr, &tv) <= 0) {
+  if (wr_wait_fd(fd, /*want_write=*/true, timeout_ms) <= 0) {
 #ifdef WIN32
     closesocket(fd);
 #else
@@ -254,14 +273,7 @@ static std::string recv_response(wr_fd_t fd, int timeout_ms, size_t max_bytes = 
   response.reserve(4096);
   char chunk[4096];
   while (response.size() < max_bytes) {
-    fd_set rset; FD_ZERO(&rset);
-#ifdef WIN32
-    FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-    FD_SET(static_cast<int>(fd), &rset);
-#endif
-    struct timeval tv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
-    if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &tv) <= 0)
+    if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
       break;
 #ifdef WIN32
     int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
@@ -584,14 +596,7 @@ static std::string https_get(const char *ip, uint16_t port,
   char chunk[4096];
   while (true) {
     /* Timeout guard to prevent blocking on slow/malicious servers */
-    fd_set rset; FD_ZERO(&rset);
-#ifdef WIN32
-    FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-    FD_SET(static_cast<int>(fd), &rset);
-#endif
-    struct timeval rtv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
-    if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &rtv) <= 0)
+    if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
       break;
     int n = SSL_read(ssl, chunk, sizeof(chunk));
     if (n <= 0) break;
@@ -854,14 +859,7 @@ http_options_probe(const char *ip, uint16_t port,
     // Read the response headers; we don't need the body. Cap at 8K so
     // a misbehaving server doesn't stall the scan.
     while (response.size() < 8192) {
-      fd_set rset; FD_ZERO(&rset);
-#ifdef WIN32
-      FD_SET(static_cast<SOCKET>(fd), &rset);
-#else
-      FD_SET(static_cast<int>(fd), &rset);
-#endif
-      struct timeval rtv{ timeout_ms / 1000, (timeout_ms % 1000) * 1000 };
-      if (select(static_cast<int>(fd) + 1, &rset, nullptr, nullptr, &rtv) <= 0)
+      if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
         break;
       int n = SSL_read(ssl, chunk, sizeof(chunk));
       if (n <= 0) break;

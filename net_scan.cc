@@ -48,6 +48,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <signal.h>
@@ -511,15 +512,22 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
                                 o.spoof_os,
                                 os_profile_seed_from_ipv4(ip)));
     connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
+    int out = 0;
+#ifdef WIN32
+    /* Windows fd_set is a counted SOCKET-handle array -- value-safe. */
     fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
     struct timeval tv;
     tv.tv_sec  = probe_timeout_ms / 1000;
     tv.tv_usec = (probe_timeout_ms % 1000) * 1000;
-    int out = 0;
-#ifdef WIN32
     int sel = select(0, nullptr, &wset, nullptr, &tv);
 #else
-    int sel = select(fd + 1, nullptr, &wset, nullptr, &tv);
+    /* poll(), NOT select(): a POSIX fd_set is a bitmask indexed by fd VALUE
+       and capped at FD_SETSIZE (1024). Watchlist discovery runs up to
+       KMAP_WATCHLIST_CONCURRENCY=1024 workers, so fd values climb past 1024
+       and FD_SET(fd >= 1024) would write past the fd_set and corrupt the
+       stack. poll takes the fd by value with no FD_SETSIZE ceiling. */
+    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLOUT; pfd.revents = 0;
+    int sel = poll(&pfd, 1, probe_timeout_ms);
 #endif
     if (sel > 0) {
       int err = 0;
