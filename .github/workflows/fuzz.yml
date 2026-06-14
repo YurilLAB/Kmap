@@ -56,6 +56,18 @@ jobs:
             echo "::endgroup::"
           done
 
+          # Guard-page fuzzer (mmap/mprotect PROT_NONE): exact-boundary
+          # over-read detection for the asn_lookup.cc DNS wire parser, which
+          # handles untrusted network-adversary-controllable data. It maps a
+          # guard page per iteration so it is slower than the no-alloc
+          # harnesses above -- run a smaller per-push budget here; deep runs
+          # use the 20M default locally.
+          echo "::group::fuzz_dns"
+          g++ $CXXFLAGS "fuzz/fuzz_dns.cc" -o "/tmp/fz/fuzz_dns"
+          "/tmp/fz/fuzz_dns" 1 300000
+          "/tmp/fz/fuzz_dns" 1337 300000
+          echo "::endgroup::"
+
       - name: Summary
         if: always()
         run: echo "Parser harnesses completed under ASan+UBSan."

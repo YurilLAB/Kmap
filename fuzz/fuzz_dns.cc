@@ -2,9 +2,16 @@
  *
  * Copies dns_skip_name() and dns_extract_txt() VERBATIM from asn_lookup.cc
  * (kept byte-identical so the fuzz exercises the shipping code path).
- * Each input is placed so its last byte abuts a PAGE_NOACCESS guard page;
+ * Each input is placed so its last byte abuts an inaccessible guard page;
  * any read past pktlen faults -> SIGSEGV handler dumps the input hex.
- * Build:  g++ -O1 -g -fsanitize=undefined -fsanitize-trap=all fuzz_dns.cc -o fuzz_dns.exe
+ *
+ * Cross-platform: a real hardware guard page via VirtualAlloc/VirtualProtect
+ * on Windows and mmap/mprotect(PROT_NONE) on POSIX, so the same harness runs
+ * in the Linux ASan/UBSan CI loop (it was Windows-only before, which kept it
+ * out of CI -- the DNS wire parser handles untrusted, network-adversary-
+ * controllable data and must be fuzzed on every push).
+ * Build (POSIX): g++ -O1 -g -fsanitize=address,undefined fuzz_dns.cc -o fuzz_dns
+ * Build (Win):   g++ -O2 -g -std=gnu++17 fuzz/fuzz_dns.cc -o fuzz/fuzz_dns.exe
  */
 #include <cstdio>
 #include <cstdint>
@@ -12,7 +19,12 @@
 #include <cstring>
 #include <string>
 #include <csignal>
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 #define DNS_QTYPE_TXT  16
 
@@ -94,22 +106,38 @@ static std::string dns_extract_txt(const uint8_t *pkt, size_t pktlen) {
 
 /* Guard-page buffer: data sits flush against an inaccessible page so any
  * over-read of even one byte past `len` raises an access violation. */
-static SIZE_T g_page;
+static size_t g_page;
 static uint8_t *make_guarded(const uint8_t *data, size_t len, const uint8_t **out_ptr) {
-  if (len == 0) len = 0; /* still place at page end */
   size_t npages = (len + g_page - 1) / g_page;
   if (npages == 0) npages = 1;
   size_t total = (npages + 1) * g_page;
+#ifdef _WIN32
   uint8_t *base = (uint8_t *)VirtualAlloc(NULL, total, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (!base) { fprintf(stderr, "VirtualAlloc failed\n"); exit(2); }
   DWORD oldp;
   VirtualProtect(base + npages * g_page, g_page, PAGE_NOACCESS, &oldp);
+#else
+  uint8_t *base = (uint8_t *)mmap(NULL, total, PROT_READ | PROT_WRITE,
+                                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (base == MAP_FAILED) { fprintf(stderr, "mmap failed\n"); exit(2); }
+  mprotect(base + npages * g_page, g_page, PROT_NONE);
+#endif
   uint8_t *p = base + npages * g_page - len; /* flush against guard */
   if (len) memcpy(p, data, len);
   *out_ptr = p;
   return base;
 }
-static void free_guarded(uint8_t *base) { VirtualFree(base, 0, MEM_RELEASE); }
+/* len must match the make_guarded call so POSIX munmap gets the right size. */
+static void free_guarded(uint8_t *base, size_t len) {
+#ifdef _WIN32
+  (void)len;
+  VirtualFree(base, 0, MEM_RELEASE);
+#else
+  size_t npages = (len + g_page - 1) / g_page;
+  if (npages == 0) npages = 1;
+  munmap(base, (npages + 1) * g_page);
+#endif
+}
 
 static const uint8_t *g_cur; static size_t g_curlen; static long long g_iter;
 static void dump_and_die(int sig) {
@@ -124,7 +152,11 @@ static uint64_t rng_s;
 static uint64_t rng() { rng_s ^= rng_s << 13; rng_s ^= rng_s >> 7; rng_s ^= rng_s << 17; return rng_s; }
 
 int main(int argc, char **argv) {
-  SYSTEM_INFO si; GetSystemInfo(&si); g_page = si.dwPageSize;
+#ifdef _WIN32
+  SYSTEM_INFO si; GetSystemInfo(&si); g_page = (size_t)si.dwPageSize;
+#else
+  g_page = (size_t)sysconf(_SC_PAGESIZE);
+#endif
   signal(SIGSEGV, dump_and_die);
   signal(SIGILL, dump_and_die);
   signal(SIGABRT, dump_and_die);
@@ -156,8 +188,9 @@ int main(int argc, char **argv) {
     }
     const uint8_t *p; uint8_t *base = make_guarded(buf, len, &p);
     g_cur = p; g_curlen = len;
-    volatile std::string r = dns_extract_txt(p, len);  /* OOB read -> AV here */
-    free_guarded(base);
+    volatile std::string r = dns_extract_txt(p, len);  /* OOB read -> fault here */
+    (void)r;
+    free_guarded(base, len);
     if ((g_iter & 0xFFFFF) == 0) { fprintf(stderr, "\r iter=%lld", g_iter); fflush(stderr); }
   }
   fprintf(stderr, "\nDNS fuzz OK: %lld iterations, no faults (seed=%s)\n",
