@@ -1,0 +1,59 @@
+name: kmap fuzz + sanitizers
+
+# Runs the YurilLAB parser/logic harnesses under AddressSanitizer +
+# UndefinedBehaviorSanitizer on every push/PR. These are the same harnesses
+# kept in fuzz/ that are run locally on Windows with guard pages + UBSan-trap;
+# on Linux we get ASan's allocator red-zones and full UBSan diagnostics, which
+# catch the same out-of-bounds / overflow / UB classes with richer reports.
+#
+# Scope note: this job builds the SELF-CONTAINED harnesses (no kmap/sqlite
+# linkage). The sqlite-backed tests (test_netdb, test_netquery) and the
+# Windows-only guard-page fuzzers (fuzz_core/dns/proto, which use VirtualAlloc)
+# are run elsewhere; porting those to Linux libFuzzer/ClusterFuzzLite is tracked
+# separately.
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fuzz.yml"
+      - "fuzz/**"
+      - "**/*.cc"
+      - "**/*.h"
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sanitize-fuzz:
+    name: ASan/UBSan parser harnesses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler version
+        run: g++ --version
+
+      - name: Build + run harnesses (ASan + UBSan, abort on any finding)
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/fz
+          # -fno-sanitize-recover=all => any ASan/UBSan finding aborts (CI fails).
+          CXXFLAGS="-O1 -g -std=gnu++17 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+          # Each harness either runs an oracle (nonzero exit on mismatch) or
+          # drives a parser over millions of inputs (ASan aborts on a fault).
+          for h in test_cidr_parse test_json_escape test_discover_bail fuzz_text; do
+            echo "::group::$h"
+            g++ $CXXFLAGS "fuzz/$h.cc" -o "/tmp/fz/$h"
+            # two seeds widen input coverage between runs
+            "/tmp/fz/$h" 1
+            "/tmp/fz/$h" 1337
+            echo "::endgroup::"
+          done
+
+      - name: Summary
+        if: always()
+        run: echo "Parser harnesses completed under ASan+UBSan."
