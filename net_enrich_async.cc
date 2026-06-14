@@ -491,11 +491,20 @@ static std::vector<AsyncEnrichCve> a_lookup_cves(sqlite3 *cve_db,
   std::string det_ver = a_extract_version_number(version);
   if (det_ver.empty()) return results;
 
+  /* SQL LIMIT is the backstop (2000), NOT the cap. The version-range filter
+     runs in C++ below, so a SQL LIMIT 100 would keep the 100 highest-CVSS rows
+     BEFORE version filtering and drop an older CVE that actually applies to the
+     detected version but ranks beyond 100 by CVSS. Walk up to 2000 rows and
+     stop once 100 APPLICABLE ones collect -- this MUST match
+     net_enrich.cc::lookup_cves so the async path tags the exact same CVEs the
+     synchronous path does (the async copy previously used LIMIT 100 here and
+     under-reported CVEs for products with many high-severity entries). */
+  const int KMAP_CVE_RESULT_CAP = 100;
   const char *sql =
     "SELECT cve_id, cvss_score, severity, description, "
     "version_min, version_max, cvss_vector, remote_unauthed "
     "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-    "ORDER BY cvss_score DESC LIMIT 100";
+    "ORDER BY cvss_score DESC LIMIT 2000";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -522,6 +531,7 @@ static std::vector<AsyncEnrichCve> a_lookup_cves(sqlite3 *cve_db,
                           ? -1
                           : sqlite3_column_int(stmt, 7);
     results.push_back(std::move(e));
+    if (static_cast<int>(results.size()) >= KMAP_CVE_RESULT_CAP) break;
   }
   sqlite3_finalize(stmt);
   return results;

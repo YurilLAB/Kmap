@@ -90,6 +90,8 @@ jobs:
             -lpthread -ldl -o /tmp/fz/test_netdb && /tmp/fz/test_netdb
           g++ $CXXFLAGS -I. fuzz/test_netquery.cc /tmp/fz/sqlite3.o \
             -lpthread -ldl -o /tmp/fz/test_netquery && /tmp/fz/test_netquery
+          g++ $CXXFLAGS -I. fuzz/test_cve_limit.cc /tmp/fz/sqlite3.o \
+            -lpthread -ldl -o /tmp/fz/test_cve_limit && /tmp/fz/test_cve_limit
           echo "::endgroup::"
 
       - name: Summary
