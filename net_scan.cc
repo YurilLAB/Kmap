@@ -1689,15 +1689,32 @@ int run_net_cluster_cli() {
 
   /* JSON-escape helper — only quote and backslash escapes, sufficient
      for the fingerprint signature values we ever emit here. */
+  /* RFC 8259 JSON string escaping. Fingerprint values are network-derived
+     (tls_subject_cn / tls_san come straight off the peer certificate, redirect
+     and PTR hosts off the wire), so they can carry raw control bytes; emitting
+     those unescaped produced invalid JSON. Escape every control char < 0x20
+     via \uXXXX (matching net_enrich.cc::json_escape and tracemap.cc::json_str)
+     and iterate as unsigned char so UTF-8 high bytes pass through untouched. */
   auto jesc = [](const std::string &s) {
-    std::string out; out.reserve(s.size() + 4);
-    for (char c : s) {
-      if      (c == '"')  out += "\\\"";
-      else if (c == '\\') out += "\\\\";
-      else if (c == '\n') out += "\\n";
-      else if (c == '\r') out += "\\r";
-      else if (c == '\t') out += "\\t";
-      else                out += c;
+    std::string out; out.reserve(s.size() + 8);
+    for (unsigned char c : s) {
+      switch (c) {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\n': out += "\\n";  break;
+        case '\r': out += "\\r";  break;
+        case '\t': out += "\\t";  break;
+        case '\b': out += "\\b";  break;
+        case '\f': out += "\\f";  break;
+        default:
+          if (c < 0x20) {
+            char buf[8];
+            snprintf(buf, sizeof(buf), "\\u%04x", c);
+            out += buf;
+          } else {
+            out += static_cast<char>(c);
+          }
+      }
     }
     return out;
   };
