@@ -254,6 +254,36 @@ re-running it tracks each host over time (`first_seen` / `last_seen` /
 went dark since the last run. This is the right tool for monitoring your own
 assets on a schedule.
 
+### The diff report
+
+Each run writes two dated files into `<findings-dir>/watchlist/` (default
+`Findings/watchlist/`):
+
+| File | Contents |
+|------|----------|
+| `diff_YYYY-MM-DD.txt` | What changed since the previous run |
+| `full_YYYY-MM-DD.txt` | Full enriched snapshot of every tracked host |
+
+The diff flags three kinds of change, keyed by `ip:port`:
+
+```
+[NEW PORT] 203.0.113.7:8443/tcp        open now, was not open last run
+    Service: https  Version: nginx 1.27.1
+[CHANGED] 203.0.113.7:443/tcp          open in both runs, service/version moved
+    Service: nginx 1.25.3 -> nginx 1.27.1
+    Version: 1.25.3 -> 1.27.1
+[CLOSED] 203.0.113.7:21                open last run, did not respond now
+    Was: ftp vsftpd 3.0.5
+```
+
+"Since the last run" is literal: the baseline is the **previous completed** run,
+not the all-time history. A port that went dark is reported `[CLOSED]` once —
+on the run it disappeared — and then drops out, rather than being re-flagged on
+every subsequent run. An interrupted run does not move the baseline, so the next
+full run still diffs against the last complete one. (A `[CHANGED]` entry is
+suppressed when this run failed to re-detect the service/version, so a transient
+enrichment miss is never misreported as a change.)
+
 ---
 
 ## After the scan
