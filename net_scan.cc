@@ -168,7 +168,11 @@ static void scan_log_close() {
  * Goes to both the log file (if open) and stderr (so live runs still
  * surface problems).  Severity is a string -- no enum to keep call
  * sites readable without an extra include. */
-static void scan_log(const char *severity, const char *fmt, ...) {
+/* Shared core: timestamp + format + write to the kmap.log fp (if open),
+   and optionally echo to stderr. scan_log() echoes; net_event_log() does
+   not (its callers already produce their own terminal output). */
+static void scan_log_v(const char *severity, const char *fmt, va_list ap,
+                       bool to_stderr) {
   char ts[32];
   time_t now = time(nullptr);
   struct tm tm_buf{};
@@ -180,16 +184,30 @@ static void scan_log(const char *severity, const char *fmt, ...) {
   strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &tm_buf);
 
   char msg[1024];
-  va_list ap;
-  va_start(ap, fmt);
   vsnprintf(msg, sizeof(msg), fmt, ap);
-  va_end(ap);
 
   if (g_scan_log_fp) {
     fprintf(g_scan_log_fp, "%s  %-5s  %s\n", ts, severity, msg);
     fflush(g_scan_log_fp);
   }
-  fprintf(stderr, "%s  %-5s  %s\n", ts, severity, msg);
+  if (to_stderr)
+    fprintf(stderr, "%s  %-5s  %s\n", ts, severity, msg);
+}
+
+static void scan_log(const char *severity, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  scan_log_v(severity, fmt, ap, /*to_stderr=*/true);
+  va_end(ap);
+}
+
+/* Public file-only logger (declared in net_scan.h) so other translation
+   units can mirror events into kmap.log without a second terminal echo. */
+void net_event_log(const char *severity, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  scan_log_v(severity, fmt, ap, /*to_stderr=*/false);
+  va_end(ap);
 }
 
 /* -----------------------------------------------------------------------

@@ -30,4 +30,15 @@ int run_net_cluster_cli();
    Returns 0 on success, 1 on error. */
 int run_topo_export_cli();
 
+/* Append one line to the open scan event log (<data-dir>/kmap.log) ONLY --
+   no stderr/stdout echo. Lets callers in other translation units (e.g.
+   enrichment, which already emits its own terminal output via log_write)
+   mirror key events into the persistent triage log without double-printing
+   to the terminal. No-op when the log isn't open. printf-style format. */
+void net_event_log(const char *severity, const char *fmt, ...)
+#if defined(__GNUC__)
+    __attribute__((format(printf, 2, 3)))
+#endif
+    ;
+
 #endif /* NET_SCAN_H */

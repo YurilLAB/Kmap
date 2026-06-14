@@ -18,6 +18,7 @@
 #include "net_enrich.h"
 #include "net_fp_helpers.h"
 #include "net_db.h"
+#include "net_scan.h"   /* net_event_log: mirror key events into kmap.log */
 #include "asn_lookup.h"
 #include "KmapOps.h"
 #include "sys_resources.h"
@@ -1411,9 +1412,11 @@ int run_enrichment(const char *data_dir, int batch_size) {
   if (cve_path.empty()) {
     log_write(LOG_STDOUT,
       "net-scan: WARNING: kmap-cve.db not found -- CVE enrichment skipped.\n");
+    net_event_log("WARN", "kmap-cve.db not found -- CVE enrichment skipped");
   } else {
     log_write(LOG_STDOUT,
       "net-scan: CVE database: %s\n", cve_path.c_str());
+    net_event_log("INFO", "CVE database: %s", cve_path.c_str());
   }
 
   /* Open the CVE DB ONCE for the entire enrichment phase, shared
@@ -1856,6 +1859,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
   log_write(LOG_STDOUT,
     "net-scan: enrichment complete: %s host(s) written.\n",
     format_count(processed).c_str());
+  net_event_log("INFO", "enrichment pass: %lld host(s) written%s",
+                (long long)processed,
+                errors > 0 ? " (with shard open errors)" : "");
   {
     EnrichMetrics m = enrich_get_metrics();
     if (m.hosts_done > 0) {
