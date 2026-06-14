@@ -139,6 +139,35 @@ buckets hosts into device classes (`web`, `ssh`, `ftp`, `telnet`, `mail`,
 `dns`, `db`, `rdp`, `vnc`, `snmp`, `smb`, `router`, `iot`) derived from the
 detected service. See [querying.md](querying.md).
 
+### Why a live service can still show no CVEs
+
+CVE matching is deliberately **conservative** — it would rather report nothing
+than flood you with false positives across millions of hosts. A host can be
+clearly up, with a detected service, and still carry an empty `cves` column for
+sound reasons:
+
+- **No version was detected.** Matching requires a dotted version (e.g. `2.4`,
+  `1.18.0`) parsed from the banner. A bare `Server: Apache` or an SSH banner
+  with no version yields no match, because most version-specific CVEs cannot be
+  confirmed to apply without knowing the version — claiming them anyway would
+  tag every "Apache" host with dozens of CVEs it may have patched.
+- **The detected version is outside every CVE's range.** Each candidate CVE is
+  filtered by its `version_min` / `version_max` bounds against the detected
+  version, so a fully-patched current release legitimately matches nothing.
+- **The implementation is SSH but not OpenSSH.** A `ssh` service whose banner
+  names AWS Transfer Family, Dropbear, Bitvise, Tectia, libssh, Paramiko, or
+  Erlang/OTP returns no product, because those don't share OpenSSH's CVE
+  history. Only banners that explicitly say `OpenSSH` are matched against
+  OpenSSH CVEs.
+- **The product isn't a tracked CVE product.** Front-ends like `cloudflare`
+  are recorded as services but have no CVE product name to look up.
+
+When a CVE *does* apply, up to 100 of them (highest CVSS first) are stored per
+host. If you expected findings and got none, see the *No CVEs show up* section
+of [`troubleshooting.md`](troubleshooting.md) — the usual real cause is a
+missing `kmap-cve.db` (look for the `WARN kmap-cve.db not found` log line), not
+a matching gap.
+
 ---
 
 ## Sampling and resuming
