@@ -543,7 +543,15 @@ void json_finalize() {
     }
 
     try {
-        ofs << g_doc.dump(2) << "\n";
+        /* error_handler_t::replace, NOT the default strict handler: scan
+           strings (service product/version/extrainfo, web titles, TLS subject
+           CNs, script output) are lifted from raw banners and are frequently
+           not valid UTF-8. Under the strict handler dump() THROWS on the first
+           such byte, so a single binary banner on any host would lose the
+           ENTIRE scan's JSON output. replace substitutes U+FFFD and always
+           produces a valid document. */
+        ofs << g_doc.dump(2, ' ', false,
+                          nlohmann::json::error_handler_t::replace) << "\n";
     } catch (...) {
         fprintf(stderr, "KMAP WARNING: Failed to write JSON output to %s (serialization error).\n",
                 g_filename.c_str());

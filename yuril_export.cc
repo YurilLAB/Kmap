@@ -335,7 +335,12 @@ void yuril_export_finalize(void) {
 
     std::string data_json;
     try {
-        data_json = g_doc.dump(2);
+        /* error_handler_t::replace: scan strings (service banners, web titles,
+           TLS CNs, etc.) are often not valid UTF-8; the default strict handler
+           would throw and abort the whole export below. replace substitutes
+           U+FFFD so the bundle (and its integrity hash) is always produced. */
+        data_json = g_doc.dump(2, ' ', false,
+                               nlohmann::json::error_handler_t::replace);
         data_json += "\n";
     } catch (const std::exception &e) {
         fprintf(stderr,
@@ -360,7 +365,10 @@ void yuril_export_finalize(void) {
 
     std::string meta_json;
     try {
-        meta_json = meta.dump(2);
+        /* meta is all-ASCII (hashes, timestamps, counts), but use the same
+           replace handler for consistency / future-proofing. */
+        meta_json = meta.dump(2, ' ', false,
+                              nlohmann::json::error_handler_t::replace);
         meta_json += "\n";
     } catch (const std::exception &e) {
         fprintf(stderr,
