@@ -100,6 +100,24 @@ static std::string banner_mysql(const char *buf, int n) {
   return version;
 }
 
+/* === VERBATIM: grab_banner full binary service detection (net_enrich.cc) ===
+   The complete branch sequence: MySQL (buf[4]==0x0a + version string),
+   MongoDB OP_REPLY (buf[12]==0x01, n>=16 -- the read fuzz_proto did NOT
+   previously exercise), and PostgreSQL auth ('R' at buf[0], n>=9). */
+static const char *banner_classify_bin(const char *buf, int n,
+                                       std::string &version) {
+  if (n >= 5 && static_cast<unsigned char>(buf[4]) == 0x0a) {
+    const char *verp = buf + 5;
+    size_t vlen = strnlen(verp, static_cast<size_t>(n) > 5
+                                  ? static_cast<size_t>(n) - 5 : 0);
+    if (vlen > 0) version = std::string(verp, vlen);
+    return "mysql";
+  }
+  if (n >= 16 && static_cast<unsigned char>(buf[12]) == 0x01) return "mongodb";
+  if (n >= 9 && buf[0] == 'R') return "postgresql";
+  return "unknown";
+}
+
 int main(int argc, char **argv) {
   SYSTEM_INFO si; GetSystemInfo(&si); g_page=si.dwPageSize;
   signal(SIGSEGV,onfail); signal(SIGILL,onfail); signal(SIGABRT,onfail);
@@ -115,6 +133,7 @@ int main(int argc, char **argv) {
     if (n>4 && (rng()&1)) tmp[4]=0x0a;
     if (n>0 && (rng()&1)) tmp[0]='R';
     if (n>8 && (rng()&3)==0) { tmp[5]=0;tmp[6]=0;tmp[7]=0;tmp[8]=5; } /* pg auth_type 5 */
+    if (n>12 && (rng()&3)==0) tmp[12]=0x01;  /* bias into the mongodb buf[12] path */
     /* sprinkle nulls to vary the server-version scan length */
     if (n>6 && (rng()&3)==0) tmp[5 + rng()%((n>6)?(n-6):1)]=0;
 
@@ -130,6 +149,10 @@ int main(int argc, char **argv) {
     VirtualFree(pb,0,MEM_RELEASE);
 
     g_fn="banner_mysql"; volatile auto v=banner_mysql((const char*)inp,n); (void)v;
+
+    g_fn="banner_classify_bin";
+    { std::string bv; volatile auto cls=banner_classify_bin((const char*)inp,n,bv);
+      (void)cls; (void)bv; }
 
     VirtualFree(ib,0,MEM_RELEASE);
     if ((g_iter&0xFFFFF)==0){ fprintf(stderr,"\r iter=%lld",g_iter); fflush(stderr); }
