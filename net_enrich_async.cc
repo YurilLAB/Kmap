@@ -381,16 +381,31 @@ static int a_ver_cmp(const std::string &a, const std::string &b) {
   return 0;
 }
 
+/* RFC 8259 JSON string escaping. Escapes structural chars plus ALL control
+   characters U+0000..U+001F (network banners/headers/TLS fields contain raw
+   control bytes; emitting them unescaped produced invalid JSON). unsigned
+   char iteration so UTF-8 high bytes are passed through, not mis-escaped. */
 static std::string a_json_escape(const std::string &s) {
   std::string out;
   out.reserve(s.size() + 8);
-  for (char c : s) {
-    if (c == '"') out += "\\\"";
-    else if (c == '\\') out += "\\\\";
-    else if (c == '\n') out += "\\n";
-    else if (c == '\r') out += "\\r";
-    else if (c == '\t') out += "\\t";
-    else out += c;
+  for (unsigned char c : s) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\b': out += "\\b";  break;
+      case '\f': out += "\\f";  break;
+      case '\n': out += "\\n";  break;
+      case '\r': out += "\\r";  break;
+      case '\t': out += "\\t";  break;
+      default:
+        if (c < 0x20) {
+          char buf[8];
+          snprintf(buf, sizeof(buf), "\\u%04x", c);
+          out += buf;
+        } else {
+          out += static_cast<char>(c);
+        }
+    }
   }
   return out;
 }

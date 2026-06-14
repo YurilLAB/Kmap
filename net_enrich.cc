@@ -315,17 +315,33 @@ static int ver_cmp_enrich(const std::string &a, const std::string &b) {
   return ver_cmp_parsed(parse_ver_enrich(a), parse_ver_enrich(b));
 }
 
-/* Escape a string for JSON embedding (minimal: backslash and double-quote) */
+/* Escape a string for JSON embedding (RFC 8259). Escapes the structural
+   chars plus ALL control characters U+0000..U+001F -- service banners, HTTP
+   headers and TLS fields are raw network bytes and routinely contain control
+   bytes (NUL, ESC 0x1B, vertical tab, etc.); emitting them raw produced
+   invalid JSON that broke downstream parsers. Iterate as unsigned char so
+   UTF-8 high bytes (0x80..0xFF) are passed through, not mis-escaped. */
 static std::string json_escape(const std::string &s) {
   std::string out;
   out.reserve(s.size() + 8);
-  for (char c : s) {
-    if (c == '"') out += "\\\"";
-    else if (c == '\\') out += "\\\\";
-    else if (c == '\n') out += "\\n";
-    else if (c == '\r') out += "\\r";
-    else if (c == '\t') out += "\\t";
-    else out += c;
+  for (unsigned char c : s) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\b': out += "\\b";  break;
+      case '\f': out += "\\f";  break;
+      case '\n': out += "\\n";  break;
+      case '\r': out += "\\r";  break;
+      case '\t': out += "\\t";  break;
+      default:
+        if (c < 0x20) {
+          char buf[8];
+          snprintf(buf, sizeof(buf), "\\u%04x", c);
+          out += buf;
+        } else {
+          out += static_cast<char>(c);
+        }
+    }
   }
   return out;
 }
