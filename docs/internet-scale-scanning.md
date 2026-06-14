@@ -54,12 +54,24 @@ Three properties make it internet-scale-safe:
   permutation over the full 2³² space, so a sweep spreads load evenly across
   networks instead of hammering one /16 at a time. Every address is visited
   exactly once per full sweep.
-- **Reserved/private ranges are skipped automatically.** The built-in exclude
-  list covers RFC 1918 private space, loopback, link-local, CGNAT, multicast,
-  documentation/benchmark ranges, and assorted reserved/DoD blocks. Add your
-  own with `--exclude-file` (one CIDR or IP per line, `#` comments allowed).
-  A malformed line is reported to stderr and skipped rather than silently
-  misinterpreted, so a typo can't accidentally widen or void your exclusions.
+- **Reserved/private ranges are skipped automatically.** Add your own with
+  `--exclude-file` (one CIDR or IP per line, `#` comments allowed). A malformed
+  line is reported to stderr and skipped rather than silently misinterpreted,
+  so a typo can't accidentally widen or void your exclusions. The built-in
+  list is:
+
+  | Category | Ranges |
+  |----------|--------|
+  | This-host / private (RFC 1918) | `0.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` |
+  | Loopback / link-local / CGNAT | `127.0.0.0/8`, `169.254.0.0/16`, `100.64.0.0/10` |
+  | Protocol / documentation / benchmark | `192.0.0.0/24`, `192.0.2.0/24`, `198.18.0.0/15`, `198.51.100.0/24`, `203.0.113.0/24` |
+  | Deprecated / multicast / reserved | `192.88.99.0/24` (6to4, RFC 7526), `224.0.0.0/4`, `240.0.0.0/4` |
+  | US DoD blocks (policy default, to avoid abuse reports) | `6/8`, `7/8`, `11/8`, `21/8`, `22/8`, `26/8`, `28/8`, `29/8`, `30/8`, `33/8`, `55/8`, `214/8`, `215/8` |
+
+  The DoD `/8`s are excluded by policy (they're routable but scanning them
+  invites abuse complaints). Note there is no flag to *disable* the built-in
+  excludes, so if you specifically need to scan one of these ranges, that's a
+  current limitation.
 - **Early-bail on dead hosts.** After 8 consecutive no-response probes on a
   host that has shown zero signs of life, the remaining ports for that host are
   skipped. A single `RST` (closed port) counts as "alive" and resets the bail,
