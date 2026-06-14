@@ -1283,6 +1283,12 @@ static int spawn_browser(const std::string &browser,
 static bool screenshot_dir_safe(const std::string &dir) {
     if (dir.empty()) return false;
     if (dir.find("..") != std::string::npos) return false;
+    /* Reject a leading '-': the output path (dir + "/" + ...) is passed to the
+       browser as a standalone argv argument on the Firefox path, so a dir like
+       "-foo" would make the file path look like a command-line flag and be
+       misparsed (argv flag injection). Chrome embeds it in --screenshot=, but
+       guard uniformly. */
+    if (dir[0] == '-') return false;
     for (unsigned char c : dir) {
         if (c < 0x20 || c == 0x7f) return false;
         if (c == '|' || c == ';' || c == '&' || c == '`' || c == '$' ||
