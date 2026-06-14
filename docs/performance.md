@@ -136,6 +136,37 @@ with `atoi`; out-of-range values are ignored and the default is kept.
 > than rate-limited. The `--rate` ceiling still caps the aggregate send rate
 > on top of this.
 
+#### How fast can a sweep actually go?
+
+Kmap's discovery probes with non-blocking `connect()`, not raw SYN. On
+**unresponsive (filtered / dark) IP space** — most of the internet for any
+given port — each probe runs to the full `KMAP_PROBE_TIMEOUT_MS` before its
+worker is freed, so the pool's hard ceiling there is:
+
+```
+max_pps ≈ workers / (KMAP_PROBE_TIMEOUT_MS / 1000)
+        = (KMAP_NETSCAN_CONCURRENCY × min(KMAP_DISCOVERY_PORT_PARALLELISM, #ports)) / timeout_s
+```
+
+With the defaults (100 workers, 500 ms) a single-port sweep tops out near
+**200 pps** regardless of `--rate` — the token bucket never engages. To
+approach a high `--rate` on filtered space you must give it more concurrency
+or a shorter timeout:
+
+| Goal (filtered space) | Example settings |
+|-----------------------|------------------|
+| ~2,000 pps            | `KMAP_NETSCAN_CONCURRENCY=1000` (500 ms timeout) |
+| ~10,000 pps           | `KMAP_NETSCAN_CONCURRENCY=1000 KMAP_PROBE_TIMEOUT_MS=100` |
+
+Lowering the timeout trades coverage for speed: a probe that would have
+answered just after the cutoff is recorded as filtered. 500 ms suits
+cross-continent paths; 100–200 ms is fine for nearby / well-connected
+ranges. Responsive hosts answer in well under a millisecond, so real-world
+throughput on live ranges is much higher than the dark-space floor above.
+`kmap --net-scan` prints a one-line NOTE at start when the worker ceiling
+sits well below the requested `--rate`, so you don't discover the gap only
+by watching a slow progress bar.
+
 ### Enrichment (banner / CVE / HTTP / TLS)
 
 | Variable                            | Default | Range    | Controls                                                |

@@ -881,6 +881,33 @@ int fast_syn_scan(const char *data_dir,
 
   log_write(LOG_STDOUT, "  Probing with %ld workers...\n", total_workers);
 
+  /* Throughput reality check for internet-scale sweeps.
+   *
+   * This is a connect()-based scanner: on unresponsive (filtered / dark)
+   * IP space every probe runs to the full timeout before the worker is
+   * freed, so the pool can issue at most
+   *     total_workers / (probe_timeout_ms / 1000)
+   * probes per second there -- a hard ceiling INDEPENDENT of --rate. With
+   * the defaults (100 workers, 500 ms) that is ~200 pps, so a single-port
+   * internet sweep started with `--rate 25000` actually crawls and the
+   * token bucket never even engages. That surprise is the single most
+   * common "why is my mass scan so slow" report, so surface the knob up
+   * front when the worker ceiling sits well under the requested rate.
+   * (Responsive hosts answer in microseconds, so real-world throughput on
+   * live ranges is higher; this is the worst-case dark-space floor.) */
+  {
+    double worst_case_pps =
+        (double)total_workers * 1000.0 / (double)probe_timeout_ms;
+    if (worst_case_pps < (double)rate_pps * 0.5) {
+      log_write(LOG_STDOUT,
+        "  NOTE: on unresponsive ranges this pool tops out near %.0f pps "
+        "(%ld workers / %d ms timeout) -- below the --rate %d target. To "
+        "push filtered-space throughput, raise KMAP_NETSCAN_CONCURRENCY "
+        "(e.g. 512-1024) or lower KMAP_PROBE_TIMEOUT_MS.\n",
+        worst_case_pps, total_workers, probe_timeout_ms, rate_pps);
+    }
+  }
+
   /* Resource-metrics gather, cross-platform.  Caller keeps a "last"
    * snapshot and we derive CPU% from the delta in process CPU time
    * over the wall-clock interval since the last snapshot.  RSS is
