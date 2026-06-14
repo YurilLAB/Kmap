@@ -1592,6 +1592,16 @@ int run_net_cluster_cli() {
     fprintf(stderr, "net-cluster: cannot parse IP '%s'\n", o.nc_ip);
     return 1;
   }
+  /* Normalized dotted-quad for all OUTPUT. ip_to_u32 accepts non-canonical
+     input (sscanf stops after 4 octets, ignoring trailing junk like
+     "1.2.3.4x"), so emitting the raw o.nc_ip could put unescaped junk into
+     the DOT/JSON and would display inconsistently with the cohort rows, which
+     all use u32_to_ip. Using the normalized form keeps the target consistent
+     with the cohort and free of any characters that could break the markup.
+     (The DB lookup below already self-normalizes -- it queries by ip_u32 --
+     and the stderr diagnostics keep the raw string so the user sees what they
+     typed.) */
+  std::string target_ip = u32_to_ip(target_u32);
 
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   int min_shared = o.nc_min_shared > 0 ? o.nc_min_shared : 1;
@@ -1702,7 +1712,7 @@ int run_net_cluster_cli() {
     fprintf(fp_out, "  graph [layout=neato, overlap=false, splines=true];\n");
     fprintf(fp_out, "  node  [shape=ellipse, style=filled, fontname=\"Helvetica\"];\n");
     fprintf(fp_out, "  \"%s\" [fillcolor=\"#ff6b6b\", label=\"%s\\n(target)\"];\n",
-            o.nc_ip, o.nc_ip);
+            target_ip.c_str(), target_ip.c_str());
     for (const Row &r : rows) {
       std::string ip_s = u32_to_ip(r.ip);
       fprintf(fp_out, "  \"%s\" [fillcolor=\"#4ecdc4\"];\n", ip_s.c_str());
@@ -1719,12 +1729,12 @@ int run_net_cluster_cli() {
         label += k;
       }
       fprintf(fp_out, "  \"%s\" -- \"%s\" [label=\"%s (%d)\"];\n",
-              o.nc_ip, ip_s.c_str(), label.c_str(), r.count);
+              target_ip.c_str(), ip_s.c_str(), label.c_str(), r.count);
     }
     fprintf(fp_out, "}\n");
   } else if (fmt == "json") {
     fprintf(fp_out, "{\n");
-    fprintf(fp_out, "  \"target\": \"%s\",\n", o.nc_ip);
+    fprintf(fp_out, "  \"target\": \"%s\",\n", target_ip.c_str());
     fprintf(fp_out, "  \"min_shared\": %d,\n", min_shared);
     fprintf(fp_out, "  \"target_fingerprints\": %zu,\n", target_fps.size());
     fprintf(fp_out, "  \"cohort\": [\n");
@@ -1747,7 +1757,7 @@ int run_net_cluster_cli() {
        `kmap --net-cluster IP | grep -v '^#' | awk '{print $1}'` yields
        a clean IP list ready for chaining. */
     fprintf(fp_out, "# net-cluster cohort for %s (min_shared=%d)\n",
-            o.nc_ip, min_shared);
+            target_ip.c_str(), min_shared);
     fprintf(fp_out, "# target carries %zu fingerprints; %zu IPs share >= %d\n",
             target_fps.size(), rows.size(), min_shared);
     for (const Row &r : rows) {
