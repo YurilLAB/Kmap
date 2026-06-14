@@ -55,6 +55,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/resource.h>
 #include <errno.h>
 #else
 #include <winsock2.h>
@@ -123,6 +124,34 @@ static int enrich_wait_fd(kmap_fd_t fd, bool want_write, int timeout_ms) {
   pfd.events  = want_write ? POLLOUT : POLLIN;
   pfd.revents = 0;
   return poll(&pfd, 1, timeout_ms);
+#endif
+}
+
+/* Raise the open-file-descriptor soft limit toward the hard limit so the
+   enrichment pool can hold its peak concurrent sockets
+   (KMAP_NETSCAN_ENRICH_CONCURRENCY hosts * KMAP_HOST_PORT_PARALLELISM ports).
+   Without this, --enrich-only (which runs no discovery first, so nothing else
+   raised the limit) or a high enrich concurrency hits the default
+   RLIMIT_NOFILE (1024); socket() then fails EMFILE and the host's services go
+   undetected. Only raises, never lowers; best-effort; no-op on Windows. */
+static void raise_fd_limit(int desired) {
+#ifndef WIN32
+  struct rlimit r;
+  if (getrlimit(RLIMIT_NOFILE, &r) != 0) return;
+  if (r.rlim_cur == RLIM_INFINITY || r.rlim_cur >= (rlim_t)desired) return;
+  r.rlim_cur = (r.rlim_max == RLIM_INFINITY || (rlim_t)desired < r.rlim_max)
+                 ? (rlim_t)desired : r.rlim_max;
+  setrlimit(RLIMIT_NOFILE, &r);   /* best-effort */
+  if (getrlimit(RLIMIT_NOFILE, &r) == 0 &&
+      r.rlim_cur != RLIM_INFINITY && r.rlim_cur < (rlim_t)desired) {
+    log_write(LOG_STDOUT,
+      "  WARNING: open-file limit is %lu but enrichment needs ~%d descriptors; "
+      "raise it (ulimit -Hn) or lower KMAP_NETSCAN_ENRICH_CONCURRENCY / "
+      "KMAP_HOST_PORT_PARALLELISM, else some probes fail with EMFILE.\n",
+      (unsigned long)r.rlim_cur, desired);
+  }
+#else
+  (void)desired;
 #endif
 }
 
@@ -1725,6 +1754,16 @@ int run_enrichment(const char *data_dir, int batch_size) {
   /* Arm the CPU governor with a fresh baseline right before the CPU-heavy
    * enrichment pool runs (--fast/--efficient only). */
   kmap_cpu_governor_init(kmap_perf_cpu_target_cores());
+
+  /* Peak concurrent sockets = hosts in flight * ports probed per host.
+     Read the port-parallelism env here too so the limit matches what
+     enrich_single_host will actually open. */
+  int enrich_pp = 8;
+  if (const char *env = getenv("KMAP_HOST_PORT_PARALLELISM")) {
+    int v = atoi(env);
+    if (v >= 1 && v <= 32) enrich_pp = v;
+  }
+  raise_fd_limit(actual_workers * enrich_pp + 64);
 
   std::vector<std::thread> pool;
   pool.reserve(actual_workers);

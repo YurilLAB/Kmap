@@ -880,6 +880,16 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
     log_write(LOG_STDOUT, "  Enriching %d hosts with %d workers...\n",
               (int)results.size(), enrich_worker_count);
+    /* Peak concurrent sockets = hosts in flight * ports probed per host
+       (enrich_single_host fans out to KMAP_HOST_PORT_PARALLELISM threads). */
+    {
+      int enrich_pp = 8;
+      if (const char *env = getenv("KMAP_HOST_PORT_PARALLELISM")) {
+        int v = atoi(env);
+        if (v >= 1 && v <= 32) enrich_pp = v;
+      }
+      raise_fd_limit(enrich_worker_count * enrich_pp + 64);
+    }
     enrich_reset_metrics();
     kmap_cpu_governor_init(kmap_perf_cpu_target_cores());
     {
