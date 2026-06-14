@@ -150,6 +150,35 @@ int main() {
     CHECK(a.asn == 4000000000u,         "4-byte ASN (>INT_MAX) not truncated");
   }
 
+  /* ---- enrichment error cooldown round-trip ----
+     A host whose enrichment errored must be parked out of the eligible pool
+     for retry_after_seconds (so a dead host isn't hammered every pass) and
+     then become eligible again (so it IS eventually retried). A success clears
+     the error. Verifies record_enrichment_error + the cooldown leg of the
+     get_unenriched predicate + the success-clears-error path. */
+  {
+    uint32_t eip = ip_to_u32("198.51.100.23");
+    const char *EIP = "198.51.100.23";
+    int64_t base = (int64_t)time(nullptr);
+    net_db_insert_host(db, eip, 22, "tcp", base);
+    auto has = [&](const std::vector<std::string> &v) {
+      for (const auto &i : v) if (i == EIP) return true; return false; };
+
+    CHECK(has(net_db_get_unenriched(db, 100000, 3600)),
+          "fresh host eligible before any error");
+    net_db_record_enrichment_error(db, EIP, 22, "connect timeout");
+    CHECK(!has(net_db_get_unenriched(db, 100000, 3600)),
+          "errored host parked OUT of pool during cooldown");
+    CHECK(has(net_db_get_unenriched(db, 100000, 0)),
+          "errored host eligible again once cooldown elapses (retry)");
+    net_db_update_enrichment(db, EIP, 22, "ssh", "9.1", "[]",
+                             "t", "OpenSSH", "{}", "[]");
+    CHECK(!has(net_db_get_unenriched(db, 100000, 0)),
+          "host drops out after a successful enrichment (error cleared)");
+    CHECK(getrow(db, EIP, 22).enriched == 1,
+          "enriched=1 after success following an error");
+  }
+
   /* ---- drain-loop invariant: net_db_count_unenriched() and
      net_db_get_unenriched() must agree on whether work remains. run_net_scan's
      Phase-2 loop runs `while (count_unenriched_all() > 0) run_enrichment()`,
