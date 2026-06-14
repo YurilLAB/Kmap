@@ -31,6 +31,48 @@ is fine for nearby ranges. See the throughput table in
 
 ---
 
+## Scan warns about the open-file limit
+
+You see a line like:
+
+```
+WARNING: open-file limit is 1024 but this scan needs ~1152 descriptors;
+raise it (ulimit -Hn) or lower KMAP_NETSCAN_CONCURRENCY, otherwise some
+probes will fail with EMFILE and those hosts get marked closed.
+```
+
+**Cause.** A connect()-based sweep holds one socket per in-flight probe.
+Discovery keeps up to `KMAP_NETSCAN_CONCURRENCY` (or
+`KMAP_WATCHLIST_CONCURRENCY`) sockets open at once; enrichment keeps up to
+`KMAP_NETSCAN_ENRICH_CONCURRENCY × KMAP_HOST_PORT_PARALLELISM`. Add the shard
+databases, the CVE database and the log and a high-concurrency run can want
+several thousand file descriptors — well past the default POSIX soft limit of
+**1024**. Kmap raises the soft limit toward the hard limit automatically before
+each pool starts, but it cannot exceed the **hard** limit; if that is still too
+low, it prints this warning. Left unaddressed, `socket()` starts failing with
+`EMFILE` mid-scan and those probes are recorded as **closed** — silent
+false negatives (a host that was actually up looks filtered).
+
+**Fix (Linux/macOS).** Raise the hard limit, then re-run:
+
+```bash
+ulimit -Hn          # show the current hard cap
+ulimit -n 65535     # raise the soft limit for this shell (must be <= hard cap)
+# if the hard cap itself is low, raise it as root / via limits.conf, e.g.:
+#   sudo prlimit --pid $$ --nofile=65535:65535
+#   or add  "* hard nofile 65535"  to /etc/security/limits.conf and re-login
+```
+
+Or simply lower the concurrency so the pool fits the available descriptors
+(`KMAP_NETSCAN_CONCURRENCY`, `KMAP_NETSCAN_ENRICH_CONCURRENCY`,
+`KMAP_HOST_PORT_PARALLELISM`). On a typical gaming-PC scan the defaults stay
+well under 1024 and you will never see this warning.
+
+**Windows is unaffected** — its handle table is not governed by this limit, so
+the auto-raise is a no-op there.
+
+---
+
 ## No CVEs show up (`--nq-cve` / reports empty of CVEs)
 
 **Cause 1 — no CVE database.** CVE matching needs `kmap-cve.db`. If it isn't
@@ -126,6 +168,10 @@ nmap modes.
   longer silently void or widen your exclusions) — check stderr for those.
 - **Concurrency too low for the time you gave it.** See the slow-scan section
   above; at ~200 pps a large sample takes a long time to surface hits.
+- **Hit the open-file limit (`EMFILE`).** A very high concurrency on a box with
+  a low hard `nofile` cap makes `socket()` fail mid-scan, so probes get marked
+  closed. Kmap warns when this is likely — see
+  [Scan warns about the open-file limit](#scan-warns-about-the-open-file-limit).
 
 ---
 

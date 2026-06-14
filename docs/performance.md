@@ -167,6 +167,14 @@ throughput on live ranges is much higher than the dark-space floor above.
 sits well below the requested `--rate`, so you don't discover the gap only
 by watching a slow progress bar.
 
+> **Open-file limit.** Each worker holds a socket, so concurrency near 1000
+> needs more file descriptors than the default POSIX limit (1024). Kmap raises
+> the soft limit automatically before the pool starts and warns if the system
+> *hard* limit is still too low — if you see that warning, raise it
+> (`ulimit -Hn`) or lower the concurrency. See
+> [troubleshooting.md](troubleshooting.md#scan-warns-about-the-open-file-limit).
+> Windows is unaffected. The gaming-PC defaults stay under 1024 and never hit this.
+
 ### Enrichment (banner / CVE / HTTP / TLS)
 
 | Variable                            | Default | Range    | Controls                                                |
