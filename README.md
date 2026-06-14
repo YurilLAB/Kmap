@@ -194,23 +194,23 @@ The `kmap-cve.db` SQLite database is installed alongside the binary and located 
 **Requirements:**
 - Visual Studio 2019 or 2022 (or the standalone Build Tools) with the
   **Desktop development with C++** workload.
-- A `kmap-mswin32-aux` directory **next to** the repo checkout (i.e.
-  `..\kmap-mswin32-aux\` relative to the repo root) containing the Windows
-  builds of the two external dependencies:
-  - `kmap-mswin32-aux\Npcap\{Include,Lib}` — the [Npcap SDK](https://npcap.com/#download)
-  - `kmap-mswin32-aux\OpenSSL\{include,lib}` — an OpenSSL Windows build
-
-  All other libraries (libssh2, libz, libpcre2, liblua, nbase, nsock,
-  libdnet, liblinear) are vendored in-tree and built by the solution.
+- **Subversion** (`svn`) on `PATH` and internet access — `Build.bat`
+  auto-downloads the two external dependencies on first run (the Npcap SDK
+  from npcap.com and OpenSSL from nmap's SVN) into a `kmap-mswin32-aux`
+  directory beside the repo. Every other library (libssh2, libz, libpcre2,
+  liblua, nbase, nsock, libdnet, liblinear) is vendored in-tree.
 
 **Build:**
 ```bat
 cd mswin32
-Build.bat                 :: auto-detects VS, builds pcre2, then kmap.sln (Release / Win32)
+Build.bat                 :: provisions deps (first run), builds pcre2, then kmap.sln (Release / Win32)
 ```
-or open `mswin32\kmap.sln` in Visual Studio, select **Release / Win32**, and
-build. The output `kmap.exe` is dropped in `mswin32\Release\` together with the
-`libssh2.dll` and `zlibwapi.dll` it needs.
+`Build.bat` auto-detects the installed Visual Studio, fetches the deps if the
+`..\..\kmap-mswin32-aux\` folder is missing, builds libpcre2 via CMake, then
+runs `msbuild kmap.sln` for **Release / Win32**. The output `kmap.exe` lands in
+`mswin32\Release\` with the `libssh2.dll` and `zlibwapi.dll` it needs. (Once the
+deps are present you can also just open `mswin32\kmap.sln` in Visual Studio and
+build Release / Win32.)
 
 > **Npcap is delay-loaded.** `kmap.exe` starts and runs `--net-scan`
 > (connect-based discovery) without Npcap installed — you'll see a one-time
