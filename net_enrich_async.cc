@@ -914,6 +914,19 @@ static void on_banner_recv(nsock_pool nsp, nsock_event nse, void *udata) {
     if (nbytes > ASYNC_ENRICH_BANNER_MAX) nbytes = ASYNC_ENRICH_BANNER_MAX;
 
     p->banner_class = classify_banner(rb, nbytes, p->port_num);
+    /* Close the banner socket before dispatching. dispatch_after_banner
+       never reuses this iod -- the HTTP and TLS stages each open a fresh
+       connection (the banner greeting may have consumed the protocol's
+       opening bytes, and TLS needs an SSL iod), and the cached-HTTP /
+       no-further-work branches just finalize. Without this close, every
+       successfully-bannered port leaked one nsock_iod + one OS socket FD:
+       submit_http_connect/submit_tls_connect overwrite p->iod with the
+       fresh handle, and port_done never closes it. At IPv4 scale that
+       exhausts the FD table, after which nsock_iod_new() returns NULL and
+       all subsequent ports silently fail. Every OTHER path into
+       dispatch_after_banner already closes the iod first; this SUCCESS
+       branch was the lone exception. */
+    close_iod(p);
     dispatch_after_banner(b, p);
     return;
   }
