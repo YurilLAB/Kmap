@@ -112,6 +112,44 @@ int main() {
   CHECK(r443.version == "1.1",   "port 443 version unchanged by port-80 re-enrich");
   CHECK(r443.prev_version.empty(),"port 443 prev_* untouched (enriched once)");
 
+  /* ---- net_db_update_asn COALESCE (protects the ASN-wipe fix) ----
+     Team Cymru returns asn/bgp/country together but as_name comes from a
+     SEPARATE query that can fail, so a re-lookup can arrive with asn>0 and an
+     empty as_name. The fix COALESCEs every text field so a partial result
+     never erases previously-captured ASN data. */
+  {
+    uint32_t aip = ip_to_u32("198.51.100.7");
+    const char *AIP = "198.51.100.7";
+    net_db_insert_host(db, aip, 80, "tcp", t0 + 10);
+    net_db_update_asn(db, AIP, 15169, "GOOGLE", "US", "8.8.8.0/24",
+                      "arin", "North America");
+    NetHost a = getrow(db, AIP, 80);
+    CHECK(a.asn == 15169,               "asn stored");
+    CHECK(a.as_name == "GOOGLE",        "as_name stored");
+    CHECK(a.country == "US",            "country stored");
+    CHECK(a.bgp_prefix == "8.8.8.0/24", "bgp_prefix stored");
+
+    /* Partial re-lookup: asn present, as_name/country/bgp empty -> prior
+       values must survive (this is the regression the fix prevents). */
+    net_db_update_asn(db, AIP, 15169, "", "", "", "", "");
+    a = getrow(db, AIP, 80);
+    CHECK(a.as_name == "GOOGLE",        "as_name PRESERVED on partial re-lookup (no wipe)");
+    CHECK(a.country == "US",            "country PRESERVED on partial re-lookup");
+    CHECK(a.bgp_prefix == "8.8.8.0/24", "bgp_prefix PRESERVED on partial re-lookup");
+    CHECK(a.asn == 15169,               "asn retained");
+
+    /* A non-empty new as_name DOES overwrite. */
+    net_db_update_asn(db, AIP, 15169, "GOOGLE-LLC", "", "", "", "");
+    a = getrow(db, AIP, 80);
+    CHECK(a.as_name == "GOOGLE-LLC",    "non-empty as_name overwrites");
+    CHECK(a.country == "US",            "country still preserved alongside as_name update");
+
+    /* 4-byte ASN (> INT_MAX) must round-trip without truncation (int64 bind). */
+    net_db_update_asn(db, AIP, 4000000000u, "BIGAS", "", "", "", "");
+    a = getrow(db, AIP, 80);
+    CHECK(a.asn == 4000000000u,         "4-byte ASN (>INT_MAX) not truncated");
+  }
+
   /* ---- drain-loop invariant: net_db_count_unenriched() and
      net_db_get_unenriched() must agree on whether work remains. run_net_scan's
      Phase-2 loop runs `while (count_unenriched_all() > 0) run_enrichment()`,
