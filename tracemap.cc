@@ -453,15 +453,27 @@ static std::vector<std::string> parse_targets(const char *spec) {
     /* Handle CIDR */
     size_t slash = token.find('/');
     if (slash != std::string::npos) {
-      int prefix = atoi(token.substr(slash + 1).c_str());
       uint32_t base = ip_to_u32(token.substr(0, slash).c_str());
-      if (prefix < 0 || prefix > 32) {
-        fprintf(stderr, "tracemap: invalid CIDR prefix /%d in '%s'\n",
-                prefix, token.c_str());
+
+      /* Strict prefix parse. atoi() turns a non-numeric/empty prefix
+         ("1.2.3.4/abc", "1.2.3.4/") into 0, silently treating it as /0 and
+         sampling the whole IPv4 space instead of erroring. Require a numeric
+         prefix in [0,32]; -1 means malformed. */
+      std::string ptok = token.substr(slash + 1);
+      int prefix = -1;
+      if (!ptok.empty()) {
+        char *endp = nullptr;
+        long pv = strtol(ptok.c_str(), &endp, 10);
+        if (endp != ptok.c_str() && *endp == '\0' && pv >= 0 && pv <= 32)
+          prefix = (int)pv;
+      }
+
+      if (prefix < 0) {
+        fprintf(stderr, "tracemap: invalid CIDR prefix in '%s'\n", token.c_str());
       } else if (base == 0 && prefix != 0) {
         fprintf(stderr, "tracemap: invalid IP in CIDR '%s'\n", token.c_str());
       } else if (prefix >= 24 && prefix <= 32) {
-        uint32_t count = 1u << (32 - prefix);
+        uint32_t count = 1u << (32 - prefix);     /* shift 0..8, safe */
         uint32_t mask = ~(count - 1);
         base &= mask;
         /* Add a sample of IPs from the range (first, middle, last usable) */
@@ -474,10 +486,13 @@ static std::vector<std::string> parse_targets(const char *spec) {
         }
       } else {
         /* Prefix shorter than /24: probing the full range would be enormous.
-         * Sample the first, middle, and last usable addresses and warn. */
-        fprintf(stderr, "tracemap: CIDR %s covers %u IPs — sampling 3 addresses\n",
-                token.c_str(), 1u << (32 - prefix));
+         * Sample the first, middle, and last usable addresses and warn.
+         * Use a 64-bit count throughout: for prefix 0 the old `1u << 32` in
+         * the warning printf was undefined behavior (shift width == type
+         * width). 1ULL << 32 is well-defined (4294967296). */
         uint64_t count = 1ULL << (32 - prefix);
+        fprintf(stderr, "tracemap: CIDR %s covers %llu IPs — sampling 3 addresses\n",
+                token.c_str(), (unsigned long long)count);
         uint32_t mask = (prefix == 0) ? 0u : (0xFFFFFFFFu << (32 - prefix));
         base &= mask;
         targets.push_back(u32_to_ip(base + 1));

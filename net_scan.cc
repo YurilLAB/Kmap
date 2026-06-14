@@ -254,10 +254,19 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     /* Handle CIDR notation -- expand small ranges */
     size_t slash = line.find('/');
     if (slash != std::string::npos) {
-      int prefix = atoi(line.substr(slash + 1).c_str());
-      if (prefix < 0 || prefix > 32) {
-        scan_log("WARN", "invalid CIDR prefix /%d in '%s' (skipped)",
-                 prefix, line.c_str());
+      /* Strict prefix parse: atoi() would turn a non-numeric/empty prefix
+         into 0, which then falls through to the misleading "exceeds cap"
+         warning below. Reject malformed prefixes with an accurate message. */
+      std::string ptok = line.substr(slash + 1);
+      int prefix = -1;
+      if (!ptok.empty()) {
+        char *endp = nullptr;
+        long pv = strtol(ptok.c_str(), &endp, 10);
+        if (endp != ptok.c_str() && *endp == '\0' && pv >= 0 && pv <= 32)
+          prefix = (int)pv;
+      }
+      if (prefix < 0) {
+        scan_log("WARN", "invalid CIDR prefix in '%s' (skipped)", line.c_str());
         continue;
       }
       uint32_t base = ip_to_u32(line.substr(0, slash).c_str());
