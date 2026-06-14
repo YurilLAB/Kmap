@@ -1,0 +1,53 @@
+name: ClusterFuzzLite batch fuzzing
+
+# Batch (whole-corpus) fuzzing of the libFuzzer targets in fuzz/ossfuzz/,
+# built via .clusterfuzzlite/. This complements cflite_pr.yml: that one runs
+# in "code-change" mode and ONLY fires on pull_request, but this repo's work
+# lands by pushing straight to master, so the PR workflow never actually runs
+# the OSS-Fuzz engine here. This batch workflow runs on a schedule (and on
+# demand) so the coverage-guided libFuzzer/ASan+UBSan fuzzing genuinely
+# happens against the code on master, not just on PRs that never get opened.
+#
+# The same fuzz/ossfuzz/*.cc + .clusterfuzzlite/build.sh are reused, so there
+# is nothing extra to maintain. To accumulate a persistent corpus across runs
+# later, add a `storage-repo` to the run step; without it each run fuzzes from
+# the in-tree seeds for the budget below (still catches regressions/crashes).
+
+on:
+  schedule:
+    # Daily at 06:17 UTC (off-peak; minute offset to avoid the top-of-hour
+    # scheduler stampede). Scheduled workflows run from the default branch.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: "Total fuzzing budget per sanitizer (seconds)"
+        required: false
+        default: "600"
+
+permissions:
+  contents: read
+
+jobs:
+  Batch:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    steps:
+      - name: Build fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        with:
+          language: c++
+          sanitizer: ${{ matrix.sanitizer }}
+      - name: Run fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: ${{ github.event.inputs.fuzz_seconds || 600 }}
+          mode: "batch"
+          sanitizer: ${{ matrix.sanitizer }}
+          output-sarif: true
