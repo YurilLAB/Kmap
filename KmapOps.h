@@ -302,6 +302,7 @@ class KmapOps {
   int  net_rate;            /* Packets per second (default 25000) */
   uint64_t net_max_ips;     /* Cap iteration at N IPs (0 = full sweep) */
   char *net_exclude_file;   /* Custom exclusion list */
+  bool net_no_builtin_excludes; /* Opt out of the built-in reserved/DoD excludes */
   char *net_data_dir;       /* Shard database directory */
   char *net_findings_dir;   /* Findings output directory */
   char *net_watchlist;      /* Watchlist targets file */

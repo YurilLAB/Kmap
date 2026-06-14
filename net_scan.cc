@@ -1484,8 +1484,21 @@ int run_net_scan() {
 
   /* Phase 1: Discover */
   if (!o.net_enrich_only && !o.net_report_only) {
-    /* Build exclusion list */
-    auto excludes = builtin_excludes();
+    /* Build exclusion list. The built-in reserved/private/DoD ranges are
+       included by default; --no-builtin-excludes opts out for operators who
+       have authorization to scan one of them (e.g. a range they own). This is
+       a footgun, so make the choice loud rather than silent. */
+    std::vector<ExcludeRange> excludes;
+    if (o.net_no_builtin_excludes) {
+      log_write(LOG_STDOUT,
+        "net-scan: WARNING: --no-builtin-excludes set -- built-in "
+        "reserved/private/DoD exclusions are DISABLED. Scan only ranges you "
+        "are authorized to.\n");
+      scan_log("WARN",
+        "built-in excludes disabled via --no-builtin-excludes");
+    } else {
+      excludes = builtin_excludes();
+    }
     if (o.net_exclude_file) {
       auto user_excl = load_exclude_list(o.net_exclude_file);
       excludes.insert(excludes.end(), user_excl.begin(), user_excl.end());

@@ -269,6 +269,8 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     return true;
   } else if (strcmp(name, "exclude-file") == 0) {
     o.net_exclude_file = strdup(arg); return true;
+  } else if (strcmp(name, "no-builtin-excludes") == 0) {
+    o.net_no_builtin_excludes = true; return true;
   } else if (strcmp(name, "data-dir") == 0) {
     o.net_data_dir = strdup(arg); return true;
   } else if (strcmp(name, "findings-dir") == 0) {
@@ -564,6 +566,8 @@ static void printusage() {
          "  --rate <pps>: Packets per second for discovery (default: 25000)\n"
          "  --net-max-ips <N>: Cap discovery at N IPs (sample scan, default: unlimited)\n"
          "  --exclude-file <file>: Additional IP ranges to exclude\n"
+         "  --no-builtin-excludes: Disable the built-in reserved/private/DoD\n"
+         "                          exclusions (opt-in; use only with authorization)\n"
          "  --data-dir <dir>: Shard database directory (default: kmap-data)\n"
          "  --findings-dir <dir>: Findings output directory (default: Findings)\n"
          "  --watchlist <file>: Scan targets from file and generate diff report\n"
@@ -964,6 +968,7 @@ void parse_options(int argc, char **argv) {
     {"net-max-ips", required_argument, 0, 0},
     {"rate", required_argument, 0, 0},
     {"exclude-file", required_argument, 0, 0},
+    {"no-builtin-excludes", no_argument, 0, 0},
     {"data-dir", required_argument, 0, 0},
     {"findings-dir", required_argument, 0, 0},
     {"watchlist", required_argument, 0, 0},

@@ -69,9 +69,11 @@ Three properties make it internet-scale-safe:
   | US DoD blocks (policy default, to avoid abuse reports) | `6/8`, `7/8`, `11/8`, `21/8`, `22/8`, `26/8`, `28/8`, `29/8`, `30/8`, `33/8`, `55/8`, `214/8`, `215/8` |
 
   The DoD `/8`s are excluded by policy (they're routable but scanning them
-  invites abuse complaints). Note there is no flag to *disable* the built-in
-  excludes, so if you specifically need to scan one of these ranges, that's a
-  current limitation.
+  invites abuse complaints). If you have authorization to scan one of these
+  ranges (for example a block you own), `--no-builtin-excludes` opts out of the
+  entire built-in list — it is off by default, prints a prominent warning when
+  set, and still honors any `--exclude-file` you pass. Use it only against
+  ranges you are permitted to scan.
 - **Early-bail on dead hosts.** After 8 consecutive no-response probes on a
   host that has shown zero signs of life, the remaining ports for that host are
   skipped. A single `RST` (closed port) counts as "alive" and resets the bail,
@@ -365,6 +367,7 @@ kmap --net-scan --watchlist assets.txt
 | `--net-resume` | off | Continue from the last checkpoint |
 | `--discover-only` / `--enrich-only` / `--report-only` | off | Run one phase |
 | `--exclude-file <f>` | — | Extra ranges to skip |
+| `--no-builtin-excludes` | off | Disable the built-in reserved/private/DoD excludes (authorized use only) |
 | `--data-dir <d>` | `kmap-data` | Shard DBs + checkpoint + log |
 | `--findings-dir <d>` | `Findings` | Report output |
 | `--watchlist <f>` | — | Fixed-target monitoring with diff report |
