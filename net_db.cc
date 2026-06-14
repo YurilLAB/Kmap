@@ -785,20 +785,32 @@ void net_db_begin(sqlite3 *db) {
   if (!db) return;
   char *errmsg = nullptr;
   int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &errmsg);
-  if (rc != SQLITE_OK && errmsg) {
-    fprintf(stderr, "net-scan: WARNING: BEGIN TRANSACTION failed: %s\n", errmsg);
-    sqlite3_free(errmsg);
+  if (rc != SQLITE_OK) {
+    /* Warn on ANY failure, not only when sqlite happened to set errmsg --
+       a failed BEGIN (e.g. one already open, or a locked/full DB) must not be
+       silent, or the caller batches inserts into a transaction that never
+       started. Fall back to sqlite3_errmsg(db) when errmsg is null. */
+    fprintf(stderr, "net-scan: WARNING: BEGIN TRANSACTION failed: %s\n",
+            errmsg ? errmsg : sqlite3_errmsg(db));
   }
+  if (errmsg) sqlite3_free(errmsg);
 }
 
 void net_db_commit(sqlite3 *db) {
   if (!db) return;
   char *errmsg = nullptr;
   int rc = sqlite3_exec(db, "COMMIT", nullptr, nullptr, &errmsg);
-  if (rc != SQLITE_OK && errmsg) {
-    fprintf(stderr, "net-scan: WARNING: COMMIT failed: %s\n", errmsg);
-    sqlite3_free(errmsg);
+  if (rc != SQLITE_OK) {
+    /* A failed COMMIT means the batch of discovered hosts / enrichment for
+       this window did NOT reach disk -- a real data-loss event, never to be
+       swallowed silently. Warn even when errmsg is null (fall back to
+       sqlite3_errmsg). The caller's next BEGIN re-opens a transaction so the
+       scan continues, but the operator is now told a window was lost. */
+    fprintf(stderr, "net-scan: WARNING: COMMIT failed (scan data for this "
+            "window may be lost): %s\n",
+            errmsg ? errmsg : sqlite3_errmsg(db));
   }
+  if (errmsg) sqlite3_free(errmsg);
 }
 
 /* -----------------------------------------------------------------------
