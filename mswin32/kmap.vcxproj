@@ -107,8 +107,8 @@
       <ResourceOutputFileName>$(IntDir)%(Filename).res</ResourceOutputFileName>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
-      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\" &amp; copy /Y "$(SolutionDir)..\kmap-services" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-protocols" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-rpc" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-mac-prefixes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-os-db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-service-probes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cve.db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cloud-ranges.csv" "$(OutDir)"</Command>
+      <Message>Copying runtime DLLs, NSE data (nse_main.lua, nselib, scripts) and core data files (kmap-services/protocols/rpc/mac-prefixes/os-db/service-probes/cve.db/cloud-ranges.csv) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -152,8 +152,8 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
-      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\" &amp; copy /Y "$(SolutionDir)..\kmap-services" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-protocols" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-rpc" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-mac-prefixes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-os-db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-service-probes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cve.db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cloud-ranges.csv" "$(OutDir)"</Command>
+      <Message>Copying runtime DLLs, NSE data (nse_main.lua, nselib, scripts) and core data files (kmap-services/protocols/rpc/mac-prefixes/os-db/service-probes/cve.db/cloud-ranges.csv) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-oem|Win32'">
@@ -194,8 +194,8 @@
       <AdditionalOptions>/LTCG %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
-      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\" &amp; copy /Y "$(SolutionDir)..\kmap-services" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-protocols" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-rpc" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-mac-prefixes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-os-db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-service-probes" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cve.db" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\kmap-cloud-ranges.csv" "$(OutDir)"</Command>
+      <Message>Copying runtime DLLs, NSE data (nse_main.lua, nselib, scripts) and core data files (kmap-services/protocols/rpc/mac-prefixes/os-db/service-probes/cve.db/cloud-ranges.csv) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
