@@ -34,6 +34,25 @@ YEARS = [2021, 2022, 2023, 2024, 2025, 2026]
 MIN_CVSS = 7.0          # Only import CVEs with CVSS >= this value
 REQUEST_TIMEOUT = 120   # seconds per HTTP request
 
+# ── Curated corrections ───────────────────────────────────────────────────────
+# NVD's machine-readable data is sometimes imprecise in ways that produce
+# scanner false positives: a CVE may carry an upper version bound but no lower
+# bound (so it matches every older release, even ones predating the bug), or be
+# CPE-tagged to a product whose name collides with an unrelated one. These are
+# applied AFTER import (and via --apply-corrections-only) so the shipped DB and
+# every regeneration stay accurate. Verified against the CVE's own advisory.
+CORRECTIONS = [
+    # Introduced in OpenSSH 9.0/9.1, fixed in 9.2p1 (double-free in
+    # options.kex_algorithms). NVD omits the lower bound, so the row matched
+    # every OpenSSH back to the 2000s (e.g. 6.6.1p1) -- a false positive.
+    ("CVE-2023-25136", {"version_min": "9.0", "version_max": "9.1"}),
+    # "IngressNightmare" is an unauth RCE in the Kubernetes ingress-nginx
+    # Controller (< 1.11.5 / < 1.12.1), NOT the nginx web server. Re-tag the
+    # product so it can never match a plain nginx banner.
+    ("CVE-2025-1974", {"product": "ingress-nginx",
+                       "version_min": "0", "version_max": "1.12.1"}),
+]
+
 # ── Target products (lower-cased keywords) ───────────────────────────────────
 TARGET_VENDORS = {
     "apache", "nginx", "openssh", "vsftpd", "proftpd",
@@ -182,40 +201,27 @@ def parse_nvd_2_0(data_bytes):
         configurations = cve.get("configurations", [])
         extracted = extract_cpe_info_2_0(configurations)
 
-        if not extracted:
-            # If no CPE data but CVE is about a target product (from description), include it
-            desc_lower = desc.lower()
-            matched_product = None
-            for token in TARGET_PRODUCTS:
-                clean = token.replace("_", " ")
-                if clean in desc_lower or token.replace("_", "") in desc_lower.replace(" ", ""):
-                    matched_product = token
-                    break
-            if matched_product:
-                rows.append({
-                    "cve_id": cve_id,
-                    "product": matched_product,
-                    "vendor": None,
-                    "version_min": None,
-                    "version_max": None,
-                    "cvss_score": cvss_score,
-                    "severity": severity,
-                    "description": desc[:2000],
-                })
-        else:
-            for info in extracted:
-                if not is_target(info["vendor"], info["product"]):
-                    continue
-                rows.append({
-                    "cve_id": cve_id,
-                    "product": info["product"],
-                    "vendor": info["vendor"],
-                    "version_min": info["version_min"],
-                    "version_max": info["version_max"],
-                    "cvss_score": cvss_score,
-                    "severity": severity,
-                    "description": desc[:2000],
-                })
+        # No CPE applicability data => no version bounds. The previous code
+        # keyword-matched the description to a target product and inserted a
+        # row with version_min/version_max = None, which then matched EVERY
+        # version of that product and collided across similarly-named products
+        # (e.g. a Kubernetes "ingress-nginx" CVE tagged as plain "nginx"). The
+        # matcher now rejects bound-less rows, so such inserts are unmatchable
+        # noise and a false-positive hazard -- skip them. A CVE with no
+        # machine-readable version applicability is not an actionable finding.
+        for info in extracted:
+            if not is_target(info["vendor"], info["product"]):
+                continue
+            rows.append({
+                "cve_id": cve_id,
+                "product": info["product"],
+                "vendor": info["vendor"],
+                "version_min": info["version_min"],
+                "version_max": info["version_max"],
+                "cvss_score": cvss_score,
+                "severity": severity,
+                "description": desc[:2000],
+            })
 
     return rows
 
@@ -244,6 +250,15 @@ def extract_cpe_info_2_0(configurations):
                                cpe_match.get("versionStartExcluding"))
                 version_max = (cpe_match.get("versionEndIncluding") or
                                cpe_match.get("versionEndExcluding"))
+
+                # Single-version CPE (no range): the affected version is pinned
+                # in field 5 of the CPE string. Capture it as an exact bound so
+                # the row is version-constrained instead of matching everything.
+                if not version_min and not version_max and len(parts) > 5:
+                    exact = parts[5]
+                    if exact and exact not in ("*", "-"):
+                        version_min = exact
+                        version_max = exact
 
                 key = (vendor, product, version_min, version_max)
                 if key in seen:
@@ -305,39 +320,22 @@ def parse_nvd_1_1(data_bytes):
         configurations = item.get("configurations", {})
         extracted = extract_cpe_info_1_1(configurations)
 
-        if not extracted:
-            desc_lower = desc.lower()
-            matched_product = None
-            for token in TARGET_PRODUCTS:
-                clean = token.replace("_", " ")
-                if clean in desc_lower:
-                    matched_product = token
-                    break
-            if matched_product:
-                rows.append({
-                    "cve_id": cve_id,
-                    "product": matched_product,
-                    "vendor": None,
-                    "version_min": None,
-                    "version_max": None,
-                    "cvss_score": cvss_score,
-                    "severity": severity,
-                    "description": desc[:2000],
-                })
-        else:
-            for info in extracted:
-                if not is_target(info["vendor"], info["product"]):
-                    continue
-                rows.append({
-                    "cve_id": cve_id,
-                    "product": info["product"],
-                    "vendor": info["vendor"],
-                    "version_min": info["version_min"],
-                    "version_max": info["version_max"],
-                    "cvss_score": cvss_score,
-                    "severity": severity,
-                    "description": desc[:2000],
-                })
+        # Same policy as the 2.0 parser: no CPE data => no version bounds =>
+        # skip. Bound-less, description-keyword rows are unmatchable under the
+        # corrected matcher and are a product-collision false-positive hazard.
+        for info in extracted:
+            if not is_target(info["vendor"], info["product"]):
+                continue
+            rows.append({
+                "cve_id": cve_id,
+                "product": info["product"],
+                "vendor": info["vendor"],
+                "version_min": info["version_min"],
+                "version_max": info["version_max"],
+                "cvss_score": cvss_score,
+                "severity": severity,
+                "description": desc[:2000],
+            })
 
     return rows
 
@@ -369,6 +367,14 @@ def extract_cpe_info_1_1(configurations):
                            cpe_match.get("versionStartExcluding"))
             version_max = (cpe_match.get("versionEndIncluding") or
                            cpe_match.get("versionEndExcluding"))
+
+            # Single-version CPE (no range): capture the pinned version (field 5)
+            # as an exact bound so the row is version-constrained.
+            if not version_min and not version_max and len(parts) > 5:
+                exact = parts[5]
+                if exact and exact not in ("*", "-"):
+                    version_min = exact
+                    version_max = exact
 
             key = (vendor, product, version_min, version_max)
             if key in seen:
@@ -405,6 +411,22 @@ def insert_rows(conn, rows):
             print(f"  DB error for {row['cve_id']}: {e}", flush=True)
     conn.commit()
     return inserted
+
+
+def apply_corrections(conn):
+    """Apply the curated CORRECTIONS to rows already in the DB. Idempotent."""
+    applied = 0
+    for cve_id, fields in CORRECTIONS:
+        row = conn.execute("SELECT 1 FROM cves WHERE cve_id=?", (cve_id,)).fetchone()
+        if not row:
+            continue
+        sets = ", ".join(f"{k}=?" for k in fields)
+        vals = list(fields.values()) + [cve_id]
+        conn.execute(f"UPDATE cves SET {sets} WHERE cve_id=?", vals)
+        applied += 1
+        print(f"  correction: {cve_id} -> {fields}", flush=True)
+    conn.commit()
+    return applied
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -450,7 +472,18 @@ def main():
     parser = argparse.ArgumentParser(description="Update kmap CVE database from NVD feeds")
     parser.add_argument("--db", default=DEFAULT_DB, help="Path to SQLite database")
     parser.add_argument("--years", help="Comma-separated years to import (default: 2021-2026)")
+    parser.add_argument("--apply-corrections-only", action="store_true",
+                        help="Apply the curated CORRECTIONS to an existing DB and exit "
+                             "(no network download)")
     args = parser.parse_args()
+
+    if args.apply_corrections_only:
+        conn = sqlite3.connect(args.db)
+        n = apply_corrections(conn)
+        update_meta_count(conn)
+        conn.close()
+        print(f"Applied {n} correction(s) to {args.db}")
+        return
 
     years = YEARS
     if args.years:
@@ -475,6 +508,9 @@ def main():
         except Exception as e:
             print(f"  Unexpected error for {year}: {e}", flush=True)
             failed.append(year)
+
+    print("\nApplying curated corrections…", flush=True)
+    apply_corrections(conn)
 
     final_count = update_meta_count(conn)
     conn.close()

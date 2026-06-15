@@ -792,6 +792,18 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
 
+    /* Require at least one version bound to assert a match.  A row with
+       NEITHER a version_min NOR a version_max carries no version
+       applicability at all, so it would match EVERY version of the
+       product -- a guaranteed false-positive class.  These rows come from
+       the NVD importer's description-keyword fallback (a CVE with no CPE
+       data, tagged to a product purely by a word in its text) and from
+       product-name collisions (e.g. CVE-2025-1974 "IngressNightmare" is a
+       Kubernetes ingress-nginx Controller RCE, NOT the nginx web server,
+       yet keyword-matches product=nginx).  Without a version range we
+       cannot say a detected host is vulnerable, so skip it. */
+    if (vmin.empty() && vmax.empty()) continue;
+
     /* Version range filtering. We already returned early above if
        det_ver was empty, so any row that has explicit bounds gets a
        real numeric comparison here. Same algorithm as cve_map.cc's

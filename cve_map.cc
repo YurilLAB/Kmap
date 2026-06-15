@@ -392,6 +392,15 @@ static std::vector<CveEntry> query_cves(
     e.severity    = col_str(6);
     e.description = col_str(7);
 
+    /* Require at least one version bound.  A row with NEITHER bound has no
+       version applicability and would match every version of the product
+       -- a false-positive class produced by the NVD importer's
+       description-keyword fallback and by product-name collisions (e.g.
+       CVE-2025-1974 "IngressNightmare" is an ingress-nginx Controller RCE,
+       not the nginx web server, but keyword-matches product=nginx).  We
+       cannot prove a detected host is vulnerable without a version range. */
+    if (vmin.empty() && vmax.empty()) continue;
+
     /* Version range filter. If the row has bounds but the detected
        version is missing or non-dotted (extract_ver returns ""), we
        cannot prove applicability -- skip the row instead of letting it

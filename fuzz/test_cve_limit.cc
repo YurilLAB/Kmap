@@ -55,6 +55,10 @@ static std::vector<std::string> lookup(sqlite3 *db, const char *product,
   while (sqlite3_step(st) == SQLITE_ROW) {
     auto col = [&](int c){ const unsigned char*p=sqlite3_column_text(st,c); return std::string(p?(const char*)p:""); };
     std::string id = col(0), vmin = col(1), vmax = col(2);
+    /* Require a version bound: a row with neither bound has no version
+       applicability and would match every version -- a false positive. Mirrors
+       lookup_cves (net_enrich.cc) and run_cve_map (cve_map.cc). */
+    if (vmin.empty() && vmax.empty()) continue;
     if (!vmin.empty() && ver_cmp(det, vmin) < 0) continue;
     if (!vmax.empty() && ver_cmp(det, vmax) > 0) continue;
     out.push_back(id);
@@ -85,6 +89,11 @@ int main(void) {
   sqlite3_exec(db,
     "INSERT INTO cves VALUES('CVE-MATCH','http_server','2.0','3.0',5.0)",
     nullptr, nullptr, nullptr);
+  /* A high-CVSS row with NO version bounds (both empty) -- the description-
+     keyword false-positive class. It must NOT match any detected version. */
+  sqlite3_exec(db,
+    "INSERT INTO cves VALUES('CVE-NOBOUND','http_server','','',9.8)",
+    nullptr, nullptr, nullptr);
   sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
 
   auto contains = [](const std::vector<std::string> &v, const char *id) {
@@ -108,6 +117,13 @@ int main(void) {
   /* And the fix must demonstrably differ from the bug on this data. */
   if (contains(old_res, "CVE-MATCH") == contains(new_res, "CVE-MATCH")) {
     printf("  FAIL fix did not change the outcome on the crafted data\n"); fail++;
+  }
+
+  /* The no-version-bound row must never match, at any SQL limit. */
+  if (contains(new_res, "CVE-NOBOUND")) {
+    printf("  FAIL bound-less CVE matched (false positive)\n"); fail++;
+  } else {
+    printf("  OK   bound-less CVE (no version_min/max) is correctly skipped\n");
   }
 
   sqlite3_close(db);
