@@ -46,7 +46,7 @@ static int ver_cmp(const std::string &a, const std::string &b) {
 static std::vector<std::string> lookup(sqlite3 *db, const char *product,
                                        const std::string &det, int sql_limit, int cap) {
   std::vector<std::string> out;
-  std::string sql = "SELECT cve_id, version_min, version_max FROM cves "
+  std::string sql = "SELECT cve_id, version_min, version_max, version_max_exclusive FROM cves "
                     "WHERE product = ? AND cvss_score >= 0.0 "
                     "ORDER BY cvss_score DESC LIMIT " + std::to_string(sql_limit);
   sqlite3_stmt *st = nullptr;
@@ -55,12 +55,18 @@ static std::vector<std::string> lookup(sqlite3 *db, const char *product,
   while (sqlite3_step(st) == SQLITE_ROW) {
     auto col = [&](int c){ const unsigned char*p=sqlite3_column_text(st,c); return std::string(p?(const char*)p:""); };
     std::string id = col(0), vmin = col(1), vmax = col(2);
+    int vmax_excl = sqlite3_column_int(st, 3);
     /* Require a version bound: a row with neither bound has no version
        applicability and would match every version -- a false positive. Mirrors
        lookup_cves (net_enrich.cc) and run_cve_map (cve_map.cc). */
     if (vmin.empty() && vmax.empty()) continue;
     if (!vmin.empty() && ver_cmp(det, vmin) < 0) continue;
-    if (!vmax.empty() && ver_cmp(det, vmax) > 0) continue;
+    /* Exclusive upper bound (NVD versionEndExcluding = the FIXED version):
+       affected < vmax, so the fixed version must not match (<= would FP). */
+    if (!vmax.empty()) {
+      int cmp = ver_cmp(det, vmax);
+      if (cmp > 0 || (vmax_excl && cmp == 0)) continue;
+    }
     out.push_back(id);
     if ((int)out.size() >= cap) break;
   }
@@ -73,7 +79,8 @@ int main(void) {
   sqlite3 *db = nullptr;
   if (sqlite3_open(":memory:", &db) != SQLITE_OK) { printf("open fail\n"); return 1; }
   sqlite3_exec(db, "CREATE TABLE cves (cve_id TEXT, product TEXT, version_min TEXT, "
-                   "version_max TEXT, cvss_score REAL)", nullptr, nullptr, nullptr);
+                   "version_max TEXT, cvss_score REAL, "
+                   "version_max_exclusive INTEGER DEFAULT 0)", nullptr, nullptr, nullptr);
 
   /* 120 high-CVSS rows for http_server that do NOT apply to detected 2.4
      (version_max 1.0), plus ONE low-CVSS row that DOES apply (2.0..3.0).
@@ -82,17 +89,22 @@ int main(void) {
   for (int i = 0; i < 120; i++) {
     char ins[256];
     snprintf(ins, sizeof(ins),
-      "INSERT INTO cves VALUES('CVE-HIGH-%03d','http_server','','1.0',%f)",
+      "INSERT INTO cves VALUES('CVE-HIGH-%03d','http_server','','1.0',%f,0)",
       i, 9.9 - i * 0.001);
     sqlite3_exec(db, ins, nullptr, nullptr, nullptr);
   }
   sqlite3_exec(db,
-    "INSERT INTO cves VALUES('CVE-MATCH','http_server','2.0','3.0',5.0)",
+    "INSERT INTO cves VALUES('CVE-MATCH','http_server','2.0','3.0',5.0,0)",
     nullptr, nullptr, nullptr);
   /* A high-CVSS row with NO version bounds (both empty) -- the description-
      keyword false-positive class. It must NOT match any detected version. */
   sqlite3_exec(db,
-    "INSERT INTO cves VALUES('CVE-NOBOUND','http_server','','',9.8)",
+    "INSERT INTO cves VALUES('CVE-NOBOUND','http_server','','',9.8,0)",
+    nullptr, nullptr, nullptr);
+  /* Exclusive upper bound: affected < 2.4 (versionEndExcluding = fixed in 2.4).
+     The detected version 2.4 is the FIXED release and must NOT match. */
+  sqlite3_exec(db,
+    "INSERT INTO cves VALUES('CVE-EXCL','http_server','2.0','2.4',9.8,1)",
     nullptr, nullptr, nullptr);
   sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
 
@@ -124,6 +136,20 @@ int main(void) {
     printf("  FAIL bound-less CVE matched (false positive)\n"); fail++;
   } else {
     printf("  OK   bound-less CVE (no version_min/max) is correctly skipped\n");
+  }
+
+  /* Exclusive upper bound: the FIXED version (2.4) must NOT match (off-by-one
+     FP guard), but a version inside the range (2.3) must. */
+  if (contains(new_res, "CVE-EXCL")) {
+    printf("  FAIL exclusive-max CVE matched the fixed version 2.4 (off-by-one FP)\n"); fail++;
+  } else {
+    printf("  OK   exclusive-max CVE does NOT match the fixed version 2.4\n");
+  }
+  auto in_range = lookup(db, "http_server", "2.3", 2000, 100);
+  if (!contains(in_range, "CVE-EXCL")) {
+    printf("  FAIL exclusive-max CVE should match in-range version 2.3 but did not\n"); fail++;
+  } else {
+    printf("  OK   exclusive-max CVE still matches in-range version 2.3\n");
   }
 
   sqlite3_close(db);

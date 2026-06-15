@@ -534,7 +534,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     return result;
   }
 
-  /* MySQL greeting: starts with a packet length + protocol version 0x0a */
+  /* MySQL/MariaDB greeting: starts with a packet length + protocol version 0x0a */
   if (n >= 5 && static_cast<unsigned char>(buf[4]) == 0x0a) {
     result.service = "mysql";
     /* Version string follows after byte 5 until null terminator */
@@ -542,6 +542,17 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     size_t vlen = strnlen(verp,
                           static_cast<size_t>(n) > 5 ? static_cast<size_t>(n) - 5 : 0);
     if (vlen > 0) result.version = std::string(verp, vlen);
+    /* MariaDB speaks the MySQL wire protocol, so the 0x0a handshake alone
+       cannot tell them apart. MariaDB advertises a legacy compatibility
+       greeting "5.5.5-<real-version>-MariaDB-...". Detect it and route to the
+       mariadb product with the REAL version, otherwise the host gets matched
+       against Oracle MySQL CVEs (false positive) and misses every MariaDB CVE
+       (false negative). */
+    if (str_lower(result.version).find("mariadb") != std::string::npos) {
+      result.service = "mariadb";
+      if (result.version.rfind("5.5.5-", 0) == 0)
+        result.version = result.version.substr(6);  /* drop bogus compat prefix */
+    }
     return result;
   }
 
@@ -663,9 +674,12 @@ static std::string normalize_product(const std::string &service,
   if (ver.find("lighttpd") != std::string::npos) return "lighttpd";
   if (ver.find("iis") != std::string::npos) return "iis";
   if (ver.find("tomcat") != std::string::npos) return "tomcat";
+  /* MariaDB before MySQL: MariaDB greetings/banners contain "mariadb" and must
+     not fall through to the Oracle MySQL product (different CVE history). */
+  if (ver.find("mariadb") != std::string::npos || svc == "mariadb")
+    return "mariadb";
   if (ver.find("mysql") != std::string::npos || svc == "mysql")
     return "mysql";
-  if (ver.find("mariadb") != std::string::npos) return "mariadb";
   if (ver.find("postgresql") != std::string::npos || svc == "postgresql")
     return "postgresql";
   if (ver.find("redis") != std::string::npos || svc == "redis")
@@ -754,11 +768,6 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
    * CVSS for a product with many high-severity entries.  Walk up to 2000
    * rows (indexed on product) and stop once 100 applicable ones collect. */
   const int KMAP_CVE_RESULT_CAP = 100;
-  const char *sql =
-    "SELECT cve_id, cvss_score, severity, description, "
-    "version_min, version_max, cvss_vector, remote_unauthed "
-    "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-    "ORDER BY cvss_score DESC LIMIT 2000";
 
   /* The CVE DB handle is opened once and shared across every enrichment
      worker thread and their per-port sub-workers, but sqlite is built with
@@ -772,6 +781,31 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
      meaningful contention and preserves the open-once design. */
   static std::mutex cve_db_mu;
   std::lock_guard<std::mutex> cve_lock(cve_db_mu);
+
+  /* Detect once whether the DB carries the version-exclusivity columns. They
+     let the matcher honour NVD's versionEndExcluding ("fixed in X" => affected
+     < X) with a strict comparison instead of <=, which otherwise flags the
+     patched version itself (off-by-one FP, e.g. OpenSSH 9.3 / CVE-2023-28531).
+     Older or externally-supplied DBs without the columns fall back to
+     inclusive bounds. */
+  static int has_excl = -1;
+  if (has_excl < 0) {
+    sqlite3_stmt *probe = nullptr;
+    has_excl = (sqlite3_prepare_v2(cve_db,
+        "SELECT version_min_exclusive, version_max_exclusive FROM cves LIMIT 1",
+        -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
+    if (probe) sqlite3_finalize(probe);
+  }
+
+  const char *sql = has_excl
+    ? "SELECT cve_id, cvss_score, severity, description, version_min, "
+      "version_max, cvss_vector, remote_unauthed, version_min_exclusive, "
+      "version_max_exclusive FROM cves WHERE product = ? AND cvss_score >= 0.0 "
+      "ORDER BY cvss_score DESC LIMIT 2000"
+    : "SELECT cve_id, cvss_score, severity, description, version_min, "
+      "version_max, cvss_vector, remote_unauthed "
+      "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
+      "ORDER BY cvss_score DESC LIMIT 2000";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -791,6 +825,8 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
 
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
+    int vmin_excl = has_excl ? sqlite3_column_int(stmt, 8) : 0;
+    int vmax_excl = has_excl ? sqlite3_column_int(stmt, 9) : 0;
 
     /* Require at least one version bound to assert a match.  A row with
        NEITHER a version_min NOR a version_max carries no version
@@ -804,14 +840,18 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
        cannot say a detected host is vulnerable, so skip it. */
     if (vmin.empty() && vmax.empty()) continue;
 
-    /* Version range filtering. We already returned early above if
-       det_ver was empty, so any row that has explicit bounds gets a
-       real numeric comparison here. Same algorithm as cve_map.cc's
-       ver_cmp(). */
-    if (!vmin.empty() &&
-        ver_cmp_parsed(det_parts, parse_ver_enrich(vmin)) < 0) continue;
-    if (!vmax.empty() &&
-        ver_cmp_parsed(det_parts, parse_ver_enrich(vmax)) > 0) continue;
+    /* Version range filtering with inclusive/exclusive bounds.  An exclusive
+       upper bound (NVD versionEndExcluding = the FIXED version) means affected
+       < vmax, so the fixed version must NOT match; inclusive means <= vmax.
+       Symmetric for the lower bound.  det_ver non-empty (early-returned). */
+    if (!vmin.empty()) {
+      int cmp = ver_cmp_parsed(det_parts, parse_ver_enrich(vmin));
+      if (cmp < 0 || (vmin_excl && cmp == 0)) continue;
+    }
+    if (!vmax.empty()) {
+      int cmp = ver_cmp_parsed(det_parts, parse_ver_enrich(vmax));
+      if (cmp > 0 || (vmax_excl && cmp == 0)) continue;
+    }
 
     EnrichCve e;
     e.id          = col_str(0);

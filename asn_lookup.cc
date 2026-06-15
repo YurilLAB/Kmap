@@ -4,7 +4,7 @@
  * Uses Team Cymru's DNS-based IP-to-ASN service:
  *   - Query: <d>.<c>.<b>.<a>.origin.asn.cymru.com  TXT
  *     Response: "23456 | 1.2.3.0/24 | US | arin | 2001-02-01"
- *   - Query: AS23456.peer.asn.cymru.com  TXT
+ *   - Query: AS23456.asn.cymru.com  TXT
  *     Response: "23456 | US | arin | 2001-02-01 | GOOGLE"
  *
  * Implements a minimal raw UDP DNS client so we don't depend on
@@ -471,12 +471,15 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
 
   parse_origin_response(origin_txt, info);
 
-  /* If we got an ASN, look up the AS name */
+  /* If we got an ASN, look up the AS name. Team Cymru serves the AS-name
+     record at AS<n>.asn.cymru.com ("<asn> | <cc> | <registry> | <date> |
+     <name>"); the AS<n>.peer.asn.cymru.com label used previously does NOT
+     exist (NXDOMAIN), so as_name came back empty on every host. */
   if (info.asn > 0) {
-    snprintf(qname, sizeof(qname), "AS%u.peer.asn.cymru.com", info.asn);
-    std::string peer_txt = dns_txt_query(qname, timeout_ms);
-    if (!peer_txt.empty())
-      parse_peer_response(peer_txt, info);
+    snprintf(qname, sizeof(qname), "AS%u.asn.cymru.com", info.asn);
+    std::string name_txt = dns_txt_query(qname, timeout_ms);
+    if (!name_txt.empty())
+      parse_peer_response(name_txt, info);
   }
 
   /* Map country code to human-readable region */
@@ -499,7 +502,7 @@ std::string lookup_as_name(uint32_t asn, int timeout_ms) {
   if (asn == 0) return "";
 
   char qname[64];
-  snprintf(qname, sizeof(qname), "AS%u.peer.asn.cymru.com", asn);
+  snprintf(qname, sizeof(qname), "AS%u.asn.cymru.com", asn);
 
   std::string txt = dns_txt_query(qname, timeout_ms);
   if (txt.empty()) return "";

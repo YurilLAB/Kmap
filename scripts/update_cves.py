@@ -51,6 +51,34 @@ CORRECTIONS = [
     # product so it can never match a plain nginx banner.
     ("CVE-2025-1974", {"product": "ingress-nginx",
                        "version_min": "0", "version_max": "1.12.1"}),
+    # Off-by-one: these store the FIXED version as version_max (NVD
+    # versionEndExcluding), so the patched release was wrongly flagged. Mark
+    # the upper bound exclusive (affected < version_max). The importer now sets
+    # this automatically on fresh imports; these curate the shipped DB.
+    ("CVE-2023-28531", {"version_max_exclusive": 1}),  # ssh-add, fixed 9.3
+    ("CVE-2025-23048", {"version_max_exclusive": 1}),  # mod_ssl, fixed 2.4.64
+    ("CVE-2023-38709", {"version_max_exclusive": 1}),  # httpd, fixed 2.4.59
+    # regreSSHion: NVD row had version_max=4.4 with no lower bound, so it both
+    # FP'd ancient OpenSSH (<=4.4) and MISSED the real vulnerable range. The
+    # primary modern vulnerable range is 8.5p1..9.7p1.
+    ("CVE-2024-6387", {"version_min": "8.5", "version_max": "9.7"}),
+    # ALPACA is a cross-protocol TLS attack, not an nginx-version flaw; tagged
+    # product=nginx with version_max=1.21.0 it flagged the whole pre-1.21 nginx
+    # base. Re-tag to a product no banner maps to, so it can never fire.
+    ("CVE-2021-3618", {"product": "tls_alpaca"}),
+]
+
+# Bulk corrections expressed as (description, SQL). Applied after the per-CVE
+# CORRECTIONS. Kept narrow and idempotent.
+BULK_CORRECTIONS = [
+    # Apache httpd CVEs scoped to the 2.4.x branch but stored vmax-only (no
+    # lower bound) falsely matched pre-2.4 servers (2.0.x/2.2.x). The 2.4
+    # branch starts at 2.4.0, so add that lower bound.
+    ("apache http_server 2.4.x branch lower bound",
+     "UPDATE cves SET version_min='2.4.0' "
+     "WHERE product='http_server' AND vendor='apache' "
+     "AND (version_min IS NULL OR version_min='') "
+     "AND version_max LIKE '2.4.%'"),
 ]
 
 # ── Target products (lower-cased keywords) ───────────────────────────────────
@@ -95,7 +123,9 @@ CREATE TABLE IF NOT EXISTS cves (
   version_max TEXT,
   cvss_score  REAL,
   severity    TEXT,
-  description TEXT
+  description TEXT,
+  version_min_exclusive INTEGER DEFAULT 0,
+  version_max_exclusive INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_product  ON cves(product);
 CREATE INDEX IF NOT EXISTS idx_severity ON cves(severity);
@@ -106,9 +136,25 @@ CREATE TABLE IF NOT EXISTS meta (
 """
 
 
+def migrate_schema(conn):
+    """Add the version-exclusivity columns to a pre-existing cves table.
+    NVD distinguishes versionEndIncluding ('<=X affected') from
+    versionEndExcluding ('fixed in X, so <X affected'); collapsing both into a
+    bare version_max made the matcher treat the FIXED version as vulnerable
+    (off-by-one false positive, e.g. OpenSSH 9.3 flagged for CVE-2023-28531
+    which is fixed in 9.3). These flags let the matcher use < vs <=."""
+    for col in ("version_min_exclusive", "version_max_exclusive"):
+        try:
+            conn.execute(f"ALTER TABLE cves ADD COLUMN {col} INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # already present
+    conn.commit()
+
+
 def init_db(db_path):
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
+    migrate_schema(conn)
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('last_updated', ?)", (str(date.today()),))
     conn.execute("INSERT OR IGNORE INTO meta VALUES ('cve_count', '0')")
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('years_covered', '2021-2026')")
@@ -218,6 +264,8 @@ def parse_nvd_2_0(data_bytes):
                 "vendor": info["vendor"],
                 "version_min": info["version_min"],
                 "version_max": info["version_max"],
+                "version_min_exclusive": info.get("version_min_exclusive", 0),
+                "version_max_exclusive": info.get("version_max_exclusive", 0),
                 "cvss_score": cvss_score,
                 "severity": severity,
                 "description": desc[:2000],
@@ -246,21 +294,31 @@ def extract_cpe_info_2_0(configurations):
                 vendor = parts[3] if parts[3] != "*" else None
                 product = parts[4] if parts[4] != "*" else None
 
-                version_min = (cpe_match.get("versionStartIncluding") or
-                               cpe_match.get("versionStartExcluding"))
-                version_max = (cpe_match.get("versionEndIncluding") or
-                               cpe_match.get("versionEndExcluding"))
+                vsi = cpe_match.get("versionStartIncluding")
+                vse = cpe_match.get("versionStartExcluding")
+                vei = cpe_match.get("versionEndIncluding")
+                vee = cpe_match.get("versionEndExcluding")
+                version_min = vsi or vse
+                version_max = vei or vee
+                # Exclusive when only the *Excluding form is present. EndExcluding
+                # means "fixed in X" (affected < X), so the matcher must use < not
+                # <= to avoid flagging the fixed version (off-by-one FP).
+                version_min_excl = 1 if (vse and not vsi) else 0
+                version_max_excl = 1 if (vee and not vei) else 0
 
                 # Single-version CPE (no range): the affected version is pinned
-                # in field 5 of the CPE string. Capture it as an exact bound so
-                # the row is version-constrained instead of matching everything.
+                # in field 5 of the CPE string. Capture it as an exact inclusive
+                # bound so the row is version-constrained instead of matching all.
                 if not version_min and not version_max and len(parts) > 5:
                     exact = parts[5]
                     if exact and exact not in ("*", "-"):
                         version_min = exact
                         version_max = exact
+                        version_min_excl = 0
+                        version_max_excl = 0
 
-                key = (vendor, product, version_min, version_max)
+                key = (vendor, product, version_min, version_max,
+                       version_min_excl, version_max_excl)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -269,6 +327,8 @@ def extract_cpe_info_2_0(configurations):
                     "product": product,
                     "version_min": version_min,
                     "version_max": version_max,
+                    "version_min_exclusive": version_min_excl,
+                    "version_max_exclusive": version_max_excl,
                 })
     return results
 
@@ -332,6 +392,8 @@ def parse_nvd_1_1(data_bytes):
                 "vendor": info["vendor"],
                 "version_min": info["version_min"],
                 "version_max": info["version_max"],
+                "version_min_exclusive": info.get("version_min_exclusive", 0),
+                "version_max_exclusive": info.get("version_max_exclusive", 0),
                 "cvss_score": cvss_score,
                 "severity": severity,
                 "description": desc[:2000],
@@ -363,20 +425,27 @@ def extract_cpe_info_1_1(configurations):
             vendor = parts[3] if parts[3] not in ("*", "-") else None
             product = parts[4] if parts[4] not in ("*", "-") else None
 
-            version_min = (cpe_match.get("versionStartIncluding") or
-                           cpe_match.get("versionStartExcluding"))
-            version_max = (cpe_match.get("versionEndIncluding") or
-                           cpe_match.get("versionEndExcluding"))
+            vsi = cpe_match.get("versionStartIncluding")
+            vse = cpe_match.get("versionStartExcluding")
+            vei = cpe_match.get("versionEndIncluding")
+            vee = cpe_match.get("versionEndExcluding")
+            version_min = vsi or vse
+            version_max = vei or vee
+            version_min_excl = 1 if (vse and not vsi) else 0
+            version_max_excl = 1 if (vee and not vei) else 0
 
             # Single-version CPE (no range): capture the pinned version (field 5)
-            # as an exact bound so the row is version-constrained.
+            # as an exact inclusive bound so the row is version-constrained.
             if not version_min and not version_max and len(parts) > 5:
                 exact = parts[5]
                 if exact and exact not in ("*", "-"):
                     version_min = exact
                     version_max = exact
+                    version_min_excl = 0
+                    version_max_excl = 0
 
-            key = (vendor, product, version_min, version_max)
+            key = (vendor, product, version_min, version_max,
+                   version_min_excl, version_max_excl)
             if key in seen:
                 continue
             seen.add(key)
@@ -385,6 +454,8 @@ def extract_cpe_info_1_1(configurations):
                 "product": product,
                 "version_min": version_min,
                 "version_max": version_max,
+                "version_min_exclusive": version_min_excl,
+                "version_max_exclusive": version_max_excl,
             })
     return results
 
@@ -425,6 +496,10 @@ def apply_corrections(conn):
         conn.execute(f"UPDATE cves SET {sets} WHERE cve_id=?", vals)
         applied += 1
         print(f"  correction: {cve_id} -> {fields}", flush=True)
+    for desc, sql in BULK_CORRECTIONS:
+        cur = conn.execute(sql)
+        print(f"  bulk correction: {desc} ({cur.rowcount} rows)", flush=True)
+        applied += 1
     conn.commit()
     return applied
 
@@ -479,6 +554,7 @@ def main():
 
     if args.apply_corrections_only:
         conn = sqlite3.connect(args.db)
+        migrate_schema(conn)          # ensure exclusivity columns exist
         n = apply_corrections(conn)
         update_meta_count(conn)
         conn.close()

@@ -213,7 +213,12 @@ static std::vector<ProductQuery> normalize_service(
 
   /* Atlassian Confluence */
   if (prod.find("confluence") != std::string::npos)
-    return {{"confluence", "atlassian", true}};
+    /* NVD tags Confluence CVEs under product 'confluence_data_center' (and
+       'confluence_server'); a bare 'confluence' product has zero rows, so the
+       previous mapping silently missed every Confluence CVE. */
+    return {{"confluence_data_center", "atlassian", true},
+            {"confluence_server", "atlassian", true},
+            {"confluence", "atlassian", true}};
 
   /* vsftpd */
   if (prod.find("vsftpd") != std::string::npos)
@@ -320,27 +325,33 @@ static std::vector<CveEntry> query_cves(
      than "match everything". */
   if (extract_ver(detected_ver).empty()) return results;
 
-  const char *sql_exact_vendor =
-    "SELECT cve_id, product, vendor, version_min, version_max, "
-    "cvss_score, severity, description "
+  /* Detect once whether the DB carries the version-exclusivity columns so we
+     honour NVD versionEndExcluding ("fixed in X" => affected < X) with a
+     strict comparison and don't flag the patched version (off-by-one FP).
+     Older/external DBs without them fall back to inclusive bounds. */
+  static int has_excl = -1;
+  if (has_excl < 0) {
+    sqlite3_stmt *probe = nullptr;
+    has_excl = (sqlite3_prepare_v2(db,
+        "SELECT version_min_exclusive, version_max_exclusive FROM cves LIMIT 1",
+        -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
+    if (probe) sqlite3_finalize(probe);
+  }
+  const std::string cols = std::string(
+      "SELECT cve_id, product, vendor, version_min, version_max, "
+      "cvss_score, severity, description") +
+      (has_excl ? ", version_min_exclusive, version_max_exclusive " : " ");
+
+  const std::string sql_exact_vendor = cols +
     "FROM cves WHERE product = ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 2000";
-
-  const char *sql_exact =
-    "SELECT cve_id, product, vendor, version_min, version_max, "
-    "cvss_score, severity, description "
+  const std::string sql_exact = cols +
     "FROM cves WHERE product = ? AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 2000";
-
-  const char *sql_like_vendor =
-    "SELECT cve_id, product, vendor, version_min, version_max, "
-    "cvss_score, severity, description "
+  const std::string sql_like_vendor = cols +
     "FROM cves WHERE product LIKE ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 2000";
-
-  const char *sql_like =
-    "SELECT cve_id, product, vendor, version_min, version_max, "
-    "cvss_score, severity, description "
+  const std::string sql_like = cols +
     "FROM cves WHERE product LIKE ? AND cvss_score >= ? "
     "ORDER BY cvss_score DESC LIMIT 2000";
 
@@ -354,16 +365,12 @@ static std::vector<CveEntry> query_cves(
      work on a pathologically large DB; rows are indexed on product. */
   const int KMAP_CVE_RESULT_CAP = 100;
 
-  const char *sql;
   bool has_vendor = !pq.vendor_pattern.empty();
-
-  if (pq.exact)
-    sql = has_vendor ? sql_exact_vendor : sql_exact;
-  else
-    sql = has_vendor ? sql_like_vendor  : sql_like;
+  const std::string &sql = pq.exact ? (has_vendor ? sql_exact_vendor : sql_exact)
+                                    : (has_vendor ? sql_like_vendor  : sql_like);
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
     return results;
 
   std::string prod_bind = pq.exact ? pq.product_pattern
@@ -401,24 +408,24 @@ static std::vector<CveEntry> query_cves(
        cannot prove a detected host is vulnerable without a version range. */
     if (vmin.empty() && vmax.empty()) continue;
 
-    /* Version range filter. If the row has bounds but the detected
-       version is missing or non-dotted (extract_ver returns ""), we
-       cannot prove applicability -- skip the row instead of letting it
-       through. Previously this only filtered when both detected_ver and
-       dver were non-empty, which turned every version-bounded CVE into a
-       potential false positive when the banner lacked a dotted version. */
-    if (!vmin.empty() || !vmax.empty()) {
+    /* Version range filter with inclusive/exclusive bounds. The row has at
+       least one bound (checked above). If the detected version is missing or
+       non-dotted (extract_ver returns ""), we cannot prove applicability, so
+       skip. An exclusive bound (NVD versionEndExcluding = the FIXED version)
+       means affected < vmax, so the patched version must not match (<= would
+       be an off-by-one FP); inclusive means <= vmax. Symmetric for vmin. */
+    {
       std::string dver = extract_ver(detected_ver);
       if (dver.empty()) continue;
-      if (!vmin.empty() && !vmax.empty()) {
-        if (ver_cmp(dver, vmin) < 0 || ver_cmp(dver, vmax) > 0)
-          continue;
-      } else if (!vmin.empty()) {
-        if (ver_cmp(dver, vmin) < 0)
-          continue;
-      } else {
-        if (ver_cmp(dver, vmax) > 0)
-          continue;
+      int vmin_excl = has_excl ? sqlite3_column_int(stmt, 8) : 0;
+      int vmax_excl = has_excl ? sqlite3_column_int(stmt, 9) : 0;
+      if (!vmin.empty()) {
+        int cmp = ver_cmp(dver, vmin);
+        if (cmp < 0 || (vmin_excl && cmp == 0)) continue;
+      }
+      if (!vmax.empty()) {
+        int cmp = ver_cmp(dver, vmax);
+        if (cmp > 0 || (vmax_excl && cmp == 0)) continue;
       }
     }
 
