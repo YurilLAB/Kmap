@@ -153,11 +153,34 @@ them, which is the point: **CPU is never the bottleneck.**
 |---|---|---|
 | Discovery, **shipped defaults** (100 workers, 500 ms timeout) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
 | Discovery, **tuned** (1000 workers, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
-| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) — **~50,000 IPs/sec** measured on loopback (1 port, instant-refuse) | 🟢/⚪ live hosts answer in ~1 RTT, not the full timeout; loopback is the connect-pipeline ceiling on this box |
+| Discovery, **measured on a random internet sample** | **~333 IPs/sec** (400 workers / 1.2 s timeout, ports 80/443/22) | 🟢 5,000-IP permutation sample; matches the `workers / timeout` model exactly |
+| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
 | `--rate` send ceiling (token bucket) | 25,000 pps default (1–10 M configurable) | 🔵 polite by default; only the cap, not the throughput |
-| Enrichment | **~40 hosts/sec** (default) → **~850 hosts/sec** (concurrency 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
+| Enrichment, **measured on real hosts** | **~3.6 hosts/sec** (89 real hosts, full pipeline incl. CVE), avg 3.7 s/host | 🟢 internet-bound (banner+HTTP+TLS+ASN+rDNS RTTs); raise `KMAP_NETSCAN_ENRICH_CONCURRENCY` to overlap more |
+| Enrichment, **ceiling** | **~40 hosts/sec** (default) → **~850 hosts/sec** (concurrency 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
 | Peak RAM (measured, /24 scans) | **~22 MB** enrich · **~28 MB** default · **~42 MB** `--fast` | 🟢 PowerShell `WorkingSet64` poll, MSVC binary; permutation is RAM-free so a full `--fast` internet sweep stays concurrency-bound (~150–350 MB worst case 🔵), not IP-space-bound |
 | Screenshots | **~0.2–1 /sec** (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
+
+### Full pipeline, end-to-end on a real random internet sample 🟢
+
+The numbers above isolate subsystems; this is the **whole pipeline running
+through the system at once** — random-IP discovery → service/version detection
+→ CVE matching against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS,
+HTTP) → sharded storage → report — measured on one run, **no synthetic targets**:
+
+| Stage (5,000-IP random sample, ports 80/443/22, `--cve-map`) | Result |
+|---|---|
+| Discovery | 5,000 IPs in **15 s** (~333 IPs/sec, 400 workers / 1.2 s) |
+| Open ports found / hosts enriched | **154 open ports** across **89 live hosts** |
+| Enrichment (full, incl. CVE matching) | **25 s** (~3.6 hosts/sec, avg 3.7 s/host) |
+| CVE matches written | **25 CVE-bearing ports** persisted to the shard DBs |
+| End-to-end wall | **40 s** discover→enrich→report |
+
+> CVE matching is **version-precise**: a match requires the detected version to
+> fall inside the CVE's version range. CVEs with no version applicability (≈half
+> of raw NVD-derived rows) are not asserted, which removes false positives like
+> tagging a plain `nginx` web server with the Kubernetes *ingress-nginx*
+> CVE-2025-1974, or an OpenSSH 6.6 banner with the 9.1-only CVE-2023-25136.
 
 > **Honest headline:** a single-port internet sweep at shipped defaults is
 > thread-bound at **~200 IPs/sec on filtered space** — tune
@@ -170,8 +193,9 @@ them, which is the point: **CPU is never the bottleneck.**
 
 Methodology, tuning knobs, and the full env-var reference live in
 [`docs/performance.md`](docs/performance.md). Reproduce the 🟢 component numbers
-with [`bench/`](bench/); the ⚪ network/RAM/screenshot numbers with
-[`bench/measure-live.sh`](bench/measure-live.sh) on a real Linux host.
+with [`bench/`](bench/); the network/RAM/full-pipeline numbers with
+[`bench/measure-live.sh`](bench/measure-live.sh) (the full-pipeline run is a
+bounded `--net-scan --net-max-ips N` random sample with `--cve-map`).
 
 ---
 

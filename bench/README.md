@@ -65,7 +65,17 @@ Live-binary metrics (MSVC `kmap.exe`, same box) — peak RSS via PowerShell
 | Peak RSS, enriching scan (`--cve-map --web-recon`) | ~22 MB |
 | Peak RSS, default `/24` discovery | ~28 MB |
 | Peak RSS, `--fast` `/24` discovery | ~42 MB |
-| Connect rate, loopback (1 port, instant-refuse) | ~50,000 IPs/sec |
+
+Full pipeline on a **real random internet sample** (no synthetic targets;
+`--net-scan --net-max-ips 5000 -p 80,443,22 --cve-map`, 400 workers / 1.2 s):
+
+| Full-pipeline metric | Result |
+|---|---|
+| Discovery | 5,000 IPs in ~15 s (~333 IPs/sec) |
+| Open ports / live hosts | 154 ports across 89 hosts |
+| Enrichment (incl. CVE matching) | ~25 s (~3.6 hosts/sec, avg 3.7 s/host) |
+| CVE-bearing ports persisted | 25 |
+| End-to-end (discover→enrich→report) | ~40 s |
 
 Your numbers will differ with CPU, disk, and compiler; re-run and quote your own
 hardware. The component benches are deterministic and safe to wire into CI to
@@ -87,3 +97,29 @@ $peak = 0; while (-not $p.HasExited) { $ws=(Get-Process -Id $p.Id).WorkingSet64;
 Each metric is reported with the exact env/flags it depends on
 (`KMAP_NETSCAN_CONCURRENCY`, `KMAP_PROBE_TIMEOUT_MS`, `--fast`, `--rate`) —
 every figure is a function of those knobs, so always quote them next to a result.
+
+## Full-pipeline benchmark (real random internet sample)
+
+The component benches isolate subsystems; this exercises the **whole pipeline**
+— random-IP discovery → service/version detection → CVE matching against
+`kmap-cve.db` → enrichment → sharded storage → report. It uses a bounded random
+sample of the public IPv4 space (the multiplicative-inverse permutation, with
+the built-in reserved/private excludes still applied), so it touches **real
+hosts** — run it only where outbound connect-scanning of a random sample is
+acceptable for your link.
+
+```bash
+# 5,000-IP random sample on the three most common ports, with CVE matching.
+KMAP_NETSCAN_CONCURRENCY=400 KMAP_PROBE_TIMEOUT_MS=1200 \
+  ./kmap --net-scan --net-max-ips 5000 -p 80,443,22 --cve-map --data-dir bench-pipe
+# Read the per-phase wall times from the "discovery/enrichment phase complete"
+# log lines; count results + CVE-bearing ports with:
+./kmap --net-query --data-dir bench-pipe | grep -c ':.*tcp'     # open ports
+./kmap --net-query --data-dir bench-pipe | grep -c 'CVE-'       # CVE matches
+```
+
+`hosts/sec = hosts_enriched / enrichment_seconds`; `IPs/sec = max_ips /
+discovery_seconds`. Discovery tracks `workers / timeout` on dark space and
+`workers / RTT` on responsive hosts; enrichment is internet-bound (banner +
+HTTP + TLS + ASN + reverse-DNS round-trips per host), so raise
+`KMAP_NETSCAN_ENRICH_CONCURRENCY` to overlap more hosts.
