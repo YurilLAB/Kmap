@@ -34,6 +34,9 @@ jobs:
   sanitize-fuzz:
     name: ASan/UBSan parser harnesses
     runs-on: ubuntu-latest
+    # The harness loop runs millions of iterations; cap it so a runaway/hung
+    # fuzzer fails fast instead of hanging on the 6-hour default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
