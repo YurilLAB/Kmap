@@ -610,11 +610,17 @@ int fast_syn_scan(const char *data_dir,
     return 1;
   }
 
-  /* Validate rate -- warn if unreasonably high */
+  /* Warn on a very high send ceiling.  This is a permitted setting (the cap is
+     1e9 pps), but at these rates the operator must have the authorization, the
+     link capacity, and -- crucially -- a high enough KMAP_NETSCAN_CONCURRENCY
+     for the connect()-model probe rate to actually approach it.  At default
+     concurrency the rate ceiling never engages, so a huge --rate alone changes
+     nothing (see docs/performance-roadmap.md). */
   if (rate_pps > 1000000) {
     fprintf(stderr,
-      "net-scan: WARNING: --rate %d exceeds 1,000,000 pps; "
-      "this may overwhelm your network or trigger IDS alerts.\n",
+      "net-scan: NOTE: --rate %d pps is very high. Ensure you have "
+      "authorization and link capacity; actual throughput is bounded by "
+      "KMAP_NETSCAN_CONCURRENCY (the connect() model), not by --rate alone.\n",
       rate_pps);
   }
 

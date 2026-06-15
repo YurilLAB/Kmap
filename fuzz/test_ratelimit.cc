@@ -105,6 +105,33 @@ int main(void) {
     expect(lo.max_tokens == 4.0, "max_tokens floored at 4 for low pps");
   }
 
+  /* ---- high-rate math stays finite + exact at the raised 1e9 cap ----
+     The --rate ceiling was lifted from 10M to 1e9 pps; confirm the token-bucket
+     arithmetic does not overflow or lose the values (all are exact in double). */
+  for (long pps : {1000000L, 10000000L, 100000000L, 1000000000L}) {
+    RateLimiter rl; rate_init(rl, (int)pps, 0);
+    char m[128];
+    snprintf(m, sizeof(m), "pps=%ld: refill_rate finite & == pps/1e6", pps);
+    expect(std::isfinite(rl.refill_rate) &&
+           fabs(rl.refill_rate - (double)pps / 1e6) < 1e-6, m);
+    snprintf(m, sizeof(m), "pps=%ld: max_tokens finite & == pps*0.02", pps);
+    expect(std::isfinite(rl.max_tokens) &&
+           fabs(rl.max_tokens - (double)pps * 0.02) < 1.0, m);
+    snprintf(m, sizeof(m), "pps=%ld: grants at least one token", pps);
+    expect(rate_try(rl, 0), m);
+  }
+
+  /* ---- accuracy still holds at 1,000,000 pps (1 grant/call, 1 us step) ---- */
+  {
+    long got = grants_over(1000000, 1000000, 1);
+    long exp = 1000000;
+    double err = fabs((double)(got - exp)) / exp;
+    char m[128];
+    snprintf(m, sizeof(m), "pps=1e6 over 1s: granted %ld ~ %ld (err %.2f%%, <2%%)",
+             got, exp, err * 100.0);
+    expect(err < 0.02, m);
+  }
+
   printf("\n%s\n", g_fail == 0 ? "rate-limiter test: ALL PASS" : "rate-limiter test: FAILURES");
   return g_fail == 0 ? 0 : 1;
 }

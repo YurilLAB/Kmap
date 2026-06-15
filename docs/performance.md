@@ -93,11 +93,14 @@ KMAP_NO_CPU_GOVERNOR=1
 
 ## Discovery rate
 
-`--rate <pps>` sets the global packets-per-second target for discovery,
+`--rate <pps>` sets the global packets-per-second send ceiling for discovery,
 enforced by a shared token bucket across all discovery workers (**default
-25000 pps**, range 1–10000000). The rate limiter is the *last* thing to
-saturate: if you have CPU and bandwidth headroom and want a faster sweep,
-raise the discovery concurrency first, then raise `--rate`.
+25000 pps**, range 1–1000000000). The default is deliberately polite; the cap
+is effectively your hardware/link, not an artificial Kmap limit. The rate
+limiter is the *last* thing to saturate: if you have CPU and bandwidth headroom
+and want a faster sweep, raise the discovery concurrency first, then raise
+`--rate`. A high `--rate` on its own changes nothing at default concurrency —
+the connect()-model probe rate (≈`workers / timeout`) stays well below it.
 
 The internet-scale SYN scanner (`fast_syn`) keeps a deliberate **25k pps
 ceiling by default** to respect upstream/ISP limits and avoid abuse-report
