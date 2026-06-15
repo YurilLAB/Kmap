@@ -174,6 +174,28 @@ int main() {
           "COALESCE: NULL cpe preserved prior value");
   }
 
+  /* ---- v5f cloud-provider columns round-trip + COALESCE (fresh IP). ---- */
+  {
+    uint32_t kip = ip_to_u32("198.51.100.55");
+    const char *KIP = "198.51.100.55";
+    net_db_insert_host(db, kip, 443, "tcp", t0 + 10);
+    net_db_update_cloud(db, KIP, "aws", "us-east-1", "EC2");
+    NetHost c = getrow(db, KIP, 443);
+    CHECK(c.cloud_provider == "aws",        "cloud_provider stored");
+    CHECK(c.cloud_region   == "us-east-1",  "cloud_region stored");
+    CHECK(c.cloud_service  == "EC2",        "cloud_service stored");
+    /* NULL/empty re-match must preserve (COALESCE), not wipe. */
+    net_db_update_cloud(db, KIP, nullptr, nullptr, nullptr);
+    c = getrow(db, KIP, 443);
+    CHECK(c.cloud_provider == "aws",        "COALESCE: NULL provider preserved");
+    CHECK(c.cloud_region   == "us-east-1",  "COALESCE: NULL region preserved");
+    /* a non-empty new provider overwrites. */
+    net_db_update_cloud(db, KIP, "gcp", nullptr, nullptr);
+    c = getrow(db, KIP, 443);
+    CHECK(c.cloud_provider == "gcp",        "non-empty provider overwrites");
+    CHECK(c.cloud_region   == "us-east-1",  "region preserved alongside provider update");
+  }
+
   /* ---- enrichment error cooldown round-trip ----
      A host whose enrichment errored must be parked out of the eligible pool
      for retry_after_seconds (so a dead host isn't hammered every pass) and

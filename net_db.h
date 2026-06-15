@@ -99,6 +99,10 @@ struct NetHost {
   std::string tls_protocol;            /* "TLSv1.2" / "TLSv1.3" */
   std::string tls_sha256;              /* server cert SHA-256 fingerprint hex */
   std::string cpe;                     /* v5e: derived CPE 2.3 product id */
+  /* v5f: passive cloud-provider identification (offline IP-range match). */
+  std::string cloud_provider;          /* "aws"/"gcp"/"azure"/"cloudflare"/... or "" */
+  std::string cloud_region;            /* provider region verbatim, or "" */
+  std::string cloud_service;           /* provider service, or "" */
 };
 
 /* Insert a discovered host/port.  Ignores duplicates (INSERT OR IGNORE).
@@ -160,6 +164,14 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
                       const char *country, const char *bgp_prefix,
                       const char *asn_registry = nullptr,
                       const char *asn_region = nullptr);
+
+/* Update cloud-provider identification for all ports of an IP (host-level
+   fact, like ASN).  All fields COALESCE: a NULL/empty bind leaves the column
+   unchanged, so a "no match" re-scan never wipes a prior match.  WHERE ip=?.
+   Returns 0 on success, -1 on error. */
+int net_db_update_cloud(sqlite3 *db, const char *ip,
+                        const char *provider, const char *region,
+                        const char *service);
 
 /* Default cool-down (seconds) before a host whose last enrichment attempt
    failed becomes eligible to retry. */

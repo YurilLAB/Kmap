@@ -72,6 +72,13 @@ jobs:
             echo "::endgroup::"
           done
 
+          # Cloud-range matcher links the real cloud_map.cc (offline longest-
+          # prefix match + strict CIDR parse). Known-IP -> known-provider KATs.
+          echo "::group::test_cloud_match"
+          g++ $CXXFLAGS -I. fuzz/test_cloud_match.cc cloud_map.cc -o /tmp/fz/test_cloud_match
+          /tmp/fz/test_cloud_match
+          echo "::endgroup::"
+
           # Guard-page fuzzers (mmap/mprotect PROT_NONE): exact-boundary
           # over-read detection for untrusted-input parsers --
           #   fuzz_dns   : asn_lookup.cc DNS wire parser (network data)

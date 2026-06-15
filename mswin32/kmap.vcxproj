@@ -261,6 +261,7 @@
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
     <ClCompile Include="..\asn_lookup.cc" />
+    <ClCompile Include="..\cloud_map.cc" />
     <ClCompile Include="..\tracemap.cc" />
     <ClCompile Include="..\os_profile.cc" />
     <ClCompile Include="..\cpu_meter.cc" />
@@ -341,6 +342,7 @@
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />
     <ClInclude Include="..\asn_lookup.h" />
+    <ClInclude Include="..\cloud_map.h" />
     <ClInclude Include="..\tracemap.h" />
     <ClInclude Include="..\os_profile.h" />
     <ClInclude Include="..\cpu_meter.h" />

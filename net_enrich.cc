@@ -19,6 +19,7 @@
 #include "net_fp_helpers.h"
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
+#include "cloud_map.h"          /* lookup_cloud, cloud_ranges_load */
 #include "net_db.h"
 #include "net_scan.h"   /* net_event_log: mirror key events into kmap.log */
 #include "asn_lookup.h"
@@ -1562,6 +1563,30 @@ int run_enrichment(const char *data_dir, int batch_size) {
     }
   }
 
+  /* Load the offline cloud-provider range table ONCE for the whole phase
+     (before any worker runs lookup_cloud).  A missing file just means no
+     host receives a cloud tag -- graceful, like a missing CVE DB. */
+  {
+    char cbuf[1024];
+    std::string cloud_path;
+    if (kmap_fetchfile(cbuf, sizeof(cbuf), "kmap-cloud-ranges.csv") > 0) {
+      cloud_path = cbuf;
+    } else {
+      FILE *cwd = fopen("kmap-cloud-ranges.csv", "rb");
+      if (cwd) { fclose(cwd); cloud_path = "kmap-cloud-ranges.csv"; }
+    }
+    size_t nranges = cloud_ranges_load(cloud_path.empty() ? "" : cloud_path.c_str());
+    if (nranges > 0) {
+      log_write(LOG_STDOUT, "net-scan: cloud ranges: %llu from %s\n",
+                (unsigned long long)nranges, cloud_path.c_str());
+      net_event_log("INFO", "cloud-ranges: %llu ranges from %s",
+                    (unsigned long long)nranges, cloud_path.c_str());
+    } else {
+      net_event_log("INFO",
+                    "cloud-ranges: none loaded (kmap-cloud-ranges.csv not found)");
+    }
+  }
+
   int errors = 0;
 
   /* Cross-shard pooled enrichment.
@@ -1596,6 +1621,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
     std::vector<HostFingerprints> host_fps;
     std::string hostname;
     AsnInfo asn_info{};
+    CloudInfo cloud_info{};
     int rc = 0;
     bool empty_host = false;
   };
@@ -1801,6 +1827,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
            sync getnameinfo call -- it was the dominant Stage B cost
            on 7000-host scans. */
         r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
+        /* Offline cloud-provider match -- pure, lock-free, no network. */
+        uint32_t ipu = ip_to_u32(r.ip.c_str());
+        if (ipu) r.cloud_info = lookup_cloud(ipu);
       }
       processed_atomic.fetch_add(1, std::memory_order_relaxed);
 
@@ -1945,6 +1974,14 @@ int run_enrichment(const char *data_dir, int batch_size) {
                           r.asn_info.bgp_prefix.c_str(),
                           r.asn_info.registry.c_str(),
                           r.asn_info.region.c_str());
+      }
+      /* Cloud match is independent of ASN -- a host can be in a cloud range
+         with no ASN result, so this is NOT gated on asn > 0. */
+      if (!r.cloud_info.provider.empty()) {
+        net_db_update_cloud(db, r.ip.c_str(),
+                            r.cloud_info.provider.c_str(),
+                            r.cloud_info.region.empty()  ? nullptr : r.cloud_info.region.c_str(),
+                            r.cloud_info.service.empty() ? nullptr : r.cloud_info.service.c_str());
       }
 
       uint32_t ip_u32 = ip_to_u32(r.ip.c_str());

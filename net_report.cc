@@ -243,6 +243,9 @@ static void write_host_section(FILE *fp, const std::string &ip,
             p.version.c_str());
     if (!p.cpe.empty())
       fprintf(fp, "    CPE:     %s\n", p.cpe.c_str());
+    if (!p.cloud_provider.empty())
+      fprintf(fp, "    CLOUD:   %s%s%s\n", p.cloud_provider.c_str(),
+              p.cloud_region.empty() ? "" : " / ", p.cloud_region.c_str());
 
     if (!p.cves.empty() && p.cves != "[]") has_cves = true;
     if (!p.web_title.empty() || !p.web_server.empty()) has_web = true;

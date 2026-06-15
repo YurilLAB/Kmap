@@ -134,6 +134,11 @@ static const char *SCHEMA_SQL =
      service+version during enrichment; no DEFAULT so legacy / never-enriched
      rows stay NULL ("unknown") rather than carrying a bogus empty CPE. */
   "  cpe                    TEXT,"
+  /* v5f: passive cloud-provider identification (offline IPv4-range match).
+     No DEFAULT -> legacy / never-matched rows stay NULL ("unknown / not cloud"). */
+  "  cloud_provider         TEXT,"
+  "  cloud_region           TEXT,"
+  "  cloud_service          TEXT,"
   "  PRIMARY KEY (ip, port)"
   ");"
   /* Indexes whose columns have always existed since v1 are safe in
@@ -264,6 +269,10 @@ static const char *MIGRATIONS[] = {
   "ALTER TABLE hosts ADD COLUMN tls_sha256 TEXT",
   /* v5e: derived CPE 2.3 product identifier -- see SCHEMA_SQL note. No DEFAULT. */
   "ALTER TABLE hosts ADD COLUMN cpe TEXT",
+  /* v5f: cloud-provider identification -- see SCHEMA_SQL note. No DEFAULT. */
+  "ALTER TABLE hosts ADD COLUMN cloud_provider TEXT",
+  "ALTER TABLE hosts ADD COLUMN cloud_region TEXT",
+  "ALTER TABLE hosts ADD COLUMN cloud_service TEXT",
 };
 
 sqlite3 *net_db_open(const std::string &path) {
@@ -560,6 +569,39 @@ int net_db_set_hostname(sqlite3 *db, const char *ip, const char *hostname) {
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
 
+int net_db_update_cloud(sqlite3 *db, const char *ip,
+                        const char *provider, const char *region,
+                        const char *service) {
+  if (!db || !ip) return -1;
+
+  /* Host-level fact (like ASN): update every port row of the IP.  COALESCE on
+     all three fields so a "no match" re-scan never wipes a prior match. */
+  static const char *sql =
+    "UPDATE hosts SET "
+    "cloud_provider = COALESCE(?, cloud_provider), "
+    "cloud_region   = COALESCE(?, cloud_region), "
+    "cloud_service  = COALESCE(?, cloud_service) "
+    "WHERE ip=?";
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  auto bind_or_null = [&](int idx, const char *val) {
+    if (val && val[0])
+      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+    else
+      sqlite3_bind_null(stmt, idx);
+  };
+  bind_or_null(1, provider);
+  bind_or_null(2, region);
+  bind_or_null(3, service);
+  sqlite3_bind_text(stmt, 4, ip, -1, SQLITE_TRANSIENT);
+
+  int rc = sqlite3_step_retry(stmt);
+  sqlite3_finalize(stmt);
+  return (rc == SQLITE_DONE) ? 0 : -1;
+}
+
 int net_db_set_screenshot(sqlite3 *db, const char *ip, int port,
                           const char *screenshot_path) {
   if (!db || !ip) return -1;
@@ -700,7 +742,8 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     "hostname, powered_by, x_generator, redirect_target, "
     "robots_disallowed_json, screenshot_path, asn_registry, asn_region, "
     "tls_subject_cn, tls_issuer, tls_san_json, tls_not_after, "
-    "tls_self_signed, tls_protocol, tls_sha256, cpe "
+    "tls_self_signed, tls_protocol, tls_sha256, cpe, "
+    "cloud_provider, cloud_region, cloud_service "
     "FROM hosts WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -760,6 +803,9 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.tls_protocol           = col(36);
     h.tls_sha256             = col(37);
     h.cpe                    = col(38);
+    h.cloud_provider         = col(39);
+    h.cloud_region           = col(40);
+    h.cloud_service          = col(41);
     hosts.push_back(std::move(h));
   }
   sqlite3_finalize(stmt);

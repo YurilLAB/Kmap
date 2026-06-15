@@ -13,6 +13,7 @@
 #include "net_db.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
+#include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
 #include "net_enrich_async.h"
 #include "net_report.h"
 #include "net_query.h"
@@ -694,6 +695,24 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       scan_log("INFO", "CVE database: %s", cve_db_path.c_str());
     }
 
+    /* Load the offline cloud-provider range table once for the phase. */
+    {
+      char cbuf[1024];
+      std::string cloud_path;
+      if (kmap_fetchfile(cbuf, sizeof(cbuf), "kmap-cloud-ranges.csv") > 0) {
+        cloud_path = cbuf;
+      } else {
+        FILE *cwd = fopen("kmap-cloud-ranges.csv", "rb");
+        if (cwd) { fclose(cwd); cloud_path = "kmap-cloud-ranges.csv"; }
+      }
+      size_t nr = cloud_ranges_load(cloud_path.empty() ? "" : cloud_path.c_str());
+      if (nr > 0)
+        scan_log("INFO", "cloud-ranges: %llu ranges from %s",
+                 (unsigned long long)nr, cloud_path.c_str());
+      else
+        scan_log("INFO", "cloud-ranges: none loaded (kmap-cloud-ranges.csv not found)");
+    }
+
     /* Open the CVE DB ONCE for the entire enrichment phase.  Sqlite
      * is in default serialized threading mode, so a single read-only
      * handle is safe to share across the worker pool below.  The
@@ -736,6 +755,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       std::vector<std::string> powered_by, x_generator, redirects;
       std::vector<TlsCapture> tls_caps;
       AsnInfo asn_info{};
+      CloudInfo cloud_info{};
       int erc = 0;
       bool empty_host = false;  /* host had no ports in DB, skip */
     };
@@ -903,6 +923,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
                            hr.redirects, &hr.tls_caps);
         if (hr.erc == 0) {
           hr.asn_info = lookup_asn(hr.ip.c_str(), 2000);
+          /* Offline cloud-provider match -- pure, lock-free, no network. */
+          uint32_t ipu = ip_to_u32(hr.ip.c_str());
+          if (ipu) hr.cloud_info = lookup_cloud(ipu);
         }
         /* --fast / --efficient CPU governor (no-op in normal mode). */
         kmap_cpu_governor_throttle();
@@ -1010,6 +1033,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
                           hr.asn_info.bgp_prefix.c_str(),
                           hr.asn_info.registry.c_str(),
                           hr.asn_info.region.c_str());
+      }
+      /* Cloud match is independent of ASN (not gated on asn > 0). */
+      if (!hr.cloud_info.provider.empty()) {
+        net_db_update_cloud(wl_db, hr.ip.c_str(),
+                            hr.cloud_info.provider.c_str(),
+                            hr.cloud_info.region.empty()  ? nullptr : hr.cloud_info.region.c_str(),
+                            hr.cloud_info.service.empty() ? nullptr : hr.cloud_info.service.c_str());
       }
       enriched_count++;
     }

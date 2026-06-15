@@ -1,0 +1,69 @@
+# kmap-cloud-ranges.csv
+#
+# Maps IPv4 CIDR blocks to their cloud provider for passive cloud-provider
+# identification during net-scan enrichment.  Format, one range per line:
+#
+#     cidr,provider,region,service
+#
+#   cidr     - IPv4 CIDR (required).  Lines with ':' (IPv6) are skipped.
+#   provider - lowercased provider key (required): aws/gcp/azure/cloudflare/
+#              digitalocean/oracle/...
+#   region   - provider region verbatim (may be empty)
+#   service  - provider service tag (may be empty)
+#
+# THIS IS A CURATED STARTER SET of high-confidence, stable ranges so the
+# feature works offline out of the box.  It is NOT exhaustive.  Regenerate the
+# authoritative, full set from the live provider feeds with:
+#
+#     python tools/refresh-cloud-ranges.py -o kmap-cloud-ranges.csv
+#
+# Rows are sorted by network address ascending (the loader re-sorts defensively).
+
+# --- Google (public DNS + Google Cloud) ---
+8.8.4.0/24,gcp,,public-dns
+8.8.8.0/24,gcp,,public-dns
+34.64.0.0/10,gcp,,
+35.184.0.0/13,gcp,,
+35.190.0.0/17,gcp,,
+35.191.0.0/16,gcp,,
+
+# --- Amazon Web Services ---
+3.5.140.0/22,aws,ap-northeast-2,S3
+13.248.0.0/14,aws,,GLOBAL
+52.94.0.0/22,aws,,AMAZON
+54.231.0.0/17,aws,us-east-1,S3
+
+# --- Microsoft Azure ---
+13.104.0.0/14,azure,,AzureCloud
+20.33.0.0/16,azure,,AzureCloud
+40.74.0.0/15,azure,,AzureCloud
+52.224.0.0/11,azure,,AzureCloud
+
+# --- Cloudflare (published IPv4 list) ---
+103.21.244.0/22,cloudflare,,
+103.22.200.0/22,cloudflare,,
+103.31.4.0/22,cloudflare,,
+104.16.0.0/13,cloudflare,,
+104.24.0.0/14,cloudflare,,
+108.162.192.0/18,cloudflare,,
+131.0.72.0/22,cloudflare,,
+141.101.64.0/18,cloudflare,,
+162.158.0.0/15,cloudflare,,
+172.64.0.0/13,cloudflare,,
+173.245.48.0/20,cloudflare,,
+188.114.96.0/20,cloudflare,,
+190.93.240.0/20,cloudflare,,
+197.234.240.0/22,cloudflare,,
+198.41.128.0/17,cloudflare,,
+
+# --- DigitalOcean ---
+104.131.0.0/16,digitalocean,,
+138.197.0.0/16,digitalocean,,
+159.65.0.0/16,digitalocean,,
+165.227.0.0/16,digitalocean,,
+167.99.0.0/16,digitalocean,,
+
+# --- Oracle Cloud Infrastructure ---
+129.146.0.0/16,oracle,,OCI
+132.145.0.0/16,oracle,,OCI
+140.91.0.0/16,oracle,,OCI
