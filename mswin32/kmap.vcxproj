@@ -71,6 +71,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>kmap_winconfig.h</ForcedIncludeFiles>
       <PreprocessorDefinitions>WIN32;_CONSOLE;BPF_MAJOR_VERSION;ZLIB_WINAPI;PCRE2_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
@@ -106,8 +107,8 @@
       <ResourceOutputFileName>$(IntDir)%(Filename).res</ResourceOutputFileName>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)"</Command>
-      <Message>Copying libssh2.dll and zlibwapi.dll to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
+      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -120,6 +121,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>kmap_winconfig.h</ForcedIncludeFiles>
       <PreprocessorDefinitions>WIN32;_CONSOLE;BPF_MAJOR_VERSION;ZLIB_WINAPI;PCRE2_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -150,8 +152,8 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)"</Command>
-      <Message>Copying libssh2.dll and zlibwapi.dll to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
+      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-oem|Win32'">
@@ -164,6 +166,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>kmap_winconfig.h</ForcedIncludeFiles>
       <PreprocessorDefinitions>KMAP_OEM;WIN32;_CONSOLE;BPF_MAJOR_VERSION;ZLIB_WINAPI;PCRE2_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -191,8 +194,8 @@
       <AdditionalOptions>/LTCG %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)"</Command>
-      <Message>Copying libssh2.dll and zlibwapi.dll to $(OutDir)</Message>
+      <Command>copy /Y "$(SolutionDir)..\libssh2\win32\Release_dll\libssh2.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\libz\contrib\vstudio\vc16\x86\ZlibDllReleaseWithoutAsm\zlibwapi.dll" "$(OutDir)" &amp; copy /Y "$(SolutionDir)..\nse_main.lua" "$(OutDir)" &amp; xcopy /Y /E /I "$(SolutionDir)..\nselib" "$(OutDir)nselib\" &amp; xcopy /Y /E /I "$(SolutionDir)..\scripts" "$(OutDir)scripts\"</Command>
+      <Message>Copying libssh2.dll, zlibwapi.dll and NSE data (nse_main.lua, nselib, scripts) to $(OutDir)</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
