@@ -26,6 +26,7 @@ All guides render on GitHub under [`docs/`](docs/):
 |-------|----------------|
 | [Internet-scale scanning](docs/internet-scale-scanning.md) | The core `--net-scan` workflow end-to-end: discover → enrich → report, single-port vs multi-port, `--rate`, sampling (`--net-max-ips`), resuming, phase splitting, excludes, 32-shard layout, and watchlist monitoring |
 | [Performance & resource tuning](docs/performance.md) | `--fast` / `--efficient` modes, the CPU governor, discovery/enrichment concurrency, the full environment-variable reference, and gaming-PC tuning recipes |
+| [Performance roadmap](docs/performance-roadmap.md) | Where throughput is bound today and the ranked backlog of changes that would lift it (async connect engine, screenshot pool, prepared-statement DB writes, …) |
 | [Querying collected data](docs/querying.md) | `--net-query` filters (port, service, CVE, CVSS, ASN, country, web title/server, device class) and output formats |
 | [Pivoting & topology](docs/pivoting-and-topology.md) | `--net-cluster` (correlate hosts by shared TLS/host fingerprints), `--tracemap` / `--topo-export` (path & ASN topology graphs), and `--spoof-os` (OS/browser personality for enrichment) |
 | [Reading the findings report](docs/findings-report.md) | The `Findings/findings_NNN.txt` layout: file naming/ordering, the PORT TABLE / CVE MAP (`[REMOTE]` tags) / PATCH STATUS / WEB RECON sections, the file summary, and grep recipes |
@@ -88,6 +89,78 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | Resource-aware speed modes | `--efficient` / `--fast` | Auto-scale worker pools to the machine's CPU/RAM; `--fast` is capped at a tunable share (default ~50% CPU / ~25% RAM) |
 
 All per-host features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
+
+---
+
+## Benchmarks
+
+Real numbers beat adjectives. Kmap's discovery path is a non-blocking
+`connect()` sweep, **not** a raw-SYN firehose — so throughput is bounded by how
+many sockets are in flight, not by the `--rate` ceiling. The figures below are
+labelled by how they were obtained:
+
+- 🟢 **Measured** — observed on a real run (hardware + flags noted).
+- 🔵 **Derived** — computed from source constants; the code cannot exceed it.
+- ⚪ **Run-it-yourself** — depends on your link, target responsiveness, and
+  tuning; reproduce with [`bench/measure-live.sh`](bench/measure-live.sh).
+
+🟢 figures below were measured on an **AMD Ryzen 5 5600X (6C/12T), 32 GB RAM,
+g++ 16.1 `-O2`**, reproducible with the harnesses in [`bench/`](bench/).
+
+### Storage & write throughput
+
+| Metric | Value | How |
+|---|---|---|
+| DB write throughput (Stage-C, 1 shard, 1 thread) | **~7,900 enriched hosts/sec** | 🟢 `bench/bench_db` |
+| On-disk size per enriched host | **~1.86 KB** (1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
+| **DB growth per 1 billion IPs scanned** | **~8.7 GB** (0.5% open-port rate) · **~17 GB** (1%) · **~35 GB** (2%) | 🟢 derived from the measured 1.86 KB/host |
+| Bundled CVE database | ~5.05 MB | 🟢 `stat` |
+
+> Only IPs with an open port are stored, so DB growth tracks *discovered hosts*,
+> not addresses swept. Across the 32 shards that's ~0.3–1 GB/shard at 1–2% hit.
+
+### Enrichment CPU primitives (single-thread)
+
+These are CPU **ceilings** — real enrichment is network-bound and far below
+them, which is the point: **CPU is never the bottleneck.**
+
+| Primitive | Throughput | How |
+|---|---|---|
+| IP generation (permutation + exclude check) | **~101 M IPs/sec** | 🟢 `bench/bench_compute` |
+| Cloud-provider lookup (longest-prefix) | **~78 M lookups/sec** | 🟢 |
+| MurmurHash3 (favicon hashing) | **~3.7 GB/sec** | 🟢 |
+| SHA-256 (HTTP body hashing) | **~300 MB/sec** (~19 K bodies/sec) | 🟢 |
+| Favicon hash (base64 + mmh3, 4 KB) | **~80 K/sec** | 🟢 |
+| CPE derivation | **~3 M/sec** | 🟢 |
+
+> IP generation runs ~4,000× faster than the 25,000-pps network rate ceiling,
+> so the address pipeline is never what limits a sweep.
+
+### Network throughput (the binding constraints — 🔵 derived / ⚪ run-it-yourself)
+
+| Metric | Value | Notes |
+|---|---|---|
+| Discovery, **shipped defaults** (100 workers, 500 ms timeout) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
+| Discovery, **tuned** (1000 workers, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
+| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
+| `--rate` send ceiling (token bucket) | 25,000 pps default (1–10 M configurable) | 🔵 polite by default; only the cap, not the throughput |
+| Enrichment | **~40 hosts/sec** (default) → **~850 hosts/sec** (concurrency 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
+| Peak RAM | **~30–60 MB** typical · **~150–350 MB** worst-case / `--fast` | 🔵 independent of IP-space size (permutation is RAM-free) |
+| Screenshots | **~0.2–1 /sec** (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
+
+> **Honest headline:** a single-port internet sweep at shipped defaults is
+> thread-bound at **~200 IPs/sec on filtered space** — tune
+> `KMAP_NETSCAN_CONCURRENCY` (512–1024) and `KMAP_PROBE_TIMEOUT_MS` for
+> internet-scale rates; real ranges go far faster because live hosts answer in
+> ~1 RTT instead of the full timeout. The largest planned speedup — an async
+> epoll/IOCP connect engine (~100× on dark space) — and the rest of the
+> performance backlog are tracked in
+> [`docs/performance-roadmap.md`](docs/performance-roadmap.md).
+
+Methodology, tuning knobs, and the full env-var reference live in
+[`docs/performance.md`](docs/performance.md). Reproduce the 🟢 component numbers
+with [`bench/`](bench/); the ⚪ network/RAM/screenshot numbers with
+[`bench/measure-live.sh`](bench/measure-live.sh) on a real Linux host.
 
 ---
 
@@ -425,7 +498,7 @@ Phase 3: REPORT       Reads enriched data
 - Grabs service banners and matches against known patterns (SSH, HTTP, FTP, MySQL, PostgreSQL, etc.)
 - Cross-references detected versions against the bundled CVE database
 - Performs HTTP reconnaissance on web ports (title, server header, interesting paths)
-- All probes have 5-second timeouts — blocked/rate-limited hosts are skipped, never stall the pipeline
+- Probes are bounded by a 3-second per-port connect timeout and a 15-second per-host budget — blocked/rate-limited hosts are skipped, never stall the pipeline
 
 **Results** are stored in sharded SQLite databases (32 shards, split by `/5` IP prefix) and written to styled text reports.
 
