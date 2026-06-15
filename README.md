@@ -108,15 +108,22 @@ labelled by how they were obtained:
 - ⚪ **Run-it-yourself** — depends on your link, target responsiveness, and
   tuning; reproduce with [`bench/measure-live.sh`](bench/measure-live.sh).
 
-🟢 figures below were measured on an **AMD Ryzen 5 5600X (6C/12T), 32 GB RAM,
-g++ 16.1 `-O2`**, reproducible with the harnesses in [`bench/`](bench/).
+🟢 figures below were measured on **Windows 11 Pro (build 26200), AMD Ryzen 5
+5600X (6C/12T) @ 4.27 GHz, 32 GB RAM**. Two toolchains are involved and labelled
+per row: the component micro-benchmarks (`bench_db`, `bench_compute`) are built
+with **MinGW g++ 16.1 `-O2`** and link the real Kmap `.cc`; the live-binary
+metrics (peak RSS, connect rate) come from the **MSVC (VS 2026 toolset) `/O2`**
+shipping `kmap.exe`. Reproducible with the harnesses in [`bench/`](bench/). The
+same correctness harnesses also run on Linux under ASan+UBSan in CI
+([`.github/workflows/fuzz.yml`](.github/workflows/fuzz.yml)) — behaviour is
+verified on both platforms; the throughput numbers below are from Windows 11.
 
 ### Storage & write throughput
 
 | Metric | Value | How |
 |---|---|---|
-| DB write throughput (Stage-C, 1 shard, 1 thread) | **~7,900 enriched hosts/sec** | 🟢 `bench/bench_db` |
-| On-disk size per enriched host | **~1.86 KB** (1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
+| DB write throughput (Stage-C, 1 shard, 1 thread) | **~8,070 enriched hosts/sec** (56,500 row-ops/sec) | 🟢 `bench/bench_db 200000` |
+| On-disk size per enriched host | **~1.86 KB** (1,862 B: 1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
 | **DB growth per 1 billion IPs scanned** | **~8.7 GB** (0.5% open-port rate) · **~17 GB** (1%) · **~35 GB** (2%) | 🟢 derived from the measured 1.86 KB/host |
 | Bundled CVE database | ~5.05 MB | 🟢 `stat` |
 
@@ -130,12 +137,12 @@ them, which is the point: **CPU is never the bottleneck.**
 
 | Primitive | Throughput | How |
 |---|---|---|
-| IP generation (permutation + exclude check) | **~101 M IPs/sec** | 🟢 `bench/bench_compute` |
-| Cloud-provider lookup (longest-prefix) | **~78 M lookups/sec** | 🟢 |
-| MurmurHash3 (favicon hashing) | **~3.7 GB/sec** | 🟢 |
-| SHA-256 (HTTP body hashing) | **~300 MB/sec** (~19 K bodies/sec) | 🟢 |
-| Favicon hash (base64 + mmh3, 4 KB) | **~80 K/sec** | 🟢 |
-| CPE derivation | **~3 M/sec** | 🟢 |
+| IP generation (permutation + exclude check) | **~111 M IPs/sec** | 🟢 `bench/bench_compute` |
+| Cloud-provider lookup (longest-prefix) | **~82 M lookups/sec** | 🟢 |
+| MurmurHash3 (favicon hashing) | **~3.76 GB/sec** | 🟢 |
+| SHA-256 (HTTP body hashing) | **~311 MB/sec** (~19.9 K bodies/sec) | 🟢 |
+| Favicon hash (base64 + mmh3, 4 KB) | **~86 K/sec** | 🟢 |
+| CPE derivation | **~3.4 M/sec** | 🟢 |
 
 > IP generation runs ~4,000× faster than the 25,000-pps network rate ceiling,
 > so the address pipeline is never what limits a sweep.
@@ -146,10 +153,10 @@ them, which is the point: **CPU is never the bottleneck.**
 |---|---|---|
 | Discovery, **shipped defaults** (100 workers, 500 ms timeout) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
 | Discovery, **tuned** (1000 workers, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
-| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
+| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) — **~50,000 IPs/sec** measured on loopback (1 port, instant-refuse) | 🟢/⚪ live hosts answer in ~1 RTT, not the full timeout; loopback is the connect-pipeline ceiling on this box |
 | `--rate` send ceiling (token bucket) | 25,000 pps default (1–10 M configurable) | 🔵 polite by default; only the cap, not the throughput |
 | Enrichment | **~40 hosts/sec** (default) → **~850 hosts/sec** (concurrency 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
-| Peak RAM | **~30–60 MB** typical · **~150–350 MB** worst-case / `--fast` | 🔵 independent of IP-space size (permutation is RAM-free) |
+| Peak RAM (measured, /24 scans) | **~22 MB** enrich · **~28 MB** default · **~42 MB** `--fast` | 🟢 PowerShell `WorkingSet64` poll, MSVC binary; permutation is RAM-free so a full `--fast` internet sweep stays concurrency-bound (~150–350 MB worst case 🔵), not IP-space-bound |
 | Screenshots | **~0.2–1 /sec** (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
 
 > **Honest headline:** a single-port internet sweep at shipped defaults is
