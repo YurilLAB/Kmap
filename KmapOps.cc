@@ -374,6 +374,11 @@ void KmapOps::Initialize() {
   eg_output        = nullptr;
   eg_format        = nullptr;
   eg_depth         = 1;
+  do_search        = false;
+  search_query     = nullptr;
+  search_output    = nullptr;
+  search_format    = nullptr;
+  search_limit     = 100;
   tracemap_targets = nullptr;
   tm_output        = nullptr;
   tm_format        = nullptr;

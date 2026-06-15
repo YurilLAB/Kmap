@@ -349,6 +349,19 @@ static bool parse_kmap_option(const char *name, const char *arg) {
         strcmp(arg, "json") != 0)
       fatal("--eg-format must be one of: text, dot, json");
     o.entity_graph = true; o.eg_format = strdup(arg); return true;
+  /* --search options (FTS5 full-text / faceted search) */
+  } else if (strcmp(name, "search") == 0) {
+    o.do_search = true; o.search_query = strdup(arg); return true;
+  } else if (strcmp(name, "search-output") == 0) {
+    o.do_search = true; o.search_output = strdup(arg); return true;
+  } else if (strcmp(name, "search-limit") == 0) {
+    o.do_search = true;
+    o.search_limit = parse_int_arg("search-limit", arg, 1, 1000000);
+    return true;
+  } else if (strcmp(name, "search-format") == 0) {
+    if (strcmp(arg, "text") != 0 && strcmp(arg, "json") != 0)
+      fatal("--search-format must be one of: text, json");
+    o.do_search = true; o.search_format = strdup(arg); return true;
   /* --tracemap options */
   } else if (strcmp(name, "tracemap") == 0) {
     o.tracemap_targets = strdup(arg); return true;
@@ -609,6 +622,10 @@ static void printusage() {
          "  --eg-depth <n>: entity-graph cohort-expansion depth: 0=seed only, 1=+cohort (default: 1, range: 0-3)\n"
          "  --eg-format <fmt>: entity-graph format: text, dot, json (default: text)\n"
          "  --eg-output <file>: Write entity-graph to file (default: stdout)\n"
+         "  --search <query>: FTS5 full-text/faceted search over the catalog (e.g. 'service:nginx country:US')\n"
+         "  --search-format <fmt>: search output format: text, json (default: text)\n"
+         "  --search-limit <n>: Max search results (default: 100)\n"
+         "  --search-output <file>: Write search results to file (default: stdout)\n"
          "  --spoof-os <profile>: Spoof OS fingerprint for net-scan probes\n"
          "                         (linux, win10, win11, macos, freebsd,\n"
          "                          openbsd, android, ios, random)\n"
@@ -1019,6 +1036,10 @@ void parse_options(int argc, char **argv) {
     {"eg-output", required_argument, 0, 0},
     {"eg-depth", required_argument, 0, 0},
     {"eg-format", required_argument, 0, 0},
+    {"search", required_argument, 0, 0},
+    {"search-output", required_argument, 0, 0},
+    {"search-limit", required_argument, 0, 0},
+    {"search-format", required_argument, 0, 0},
     /* --tracemap options */
     {"tracemap", required_argument, 0, 0},
     {"tm-output", required_argument, 0, 0},
@@ -2436,6 +2457,12 @@ int kmap_main(int argc, char *argv[]) {
   /* --entity-graph: build the asset-attribution graph around a seed IP and exit. */
   if (o.entity_graph) {
     int rc = run_entity_graph_cli();
+    exit(rc);
+  }
+
+  /* --search: FTS5 full-text / faceted search across the catalog and exit. */
+  if (o.do_search) {
+    int rc = run_search_cli();
     exit(rc);
   }
 

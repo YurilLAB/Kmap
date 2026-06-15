@@ -812,6 +812,86 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
   return hosts;
 }
 
+std::vector<NetSearchHit> net_db_search_fts(sqlite3 *db, const char *query,
+                                            int limit, std::string *err) {
+  std::vector<NetSearchHit> hits;
+  if (!db || !query) return hits;
+  /* Reject an empty query up front (FTS5 MATCH '' is a syntax error). */
+  const char *q0 = query; while (*q0 == ' ' || *q0 == '\t') q0++;
+  if (!*q0) { if (err) *err = "empty query"; return hits; }
+  if (limit <= 0) limit = 1000;
+
+  char *emsg = nullptr;
+  /* Transient in-memory FTS5 index over this shard's enrichment text.  The
+     temp. table is dropped on connection close and never touches the shard
+     file, so search needs no schema change and no write-path coupling.
+     (A persistent, incrementally-maintained index is a future optimization;
+     this rebuilds per query, which is fine for a query tool.) */
+  static const char *create_sql =
+    "CREATE VIRTUAL TABLE IF NOT EXISTS temp.kmap_fts USING fts5("
+    "ip UNINDEXED, port UNINDEXED, service, version, cpe, web_title, "
+    "web_server, tls_cn, as_name, country, cloud, hostname);";
+  if (sqlite3_exec(db, create_sql, nullptr, nullptr, &emsg) != SQLITE_OK) {
+    if (err) *err = emsg ? emsg
+                         : "FTS5 unavailable (build sqlite with SQLITE_ENABLE_FTS5)";
+    sqlite3_free(emsg);
+    return hits;
+  }
+  sqlite3_exec(db, "DELETE FROM temp.kmap_fts;", nullptr, nullptr, nullptr);
+  static const char *fill_sql =
+    "INSERT INTO temp.kmap_fts SELECT ip, port, COALESCE(service,''), "
+    "COALESCE(version,''), COALESCE(cpe,''), COALESCE(web_title,''), "
+    "COALESCE(web_server,''), COALESCE(tls_subject_cn,''), COALESCE(as_name,''), "
+    "COALESCE(country,''), COALESCE(cloud_provider,''), COALESCE(hostname,'') "
+    "FROM hosts;";
+  if (sqlite3_exec(db, fill_sql, nullptr, nullptr, &emsg) != SQLITE_OK) {
+    if (err) *err = emsg ? emsg : "FTS populate failed";
+    sqlite3_free(emsg);
+    sqlite3_exec(db, "DROP TABLE IF EXISTS temp.kmap_fts;", nullptr, nullptr, nullptr);
+    return hits;
+  }
+
+  /* query is BOUND (parameterized) -- no SQL injection; FTS5 parses the
+     MATCH grammar from the bound value. ORDER BY rank -> best (most negative
+     bm25) first. */
+  static const char *sel =
+    "SELECT ip, port, service, version, cpe, as_name, country, cloud, "
+    "web_title, rank FROM temp.kmap_fts WHERE kmap_fts MATCH ? "
+    "ORDER BY rank LIMIT ?;";
+  sqlite3_stmt *st = nullptr;
+  if (sqlite3_prepare_v2(db, sel, -1, &st, nullptr) != SQLITE_OK) {
+    if (err) *err = sqlite3_errmsg(db);
+    sqlite3_exec(db, "DROP TABLE IF EXISTS temp.kmap_fts;", nullptr, nullptr, nullptr);
+    return hits;
+  }
+  sqlite3_bind_text(st, 1, query, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(st, 2, limit);
+  auto col = [&](int c) -> std::string {
+    const unsigned char *p = sqlite3_column_text(st, c);
+    return p ? reinterpret_cast<const char *>(p) : "";
+  };
+  int rc;
+  while ((rc = sqlite3_step(st)) == SQLITE_ROW) {
+    NetSearchHit h;
+    h.ip             = col(0);
+    h.port           = sqlite3_column_int(st, 1);
+    h.service        = col(2);
+    h.version        = col(3);
+    h.cpe            = col(4);
+    h.as_name        = col(5);
+    h.country        = col(6);
+    h.cloud_provider = col(7);
+    h.web_title      = col(8);
+    h.rank           = sqlite3_column_double(st, 9);
+    hits.push_back(std::move(h));
+  }
+  /* A bad FTS5 MATCH grammar surfaces here as a step error. */
+  if (rc != SQLITE_DONE && err && err->empty()) *err = sqlite3_errmsg(db);
+  sqlite3_finalize(st);
+  sqlite3_exec(db, "DROP TABLE IF EXISTS temp.kmap_fts;", nullptr, nullptr, nullptr);
+  return hits;
+}
+
 int64_t net_db_count(sqlite3 *db) {
   if (!db) return -1;
   sqlite3_stmt *stmt = nullptr;

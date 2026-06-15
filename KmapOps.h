@@ -333,6 +333,12 @@ class KmapOps {
   char *eg_output;          /* Export to file (NULL = stdout) */
   char *eg_format;          /* "text" (default), "dot", or "json" */
   int  eg_depth;            /* Cohort-expansion depth: 0 = seed only, 1 = + cohort */
+  /* --search options (FTS5 full-text / faceted search over the catalog) */
+  bool do_search;           /* Enable search mode */
+  char *search_query;       /* FTS5 MATCH query string */
+  char *search_output;      /* Export to file (NULL = stdout) */
+  char *search_format;      /* "text" (default) or "json" */
+  int  search_limit;        /* Max results (default 100) */
   /* --tracemap options */
   char *tracemap_targets;   /* Target IPs, CIDRs, or file path */
   char *tm_output;          /* Output file (NULL = stdout) */

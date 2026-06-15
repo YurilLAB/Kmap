@@ -269,7 +269,7 @@
     <ClCompile Include="..\sys_resources.cc" />
     <ClCompile Include="..\sqlite\sqlite3.c">
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>SQLITE_THREADSAFE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SQLITE_THREADSAFE=0;SQLITE_ENABLE_FTS5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="winfix.cc">
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Sync</ExceptionHandling>

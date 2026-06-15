@@ -191,6 +191,26 @@ std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
 /* Fetch all port records for a given IP. */
 std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip);
 
+/* One full-text search hit (a matched host:port plus its key fields + the
+   FTS5 bm25 rank, lower = better). */
+struct NetSearchHit {
+  std::string ip;
+  int         port;
+  std::string service, version, cpe, as_name, country, cloud_provider, web_title;
+  double      rank;
+};
+
+/* Full-text / faceted search over this shard's hosts using SQLite FTS5.  Builds
+   a transient in-memory FTS5 index over the enrichment text (service, version,
+   cpe, web title/server, TLS CN, AS name, country, cloud, hostname) and runs the
+   FTS5 MATCH query, returning up to `limit` hits ranked by bm25.  Supports the
+   full FTS5 query grammar incl. column filters ("country:US service:nginx"),
+   boolean AND/OR/NOT, and phrases.  `query` is bound, not concatenated.  On an
+   FTS5 syntax error or when FTS5 is unavailable, returns an empty vector and
+   sets *err (if non-null) to a short message. */
+std::vector<NetSearchHit> net_db_search_fts(sqlite3 *db, const char *query,
+                                            int limit, std::string *err);
+
 /* Count total rows in the hosts table. */
 int64_t net_db_count(sqlite3 *db);
 

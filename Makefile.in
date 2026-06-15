@@ -128,7 +128,7 @@ OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLooku
 
 # SQLite amalgamation (compiled as C, not C++)
 sqlite/sqlite3.o: sqlite/sqlite3.c sqlite/sqlite3.h
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -DSQLITE_THREADSAFE=0 sqlite/sqlite3.c -o sqlite/sqlite3.o
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -DSQLITE_THREADSAFE=0 -DSQLITE_ENABLE_FTS5 sqlite/sqlite3.c -o sqlite/sqlite3.o
 
 # FPModel.cc contains large numeric tables that exceed the capacity of
 # debugging output with GCC 4.6.0 on AIX, causing "Error: value of 121716 too

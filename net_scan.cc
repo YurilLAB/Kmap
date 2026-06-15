@@ -1970,6 +1970,100 @@ int run_entity_graph_cli() {
 }
 
 /* -----------------------------------------------------------------------
+ * Full-text / faceted search (--search)
+ *
+ * Runs an FTS5 MATCH query (net_db_search_fts) across every shard, merges the
+ * hits by bm25 rank, and emits the top matches.  Lets an operator do
+ * Shodan/Censys-style free-text + faceted queries over the catalog, e.g.
+ *   kmap --search 'service:nginx country:US cloudflare'
+ *   kmap --search '"apache httpd" NOT country:CN' --search-format json
+ * which the structured --net-query LIKE filters cannot express.
+ * ----------------------------------------------------------------------- */
+int run_search_cli() {
+  if (!o.search_query || !o.search_query[0]) {
+    fprintf(stderr, "search: --search requires a query string\n");
+    return 1;
+  }
+  const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
+  int limit = o.search_limit > 0 ? o.search_limit : 100;
+
+  std::vector<NetSearchHit> all;
+  std::string err;
+  for (int sh = 0; sh < NET_SHARD_COUNT; sh++) {
+    std::string sp = net_shard_path(data_dir, sh);
+    FILE *t = fopen(sp.c_str(), "r");
+    if (!t) continue;
+    fclose(t);
+    sqlite3 *db = net_db_open(sp.c_str());
+    if (!db) continue;
+    std::string e2;
+    std::vector<NetSearchHit> hits = net_db_search_fts(db, o.search_query, limit, &e2);
+    net_db_close(db);
+    if (!e2.empty() && err.empty()) err = e2;
+    for (auto &h : hits) all.push_back(std::move(h));
+  }
+  /* A query-syntax / FTS5-availability error (vs. simply no matches) is worth
+     surfacing rather than silently printing zero results. */
+  if (all.empty() && !err.empty()) {
+    fprintf(stderr, "search: query error: %s\n", err.c_str());
+    return 1;
+  }
+  std::sort(all.begin(), all.end(),
+            [](const NetSearchHit &a, const NetSearchHit &b) { return a.rank < b.rank; });
+  if (static_cast<int>(all.size()) > limit) all.resize(limit);
+
+  FILE *out = stdout;
+  if (o.search_output && o.search_output[0]) {
+    out = fopen(o.search_output, "w");
+    if (!out) { fprintf(stderr, "search: cannot open output %s\n", o.search_output); return 1; }
+  }
+  auto jesc = [](const std::string &s) {
+    std::string r; r.reserve(s.size() + 8);
+    for (unsigned char c : s) {
+      switch (c) {
+        case '"':  r += "\\\""; break; case '\\': r += "\\\\"; break;
+        case '\n': r += "\\n";  break; case '\r': r += "\\r";  break;
+        case '\t': r += "\\t";  break; case '\b': r += "\\b";  break;
+        case '\f': r += "\\f";  break;
+        default: if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); r += b; }
+                 else r += static_cast<char>(c);
+      }
+    }
+    return r;
+  };
+
+  const std::string fmt = o.search_format ? o.search_format : "text";
+  if (fmt == "json") {
+    fprintf(out, "[\n");
+    for (size_t i = 0; i < all.size(); i++) {
+      const NetSearchHit &h = all[i];
+      fprintf(out, "  {\"ip\":\"%s\",\"port\":%d,\"service\":\"%s\",\"version\":\"%s\","
+                   "\"cpe\":\"%s\",\"as_name\":\"%s\",\"country\":\"%s\",\"cloud\":\"%s\","
+                   "\"web_title\":\"%s\"}%s\n",
+              jesc(h.ip).c_str(), h.port, jesc(h.service).c_str(), jesc(h.version).c_str(),
+              jesc(h.cpe).c_str(), jesc(h.as_name).c_str(), jesc(h.country).c_str(),
+              jesc(h.cloud_provider).c_str(), jesc(h.web_title).c_str(),
+              (i + 1 == all.size()) ? "" : ",");
+    }
+    fprintf(out, "]\n");
+  } else {
+    fprintf(out, "# search '%s': %zu match(es)\n", o.search_query, all.size());
+    for (const NetSearchHit &h : all) {
+      fprintf(out, "%-15s %-6d %-10s %-22s", h.ip.c_str(), h.port,
+              h.service.empty() ? "-" : h.service.c_str(),
+              h.version.empty() ? "-" : h.version.c_str());
+      if (!h.country.empty())        fprintf(out, " %s", h.country.c_str());
+      if (!h.as_name.empty())        fprintf(out, " [%s]", h.as_name.c_str());
+      if (!h.cloud_provider.empty()) fprintf(out, " {%s}", h.cloud_provider.c_str());
+      if (!h.web_title.empty())      fprintf(out, " \"%s\"", h.web_title.c_str());
+      fprintf(out, "\n");
+    }
+  }
+  if (out != stdout) fclose(out);
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
  * Topology export
  *
  * Reads the persisted topo.db that tracemap writes through to and emits

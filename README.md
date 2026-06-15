@@ -85,6 +85,8 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | ASN/GeoIP enrichment | (automatic) | Resolves every IP to its ASN, owner, country via Team Cymru DNS |
 | Watchlist monitoring | `--watchlist <file>` | Re-scan owned/client assets and detect changes |
 | Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS, ASN, country |
+| Full-text search | `--search <query>` | FTS5 free-text + faceted search over the catalog (e.g. `service:nginx country:US cloudflare`, boolean/phrase) |
+| Entity graph | `--entity-graph <ip>` | Asset-attribution graph IP→Domain→Cert→Org→ASN→Country (+ cohort), as text/dot/json |
 | Network topology mapping | `--tracemap <targets>` | Maps network paths, detects gateways, ASN boundaries, hub routers |
 | Resource-aware speed modes | `--efficient` / `--fast` | Auto-scale worker pools to the machine's CPU/RAM; `--fast` is capped at a tunable share (default ~50% CPU / ~25% RAM) |
 

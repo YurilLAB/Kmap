@@ -30,6 +30,12 @@ int run_net_cluster_cli();
    o.eg_depth.  Returns 0 on success, 1 on error. */
 int run_entity_graph_cli();
 
+/* Run the --search FTS5 full-text / faceted query across all shards.  Reads
+   o.search_query / o.search_format / o.search_output / o.search_limit, runs
+   net_db_search_fts per shard, merges by bm25 rank, and emits text or json.
+   Returns 0 on success, 1 on error. */
+int run_search_cli();
+
 /* Run the --topo-export dump.  Reads the persistent topology graph
    from topo.db and emits in dot or json.  Honors o.topo_export_file,
    o.topo_format, and the optional filters o.topo_around_ip /
