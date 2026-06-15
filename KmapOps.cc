@@ -149,6 +149,7 @@ KmapOps::~KmapOps() {
   if (net_data_dir) { free(net_data_dir); net_data_dir = NULL; }
   if (net_findings_dir) { free(net_findings_dir); net_findings_dir = NULL; }
   if (net_watchlist) { free(net_watchlist); net_watchlist = NULL; }
+  if (net_scan_target) { free(net_scan_target); net_scan_target = NULL; }
   if (nq_service) { free(nq_service); nq_service = NULL; }
   if (nq_cve) { free(nq_cve); nq_cve = NULL; }
   if (nq_web_title) { free(nq_web_title); nq_web_title = NULL; }
@@ -350,6 +351,7 @@ void KmapOps::Initialize() {
   net_data_dir     = nullptr;
   net_findings_dir = nullptr;
   net_watchlist    = nullptr;
+  net_scan_target  = nullptr;
   net_query        = false;
   nq_port          = -1;
   nq_service       = nullptr;

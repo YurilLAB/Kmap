@@ -1545,13 +1545,61 @@ int run_net_scan() {
 
     int rate = o.net_rate > 0 ? o.net_rate : 25000;
 
+    /* If a positional target was given (kmap --net-scan 192.0.2.0/24), bound
+       the sweep to that CIDR/IP.  Previously the target was ignored and the
+       scan ALWAYS swept the entire IPv4 space -- a serious footgun.  An
+       unparseable target is a hard error (never silently fall back to the full
+       internet).  No target -> full sweep (the headline mode). */
+    uint32_t target_base = 0;
+    uint64_t target_count = 0;
+    if (o.net_scan_target && o.net_scan_target[0]) {
+      std::string tgt = o.net_scan_target;
+      int prefix = 32;
+      std::string host = tgt;
+      size_t slash = tgt.find('/');
+      if (slash != std::string::npos) {
+        host = tgt.substr(0, slash);
+        const char *pp = tgt.c_str() + slash + 1;
+        char *endp = nullptr;
+        long pv = strtol(pp, &endp, 10);
+        if (*pp == '\0' || endp == pp || *endp != '\0' || pv < 0 || pv > 32) {
+          fprintf(stderr, "net-scan: invalid CIDR prefix in target '%s'\n", tgt.c_str());
+          scan_log_close();
+          return 1;
+        }
+        prefix = static_cast<int>(pv);
+      }
+      uint32_t base = ip_to_u32(host.c_str());
+      if (base == 0 && host != "0.0.0.0") {
+        fprintf(stderr, "net-scan: target '%s' is not a valid IPv4 address/CIDR "
+                "(hostnames are not yet supported as --net-scan targets)\n",
+                host.c_str());
+        scan_log_close();
+        return 1;
+      }
+      uint32_t mask = (prefix == 0) ? 0u
+                    : (prefix >= 32 ? 0xFFFFFFFFu : ~((1u << (32 - prefix)) - 1));
+      target_base  = base & mask;
+      target_count = (prefix == 0) ? 0x100000000ULL : (1ULL << (32 - prefix));
+      log_write(LOG_STDOUT, "  Target range: %s/%d (%llu address(es))\n",
+                u32_to_ip(target_base).c_str(), prefix,
+                (unsigned long long)target_count);
+      scan_log("INFO", "bounded scan target: %s/%d (%llu addresses)",
+               u32_to_ip(target_base).c_str(), prefix,
+               (unsigned long long)target_count);
+    } else {
+      log_write(LOG_STDOUT,
+        "  Target: FULL IPv4 space (no range given -- pass a CIDR to limit, "
+        "e.g. --net-scan 192.0.2.0/24)\n");
+    }
+
     scan_log("INFO",
              "discovery starting: %d port(s), rate=%d pps, %d exclude range(s)%s",
              (int)ports.size(), rate, (int)excludes.size(),
              o.net_max_ips ? " (sampled)" : "");
     time_t disc_t0 = time(nullptr);
     rc = fast_syn_scan(data_dir, ports, rate, excludes, o.net_resume,
-                       o.net_max_ips);
+                       o.net_max_ips, target_base, target_count);
     if (rc != 0) {
       scan_log("ERROR", "discovery phase failed (rc=%d)", rc);
       fprintf(stderr, "net-scan: discovery phase failed\n");

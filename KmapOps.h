@@ -306,6 +306,7 @@ class KmapOps {
   char *net_data_dir;       /* Shard database directory */
   char *net_findings_dir;   /* Findings output directory */
   char *net_watchlist;      /* Watchlist targets file */
+  char *net_scan_target;    /* Optional CIDR/IP to bound the sweep (NULL = full IPv4) */
   /* --net-query options */
   bool net_query;           /* Enable query mode */
   int  nq_port;             /* Filter by port (-1 = unset) */

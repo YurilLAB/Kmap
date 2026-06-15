@@ -85,3 +85,23 @@ libz/configure.log
 core
 core.*
 vgcore.*
+
+# MSVC (mswin32 / VS) build outputs -- produced by mswin32/Build.bat, never committed
+mswin32/Release/
+mswin32/Debug/
+mswin32/build-pcre2/
+mswin32/kmap/
+mswin32/*.log
+mswin32/make-vars.make
+# vendored-library MSVC build outputs
+**/Release/
+**/Debug/
+libssh2/win32/Release_dll/
+libssh2/win32/Debug_dll/
+libz/contrib/vstudio/vc16/
+*.lib
+*.pdb
+*.exp
+*.iobj
+*.ipdb
+*.dir/

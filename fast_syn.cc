@@ -604,7 +604,9 @@ int fast_syn_scan(const char *data_dir,
                   int rate_pps,
                   const std::vector<ExcludeRange> &excludes,
                   bool resume,
-                  uint64_t max_ips) {
+                  uint64_t max_ips,
+                  uint32_t target_base,
+                  uint64_t target_count) {
   if (ports.empty()) {
     fprintf(stderr, "net-scan: no ports to scan\n");
     return 1;
@@ -746,9 +748,12 @@ int fast_syn_scan(const char *data_dir,
    * advances past the previously-scanned slice instead of re-scanning
    * the same first-N IPs.  Clamp to IP_SPACE so a giant max_ips just
    * means "scan everything from here on". */
-  uint64_t scan_end = IP_SPACE;
+  /* The iteration space is the bounded target range when one was given,
+     otherwise the full IPv4 space. */
+  uint64_t space = (target_count > 0) ? target_count : IP_SPACE;
+  uint64_t scan_end = space;
   if (max_ips > 0) {
-    if (cp.next_index < IP_SPACE - max_ips)
+    if (cp.next_index < space - max_ips)
       scan_end = cp.next_index + max_ips;
   }
   if (max_ips > 0) {
@@ -927,7 +932,11 @@ int fast_syn_scan(const char *data_dir,
       /* Publish the claim BEFORE any probing so a checkpoint racing this
          worker always sees the index as in-flight and never skips it. */
       worker_inflight[w].store(my_idx, std::memory_order_release);
-      uint32_t ip = permute_ip(my_idx, seed);
+      /* Bounded scan: walk the target range sequentially (base + offset).
+         Full sweep: the multiplicative-inverse permutation over 2^32. */
+      uint32_t ip = (target_count > 0)
+                      ? static_cast<uint32_t>(target_base + my_idx)
+                      : permute_ip(my_idx, seed);
 
       if (is_excluded(ip, excludes)) {
         worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);

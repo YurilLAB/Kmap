@@ -2435,8 +2435,14 @@ int kmap_main(int argc, char *argv[]) {
     exit(rc);
   }
 
-  /* --net-scan: run internet-scale scan pipeline and exit */
+  /* --net-scan: run the scan pipeline and exit.  If the user gave a positional
+     target (e.g. "kmap --net-scan 192.168.1.0/24"), bound the sweep to it --
+     previously the target was silently ignored and the scan always swept the
+     ENTIRE IPv4 space, a serious footgun (especially with --no-builtin-excludes).
+     With no target it still does the full-internet sweep (the headline mode). */
   if (o.net_scan) {
+    if (!o.net_scan_target && !o.net_watchlist && optind < argc && argv[optind])
+      o.net_scan_target = strdup(argv[optind]);
     int rc = run_net_scan();
     exit(rc);
   }

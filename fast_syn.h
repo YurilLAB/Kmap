@@ -53,12 +53,21 @@ bool is_excluded(uint32_t ip, const std::vector<ExcludeRange> &excludes);
                    at any realistic sample size the excluded-ratio is
                    noise.
    Returns 0 on success, 1 on error. */
+/* target_base / target_count bound the sweep to a single contiguous IPv4 range
+   (a CIDR): target_base is the masked network address (host order) and
+   target_count is the number of addresses (a power of two, = 2^(32-prefix)).
+   When target_count is 0 the scan covers the full IPv4 space (the internet
+   sweep).  A bounded scan walks its range sequentially; the randomized
+   permutation is only used for the full-space sweep where ordering matters for
+   politeness. */
 int fast_syn_scan(const char *data_dir,
                   const std::vector<int> &ports,
                   int rate_pps,
                   const std::vector<ExcludeRange> &excludes,
                   bool resume,
-                  uint64_t max_ips = 0);
+                  uint64_t max_ips = 0,
+                  uint32_t target_base = 0,
+                  uint64_t target_count = 0);
 
 /* Parse a port specification string like "22,80,443" or "1-1024".
    Returns sorted, deduplicated list of port numbers. */
