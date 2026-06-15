@@ -53,10 +53,9 @@ jobs:
           - name: ubuntu-latest-gcc
             os: ubuntu-latest
             cc: gcc
-          - name: ubuntu-latest-gcc-arm64
-            os: ubuntu-latest
+          - name: ubuntu-24.04-arm-gcc
+            os: ubuntu-24.04-arm
             cc: gcc
-            arch: arm64
           - name: ubuntu-latest-clang
             os: ubuntu-latest
             cc: clang
@@ -105,14 +104,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Set up QEMU for ARM64
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/arm64
-
       - name: Build Linux
-        if: startsWith(matrix.name,'ubuntu') && matrix.arch != 'arm64'
+        if: startsWith(matrix.name,'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang tree libpcap-dev libnet-dev libpcre2-dev
@@ -126,7 +119,7 @@ jobs:
           tree /tmp/usr
 
       - name: Smoke test Linux
-        if: startsWith(matrix.name,'ubuntu') && matrix.arch != 'arm64'
+        if: startsWith(matrix.name,'ubuntu')
         run: |
           set -e
           # Catch crash-on-exit / runtime regressions that a build-only job
@@ -141,18 +134,6 @@ jobs:
           if [ "$rc" -ne 0 ]; then
             echo "::error::kmap -sV exited with $rc (expected 0)"; exit "$rc"
           fi
-
-      - name: Build Linux ARM64
-        if: startsWith(matrix.name,'ubuntu') && matrix.arch == 'arm64'
-        run: |
-          docker run --rm --platform linux/arm64 -v $PWD:/work -w /work ubuntu:latest bash -c "
-            apt-get update -q -y &&
-            apt-get install -q -y build-essential tree libpcap-dev libnet-dev libpcre2-dev autoconf automake &&
-            ./configure
-            make &&
-            make install DESTDIR=/tmp &&
-            tree /tmp/usr
-          "
 
       - name: Build MacOS
         if: startsWith(matrix.name,'macos')
