@@ -50,8 +50,19 @@ static CidrRange parse_cidr(const char *cidr) {
   if (slen >= sizeof(buf)) return r;
   memcpy(buf, cidr, slen + 1);
   char *slash = strchr(buf, '/'); int prefix_len = 32;
-  if (slash) { *slash = '\0'; prefix_len = atoi(slash + 1);
-               if (prefix_len < 0 || prefix_len > 32) return r; }
+  if (slash) {
+    /* Strict prefix parse -- mirrors net_query.cc parse_cidr. atoi() would
+       silently turn "/abc" or "/" into prefix 0 (mask 0 => match every IP),
+       so reject non-numeric / empty / trailing-junk prefixes. */
+    *slash = '\0';
+    const char *pp = slash + 1;
+    if (*pp == '\0') return r;
+    char *endp = nullptr;
+    long pv = strtol(pp, &endp, 10);
+    if (endp == pp || *endp != '\0') return r;
+    if (pv < 0 || pv > 32) return r;
+    prefix_len = static_cast<int>(pv);
+  }
   uint32_t ip = ip_to_u32(buf);
   if (ip == 0 && strcmp(buf, "0.0.0.0") != 0) return r;
   if (prefix_len == 0) r.mask = 0;
@@ -216,6 +227,13 @@ int main() {
   CHECK(c32.valid && c32.mask==0xFFFFFFFFU, "parse /32");
   CHECK(!parse_cidr("not-an-ip").valid,        "invalid CIDR rejected");
   CHECK(!parse_cidr("1.2.3.4/33").valid,       "prefix >32 rejected");
+  /* Strict-prefix footguns: atoi() would turn these into a /0 match-all and
+     silently return the entire dataset. The strict strtol parse must reject. */
+  CHECK(!parse_cidr("1.2.3.4/abc").valid,      "non-numeric prefix rejected");
+  CHECK(!parse_cidr("1.2.3.4/").valid,         "empty prefix rejected");
+  CHECK(!parse_cidr("1.2.3.4/16x").valid,      "trailing junk after prefix rejected");
+  CHECK(parse_cidr("1.2.3.4/0").valid && parse_cidr("1.2.3.4/0").mask==0,
+        "explicit /0 still accepted");
   CHECK(shards_for_cidr(c16).size()==1,        "/16 maps to a single shard");
 
   printf("\nnet_query live test: %d passed, %d failed\n", passes, fails);
