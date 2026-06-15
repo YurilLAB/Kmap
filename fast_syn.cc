@@ -753,13 +753,23 @@ int fast_syn_scan(const char *data_dir,
   uint64_t space = (target_count > 0) ? target_count : IP_SPACE;
   uint64_t scan_end = space;
   if (max_ips > 0) {
-    if (cp.next_index < space - max_ips)
-      scan_end = cp.next_index + max_ips;
+    /* Cap the slice within [next_index, space).  Compute the remaining
+       count first so the subtraction can never underflow: when max_ips
+       is larger than what is left in the range (e.g. --net-max-ips
+       1000000 on a /24), we stop at the end of the range and no further.
+       A previous form computed `space - max_ips` directly, which wrapped
+       around 2^64 when max_ips > space and let a bounded sweep run past
+       the authorized CIDR into addresses the operator never scoped. */
+    uint64_t avail = (cp.next_index < space) ? space - cp.next_index : 0;
+    uint64_t take  = (max_ips < avail) ? max_ips : avail;
+    scan_end = cp.next_index + take;
   }
   if (max_ips > 0) {
+    /* Report the actual (clamped) span, not the raw --net-max-ips, so the
+       count never overstates a bounded sweep that was capped at the range. */
     log_write(LOG_STDOUT,
       "  Sample mode: scanning %llu IPs starting at index %llu\n",
-      (unsigned long long)max_ips,
+      (unsigned long long)(scan_end - cp.next_index),
       (unsigned long long)cp.next_index);
   }
 

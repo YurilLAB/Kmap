@@ -760,6 +760,19 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
     "ORDER BY cvss_score DESC LIMIT 2000";
 
+  /* The CVE DB handle is opened once and shared across every enrichment
+     worker thread and their per-port sub-workers, but sqlite is built with
+     SQLITE_THREADSAFE=0, which compiles out all of its internal mutexes.
+     A single sqlite3 connection is a shared mutable object (pager, page
+     cache, prepared-statement list, error buffers), so concurrent
+     prepare/step/finalize on it is a data race that can corrupt the heap
+     or return garbage rows.  Serialize all access to the connection.  The
+     query is one indexed SELECT held for microseconds while the
+     surrounding enrichment is network-I/O bound, so this lock adds no
+     meaningful contention and preserves the open-once design. */
+  static std::mutex cve_db_mu;
+  std::lock_guard<std::mutex> cve_lock(cve_db_mu);
+
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return results;
@@ -1546,12 +1559,14 @@ int run_enrichment(const char *data_dir, int batch_size) {
   }
 
   /* Open the CVE DB ONCE for the entire enrichment phase, shared
-   * read-only across all shards' worker pools.  sqlite is in default
-   * serialized threading mode so this handle is safe to share.
-   * Previously enrich_single_host opened+closed the DB on every host
-   * call -- 5x or more per batch with the parallel workers spinning
-   * through hundreds of thousands of stat+open+page-cache-warm cycles
-   * on a full sweep. */
+   * read-only across all shards' worker pools.  sqlite is built
+   * SQLITE_THREADSAFE=0 (no internal mutexes), so concurrent use of this
+   * one handle is NOT safe by itself -- access is serialized by the
+   * static mutex inside lookup_cves(), the only function that touches it
+   * from the worker threads.  Previously enrich_single_host opened+closed
+   * the DB on every host call -- 5x or more per batch with the parallel
+   * workers spinning through hundreds of thousands of stat+open+
+   * page-cache-warm cycles on a full sweep. */
   sqlite3 *cve_db = nullptr;
   if (!cve_path.empty()) {
     if (sqlite3_open_v2(cve_path.c_str(), &cve_db,

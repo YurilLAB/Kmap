@@ -714,9 +714,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         scan_log("INFO", "cloud-ranges: none loaded (kmap-cloud-ranges.csv not found)");
     }
 
-    /* Open the CVE DB ONCE for the entire enrichment phase.  Sqlite
-     * is in default serialized threading mode, so a single read-only
-     * handle is safe to share across the worker pool below.  The
+    /* Open the CVE DB ONCE for the entire enrichment phase.  Sqlite is
+     * built SQLITE_THREADSAFE=0 (no internal mutexes), so this single
+     * read-only handle is NOT inherently safe to share -- concurrent
+     * access from the worker pool below is serialized by the static
+     * mutex inside lookup_cves() (net_enrich.cc), through which both this
+     * watchlist path and the net-scan path reach the handle.  The
      * previous design opened+closed the DB inside every call to
      * enrich_single_host -- hundreds of thousands of redundant stat
      * + open + page-cache-warm cycles on a full sweep. */
@@ -736,9 +739,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
      * http_timeout + tls_handshake + asn_dns_rtt)).  On a 10-host
      * watchlist that came out to ~260 seconds -- the bulk of the
      * pre-parallel scan wall time.  Per-host work is fully independent
-     * (enrich_single_host opens its own per-call sockets / CVE db /
-     * SSL_CTX; lookup_asn does its own UDP DNS), so we can fan out
-     * with N workers.  Default 10 -- enough to hide the per-host RTT
+     * (enrich_single_host opens its own per-call sockets; the shared
+     * read-only CVE db is serialized inside lookup_cves and the SSL_CTX
+     * is built once via call_once; lookup_asn does its own UDP DNS), so
+     * we can fan out with N workers.  Default 10 -- enough to hide the
+     * per-host RTT
      * waits without saturating local CPU on banner-pattern matching.
      * Tunable via KMAP_WATCHLIST_ENRICH_CONCURRENCY for very large
      * watchlists.
