@@ -100,6 +100,23 @@ static long kmap_cpu_throttle_step_us(double used_cores, double target_cores,
   return static_cast<long>(next);
 }
 
+/* ===== fast_syn.cc scan_end clamp verbatim =====
+   The bounded-sweep stop index.  Must NEVER exceed `space` (the iteration
+   range), or a bounded scan would probe IPs outside the operator's CIDR.
+   A prior form computed `space - max_ips` directly and underflowed in
+   uint64_t when max_ips > space, letting the sweep run past the range. */
+static uint64_t compute_scan_end(uint64_t target_count, uint64_t max_ips,
+                                 uint64_t next_index) {
+  uint64_t space = (target_count > 0) ? target_count : IP_SPACE;
+  uint64_t scan_end = space;
+  if (max_ips > 0) {
+    uint64_t avail = (next_index < space) ? space - next_index : 0;
+    uint64_t take  = (max_ips < avail) ? max_ips : avail;
+    scan_end = next_index + take;
+  }
+  return scan_end;
+}
+
 /* ===== guard-page C-string for parse_cidr over-read detection =====
    Guard page via VirtualAlloc/VirtualProtect on Windows, mmap/mprotect
    (PROT_NONE) on POSIX, so this harness runs in the Linux ASan/UBSan CI
@@ -243,6 +260,55 @@ int main(int argc, char **argv) {
         fprintf(stderr,"\n*** governor deadband violated used=%.3f target=%.3f cur=%ld -> %ld (expect %ld)\n",
                 used,target,cur,out,expect); _exit(93);
       }
+    }
+  }
+
+  /* --- 5. scan_end clamp: a bounded sweep must never exceed its range --- */
+  /* Regression guard for the unsigned-underflow scope overrun: for any
+     (target_count, max_ips, next_index), scan_end must stay within [0, space]
+     and equal next_index + min(max_ips, space-next_index). */
+  g_fn = "scan_end_clamp";
+  for (long long k = 0; k < (lim>0?lim:3000000); k++) {
+    g_iter = k;
+    /* Mix of CIDR-sized ranges, full sweep (0), and arbitrary sizes. */
+    uint64_t tc;
+    switch (rng() & 3) {
+      case 0: tc = 0; break;                                   /* full sweep */
+      case 1: tc = 1ULL << (rng() % 33); break;                /* /0../32 size */
+      default: tc = rng() % (IP_SPACE + 1); break;             /* arbitrary */
+    }
+    uint64_t space = (tc > 0) ? tc : IP_SPACE;
+    /* max_ips and next_index deliberately span below, at, and far above space
+       (the underflow trigger is max_ips > space and next_index small). */
+    uint64_t max_ips = (rng() & 1) ? (rng() % (space ? space * 4 + 4 : 16)) : rng();
+    /* next_index models a resume point, which the checkpoint always keeps in
+       [0, space] (it is clamped to scan_end, itself <= space).  Cover 0, the
+       interior, and the exact end-of-range resume. */
+    uint64_t next_index = rng() % (space + 1);
+
+    uint64_t se = compute_scan_end(tc, max_ips, next_index);
+
+    /* Invariant 1: never exceeds the iteration space (the security property). */
+    if (se > space) {
+      fprintf(stderr,"\n*** scan_end %llu > space %llu (tc=%llu max=%llu next=%llu)\n",
+              (unsigned long long)se,(unsigned long long)space,(unsigned long long)tc,
+              (unsigned long long)max_ips,(unsigned long long)next_index); _exit(92);
+    }
+    /* Invariant 2: never below the resume point (no backward / wrapped walk). */
+    uint64_t floor_idx = (next_index < space) ? next_index : space;
+    if (se < floor_idx) {
+      fprintf(stderr,"\n*** scan_end %llu < floor %llu (tc=%llu max=%llu next=%llu)\n",
+              (unsigned long long)se,(unsigned long long)floor_idx,(unsigned long long)tc,
+              (unsigned long long)max_ips,(unsigned long long)next_index); _exit(91);
+    }
+    /* Invariant 3: exact slice preserved when the request fits the remainder. */
+    uint64_t avail = (next_index < space) ? space - next_index : 0;
+    uint64_t want  = (max_ips == 0) ? space
+                   : next_index + (max_ips < avail ? max_ips : avail);
+    if (se != want) {
+      fprintf(stderr,"\n*** scan_end %llu != want %llu (tc=%llu max=%llu next=%llu)\n",
+              (unsigned long long)se,(unsigned long long)want,(unsigned long long)tc,
+              (unsigned long long)max_ips,(unsigned long long)next_index); _exit(90);
     }
   }
 
