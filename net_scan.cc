@@ -14,6 +14,7 @@
 #include "fast_syn.h"
 #include "net_enrich.h"
 #include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
+#include "entity_graph.h" /* entity_graph_build / _emit */
 #include "net_enrich_async.h"
 #include "net_report.h"
 #include "net_query.h"
@@ -1908,6 +1909,63 @@ int run_net_cluster_cli() {
   }
 
   if (fp_out != stdout) fclose(fp_out);
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Entity graph (--entity-graph)
+ *
+ * Assembles the asset-attribution graph around a seed IP from the data the
+ * net-scan pipeline already catalogs -- no new schema, on-the-fly like
+ * --net-cluster.  Node types and the edges between them:
+ *
+ *   ip ──serves/resolves_to──▶ domain ──certified_by──▶ cert
+ *   ip ──presents───────────▶ cert
+ *   ip ──announced_by───────▶ asn ──operated_by──▶ org   (AS owner = as_name)
+ *                                  └─registered_in──▶ country
+ *   ip ──hosted_on──────────▶ cloud   (provider, when known)
+ *
+ * With --eg-depth 1 (default) the graph also pulls in other IPs that share the
+ * seed's certificate or a domain (the infrastructure cohort) and their own
+ * asn/org/country, so an analyst can pivot from one host to the operator's
+ * wider footprint.  (A direct cert──issued_to──▶org edge from the certificate's
+ * subject O= field is a planned enhancement; today the org node is the AS
+ * owner.)
+ * ----------------------------------------------------------------------- */
+int run_entity_graph_cli() {
+  if (!o.eg_seed || !o.eg_seed[0]) {
+    fprintf(stderr, "entity-graph: --entity-graph requires a seed IP argument\n");
+    return 1;
+  }
+  const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
+  int depth = o.eg_depth >= 0 ? o.eg_depth : 1;
+
+  std::map<std::string, EgNode> nodes;
+  std::vector<EgEdge> edges;
+  size_t cohort = 0;
+  int rc = entity_graph_build(data_dir, o.eg_seed, depth, nodes, edges, &cohort);
+  if (rc == -1) {
+    fprintf(stderr, "entity-graph: cannot parse IP '%s'\n", o.eg_seed);
+    return 1;
+  }
+  if (rc == -2) {
+    fprintf(stderr, "entity-graph: IP %s has no enriched data in the store. "
+            "Has it been scanned and enriched yet?\n", o.eg_seed);
+    return 1;
+  }
+
+  FILE *out = stdout;
+  if (o.eg_output && o.eg_output[0]) {
+    out = fopen(o.eg_output, "w");
+    if (!out) {
+      fprintf(stderr, "entity-graph: cannot open output %s\n", o.eg_output);
+      return 1;
+    }
+  }
+  std::string seed_ip = u32_to_ip(ip_to_u32(o.eg_seed));
+  entity_graph_emit(out, o.eg_format ? o.eg_format : "text",
+                    seed_ip, depth, cohort, nodes, edges);
+  if (out != stdout) fclose(out);
   return 0;
 }
 

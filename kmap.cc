@@ -335,6 +335,20 @@ static bool parse_kmap_option(const char *name, const char *arg) {
         strcmp(arg, "json") != 0)
       fatal("--nc-format must be one of: text, dot, json");
     o.net_cluster = true; o.nc_format = strdup(arg); return true;
+  /* --entity-graph options */
+  } else if (strcmp(name, "entity-graph") == 0) {
+    o.entity_graph = true; o.eg_seed = strdup(arg); return true;
+  } else if (strcmp(name, "eg-output") == 0) {
+    o.entity_graph = true; o.eg_output = strdup(arg); return true;
+  } else if (strcmp(name, "eg-depth") == 0) {
+    o.entity_graph = true;
+    o.eg_depth = parse_int_arg("eg-depth", arg, 0, 3);
+    return true;
+  } else if (strcmp(name, "eg-format") == 0) {
+    if (strcmp(arg, "text") != 0 && strcmp(arg, "dot") != 0 &&
+        strcmp(arg, "json") != 0)
+      fatal("--eg-format must be one of: text, dot, json");
+    o.entity_graph = true; o.eg_format = strdup(arg); return true;
   /* --tracemap options */
   } else if (strcmp(name, "tracemap") == 0) {
     o.tracemap_targets = strdup(arg); return true;
@@ -591,6 +605,10 @@ static void printusage() {
          "  --nc-min-shared <n>: Min shared fingerprints to include (default: 1, range: 1-100)\n"
          "  --nc-format <fmt>: net-cluster format: text, dot, json (default: text)\n"
          "  --nc-output <file>: Write net-cluster results to file (default: stdout)\n"
+         "  --entity-graph <ip>: Build the asset graph (IP->Domain->Cert->Org->ASN->Country) around an IP\n"
+         "  --eg-depth <n>: entity-graph cohort-expansion depth: 0=seed only, 1=+cohort (default: 1, range: 0-3)\n"
+         "  --eg-format <fmt>: entity-graph format: text, dot, json (default: text)\n"
+         "  --eg-output <file>: Write entity-graph to file (default: stdout)\n"
          "  --spoof-os <profile>: Spoof OS fingerprint for net-scan probes\n"
          "                         (linux, win10, win11, macos, freebsd,\n"
          "                          openbsd, android, ios, random)\n"
@@ -997,6 +1015,10 @@ void parse_options(int argc, char **argv) {
     {"nc-min-shared", required_argument, 0, 0},
     {"nc-output", required_argument, 0, 0},
     {"nc-format", required_argument, 0, 0},
+    {"entity-graph", required_argument, 0, 0},
+    {"eg-output", required_argument, 0, 0},
+    {"eg-depth", required_argument, 0, 0},
+    {"eg-format", required_argument, 0, 0},
     /* --tracemap options */
     {"tracemap", required_argument, 0, 0},
     {"tm-output", required_argument, 0, 0},
@@ -2408,6 +2430,12 @@ int kmap_main(int argc, char *argv[]) {
      by walking the per-shard fingerprints tables and exit. */
   if (o.net_cluster) {
     int rc = run_net_cluster_cli();
+    exit(rc);
+  }
+
+  /* --entity-graph: build the asset-attribution graph around a seed IP and exit. */
+  if (o.entity_graph) {
+    int rc = run_entity_graph_cli();
     exit(rc);
   }
 

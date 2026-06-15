@@ -327,6 +327,12 @@ class KmapOps {
   int  nc_min_shared;       /* Min shared fingerprints to report (default 1) */
   char *nc_output;          /* Export results to file (NULL = stdout) */
   char *nc_format;          /* "text" (default), "dot", or "json" */
+  /* --entity-graph options */
+  bool entity_graph;        /* Enable entity-graph mode */
+  char *eg_seed;            /* Seed IP (dotted-quad) to build the graph around */
+  char *eg_output;          /* Export to file (NULL = stdout) */
+  char *eg_format;          /* "text" (default), "dot", or "json" */
+  int  eg_depth;            /* Cohort-expansion depth: 0 = seed only, 1 = + cohort */
   /* --tracemap options */
   char *tracemap_targets;   /* Target IPs, CIDRs, or file path */
   char *tm_output;          /* Output file (NULL = stdout) */

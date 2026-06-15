@@ -369,6 +369,11 @@ void KmapOps::Initialize() {
   nc_min_shared    = 1;
   nc_output        = nullptr;
   nc_format        = nullptr;
+  entity_graph     = false;
+  eg_seed          = nullptr;
+  eg_output        = nullptr;
+  eg_format        = nullptr;
+  eg_depth         = 1;
   tracemap_targets = nullptr;
   tm_output        = nullptr;
   tm_format        = nullptr;

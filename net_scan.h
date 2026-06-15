@@ -23,6 +23,13 @@ int run_net_query_cli();
    Returns 0 on success, 1 on error. */
 int run_net_cluster_cli();
 
+/* Run the --entity-graph build.  Assembles the asset-attribution graph
+   (IP -> Domain -> Certificate -> Organization -> ASN -> Country) around a seed
+   IP on the fly from the fingerprints + hosts tables across all shards, then
+   emits it in text / dot / json.  Reads o.eg_seed / o.eg_format / o.eg_output /
+   o.eg_depth.  Returns 0 on success, 1 on error. */
+int run_entity_graph_cli();
+
 /* Run the --topo-export dump.  Reads the persistent topology graph
    from topo.db and emits in dot or json.  Honors o.topo_export_file,
    o.topo_format, and the optional filters o.topo_around_ip /
