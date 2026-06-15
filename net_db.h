@@ -98,6 +98,7 @@ struct NetHost {
                                           0=chain-validated, 1=self-signed */
   std::string tls_protocol;            /* "TLSv1.2" / "TLSv1.3" */
   std::string tls_sha256;              /* server cert SHA-256 fingerprint hex */
+  std::string cpe;                     /* v5e: derived CPE 2.3 product id */
 };
 
 /* Insert a discovered host/port.  Ignores duplicates (INSERT OR IGNORE).
@@ -109,6 +110,8 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
    prior enrichment_error / enrichment_error_at fields.
    The trailing v4 params (powered_by, x_generator, redirect_target,
    robots_disallowed_json) accept NULL to leave the column unchanged.
+   cpe (v5e) is the derived CPE 2.3 identifier and follows the same
+   NULL-leaves-unchanged COALESCE rule.
    Returns 0 on success, -1 on error. */
 int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *service, const char *version,
@@ -118,7 +121,8 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *powered_by = nullptr,
                              const char *x_generator = nullptr,
                              const char *redirect_target = nullptr,
-                             const char *robots_disallowed_json = nullptr);
+                             const char *robots_disallowed_json = nullptr,
+                             const char *cpe = nullptr);
 
 /* Set the reverse-DNS hostname for an IP.  Applies to every port row for
    the IP (one hostname per host, not per port).  Pass NULL/empty to clear.
@@ -232,7 +236,8 @@ struct NetFingerprint {
   uint32_t    ip_u32;
   int         port;
   std::string kind;        /* "tls_sha256", "tls_subject_cn", "tls_san",
-                              "hostname", "redirect_host", future kinds */
+                              "hostname", "redirect_host", "favicon_mmh3",
+                              "http_body_sha256", future kinds */
   std::string value;
   int64_t     observed_at;
 };

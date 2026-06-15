@@ -406,6 +406,7 @@ static std::string format_result_json(const std::string &ip, int port,
                                       const std::string &hostname,
                                       const std::string &web_title,
                                       const std::string &web_server,
+                                      const std::string &cpe,
                                       const std::string &device_class) {
   std::ostringstream oss;
   bool first = true;
@@ -421,6 +422,7 @@ static std::string format_result_json(const std::string &ip, int port,
   json_kv_str(oss, "hostname",   hostname,   first);
   json_kv_str(oss, "web_title",  web_title,  first);
   json_kv_str(oss, "web_server", web_server, first);
+  if (!cpe.empty()) json_kv_str(oss, "cpe", cpe, first);
   json_kv_str(oss, "device_class", device_class, first);
   /* cves is already JSON in the column.  Emit raw only if it looks like
    * a JSON array; otherwise fall back to an escaped string to keep the
@@ -601,7 +603,7 @@ int run_net_query(const char *data_dir,
    * JSON output is complete; text mode just ignores the extra fields. */
   std::string sql =
     "SELECT ip, port, proto, service, version, cves, "
-    "       asn, as_name, country, hostname, web_title, web_server "
+    "       asn, as_name, country, hostname, web_title, web_server, cpe "
     "FROM hosts WHERE " + filter.where_clause
     + " ORDER BY ip, port";
 
@@ -673,6 +675,7 @@ int run_net_query(const char *data_dir,
       std::string row_host    = col_str(9);
       std::string row_wtitle  = col_str(10);
       std::string row_wsrv    = col_str(11);
+      std::string row_cpe     = col_str(12);
 
       /* Post-process: IP range filtering (exact CIDR check) */
       if (has_cidr) {
@@ -700,7 +703,7 @@ int run_net_query(const char *data_dir,
           std::string obj = format_result_json(
               row_ip, row_port, row_proto, row_svc, row_ver, row_cves,
               row_asn, row_as_name, row_country, row_host,
-              row_wtitle, row_wsrv, dev_class);
+              row_wtitle, row_wsrv, row_cpe, dev_class);
           if (json_first) {
             json_first = false;
             emit_raw(obj.c_str());

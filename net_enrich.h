@@ -28,11 +28,33 @@ struct TlsCapture {
   TlsCapture() : self_signed(-1) {}
 };
 
+/* Active "fingerprints" captured per (ip, port) for cross-host clustering --
+ * the same role the existing fingerprints table fills for tls_sha256 /
+ * subject_cn / hostname, extended toward what the large internet-survey
+ * platforms record.  Empty fields are skipped at persistence time.
+ *   favicon_mmh3 -- Shodan http.favicon.hash (mmh3 of base64'd /favicon.ico).
+ *   body_sha256  -- SHA-256 of the HTTP root ("/") response body.
+ * Only populated when enrich_single_host is given a non-null out_fp (the
+ * net-scan path); the bounded watchlist path leaves it null and pays no
+ * extra probe cost. */
+struct HostFingerprints {
+  std::string favicon_mmh3;
+  std::string body_sha256;
+};
+
 /* Run the full enrichment pipeline across all shard databases.
  *   data_dir   — directory containing shard_NNN.db files
  *   batch_size — number of distinct IPs to process per batch (default 1000)
  * Returns 0 on success, 1 on error. */
 int run_enrichment(const char *data_dir, int batch_size);
+
+/* Derive a CPE 2.3 identifier from a detected (service, version).  Normalizes
+ * the service/version to a canonical product key (same logic the CVE matcher
+ * uses) and maps it to a CPE string, or "" when the product is unknown.
+ * Exposed so both the net-scan and watchlist persistence phases can stamp the
+ * hosts.cpe column from one implementation. */
+std::string net_enrich_cpe_for(const std::string &service,
+                               const std::string &version);
 
 /* Enrich a single host: connect to each port, grab service banners,
  * look up CVEs, and probe HTTP ports.
@@ -61,7 +83,8 @@ int enrich_single_host(const char *ip,
                        std::vector<std::string> &out_powered_by,
                        std::vector<std::string> &out_x_generator,
                        std::vector<std::string> &out_redirects,
-                       std::vector<TlsCapture> *out_tls = nullptr);
+                       std::vector<TlsCapture> *out_tls = nullptr,
+                       std::vector<HostFingerprints> *out_fp = nullptr);
 
 /* Per-host enrichment metrics exposed for scan-summary reporting.
    budget_bails: hosts whose total wall time exceeded

@@ -129,6 +129,11 @@ static const char *SCHEMA_SQL =
   "  tls_self_signed        INTEGER,"
   "  tls_protocol           TEXT,"
   "  tls_sha256             TEXT,"
+  /* v5e: derived CPE 2.3 product identifier (e.g.
+     cpe:2.3:a:apache:http_server:2.4.41:*:*:*:*:*:*:*).  Auto-derived from
+     service+version during enrichment; no DEFAULT so legacy / never-enriched
+     rows stay NULL ("unknown") rather than carrying a bogus empty CPE. */
+  "  cpe                    TEXT,"
   "  PRIMARY KEY (ip, port)"
   ");"
   /* Indexes whose columns have always existed since v1 are safe in
@@ -257,6 +262,8 @@ static const char *MIGRATIONS[] = {
   "ALTER TABLE hosts ADD COLUMN tls_self_signed INTEGER",
   "ALTER TABLE hosts ADD COLUMN tls_protocol TEXT",
   "ALTER TABLE hosts ADD COLUMN tls_sha256 TEXT",
+  /* v5e: derived CPE 2.3 product identifier -- see SCHEMA_SQL note. No DEFAULT. */
+  "ALTER TABLE hosts ADD COLUMN cpe TEXT",
 };
 
 sqlite3 *net_db_open(const std::string &path) {
@@ -370,7 +377,8 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *powered_by,
                              const char *x_generator,
                              const char *redirect_target,
-                             const char *robots_disallowed_json) {
+                             const char *robots_disallowed_json,
+                             const char *cpe) {
   if (!db) return -1;
 
   /* Atomic prev-state capture: when this row was already enriched at
@@ -413,6 +421,7 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
     "  x_generator            = COALESCE(?, x_generator), "
     "  redirect_target        = COALESCE(?, redirect_target), "
     "  robots_disallowed_json = COALESCE(?, robots_disallowed_json), "
+    "  cpe                    = COALESCE(?, cpe), "
     "  enriched=1, "
     "  enriched_at=strftime('%s','now'), "
     "  enrichment_error=NULL, enrichment_error_at=0, "
@@ -441,8 +450,9 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   bind_or_null(9,  x_generator);
   bind_or_null(10, redirect_target);
   bind_or_null(11, robots_disallowed_json);
-  sqlite3_bind_text(stmt, 12, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 13, port);
+  bind_or_null(12, cpe);
+  sqlite3_bind_text(stmt, 13, ip, -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt, 14, port);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -690,7 +700,7 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     "hostname, powered_by, x_generator, redirect_target, "
     "robots_disallowed_json, screenshot_path, asn_registry, asn_region, "
     "tls_subject_cn, tls_issuer, tls_san_json, tls_not_after, "
-    "tls_self_signed, tls_protocol, tls_sha256 "
+    "tls_self_signed, tls_protocol, tls_sha256, cpe "
     "FROM hosts WHERE ip=?";
 
   sqlite3_stmt *stmt = nullptr;
@@ -749,6 +759,7 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
                          ? -1 : sqlite3_column_int(stmt, 35);
     h.tls_protocol           = col(36);
     h.tls_sha256             = col(37);
+    h.cpe                    = col(38);
     hosts.push_back(std::move(h));
   }
   sqlite3_finalize(stmt);

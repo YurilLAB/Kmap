@@ -969,6 +969,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         continue;
       }
       for (size_t i = 0; i < hr.port_nums.size(); i++) {
+        std::string wl_cpe = net_enrich_cpe_for(
+          i < hr.services.size() ? hr.services[i] : std::string(),
+          i < hr.versions.size() ? hr.versions[i] : std::string());
         net_db_update_enrichment(wl_db, hr.ip.c_str(), hr.port_nums[i],
           i < hr.services.size()    ? hr.services[i].c_str()    : "",
           i < hr.versions.size()    ? hr.versions[i].c_str()    : "",
@@ -980,7 +983,8 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           i < hr.powered_by.size()  ? hr.powered_by[i].c_str()  : nullptr,
           i < hr.x_generator.size() ? hr.x_generator[i].c_str() : nullptr,
           i < hr.redirects.size()   ? hr.redirects[i].c_str()   : nullptr,
-          nullptr);
+          nullptr,                                  /* robots_disallowed_json */
+          wl_cpe.empty() ? nullptr : wl_cpe.c_str());
 
         if (i < hr.tls_caps.size()) {
           const TlsCapture &tc = hr.tls_caps[i];

@@ -241,6 +241,8 @@ static void write_host_section(FILE *fp, const std::string &ip,
             "open",
             p.service.empty() ? "unknown" : p.service.c_str(),
             p.version.c_str());
+    if (!p.cpe.empty())
+      fprintf(fp, "    CPE:     %s\n", p.cpe.c_str());
 
     if (!p.cves.empty() && p.cves != "[]") has_cves = true;
     if (!p.web_title.empty() || !p.web_server.empty()) has_web = true;

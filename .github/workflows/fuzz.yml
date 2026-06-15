@@ -62,6 +62,16 @@ jobs:
             echo "::endgroup::"
           done
 
+          # Helper-linked harnesses: link the REAL net_hash_helpers.cc so a
+          # drift in the shipping mmh3 / base64 / favicon / CPE code is caught
+          # (not a stale copy). Fixed KAT vectors, nonzero exit on mismatch.
+          for h in test_mmh3 test_favicon test_cpe; do
+            echo "::group::$h"
+            g++ $CXXFLAGS "fuzz/$h.cc" net_hash_helpers.cc -o "/tmp/fz/$h"
+            "/tmp/fz/$h"
+            echo "::endgroup::"
+          done
+
           # Guard-page fuzzers (mmap/mprotect PROT_NONE): exact-boundary
           # over-read detection for untrusted-input parsers --
           #   fuzz_dns   : asn_lookup.cc DNS wire parser (network data)

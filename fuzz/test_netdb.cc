@@ -150,6 +150,30 @@ int main() {
     CHECK(a.asn == 4000000000u,         "4-byte ASN (>INT_MAX) not truncated");
   }
 
+  /* ---- v5e cpe column round-trip (fresh IP so it can't disturb the
+     port-80 state machine above).  Pins the net_db_update_enrichment bind
+     renumber: cpe=12, ip=13, port=14.  If ip/port were mis-bound the UPDATE
+     WHERE would not match and the cpe would never land on this row. ---- */
+  {
+    uint32_t cip = ip_to_u32("198.51.100.42");
+    const char *CIP = "198.51.100.42";
+    net_db_insert_host(db, cip, 22, "tcp", t0 + 10);
+    net_db_update_enrichment(db, CIP, 22, "ssh", "8.0",
+                             "[]", nullptr, "OpenSSH", "{}", "[]",
+                             nullptr, nullptr, nullptr, nullptr,
+                             "cpe:2.3:a:openbsd:openssh:8.0:*:*:*:*:*:*:*");
+    NetHost c = getrow(db, CIP, 22);
+    CHECK(c.cpe == "cpe:2.3:a:openbsd:openssh:8.0:*:*:*:*:*:*:*",
+          "cpe stored + read back on the correct (ip,port) row");
+    /* NULL cpe must COALESCE-preserve the prior value (no wipe on a later
+       enrichment that didn't resolve a product). */
+    net_db_update_enrichment(db, CIP, 22, "ssh", "8.0", "[]",
+                             nullptr, "OpenSSH", "{}", "[]");
+    c = getrow(db, CIP, 22);
+    CHECK(c.cpe == "cpe:2.3:a:openbsd:openssh:8.0:*:*:*:*:*:*:*",
+          "COALESCE: NULL cpe preserved prior value");
+  }
+
   /* ---- enrichment error cooldown round-trip ----
      A host whose enrichment errored must be parked out of the eligible pool
      for retry_after_seconds (so a dead host isn't hammered every pass) and

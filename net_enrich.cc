@@ -17,6 +17,8 @@
 
 #include "net_enrich.h"
 #include "net_fp_helpers.h"
+#include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
+#include "sha256.h"             /* sha256_hex for http_body_sha256 */
 #include "net_db.h"
 #include "net_scan.h"   /* net_event_log: mirror key events into kmap.log */
 #include "asn_lookup.h"
@@ -680,6 +682,17 @@ static std::string normalize_product(const std::string &service,
   return "";
 }
 
+/* Public CPE deriver (declared in net_enrich.h).  Runs the same product
+   normalization the CVE matcher uses, then maps to a CPE 2.3 string.  Returns
+   "" when the service/version did not resolve to a known product so callers
+   can pass NULL to net_db_update_enrichment (COALESCE leaves the column). */
+std::string net_enrich_cpe_for(const std::string &service,
+                               const std::string &version) {
+  std::string product = normalize_product(service, version);
+  if (product.empty()) return "";
+  return derive_cpe(product, version);
+}
+
 /* Extract a dotted version number from a string.
  * "OpenSSH 8.2p1" -> "8.2", "nginx/1.18.0" -> "1.18.0" */
 static std::string extract_version_number(const std::string &s) {
@@ -837,6 +850,8 @@ struct WebResult {
   std::string powered_by;       /* X-Powered-By header */
   std::string x_generator;      /* X-Generator header */
   std::string redirect_target;  /* Location: header (3xx responses) */
+  std::string favicon_mmh3;     /* Shodan favicon hash; "" if not captured */
+  std::string body_sha256;      /* SHA-256 of the "/" body; "" if no body */
 };
 
 /* Extract a header value. `lower_resp` MUST be str_lower(resp) — the caller
@@ -886,10 +901,54 @@ static int extract_status(const std::string &resp) {
   return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
 }
 
+/* Fetch /favicon.ico over plaintext HTTP and return its Shodan-style hash
+   (mmh3 of the base64-encoded body) or "" on any failure / non-2xx / empty
+   body.  One extra TCP connect per HTTP host; only called when the net-scan
+   path opted into fingerprint capture.  HTTPS favicons are out of scope here
+   (this reuses the plaintext probe_http transport). */
+static std::string probe_favicon_mmh3(const char *ip, int port, int timeout_ms) {
+  kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
+  if (fd == KMAP_INVALID_FD) return "";
+
+  std::string req = os_profile_http_request(
+      "/favicon.ico", ip,
+      os_profile_get_for_target(o.spoof_os, os_profile_seed_from_text(ip)));
+  if (!enrich_fd_send(fd, req.c_str(), req.size())) {
+    enrich_close_fd(fd);
+    return "";
+  }
+
+  /* Favicons are small; cap the read well below a runaway response. */
+  std::string response;
+  response.reserve(4096);
+  char chunk[4096];
+  while (response.size() < 262144) {
+    if (enrich_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0) break;
+#ifdef WIN32
+    int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
+#else
+    int n = static_cast<int>(recv(static_cast<int>(fd), chunk, sizeof(chunk), 0));
+#endif
+    if (n <= 0) break;
+    response.append(chunk, static_cast<size_t>(n));
+  }
+  enrich_close_fd(fd);
+
+  if (response.empty()) return "";
+  int status = extract_status(response);
+  if (status < 200 || status >= 300) return "";
+  size_t body_start = response.find("\r\n\r\n");
+  if (body_start == std::string::npos) return "";
+  std::string body = response.substr(body_start + 4);
+  if (body.empty()) return "";
+  return favicon_mmh3(body);
+}
+
 /* probe_http -- if cached_response is non-empty, reuse it instead of
    making a new TCP connection (avoids the double-connect from grab_banner). */
 static WebResult probe_http(const char *ip, int port, int timeout_ms,
-                            const std::string &cached_response = "") {
+                            const std::string &cached_response = "",
+                            bool capture_fp = false) {
   WebResult wr;
 
   std::string response;
@@ -983,6 +1042,15 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
       paths_json << ",\"title\":\"" << json_escape(wr.title) << "\"";
     paths_json << "}]";
     wr.paths_json = paths_json.str();
+  }
+
+  /* Active fingerprints (net-scan path only).  body_sha256 reuses the body we
+     already decoded; favicon needs one extra plaintext GET to /favicon.ico
+     (probe_favicon_mmh3 self-gates on a 2xx). */
+  if (capture_fp) {
+    if (!body.empty()) wr.body_sha256 = sha256_hex(body);
+    std::string fav = probe_favicon_mmh3(ip, port, timeout_ms);
+    if (!fav.empty()) wr.favicon_mmh3 = fav;
   }
 
   return wr;
@@ -1214,7 +1282,8 @@ int enrich_single_host(const char *ip,
                        std::vector<std::string> &out_powered_by,
                        std::vector<std::string> &out_x_generator,
                        std::vector<std::string> &out_redirects,
-                       std::vector<TlsCapture> *out_tls) {
+                       std::vector<TlsCapture> *out_tls,
+                       std::vector<HostFingerprints> *out_fp) {
   size_t nports = ports.size();
   out_services.resize(nports);
   out_versions.resize(nports);
@@ -1231,6 +1300,7 @@ int enrich_single_host(const char *ip,
      out_* vectors use resize() for the same reason; this one used to
      use assign() and clobbered async-filled cert data. */
   if (out_tls) out_tls->resize(nports);
+  if (out_fp)  out_fp->resize(nports);
 
   /* Per-host wall-clock budget. The hard requirement: one slow host
      must not block the worker pool indefinitely. A box with 30 filtered
@@ -1362,7 +1432,8 @@ int enrich_single_host(const char *ip,
           is_http_port(ports[i], br.service) &&
           !is_https_port(ports[i], br.service)) {
         int http_timeout = timeout_ms < rem ? timeout_ms : rem;
-        WebResult wr = probe_http(ip, ports[i], http_timeout, br.http_response);
+        WebResult wr = probe_http(ip, ports[i], http_timeout, br.http_response,
+                                  /*capture_fp=*/out_fp != nullptr);
         out_web_titles[i]   = wr.title;
         out_web_servers[i]  = wr.server;
         out_web_headers[i]  = wr.headers_json;
@@ -1370,6 +1441,10 @@ int enrich_single_host(const char *ip,
         out_powered_by[i]   = wr.powered_by;
         out_x_generator[i]  = wr.x_generator;
         out_redirects[i]    = wr.redirect_target;
+        if (out_fp) {
+          (*out_fp)[i].favicon_mmh3 = wr.favicon_mmh3;
+          (*out_fp)[i].body_sha256  = wr.body_sha256;
+        }
       }
 
       /* Step 4: TLS handshake on HTTPS ports.  Skip when async pre-pass
@@ -1518,6 +1593,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
     std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
     std::vector<std::string> powered_by, x_generator, redirects;
     std::vector<TlsCapture> tls_caps;
+    std::vector<HostFingerprints> host_fps;
     std::string hostname;
     AsnInfo asn_info{};
     int rc = 0;
@@ -1713,7 +1789,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
                    r.web_titles, r.web_servers,
                    r.web_headers, r.web_paths,
                    r.powered_by, r.x_generator, r.redirects,
-                   &r.tls_caps);
+                   &r.tls_caps, &r.host_fps);
         if (r.rc == 0) break;
         if (attempt >= enrich_retries) break;
         attempt++;
@@ -1826,6 +1902,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
         net_db_set_hostname(db, r.ip.c_str(), r.hostname.c_str());
 
       for (size_t j = 0; j < r.ports.size(); j++) {
+        std::string enr_cpe = net_enrich_cpe_for(
+          j < r.services.size() ? r.services[j] : std::string(),
+          j < r.versions.size() ? r.versions[j] : std::string());
         net_db_update_enrichment(
           db, r.ip.c_str(), r.ports[j],
           j < r.services.size()    ? r.services[j].c_str()    : "",
@@ -1838,7 +1917,8 @@ int run_enrichment(const char *data_dir, int batch_size) {
           j < r.powered_by.size()  ? r.powered_by[j].c_str()  : nullptr,
           j < r.x_generator.size() ? r.x_generator[j].c_str() : nullptr,
           j < r.redirects.size()   ? r.redirects[j].c_str()   : nullptr,
-          nullptr);
+          nullptr,                                  /* robots_disallowed_json */
+          enr_cpe.empty() ? nullptr : enr_cpe.c_str());
 
         if (j < r.tls_caps.size()) {
           const TlsCapture &tc = r.tls_caps[j];
@@ -1904,6 +1984,21 @@ int run_enrichment(const char *data_dir, int batch_size) {
               net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                         "redirect_host",
                                         rh.c_str(), fp_ts);
+            }
+          }
+          /* Active fingerprints (ASCII-safe values: a decimal mmh3 and a hex
+             SHA-256 -- no JSON/control-char escaping needed). */
+          if (j < r.host_fps.size()) {
+            const HostFingerprints &fp = r.host_fps[j];
+            if (!fp.favicon_mmh3.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "favicon_mmh3",
+                                        fp.favicon_mmh3.c_str(), fp_ts);
+            }
+            if (!fp.body_sha256.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "http_body_sha256",
+                                        fp.body_sha256.c_str(), fp_ts);
             }
           }
         }
