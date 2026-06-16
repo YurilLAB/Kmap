@@ -46,6 +46,12 @@ CORRECTIONS = [
     # options.kex_algorithms). NVD omits the lower bound, so the row matched
     # every OpenSSH back to the 2000s (e.g. 6.6.1p1) -- a false positive.
     ("CVE-2023-25136", {"version_min": "9.0", "version_max": "9.1"}),
+    # ssh-agent PKCS#11 support was only ADDED in OpenSSH 5.4 (it replaced the
+    # old libsectok/OpenSC smartcard code); the PKCS#11 search-path RCE cannot
+    # exist in releases predating the feature. NVD gives only an upper bound
+    # (before 9.3p2), so the row FP'd OpenSSH 5.3p1 and older. Add the lower
+    # bound at 5.4.
+    ("CVE-2023-38408", {"version_min": "5.4"}),
     # "IngressNightmare" is an unauth RCE in the Kubernetes ingress-nginx
     # Controller (< 1.11.5 / < 1.12.1), NOT the nginx web server. Re-tag the
     # product so it can never match a plain nginx banner.
@@ -58,6 +64,9 @@ CORRECTIONS = [
     ("CVE-2023-28531", {"version_max_exclusive": 1}),  # ssh-add, fixed 9.3
     ("CVE-2025-23048", {"version_max_exclusive": 1}),  # mod_ssl, fixed 2.4.64
     ("CVE-2023-38709", {"version_max_exclusive": 1}),  # httpd, fixed 2.4.59
+    ("CVE-2021-44790", {"version_max_exclusive": 1}),  # mod_lua, fixed 2.4.52
+    ("CVE-2022-23943", {"version_max_exclusive": 1}),  # mod_sed, fixed 2.4.53
+    ("CVE-2024-38474", {"version_max_exclusive": 1}),  # mod_rewrite, fixed 2.4.60
     # regreSSHion: NVD row had version_max=4.4 with no lower bound, so it both
     # FP'd ancient OpenSSH (<=4.4) and MISSED the real vulnerable range. The
     # primary modern vulnerable range is 8.5p1..9.7p1.
