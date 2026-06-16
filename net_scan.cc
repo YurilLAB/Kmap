@@ -913,6 +913,16 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       enrich_worker_count = static_cast<int>(results.size());
     if (enrich_worker_count < 1) enrich_worker_count = 1;
 
+    /* Per-port connect timeout, matching the main net-scan enrichment path
+       (KMAP_ENRICH_CONNECT_TIMEOUT_MS, default 3000ms). Previously hardcoded to
+       5000ms here, which made watchlist enrichment slower than --net-scan and
+       silently ignored the operator's KMAP_ENRICH_CONNECT_TIMEOUT_MS tuning. */
+    int wl_connect_to = 3000;
+    if (const char *env = getenv("KMAP_ENRICH_CONNECT_TIMEOUT_MS")) {
+      int v = atoi(env);
+      if (v >= 50 && v <= 60000) wl_connect_to = v;
+    }
+
     std::atomic<size_t> enrich_next{0};
     auto enrich_worker = [&]() {
       while (true) {
@@ -923,7 +933,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         if (hr.empty_host) continue;
         hr.erc = enrich_single_host(hr.ip.c_str(), hr.port_nums, hr.protos,
                            cve_db,
-                           5000, hr.services, hr.versions, hr.cves_out,
+                           wl_connect_to, hr.services, hr.versions, hr.cves_out,
                            hr.web_titles, hr.web_servers, hr.web_headers,
                            hr.web_paths, hr.powered_by, hr.x_generator,
                            hr.redirects, &hr.tls_caps);

@@ -86,7 +86,7 @@ extern KmapOps o;
    host's budget cover more port attempts before bailing. Tunable via
    KMAP_ENRICH_CONNECT_TIMEOUT_MS env. */
 #define ENRICH_CONNECT_TIMEOUT  3000  /* ms */
-#define ENRICH_READ_TIMEOUT     5000  /* ms */
+#define ENRICH_READ_TIMEOUT     2000  /* ms -- recv deadline; see enrich_read_timeout() */
 #define ENRICH_BANNER_MAX       1024  /* bytes */
 
 /* -----------------------------------------------------------------------
@@ -276,6 +276,27 @@ static int enrich_fd_recv(kmap_fd_t fd, char *buf, size_t len, int timeout_ms) {
 #endif
 }
 
+/* Recv deadline for the enrichment probes.  enrich_tcp_connect already spent up
+   to connect_timeout_ms on the CONNECT; reusing that full value for the recv
+   means a TCP-open-but-silent port -- e.g. EVERY plain HTTP server, which never
+   speaks first -- burns the entire connect timeout AGAIN waiting for a banner
+   that never arrives, before we even send the GET.  A host that completed the
+   handshake but is silent past a couple of seconds is not going to speak.  Cap
+   the recv wait at KMAP_ENRICH_READ_TIMEOUT_MS (default ENRICH_READ_TIMEOUT),
+   never exceeding the caller's remaining budget.  Thread-safe one-time init via
+   a C++11 magic static. */
+static int enrich_read_timeout(int connect_timeout_ms) {
+  static const int cap = [](){
+    int v = ENRICH_READ_TIMEOUT;
+    if (const char *e = getenv("KMAP_ENRICH_READ_TIMEOUT_MS")) {
+      int p = atoi(e);
+      if (p >= 50 && p <= 60000) v = p;
+    }
+    return v;
+  }();
+  return connect_timeout_ms < cap ? connect_timeout_ms : cap;
+}
+
 /* -----------------------------------------------------------------------
  * Reverse-DNS (PTR) lookup
  *
@@ -417,8 +438,9 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
   if (fd == KMAP_INVALID_FD)
     return result;
 
+  int read_to = enrich_read_timeout(timeout_ms);
   char buf[ENRICH_BANNER_MAX]{};
-  int n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
+  int n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, read_to);
 
   /* If no immediate banner, try sending a minimal HTTP request to elicit
      a response (many HTTP servers wait for the client to speak first).
@@ -444,7 +466,7 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
         os_profile_get_for_target(o.spoof_os,
                                   os_profile_seed_from_text(ip)));
     if (enrich_fd_send(fd, http_probe.c_str(), http_probe.size())) {
-      n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
+      n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, read_to);
     }
   }
 
@@ -975,6 +997,7 @@ static int extract_status(const std::string &resp) {
 static std::string probe_favicon_mmh3(const char *ip, int port, int timeout_ms) {
   kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
   if (fd == KMAP_INVALID_FD) return "";
+  int read_to = enrich_read_timeout(timeout_ms);
 
   std::string req = os_profile_http_request(
       "/favicon.ico", ip,
@@ -989,7 +1012,7 @@ static std::string probe_favicon_mmh3(const char *ip, int port, int timeout_ms) 
   response.reserve(4096);
   char chunk[4096];
   while (response.size() < 262144) {
-    if (enrich_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0) break;
+    if (enrich_wait_fd(fd, /*want_write=*/false, read_to) <= 0) break;
 #ifdef WIN32
     int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
 #else
@@ -1023,6 +1046,7 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
   } else {
     kmap_fd_t fd = enrich_tcp_connect(ip, static_cast<uint16_t>(port), timeout_ms);
     if (fd == KMAP_INVALID_FD) return wr;
+    int read_to = enrich_read_timeout(timeout_ms);
 
     /* Profile-driven request (User-Agent + Accept-* headers) -- preserves
        the existing Host-with-port form by passing ip as the host and
@@ -1043,7 +1067,7 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     response.reserve(4096);
     char chunk[4096];
     while (response.size() < 65536) {
-      if (enrich_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
+      if (enrich_wait_fd(fd, /*want_write=*/false, read_to) <= 0)
         break;
 #ifdef WIN32
       int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
