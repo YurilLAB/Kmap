@@ -35,4 +35,10 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms = 3000);
  * Returns empty string on failure. */
 std::string lookup_as_name(uint32_t asn, int timeout_ms = 3000);
 
+/* Number of REAL Team Cymru origin queries issued so far (i.e. prefix-cache
+ * misses). Same-prefix hosts reuse the first host's result with no network, so
+ * this is far below the host count on a prefix-dense sweep -- the scan summary
+ * surfaces it to show the dedup ratio. Process-global, monotonic. */
+uint64_t asn_origin_query_count();
+
 #endif /* ASN_LOOKUP_H */

@@ -53,7 +53,7 @@ jobs:
           # drives a parser over millions of inputs (ASan aborts on a fault).
           # -pthread is harmless for the non-threaded harnesses and required
           # by test_lowwater (real worker-pool crash-snapshot stress).
-          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater test_sha256 test_watchlist_diff test_ratelimit test_header_extract test_checkpoint test_excludes test_throughput fuzz_text fuzz_query; do
+          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater test_sha256 test_watchlist_diff test_ratelimit test_header_extract test_checkpoint test_excludes test_throughput test_asn_prefix fuzz_text fuzz_query; do
             echo "::group::$h"
             g++ $CXXFLAGS -pthread "fuzz/$h.cc" -o "/tmp/fz/$h"
             # two seeds widen input coverage between runs

@@ -1779,6 +1779,11 @@ int run_net_scan() {
     log_write(LOG_STDOUT,
       "  Pipeline:    %llu completed host(s)  (%.2f hosts/sec over total)\n",
       (unsigned long long)em.hosts_done, pipe_rate);
+    uint64_t asn_q = asn_origin_query_count();
+    log_write(LOG_STDOUT,
+      "  ASN:         %llu Cymru origin quer%s for %llu host(s)  (prefix-deduped)\n",
+      (unsigned long long)asn_q, asn_q == 1 ? "y" : "ies",
+      (unsigned long long)em.hosts_done);
     log_write(LOG_STDOUT,
       "================================================================================\n");
 

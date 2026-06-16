@@ -26,6 +26,7 @@
 #include <vector>
 #include <map>
 #include <mutex>
+#include <atomic>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -432,6 +433,34 @@ static std::map<std::string, AsnInfo> asn_cache;
 static std::mutex asn_cache_mu;
 static const size_t ASN_CACHE_MAX = 200000; /* hard cap to bound memory */
 
+/* Team Cymru's origin record is per-BGP-PREFIX, not per-IP ("23456 |
+   1.2.3.0/24 | US | ...").  But the per-IP cache above keys on the full IP and
+   the DNS layer keys on the full reversed qname, so two hosts in the SAME
+   announced prefix were two distinct keys -> two uncached origin UDP queries.
+   On a prefix-dense sweep (a /24, a cloud block -- the real-world norm) that is
+   up to 256 identical round-trips, which is slow AND impolite to Cymru (it rate
+   limits, so hammering it actually LOSES ASN coverage).  This prefix cache
+   collapses them: the first host in a /24 does the real query, the rest reuse
+   it.  Keyed by the IP's /24 base for O(1) lookup, then GUARDED by a containment
+   check against the prefix Cymru actually returned (pnet/pmask) so a /24 that
+   straddles two announcements can never mis-attribute -- a non-contained IP just
+   misses and issues its own query.  Shares asn_cache_mu (same low contention). */
+struct AsnPrefixEntry { uint32_t pnet; uint32_t pmask; AsnInfo info; };
+static std::map<uint32_t, AsnPrefixEntry> asn_prefix_cache;  /* key = ip & /24 */
+/* Real origin queries issued (prefix-cache misses) -- exposed via
+   asn_origin_query_count() so the scan summary can show the dedup ratio. */
+static std::atomic<uint64_t> g_asn_origin_queries{0};
+
+/* Parse "1.2.3.0/24" -> network + mask (host bits cleared). False if malformed. */
+static bool asn_parse_prefix(const std::string &s, uint32_t &net, uint32_t &mask) {
+  unsigned a, b, c, d, bits;
+  if (sscanf(s.c_str(), "%u.%u.%u.%u/%u", &a, &b, &c, &d, &bits) != 5) return false;
+  if (a > 255 || b > 255 || c > 255 || d > 255 || bits > 32) return false;
+  mask = (bits == 0) ? 0u : (0xFFFFFFFFu << (32 - bits));
+  net  = (((a << 24) | (b << 16) | (c << 8) | d) & mask);
+  return true;
+}
+
 /* -----------------------------------------------------------------------
  * Public API
  * ----------------------------------------------------------------------- */
@@ -460,11 +489,26 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
   if (a > 255 || b > 255 || c > 255 || d > 255)
     return info;
 
+  /* Prefix cache: if a prior host in this /24 already resolved its announced
+     prefix, and THIS ip falls inside that prefix, reuse it with no network.
+     The containment check keeps a /24 that straddles two announcements safe. */
+  uint32_t ip_u32 = (a << 24) | (b << 16) | (c << 8) | d;
+  uint32_t ip24   = ip_u32 & 0xFFFFFF00u;
+  {
+    std::lock_guard<std::mutex> lk(asn_cache_mu);
+    auto pit = asn_prefix_cache.find(ip24);
+    if (pit != asn_prefix_cache.end() &&
+        (ip_u32 & pit->second.pmask) == pit->second.pnet) {
+      return pit->second.info;
+    }
+  }
+
   /* Build the origin query: d.c.b.a.origin.asn.cymru.com */
   char qname[128];
   snprintf(qname, sizeof(qname), "%u.%u.%u.%u.origin.asn.cymru.com",
            d, c, b, a);
 
+  g_asn_origin_queries.fetch_add(1, std::memory_order_relaxed);
   std::string origin_txt = dns_txt_query(qname, timeout_ms);
   if (origin_txt.empty())
     return info;
@@ -493,9 +537,19 @@ AsnInfo lookup_asn(const char *ip, int timeout_ms) {
     std::lock_guard<std::mutex> lk(asn_cache_mu);
     if (asn_cache.size() >= ASN_CACHE_MAX) asn_cache.clear();
     asn_cache[ip_str] = info;
+    /* Populate the prefix cache so same-/24 hosts skip the network next time. */
+    uint32_t pnet, pmask;
+    if (!info.bgp_prefix.empty() && asn_parse_prefix(info.bgp_prefix, pnet, pmask)) {
+      if (asn_prefix_cache.size() >= ASN_CACHE_MAX) asn_prefix_cache.clear();
+      asn_prefix_cache[ip24] = AsnPrefixEntry{ pnet, pmask, info };
+    }
   }
 
   return info;
+}
+
+uint64_t asn_origin_query_count() {
+  return g_asn_origin_queries.load(std::memory_order_relaxed);
 }
 
 std::string lookup_as_name(uint32_t asn, int timeout_ms) {
