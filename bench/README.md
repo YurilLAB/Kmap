@@ -62,20 +62,28 @@ Live-binary metrics (MSVC `kmap.exe`, same box) — peak RSS via PowerShell
 
 | Live metric | Result |
 |---|---|
-| Peak RSS, enriching scan (`--cve-map --web-recon`) | ~22 MB |
-| Peak RSS, default `/24` discovery | ~28 MB |
-| Peak RSS, `--fast` `/24` discovery | ~42 MB |
+| Peak RSS, `/24` scan (200 conc, ~200 threads) | ~30 MB |
+| Peak RSS, `--fast` `/24` (auto-scales to the 1024-worker cap) | ~34 MB (enrich phase) |
+| Peak RSS, 5,000-IP sample (300 conc, ~900 threads) | ~57 MB |
+
+> RAM scales with **thread count** (`concurrency × ports`), not with the size of
+> the IP space swept (the permutation is RAM-free). The 32-bit build caps the
+> discovery pool at 1024 threads, so worst-case RSS is ~60–65 MB.
 
 Full pipeline on a **real random internet sample** (no synthetic targets;
-`--net-scan --net-max-ips 5000 -p 80,443,22 --cve-map`, 400 workers / 1.2 s):
+`KMAP_NETSCAN_CONCURRENCY=300 ./kmap --net-scan --net-max-ips 5000 -p 80,443,22 --cve-map`):
 
-| Full-pipeline metric | Result |
-|---|---|
-| Discovery | 5,000 IPs in ~15 s (~333 IPs/sec) |
-| Open ports / live hosts | 154 ports across 89 hosts |
-| Enrichment (incl. CVE matching) | ~25 s (~3.6 hosts/sec, avg 3.7 s/host) |
-| CVE-bearing ports persisted | 25 |
-| End-to-end (discover→enrich→report) | ~40 s |
+| Full-pipeline metric | Random sample | Dense `/24` (for comparison) |
+|---|---|---|
+| Discovery | 5,000 IPs in ~7.9 s (~634 IPs/sec) | 256 IPs in ~1.9 s |
+| Open ports / live hosts | 128 ports / 81 hosts | 170 ports / 72 hosts |
+| Enrichment (incl. CVE) | ~24 s (~3.4 hosts/sec, avg 3.2 s/host) | ~10.7 s (~6.7 hosts/sec, avg 2.9 s/host) |
+| ASN origin queries (Cymru) | 81 for 81 hosts (sparse) | 2 for 72 hosts (prefix-deduped) |
+| End-to-end (discover→enrich→report) | ~32 s | ~12.7 s |
+
+> A dense range enriches ~2× faster: same-prefix hosts share one ASN lookup and
+> datacenter hosts answer in a lower RTT. The scan summary prints the hosts/sec
+> and ASN dedup figures directly.
 
 Your numbers will differ with CPU, disk, and compiler; re-run and quote your own
 hardware. The component benches are deterministic and safe to wire into CI to
@@ -110,13 +118,18 @@ acceptable for your link.
 
 ```bash
 # 5,000-IP random sample on the three most common ports, with CVE matching.
-KMAP_NETSCAN_CONCURRENCY=400 KMAP_PROBE_TIMEOUT_MS=1200 \
+KMAP_NETSCAN_CONCURRENCY=300 \
   ./kmap --net-scan --net-max-ips 5000 -p 80,443,22 --cve-map --data-dir bench-pipe
-# Read the per-phase wall times from the "discovery/enrichment phase complete"
-# log lines; count results + CVE-bearing ports with:
+# The "NET-SCAN COMPLETE" summary block prints per-phase wall times, the
+# discovery IPs/sec, the enrichment + overall hosts/sec, and the ASN dedup ratio.
+# Count results + CVE-bearing ports independently with:
 ./kmap --net-query --data-dir bench-pipe | grep -c ':.*tcp'     # open ports
 ./kmap --net-query --data-dir bench-pipe | grep -c 'CVE-'       # CVE matches
 ```
+
+To watch a dense range instead (where the read-timeout + ASN prefix-cache wins
+show, ~2× the enrichment rate), point it at a real CIDR:
+`KMAP_NETSCAN_CONCURRENCY=200 ./kmap --net-scan 203.0.113.0/24 -p 80,443,22 --cve-map`.
 
 `hosts/sec = hosts_enriched / enrichment_seconds`; `IPs/sec = max_ips /
 discovery_seconds`. Discovery tracks `workers / timeout` on dark space and

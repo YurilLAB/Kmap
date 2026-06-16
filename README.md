@@ -98,104 +98,127 @@ All per-host features auto-enable `-sV` (service/version detection) and print re
 
 ## Benchmarks
 
-Real numbers beat adjectives. Kmap's discovery path is a non-blocking
-`connect()` sweep, **not** a raw-SYN firehose — so throughput is bounded by how
-many sockets are in flight, not by the `--rate` ceiling. The figures below are
-labelled by how they were obtained:
+Kmap's discovery path is a non-blocking `connect()` sweep, **not** a raw-SYN
+firehose, so throughput is bounded by how many sockets are in flight, not by the
+`--rate` ceiling — and the whole pipeline is **network-bound**: the machine
+spends its time waiting on round-trips, not computing (a `/24` scan burns under
+1 second of CPU). Every figure is labelled by how it was obtained:
 
-- 🟢 **Measured** — observed on a real run (hardware + flags noted).
-- 🔵 **Derived** — computed from source constants; the code cannot exceed it.
-- ⚪ **Run-it-yourself** — depends on your link, target responsiveness, and
-  tuning; reproduce with [`bench/measure-live.sh`](bench/measure-live.sh).
+- 🟢 **Measured** on a real run · 🔵 **Derived** from source constants (a hard
+  ceiling the code cannot exceed) · ⚪ **Run-it-yourself** (depends on your link
+  and target responsiveness).
 
-🟢 figures below were measured on **Windows 11 Pro (build 26200), AMD Ryzen 5
-5600X (6C/12T) @ 4.27 GHz, 32 GB RAM**. Two toolchains are involved and labelled
-per row: the component micro-benchmarks (`bench_db`, `bench_compute`) are built
-with **MinGW g++ 16.1 `-O2`** and link the real Kmap `.cc`; the live-binary
-metrics (peak RSS, connect rate) come from the **MSVC (VS 2026 toolset) `/O2`**
-shipping `kmap.exe`. Reproducible with the harnesses in [`bench/`](bench/). The
-same correctness harnesses also run on Linux under ASan+UBSan in CI
-([`.github/workflows/fuzz.yml`](.github/workflows/fuzz.yml)) — behaviour is
-verified on both platforms; the throughput numbers below are from Windows 11.
+🟢 numbers are from **Windows 11 Pro, AMD Ryzen 5 5600X (6C/12T), 32 GB**. The
+shipping `kmap.exe` is the 32-bit MSVC (VS 2026) build; the component
+micro-benchmarks are MinGW g++ 16.1 `-O2` linking the real Kmap `.cc`. Reproduce
+with [`bench/`](bench/); behaviour is also verified on Linux in CI
+([`fuzz.yml`](.github/workflows/fuzz.yml)).
+
+### Full pipeline, end-to-end on real hosts 🟢
+
+The whole pipeline at once — discovery → service/version detection → CVE matching
+against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS, HTTP, reverse-DNS)
+→ sharded storage → report — on two real runs, **no synthetic targets**. Scan
+*density* is the biggest variable, so both are shown:
+
+| Stage (ports 80/443/22, `--cve-map`) | Dense range (a real `/24`) | Random internet sample |
+|---|---|---|
+| Discovery | 256 IPs in 1.9 s | **5,000 IPs in 7.9 s** (~634 IPs/sec, 300 workers) |
+| Open ports / live hosts | 170 ports / 72 hosts | 128 ports / 81 hosts |
+| Enrichment | **10.7 s — ~6.7 hosts/sec** (avg 2.9 s/host) | 24 s — ~3.4 hosts/sec (avg 3.2 s/host) |
+| ASN origin queries (Cymru) | **2** for 72 hosts (prefix-deduped) | 81 for 81 hosts (sparse → nothing to dedup) |
+| End-to-end wall | **12.7 s** | 31.9 s |
+
+> A **dense range enriches ~2× faster** than a scattered sample: same-prefix
+> hosts share one ASN lookup (the prefix cache collapsed 72 Cymru queries to 2),
+> and datacenter hosts answer in a lower RTT. A random sample instead pays a
+> separate ASN round-trip per host — batching those as a pre-pass is the next
+> throughput lever (roadmap). The scan summary prints both the hosts/sec figure
+> and the ASN dedup ratio so you can see this live.
+
+> CVE matching is **version-precise**: a match requires the detected version to
+> fall inside the CVE's range, so a *patched* release is never flagged (≈half of
+> raw NVD rows carry no version bound and are not asserted) — e.g. a plain
+> `nginx` web server never gets the Kubernetes *ingress-nginx* CVE-2025-1974, and
+> Apache 2.4.52 is not flagged with a bug fixed *in* 2.4.52.
+
+### Network throughput — the binding constraints
+
+| Metric | Value | Notes |
+|---|---|---|
+| Discovery, **measured** | **~634 IPs/sec** (300 conc × 3 ports = 900 workers) | 🟢 random sample; tracks `workers / per-IP-time` exactly |
+| Discovery, **shipped default** (100 conc) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
+| Discovery, **tuned** (1000 conc, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
+| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
+| Worker pool, **32-bit build** | capped at **1024 threads** (`concurrency × ports`) | 🟢 address-space guard; `--fast` auto-scales up to the cap |
+| Enrichment, **dense range** | **~6.7 hosts/sec** (avg 2.9 s/host) | 🟢 ASN-deduped; banner + HTTP + TLS RTTs |
+| Enrichment, **random sample** | **~3.4 hosts/sec** (avg 3.2 s/host) | 🟢 per-host ASN round-trip dominates |
+| Enrichment, **ceiling** | ~40 → ~850 hosts/sec (concurrency 40 → 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
+| `--rate` send ceiling (token bucket) | 25,000 pps default (1–1e9 configurable) | 🔵 a polite cap, not the throughput |
+| Screenshots | ~0.2–1 /sec (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
+
+> The enrichment recv path now uses a **separate ~2 s read timeout** instead of
+> reusing the 3 s connect timeout — a plain HTTP server never speaks first, so
+> the old code waited the full connect timeout for a banner that never came
+> before sending the GET. Fixing it roughly **doubled enrichment throughput** on
+> dense ranges (a controlled A/B on the same `/24`: 3.4 → 6.7 hosts/sec).
+
+### Resource usage 🟢
+
+Network-bound, so the host machine is barely touched:
+
+| Metric | Value |
+|---|---|
+| CPU, a `/24` scan | **~0.9 s total** over ~13 s wall (~4 % of one core; ~0.3 % of all 12) |
+| Peak RAM, `/24` (200 conc, ~200 threads) | **~30 MB** |
+| Peak RAM, 5,000 sample (300 conc, ~900 threads) | **~57 MB** |
+| Peak RAM, `--fast` `/24` (auto-scales to 1024 workers) | **~34 MB** (enrich phase) |
+
+> RAM scales with **thread count** (`concurrency × ports`), *not* with the size
+> of the address space swept — the permutation is RAM-free, so a full internet
+> `--fast` sweep stays concurrency-bound. Worst case at the 1024-thread cap is
+> ~60–65 MB.
 
 ### Storage & write throughput
 
 | Metric | Value | How |
 |---|---|---|
-| DB write throughput (Stage-C, 1 shard, 1 thread) | **~8,070 enriched hosts/sec** (56,500 row-ops/sec) | 🟢 `bench/bench_db 200000` |
-| On-disk size per enriched host | **~1.86 KB** (1,862 B: 1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
-| **DB growth per 1 billion IPs scanned** | **~8.7 GB** (0.5% open-port rate) · **~17 GB** (1%) · **~35 GB** (2%) | 🟢 derived from the measured 1.86 KB/host |
-| Bundled CVE database | ~5.05 MB | 🟢 `stat` |
+| DB write (Stage-C, 1 shard, 1 thread) | **~8,060 enriched hosts/sec** (56.4 K row-ops/sec) | 🟢 `bench/bench_db 200000` |
+| On-disk size per enriched host | **~1.86 KB** (1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
+| **Growth per 1 billion IPs scanned** | **~8.7 GB** @0.5% · **~17 GB** @1% · **~35 GB** @2% open-port rate | 🟢 derived from 1.86 KB/host |
+| Bundled CVE database | ~5.05 MB | 🟢 |
 
 > Only IPs with an open port are stored, so DB growth tracks *discovered hosts*,
-> not addresses swept. Across the 32 shards that's ~0.3–1 GB/shard at 1–2% hit.
+> not addresses swept — ~0.3–1 GB/shard across the 32 shards at a 1–2 % hit rate.
 
-### Enrichment CPU primitives (single-thread)
+### CPU primitives — ceilings (single-thread) 🟢
 
-These are CPU **ceilings** — real enrichment is network-bound and far below
-them, which is the point: **CPU is never the bottleneck.**
+Real enrichment is network-bound and runs far below these, which is the whole
+point: **CPU is never the bottleneck.**
 
-| Primitive | Throughput | How |
-|---|---|---|
-| IP generation (permutation + exclude check) | **~111 M IPs/sec** | 🟢 `bench/bench_compute` |
-| Cloud-provider lookup (longest-prefix) | **~82 M lookups/sec** | 🟢 |
-| MurmurHash3 (favicon hashing) | **~3.76 GB/sec** | 🟢 |
-| SHA-256 (HTTP body hashing) | **~311 MB/sec** (~19.9 K bodies/sec) | 🟢 |
-| Favicon hash (base64 + mmh3, 4 KB) | **~86 K/sec** | 🟢 |
-| CPE derivation | **~3.4 M/sec** | 🟢 |
-
-> IP generation runs ~4,000× faster than the 25,000-pps network rate ceiling,
-> so the address pipeline is never what limits a sweep.
-
-### Network throughput (the binding constraints — 🔵 derived / ⚪ run-it-yourself)
-
-| Metric | Value | Notes |
-|---|---|---|
-| Discovery, **shipped defaults** (100 workers, 500 ms timeout) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
-| Discovery, **tuned** (1000 workers, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
-| Discovery, **measured on a random internet sample** | **~333 IPs/sec** (400 workers / 1.2 s timeout, ports 80/443/22) | 🟢 5,000-IP permutation sample; matches the `workers / timeout` model exactly |
-| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
-| `--rate` send ceiling (token bucket) | 25,000 pps default (1–10 M configurable) | 🔵 polite by default; only the cap, not the throughput |
-| Enrichment, **measured on real hosts** | **~3.6 hosts/sec** (89 real hosts, full pipeline incl. CVE), avg 3.7 s/host | 🟢 internet-bound (banner+HTTP+TLS+ASN+rDNS RTTs); raise `KMAP_NETSCAN_ENRICH_CONCURRENCY` to overlap more |
-| Enrichment, **ceiling** | **~40 hosts/sec** (default) → **~850 hosts/sec** (concurrency 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
-| Peak RAM (measured, /24 scans) | **~22 MB** enrich · **~28 MB** default · **~42 MB** `--fast` | 🟢 PowerShell `WorkingSet64` poll, MSVC binary; permutation is RAM-free so a full `--fast` internet sweep stays concurrency-bound (~150–350 MB worst case 🔵), not IP-space-bound |
-| Screenshots | **~0.2–1 /sec** (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
-
-### Full pipeline, end-to-end on a real random internet sample 🟢
-
-The numbers above isolate subsystems; this is the **whole pipeline running
-through the system at once** — random-IP discovery → service/version detection
-→ CVE matching against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS,
-HTTP) → sharded storage → report — measured on one run, **no synthetic targets**:
-
-| Stage (5,000-IP random sample, ports 80/443/22, `--cve-map`) | Result |
+| Primitive | Throughput |
 |---|---|
-| Discovery | 5,000 IPs in **15 s** (~333 IPs/sec, 400 workers / 1.2 s) |
-| Open ports found / hosts enriched | **154 open ports** across **89 live hosts** |
-| Enrichment (full, incl. CVE matching) | **25 s** (~3.6 hosts/sec, avg 3.7 s/host) |
-| CVE matches written | **25 CVE-bearing ports** persisted to the shard DBs |
-| End-to-end wall | **40 s** discover→enrich→report |
+| IP generation (permutation + exclude check) | ~111 M IPs/sec |
+| Cloud-provider lookup (longest-prefix) | ~83 M/sec |
+| MurmurHash3 (favicon hashing) | ~3.76 GB/sec |
+| SHA-256 (HTTP body hashing) | ~312 MB/sec (~20 K bodies/sec) |
+| Favicon hash (base64 + mmh3, 4 KB) | ~86 K/sec |
+| CPE derivation | ~3.4 M/sec |
 
-> CVE matching is **version-precise**: a match requires the detected version to
-> fall inside the CVE's version range. CVEs with no version applicability (≈half
-> of raw NVD-derived rows) are not asserted, which removes false positives like
-> tagging a plain `nginx` web server with the Kubernetes *ingress-nginx*
-> CVE-2025-1974, or an OpenSSH 6.6 banner with the 9.1-only CVE-2023-25136.
+> IP generation runs ~4,000× faster than the 25,000-pps rate ceiling, so the
+> address pipeline never limits a sweep.
 
-> **Honest headline:** a single-port internet sweep at shipped defaults is
-> thread-bound at **~200 IPs/sec on filtered space** — tune
-> `KMAP_NETSCAN_CONCURRENCY` (512–1024) and `KMAP_PROBE_TIMEOUT_MS` for
-> internet-scale rates; real ranges go far faster because live hosts answer in
-> ~1 RTT instead of the full timeout. The largest planned speedup — an async
-> epoll/IOCP connect engine (~100× on dark space) — and the rest of the
-> performance backlog are tracked in
-> [`docs/performance-roadmap.md`](docs/performance-roadmap.md).
+> **Honest headline:** a single-port sweep at shipped defaults is thread-bound at
+> **~200 IPs/sec on filtered space** — tune `KMAP_NETSCAN_CONCURRENCY` (512–1024)
+> and `KMAP_PROBE_TIMEOUT_MS` for internet-scale rates; real ranges go far faster
+> because live hosts answer in ~1 RTT. The largest planned speedup — an async
+> epoll/IOCP connect engine (~100× on dark space) — and the rest of the backlog
+> are tracked in [`docs/performance-roadmap.md`](docs/performance-roadmap.md).
 
-Methodology, tuning knobs, and the full env-var reference live in
+Methodology and the full env-var reference live in
 [`docs/performance.md`](docs/performance.md). Reproduce the 🟢 component numbers
-with [`bench/`](bench/); the network/RAM/full-pipeline numbers with
-[`bench/measure-live.sh`](bench/measure-live.sh) (the full-pipeline run is a
-bounded `--net-scan --net-max-ips N` random sample with `--cve-map`).
+with [`bench/`](bench/) and the live network/RAM numbers with
+[`bench/measure-live.sh`](bench/measure-live.sh).
 
 ---
 
