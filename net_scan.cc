@@ -1414,6 +1414,20 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   log_write(LOG_STDOUT, "    Report:         %.1fs\n", report_s);
   log_write(LOG_STDOUT, "    Total:          %.1fs\n", total_s);
   log_write(LOG_STDOUT, "\n");
+  /* Throughput: a "completed host" traversed the full discover->enrich
+     pipeline (enrich_get_metrics().hosts_done). Rates guard a sub-ms denom. */
+  EnrichMetrics wl_em = enrich_get_metrics();
+  double wl_disc_rate = discovery_s > 0.001 ? targets.size()  / discovery_s : 0.0;
+  double wl_enr_rate  = enrich_s    > 0.001 ? wl_em.hosts_done / enrich_s    : 0.0;
+  double wl_pipe_rate = total_s     > 0.001 ? wl_em.hosts_done / total_s     : 0.0;
+  log_write(LOG_STDOUT, "  Throughput:\n");
+  log_write(LOG_STDOUT, "    Discovery:      %.1f IPs/sec  (%d IPs)\n",
+            wl_disc_rate, (int)targets.size());
+  log_write(LOG_STDOUT, "    Enrichment:     %.1f hosts/sec  (%llu hosts)\n",
+            wl_enr_rate, (unsigned long long)wl_em.hosts_done);
+  log_write(LOG_STDOUT, "    Pipeline:       %.2f completed hosts/sec\n",
+            wl_pipe_rate);
+  log_write(LOG_STDOUT, "\n");
   log_write(LOG_STDOUT, "  Resources:\n");
   log_write(LOG_STDOUT, "    Avg CPU:        %.1f%%\n", avg_cpu_pct);
   log_write(LOG_STDOUT, "    Peak RSS:       %.0f MB\n", rss_mb);
@@ -1432,12 +1446,14 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   log_write(LOG_STDOUT, "    kmap --net-query --nq-device web\n");
   log_write(LOG_STDOUT, "================================================================================\n");
 
-  scan_log("INFO", "watchlist scan %s: %d ports across %d targets "
-           "(discovery=%.1fs enrich=%.1fs report=%.1fs total=%.1fs) "
-           "| cpu_avg=%.1f%% rss=%.0fMB cpu_total=%.1fs",
+  scan_log("INFO", "watchlist scan %s: %d ports across %d targets, "
+           "%llu hosts pipelined "
+           "(discovery=%.1fs enrich=%.1fs report=%.1fs total=%.1fs; "
+           "%.2f hosts/sec) | cpu_avg=%.1f%% rss=%.0fMB cpu_total=%.1fs",
            g_scan_interrupted.load() ? "interrupted" : "complete",
            (int)current.size(), (int)targets.size(),
-           discovery_s, enrich_s, report_s, total_s,
+           (unsigned long long)wl_em.hosts_done,
+           discovery_s, enrich_s, report_s, total_s, wl_pipe_rate,
            avg_cpu_pct, rss_mb, fin_metrics.cpu_seconds);
   scan_log_close();
   return g_scan_interrupted.load() ? 130 : 0;
@@ -1516,6 +1532,14 @@ int run_net_scan() {
      calls are harmless). */
   scan_log_open(data_dir);
   time_t ns_start = time(nullptr);
+  /* Monotonic clock for the throughput summary (hosts/sec). time() is kept for
+     the existing per-phase second-granularity logs; steady_clock gives the
+     final rate sub-second accuracy on short scans. ns_disc_end/ns_enr_end stay
+     at ns_t0 if their phase is skipped (discover-only / report-only). */
+  auto ns_t0 = std::chrono::steady_clock::now();
+  auto ns_disc_end = ns_t0;
+  auto ns_enr_end  = ns_t0;
+  uint64_t ns_ips_scanned = 0;  /* IPs covered by discovery; set in Phase 1 */
   scan_log("INFO", "net-scan starting%s%s",
            o.net_discover_only ? " [discover-only]"
              : o.net_enrich_only ? " [enrich-only]"
@@ -1611,6 +1635,9 @@ int run_net_scan() {
       scan_log_close();
       return rc;
     }
+    ns_disc_end = std::chrono::steady_clock::now();
+    ns_ips_scanned = target_count ? target_count
+                     : (o.net_max_ips ? (uint64_t)o.net_max_ips : 0);
     scan_log("INFO", "discovery phase complete (%lds)",
              (long)(time(nullptr) - disc_t0));
 
@@ -1679,6 +1706,7 @@ int run_net_scan() {
         "net-scan: %lld host(s) still need enrichment; continuing (pass %d)\n",
         (long long)remaining, pass + 1);
     }
+    ns_enr_end = std::chrono::steady_clock::now();
     scan_log("INFO", "enrichment phase complete (%lds, %d pass%s)",
              (long)(time(nullptr) - enr_t0), pass, pass == 1 ? "" : "es");
 
@@ -1704,9 +1732,54 @@ int run_net_scan() {
     }
   }
 
-  scan_log("INFO", "net-scan %s (%lds total)",
-           g_scan_interrupted.load() ? "interrupted" : "complete",
-           (long)(time(nullptr) - ns_start));
+  /* Throughput summary. A "completed host" is one that traversed the full
+     discover->enrich pipeline (i.e. was enriched); hosts/sec is that count
+     over wall time. Rates are guarded against a zero/sub-ms denominator. */
+  {
+    auto secs = [](std::chrono::steady_clock::time_point a,
+                   std::chrono::steady_clock::time_point b) -> double {
+      return std::chrono::duration_cast<std::chrono::milliseconds>(b - a).count()
+             / 1000.0;
+    };
+    double disc_s  = secs(ns_t0, ns_disc_end);
+    double enr_s   = secs(ns_disc_end, ns_enr_end);
+    double total_s = secs(ns_t0, std::chrono::steady_clock::now());
+    EnrichMetrics em = enrich_get_metrics();
+    uint64_t ips_scanned = ns_ips_scanned;
+    double disc_rate = disc_s  > 0.001 ? ips_scanned   / disc_s  : 0.0;
+    double enr_rate  = enr_s   > 0.001 ? em.hosts_done / enr_s   : 0.0;
+    double pipe_rate = total_s > 0.001 ? em.hosts_done / total_s : 0.0;
+    const char *state = g_scan_interrupted.load() ? "INTERRUPTED" : "COMPLETE";
+
+    log_write(LOG_STDOUT,
+      "\n================================================================================\n");
+    log_write(LOG_STDOUT, "  NET-SCAN %s\n", state);
+    log_write(LOG_STDOUT,
+      "================================================================================\n");
+    if (ips_scanned)
+      log_write(LOG_STDOUT,
+        "  Discovery:   %llu IPs in %.1fs  (%.0f IPs/sec)\n",
+        (unsigned long long)ips_scanned, disc_s, disc_rate);
+    else
+      log_write(LOG_STDOUT, "  Discovery:   %.1fs\n", disc_s);
+    log_write(LOG_STDOUT,
+      "  Enrichment:  %llu hosts in %.1fs  (%.1f hosts/sec)\n",
+      (unsigned long long)em.hosts_done, enr_s, enr_rate);
+    log_write(LOG_STDOUT, "  Total:       %.1fs\n", total_s);
+    log_write(LOG_STDOUT,
+      "  Pipeline:    %llu completed host(s)  (%.2f hosts/sec over total)\n",
+      (unsigned long long)em.hosts_done, pipe_rate);
+    log_write(LOG_STDOUT,
+      "================================================================================\n");
+
+    scan_log("INFO",
+      "net-scan %s: %llu hosts pipelined in %.1fs total "
+      "(discovery=%.1fs %.0f IPs/sec, enrich=%.1fs %.1f hosts/sec; "
+      "%.2f hosts/sec overall)",
+      g_scan_interrupted.load() ? "interrupted" : "complete",
+      (unsigned long long)em.hosts_done, total_s,
+      disc_s, disc_rate, enr_s, enr_rate, pipe_rate);
+  }
   scan_log_close();
   return rc;
 }

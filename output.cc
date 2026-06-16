@@ -2524,12 +2524,17 @@ void printfinaloutput() {
 
   }
 
-  log_write(LOG_STDOUT | LOG_SKID,
-            "Kmap done: %u %s (%u %s up) scanned in %.2f seconds\n",
-            o.numhosts_scanned,
-            (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
-            o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
-            o.TimeSinceStart(&tv));
+  {
+    double done_elapsed = o.TimeSinceStart(&tv);
+    log_write(LOG_STDOUT | LOG_SKID,
+              "Kmap done: %u %s (%u %s up) scanned in %.2f seconds "
+              "(%.2f hosts/sec)\n",
+              o.numhosts_scanned,
+              (o.numhosts_scanned == 1) ? "IP address" : "IP addresses",
+              o.numhosts_up, (o.numhosts_up == 1) ? "host" : "hosts",
+              done_elapsed,
+              done_elapsed > 0.001 ? o.numhosts_scanned / done_elapsed : 0.0);
+  }
   if (o.verbose && o.isr00t && o.RawScan())
     log_write(LOG_STDOUT | LOG_SKID, "           %s\n",
               getFinalPacketStats(statbuf, sizeof(statbuf)));
