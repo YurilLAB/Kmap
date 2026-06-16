@@ -1909,6 +1909,63 @@ int run_enrichment(const char *data_dir, int batch_size) {
     }
   }
 
+  /* Stage A.5: batched ASN lookups.  lookup_asn does up to two Cymru UDP
+     round-trips (origin + AS-name) per host; left in the per-host Stage-B
+     worker it serialized behind that host's port pipeline -- the last per-host
+     NETWORK leg that was not batched (reverse-DNS already is, above).  A
+     dedicated pool resolves the whole batch up front, so the round-trips
+     overlap each OTHER instead of each host's port enrichment, and the prefix
+     cache collapses same-/24 hosts.  Concurrency is moderate by default (Team
+     Cymru rate-limits, so a huge in-flight count would lose coverage); tune
+     with KMAP_ASN_BATCH_CONCURRENCY.  KMAP_NO_ASN=1 skips it entirely.  Each
+     worker writes only its own results[i].asn_info slot (no shared state), and
+     this completes before Stage B, which no longer touches asn_info. */
+  bool do_asn = true;
+  if (const char *env = getenv("KMAP_NO_ASN")) {
+    if (atoi(env) > 0) do_asn = false;
+  }
+  if (do_asn && !results.empty()) {
+    int asn_hosts = 0;
+    for (auto &r : results) if (!r.empty_host) asn_hosts++;
+    if (asn_hosts > 0) {
+      int asn_workers = 64;
+      if (const char *env = getenv("KMAP_ASN_BATCH_CONCURRENCY")) {
+        int v = atoi(env);
+        if (v >= 1 && v <= 1024) asn_workers = v;
+      }
+      if (asn_workers > asn_hosts) asn_workers = asn_hosts;
+      uint64_t aq_before = asn_origin_query_count();
+      auto asn_start = std::chrono::steady_clock::now();
+      log_write(LOG_STDOUT,
+        "net-scan: batched ASN lookups for %d hosts (%d workers)...\n",
+        asn_hosts, asn_workers);
+      std::atomic<size_t> asn_next{0};
+      {
+        std::vector<std::thread> asn_pool;
+        asn_pool.reserve(asn_workers);
+        for (int w = 0; w < asn_workers; w++) {
+          asn_pool.emplace_back([&]() {
+            for (;;) {
+              size_t i = asn_next.fetch_add(1, std::memory_order_relaxed);
+              if (i >= results.size()) return;
+              if (results[i].empty_host) continue;
+              results[i].asn_info = lookup_asn(results[i].ip.c_str(), 2000);
+            }
+          });
+        }
+        for (auto &t : asn_pool) t.join();
+      }
+      auto asn_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - asn_start).count();
+      uint64_t aq_delta = asn_origin_query_count() - aq_before;
+      log_write(LOG_STDOUT,
+        "net-scan: ASN: %d host(s) -> %llu Cymru origin quer%s in %.2fs\n",
+        asn_hosts, (unsigned long long)aq_delta,
+        aq_delta == 1 ? "y" : "ies",
+        static_cast<double>(asn_ms) / 1000.0);
+    }
+  }
+
   /* Stage B: ONE global parallel worker pool over the entire results
    * vector.  No mutex on results because each worker writes only its
    * own slot. */
@@ -1953,12 +2010,10 @@ int run_enrichment(const char *data_dir, int batch_size) {
       }
 
       if (r.rc == 0) {
-        /* r.hostname was filled by the batched kmap_mass_dns pre-pass
-           above (or left empty if KMAP_NO_DNS=1). Skip the per-host
-           sync getnameinfo call -- it was the dominant Stage B cost
-           on 7000-host scans. */
-        r.asn_info  = lookup_asn(r.ip.c_str(), 2000);
-        /* Offline cloud-provider match -- pure, lock-free, no network. */
+        /* r.hostname was filled by the batched reverse-DNS pre-pass and
+           r.asn_info by the batched ASN pre-pass above, so neither blocks
+           this worker. Only the offline cloud-provider match (pure,
+           lock-free, no network) remains per-host here. */
         uint32_t ipu = ip_to_u32(r.ip.c_str());
         if (ipu) r.cloud_info = lookup_cloud(ipu);
       }

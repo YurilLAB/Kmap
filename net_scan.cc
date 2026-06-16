@@ -938,8 +938,8 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
                            hr.web_paths, hr.powered_by, hr.x_generator,
                            hr.redirects, &hr.tls_caps);
         if (hr.erc == 0) {
-          hr.asn_info = lookup_asn(hr.ip.c_str(), 2000);
-          /* Offline cloud-provider match -- pure, lock-free, no network. */
+          /* asn_info was filled by the batched ASN pre-pass (below, before the
+             worker pool spawns); only the offline cloud match remains here. */
           uint32_t ipu = ip_to_u32(hr.ip.c_str());
           if (ipu) hr.cloud_info = lookup_cloud(ipu);
         }
@@ -947,6 +947,39 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         kmap_cpu_governor_throttle();
       }
     };
+
+    /* Batched ASN pre-pass -- same rationale as the main net-scan path: pull the
+       per-host Cymru lookup out of the enrich worker's critical path so the
+       round-trips overlap each other (the prefix cache dedups same-/24 hosts).
+       Runs before the worker pool spawns; each worker writes only its own slot.
+       KMAP_NO_ASN=1 skips it; KMAP_ASN_BATCH_CONCURRENCY tunes the in-flight count. */
+    {
+      bool wl_do_asn = true;
+      if (const char *env = getenv("KMAP_NO_ASN")) { if (atoi(env) > 0) wl_do_asn = false; }
+      int wl_asn_hosts = 0;
+      for (auto &hr : results) if (!hr.empty_host) wl_asn_hosts++;
+      if (wl_do_asn && wl_asn_hosts > 0) {
+        int wl_asn_workers = 64;
+        if (const char *env = getenv("KMAP_ASN_BATCH_CONCURRENCY")) {
+          int v = atoi(env); if (v >= 1 && v <= 1024) wl_asn_workers = v;
+        }
+        if (wl_asn_workers > wl_asn_hosts) wl_asn_workers = wl_asn_hosts;
+        std::atomic<size_t> wl_asn_next{0};
+        std::vector<std::thread> wl_asn_pool;
+        wl_asn_pool.reserve(wl_asn_workers);
+        for (int w = 0; w < wl_asn_workers; w++) {
+          wl_asn_pool.emplace_back([&]() {
+            for (;;) {
+              size_t i = wl_asn_next.fetch_add(1, std::memory_order_relaxed);
+              if (i >= results.size()) return;
+              if (results[i].empty_host) continue;
+              results[i].asn_info = lookup_asn(results[i].ip.c_str(), 2000);
+            }
+          });
+        }
+        for (auto &t : wl_asn_pool) t.join();
+      }
+    }
 
     log_write(LOG_STDOUT, "  Enriching %d hosts with %d workers...\n",
               (int)results.size(), enrich_worker_count);
