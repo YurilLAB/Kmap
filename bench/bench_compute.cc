@@ -97,8 +97,8 @@ int main(void) {
     double s = since(t);
     printf("  %-22s %10.0f IPs/s  (permute + exclude check; the rate the\n",
            "permute+exclude", ops / s);
-    printf("  %-22s             send loop draws from -- orders above the\n", "");
-    printf("  %-22s             25k pps network ceiling, so never the bottleneck)\n", "");
+    printf("  %-22s             send loop draws from -- orders above any\n", "");
+    printf("  %-22s             realistic link/NIC send rate, so never the bottleneck)\n", "");
   }
   return 0;
 }

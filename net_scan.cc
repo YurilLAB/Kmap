@@ -1615,7 +1615,9 @@ int run_net_scan() {
     std::vector<int> ports = parse_port_spec(
       o.portlist ? o.portlist : nullptr);
 
-    int rate = o.net_rate > 0 ? o.net_rate : 25000;
+    /* 0 = unlimited (no send-rate cap), which is now the default. A positive
+       --rate re-enables the token bucket. */
+    int rate = o.net_rate;
 
     /* If a positional target was given (kmap --net-scan 192.0.2.0/24), bound
        the sweep to that CIDR/IP.  Previously the target was ignored and the
@@ -1665,9 +1667,12 @@ int run_net_scan() {
         "e.g. --net-scan 192.0.2.0/24)\n");
     }
 
+    char ratedesc[24];
+    if (rate > 0) snprintf(ratedesc, sizeof(ratedesc), "%d pps", rate);
+    else          snprintf(ratedesc, sizeof(ratedesc), "unlimited");
     scan_log("INFO",
-             "discovery starting: %d port(s), rate=%d pps, %d exclude range(s)%s",
-             (int)ports.size(), rate, (int)excludes.size(),
+             "discovery starting: %d port(s), rate=%s, %d exclude range(s)%s",
+             (int)ports.size(), ratedesc, (int)excludes.size(),
              o.net_max_ips ? " (sampled)" : "");
     time_t disc_t0 = time(nullptr);
     rc = fast_syn_scan(data_dir, ports, rate, excludes, o.net_resume,

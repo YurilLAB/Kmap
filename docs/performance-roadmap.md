@@ -9,25 +9,32 @@ current build.
 
 ## The binding constraint
 
-The discovery path is a **thread-per-probe `connect()` sweep**: a filtered IP
-pins one OS thread for the whole probe timeout, so the sweep rate is
-`workers / timeout` — about **200 IPs/sec at shipped defaults** (100 workers,
-500 ms), ~125× below the 25,000-pps `--rate` ceiling, which therefore never
-engages. Everything downstream (CPU primitives at 10⁷–10⁹ ops/sec, DB writes at
-~7,900 hosts/sec) has ample headroom. **The connect model is the ceiling**, and
-the top two discovery items below are about removing it.
+Discovery now ships **two** engines. When raw packets are available it uses a
+**stateless raw-SYN engine** (item #7, shipped) that is send-bound — on a 50k
+random sample it ran **4.4× faster than `connect()`** (13.7 s vs 60.4 s) because
+it never waits out a dark-IP timeout. Where raw packets are unavailable it falls
+back to the **thread-per-probe `connect()` sweep**: a filtered IP pins one OS
+thread for the whole probe timeout, so the fallback rate is `workers / timeout` —
+about **200 IPs/sec at shipped defaults** (100 workers, 500 ms). The send rate is
+now **unlimited by default** (the old 25k-pps `--rate` ceiling was removed; pass
+`--rate` to throttle), so on the connect path `workers / timeout` is the only
+ceiling and on the raw path it is the per-packet `send_tcp_raw` cost (~10k pps on
+the reference box). Everything downstream (CPU primitives at 10⁷–10⁹ ops/sec, DB
+writes at ~7,900 hosts/sec) has ample headroom. **The connect fallback is still
+the ceiling on dark space**, and item #1 (async connect) targets exactly that;
+the raw engine already removes it where privileges allow.
 
 ## Backlog
 
 | # | Subsystem | Change | Expected gain | Effort |
 |---|---|---|---|---|
-| 1 | Discovery (`fast_syn.cc`) | Replace thread-per-probe `connect()` with a single-threaded **async** engine (nsock, reusing the proven `net_enrich_async.cc` pattern — cross-platform for free) holding tens of thousands of connects in flight. **Implementation-ready design: [async-discovery-design.md](async-discovery-design.md).** Token bucket + shard writes reused per-event. | **~100×** on dark space (~200 → the 25k-pps ceiling) | High (needs live validation) |
+| 1 | Discovery (`fast_syn.cc`) | Replace thread-per-probe `connect()` with a single-threaded **async** engine (nsock, reusing the proven `net_enrich_async.cc` pattern — cross-platform for free) holding tens of thousands of connects in flight. **Implementation-ready design: [async-discovery-design.md](async-discovery-design.md).** Token bucket + shard writes reused per-event. | **~100×** on dark space (~200 IPs/sec → tens of thousands in flight) for the unprivileged path | High (needs live validation) |
 | 2 | Screenshots (`web_recon.cc`) | Bounded **N-way browser process pool** for `spawn_browser` + a per-shot deadline. Removes the serial `waitpid`/`WaitForSingleObject(INFINITE)` and the one-hung-target-stalls-the-run failure mode. | **~N×** (near-linear) + robustness | Low–Med |
 | 3 | Enrichment (`net_enrich_async.cc`) | Validate, then **promote `KMAP_ASYNC_ENRICH` to on-by-default** (A/B it). A single nsock loop holds 64 host×ports in flight, lifting the `concurrency/avg_host_time` blocking ceiling (sync floor ≈ 6 hps). | Largest enrichment-throughput lever | Low (flag) + Med (A/B) |
 | 4 | Enrichment (`net_enrich.cc`) | **Batch the ASN lookup** out of the synchronous Stage-B worker (rDNS is already batched; ASN was left behind and blocks up to 2 s/host). | Removes up to 2 s worst-case blocking per host | Med |
 | 5 | Enrichment RAM (`net_enrich.cc`) | **Per-shard flush / rolling window** instead of one global `results` vector across all 32 shards. | Up to **32× lower** enrichment peak RSS | Med |
 | 6 | Enrichment (`net_enrich.cc`) | **Gate or pipeline the favicon GET** (an extra TCP connect per web host) behind a flag, or fold it onto a keep-alive socket. | ~15–30% fewer connects on web hosts | Low |
-| 7 | Discovery (`fast_syn.cc`) | True **raw-SYN sender** (AF_PACKET/pcap, stateless source-port cookie, zmap-style) as an opt-in privileged fast path; `connect()` stays the unprivileged fallback. | **1000×+** over `connect()` (Mpps, link/`--rate` bound) | Highest (root + RX state machine; do after #1) |
+| 7 | Discovery (`fast_syn.cc`) | ✅ **SHIPPED** — stateless **raw-SYN engine** (pcap TX/RX, SYN cookie in the TCP sequence number, RST-on-hit). Default when raw packets are available; `connect()` stays the universal fallback. **Measured 4.4× over `connect()`** on a sparse 50k sample; identical open-port counts on same-IP runs. Follow-on levers: **(7a)** move the per-open RST + sharded-SQLite insert off the RX hot path (it dominates on *dense* ranges, where `connect()` currently still wins); **(7b)** add a stateless per-pass `--retries` to close the single-shot completeness gap on lossy paths. | Shipped; 7a/7b: Med | Done |
 | 8 | DB write (`net_db.cc`) | **Per-shard prepared statements** (`reset`+`bind`, `SQLITE_STATIC`, IP as int64) instead of `prepare_v2`+`finalize` per row, on both insert and Stage-C update paths. | 5–10× lower per-insert CPU, zero heap churn (matters once #1/#7 raise the probe rate) | Low |
 | 9 | Enrichment CPU (`net_enrich.cc`) | **Cache the `os_profile`/HTTP-request string per host** (currently rebuilt up to 3× per port). | Small CPU; free hps at high concurrency | Low |
 | 10 | Async path (`net_scan.cc`) | Give the async pre-pass **per-worker `cve_db` handles** rather than the shared handle. | Unblocks horizontal scaling of the async path | Low |
@@ -46,6 +53,8 @@ randomisation is ever wanted.
 2. **#2** (screenshot pool) — self-contained, removes a real stall risk.
 3. **#3 / #5 / #6** (enrichment throughput + RAM) — the enrichment phase is the
    second ceiling after discovery.
-4. **#1** (async connect engine) — the headline discovery speedup; biggest
-   single lever, biggest effort.
-5. **#7** (raw-SYN) — only after #1, for the privileged Mpps tier.
+4. **#1** (async connect engine) — the headline speedup for the *unprivileged*
+   fallback; biggest single lever there, biggest effort.
+5. **#7a/#7b** (raw-engine follow-ups) — move the RST/insert off the RX hot path
+   so raw also wins on dense ranges, then add `--retries` for completeness. The
+   raw engine itself is already shipped and default-on where privileges allow.

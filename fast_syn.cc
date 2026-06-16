@@ -13,6 +13,7 @@
 #include "net_db.h"
 #include "kmap.h"
 #include "tcpip.h"
+#include "libnetutil/netutil.h"
 #include "KmapOps.h"
 #include "sys_resources.h"
 #include "output.h"
@@ -342,6 +343,7 @@ struct RateLimiter {
   double max_tokens;
   double refill_rate;  /* tokens per microsecond */
   int64_t last_refill; /* microsecond timestamp */
+  bool unlimited;      /* pps <= 0 -> no throttle; rate_wait() returns at once */
 };
 
 static int64_t now_usec() {
@@ -366,6 +368,16 @@ static int64_t now_usec() {
 }
 
 static void rate_init(RateLimiter &rl, int pps) {
+  /* pps <= 0 means "no send-rate limit" -- the default now that the old 25k
+   * pps ceiling has been removed. rate_wait() then returns immediately and
+   * the TX loop runs as fast as the CPU / NIC / link can drive it. Pass a
+   * positive --rate to re-enable the token bucket. */
+  rl.unlimited = (pps <= 0);
+  if (rl.unlimited) {
+    rl.tokens = rl.max_tokens = rl.refill_rate = 0.0;
+    rl.last_refill = now_usec();
+    return;
+  }
   /* Cap burst capacity at ~20 ms of refill. The previous value of
    * pps * 1.5 (1.5 seconds of accumulated tokens) caused a huge
    * opening burst at scan start -- for --rate 25000 the first ~37,500
@@ -387,6 +399,9 @@ static void rate_init(RateLimiter &rl, int pps) {
  * more tokens.  That serialization was the real cause of the
  * net-scan run measuring only ~14 pps despite a 5000 pps target. */
 static void rate_wait(RateLimiter &rl, std::mutex &mu) {
+  /* unlimited is set once in rate_init() before any worker starts and never
+   * mutated, so this lock-free read is safe. */
+  if (rl.unlimited) return;
   while (true) {
     bool got_token = false;
     {
@@ -599,6 +614,242 @@ static ProbeResult connect_probe(uint32_t ip, int port, int timeout_ms) {
  * Main scan function
  * ----------------------------------------------------------------------- */
 
+/* =====================================================================
+ * Raw SYN discovery engine (masscan/zmap-style, stateless TX/RX).
+ *
+ * Replaces the connect() worker pool when raw packet access is available
+ * (Npcap on Windows / root on POSIX, i.e. o.have_pcap && o.isr00t).  One TX
+ * loop blasts SYNs across the (permuted) address space at the rate-limited
+ * pace -- no thread-per-host, no connection state -- while a separate RX
+ * thread captures SYN-ACKs, validates each one STATELESSLY via a cookie in
+ * the TCP sequence number, and inserts opens straight into the shard DBs
+ * through the SAME net_db_insert_host() seam the connect path uses.  So
+ * enrichment / CVE / ASN / report all run unchanged on the result.
+ *
+ * Returns 0 if it ran the scan, -1 if raw setup failed (caller then falls
+ * back to the connect() pool, so a box without raw access still works).
+ * ===================================================================== */
+#ifndef TH_SYN
+#define TH_SYN 0x02
+#endif
+#ifndef TH_RST
+#define TH_RST 0x04
+#endif
+
+/* Stateless SYN cookie: the TCP seq we send encodes (dst ip, dst port), so a
+   returning SYN-ACK (whose ack == our seq + 1) can be validated by recomputing
+   the cookie from the reply's source (ip,port) -- no per-probe table.  The
+   per-run secret rejects stale replies from a previous scan and off-path forgery. */
+static inline uint32_t raw_syn_cookie(uint32_t ip_host, uint16_t port, uint64_t secret) {
+  uint64_t x = (uint64_t)ip_host * 0x9E3779B97F4A7C15ULL
+             ^ ((uint64_t)port << 16) ^ secret;
+  x ^= x >> 30; x *= 0xBF58476D1CE4E5B9ULL;
+  x ^= x >> 27; x *= 0x94D049BB133111EBULL;
+  x ^= x >> 31;
+  return (uint32_t)x;
+}
+
+static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
+                              const std::vector<int> &ports, int rate_pps,
+                              const std::vector<ExcludeRange> &excludes,
+                              uint32_t target_base, uint64_t target_count,
+                              ScanCheckpoint &cp, uint64_t scan_end,
+                              uint64_t seed, const char *data_dir) {
+  /* ---- 1. Route to the internet: device, source IP, next-hop (gateway) ---- */
+  struct sockaddr_storage dstss;
+  memset(&dstss, 0, sizeof(dstss));
+  struct sockaddr_in *d4 = reinterpret_cast<struct sockaddr_in *>(&dstss);
+  d4->sin_family = AF_INET;
+  d4->sin_addr.s_addr = htonl(0x08080808u);  /* 8.8.8.8 -- representative public dst */
+  struct route_nfo rnfo;
+  memset(&rnfo, 0, sizeof(rnfo));
+  if (kmap_route_dst(&dstss, &rnfo) != 1) {
+    log_write(LOG_STDOUT, "  raw: no route to the internet; using connect() mode\n");
+    return -1;
+  }
+  struct in_addr src_in = reinterpret_cast<struct sockaddr_in *>(&rnfo.srcaddr)->sin_addr;
+  struct sockaddr_storage nh = rnfo.direct_connect ? dstss : rnfo.nexthop;
+
+  /* ---- 2. Resolve the next-hop MAC + open the L2 send handle ---- */
+  u8 dstmac[6];
+  if (!getNextHopMAC(rnfo.ii.devfullname, rnfo.ii.mac, &rnfo.srcaddr, &nh, dstmac)) {
+    log_write(LOG_STDOUT, "  raw: could not resolve next-hop MAC; using connect() mode\n");
+    return -1;
+  }
+  netutil_eth_t *ethsd = eth_open_cached(rnfo.ii.devfullname);
+  if (!ethsd) {
+    log_write(LOG_STDOUT, "  raw: could not open the ethernet device; using connect() mode\n");
+    return -1;
+  }
+  struct eth_nfo eth;
+  memset(&eth, 0, sizeof(eth));
+  memcpy(eth.srcmac, rnfo.ii.mac, 6);
+  memcpy(eth.dstmac, dstmac, 6);
+  eth.ethsd = ethsd;
+  strncpy(eth.devname, rnfo.ii.devfullname, sizeof(eth.devname) - 1);
+
+  /* ---- 3. Open the pcap RX handle with a tight SYN-ACK filter ---- */
+  pcap_t *pd = my_pcap_open_live(rnfo.ii.devfullname, 100, 0, 10);
+  if (!pd) {
+    eth_close_cached();
+    log_write(LOG_STDOUT, "  raw: could not open pcap for receive; using connect() mode\n");
+    return -1;
+  }
+  /* Single source port keeps the filter tight; the cookie validates the rest. */
+  uint16_t src_port = static_cast<uint16_t>(40000 + (seed & 0x3FFF));
+  char myip[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &src_in, myip, sizeof(myip));
+  char filt[256];
+  snprintf(filt, sizeof(filt),
+           "tcp and dst host %s and dst port %u and (tcp[13] & 0x12) = 0x12",
+           myip, (unsigned)src_port);
+  set_pcap_filter(rnfo.ii.devfullname, pd, filt);
+
+  uint64_t secret = seed * 0xD6E8FEB86659FD93ULL + 0xA0761D6478BD642FULL;
+  uint32_t src_ip_host = ntohl(src_in.s_addr);
+
+  char ratebuf[32];
+  if (rate_pps > 0) snprintf(ratebuf, sizeof(ratebuf), "%d pps", rate_pps);
+  else              snprintf(ratebuf, sizeof(ratebuf), "unlimited");
+  log_write(LOG_STDOUT,
+    "\n  Raw SYN engine: dev=%s src=%s sport=%u rate=%s (no thread-per-host)\n",
+    rnfo.ii.devfullname, myip, (unsigned)src_port, ratebuf);
+
+  std::atomic<bool> tx_done{false};
+  std::atomic<uint64_t> opens{0};
+  std::atomic<uint64_t> sent{0};
+  std::mutex db_mu;
+
+  /* Post-TX drain window: after the TX loop finishes, keep reading until this
+   * many ms of TOTAL silence (no packets at all) elapse. Each empty
+   * readip_pcap() returns after ~100 ms, so the threshold is drain_ms/100
+   * empty reads. The silence timer resets on ANY received packet, so a large
+   * scan's SYN-ACK tail keeps the RX alive -- only trailing dead air is
+   * bounded. Default 2000 ms: enough to catch high-RTT stragglers without the
+   * old flat 4 s tail dominating small scans. Tunable for tighter latency
+   * (lower) or chasing distant hosts (higher). */
+  int drain_ms = 2000;
+  if (const char *e = getenv("KMAP_RAWSYN_DRAIN_MS")) {
+    int v = atoi(e);
+    if (v >= 100 && v <= 60000) drain_ms = v;
+  }
+  int drain_limit = drain_ms / 100;
+  if (drain_limit < 1) drain_limit = 1;
+
+  /* ---- 4. RX thread: validate SYN-ACK cookies, insert opens ---- */
+  std::thread rx([&]() {
+    /* Distinct opens already reported -- dedups SYN-ACK retransmits. Holds one
+       entry per OPEN port (scales with results, not probes), single-thread so
+       no lock needed. */
+    std::set<uint64_t> seen;
+    int drain_empty = 0;
+    while (!scan_interrupted) {
+      unsigned int iplen = 0;
+      struct timeval rcvd;
+      const u8 *ipp = readip_pcap(pd, &iplen, 100000, &rcvd, nullptr, true);
+      if (!ipp) {
+        if (tx_done.load(std::memory_order_acquire) && ++drain_empty >= drain_limit)
+          break;  /* TX done + drain_ms of silence -> stop draining */
+        continue;
+      }
+      drain_empty = 0;
+      if (iplen < 40) continue;
+      unsigned ihl = (ipp[0] & 0x0f) * 4;
+      if (ihl < 20 || iplen < ihl + 20) continue;
+      const u8 *t = ipp + ihl;
+      if ((t[13] & 0x12) != 0x12) continue;  /* not SYN+ACK */
+      uint32_t rip = ((uint32_t)ipp[12] << 24) | ((uint32_t)ipp[13] << 16) |
+                     ((uint32_t)ipp[14] << 8) | (uint32_t)ipp[15];
+      uint16_t rport = ((uint16_t)t[0] << 8) | t[1];
+      uint32_t rack = ((uint32_t)t[8] << 24) | ((uint32_t)t[9] << 16) |
+                      ((uint32_t)t[10] << 8) | (uint32_t)t[11];
+      if (rack - 1 != raw_syn_cookie(rip, rport, secret)) continue;  /* not ours */
+      uint64_t key = ((uint64_t)rip << 16) | (uint64_t)rport;
+      if (!seen.insert(key).second) continue;  /* retransmit -- already handled */
+      /* RST the half-open connection: polite to the target AND stops the
+         host's SYN-ACK retransmits. seq = the value the host expects next
+         (its SYN-ACK's ack number). */
+      struct in_addr rvictim;
+      rvictim.s_addr = htonl(rip);
+      send_tcp_raw(-1, &eth, &src_in, &rvictim, o.ttl ? o.ttl : 64, true,
+                   nullptr, 0, src_port, rport, rack, 0, 0, TH_RST, 0, 0,
+                   nullptr, 0, nullptr, 0);
+      int shard_idx = net_shard_index(rip);
+      sqlite3 *db = (shard_idx >= 0 && shard_idx < (int)shards.size())
+                      ? shards[shard_idx] : nullptr;
+      if (db) {
+        std::lock_guard<std::mutex> lk(db_mu);
+        net_db_insert_host(db, rip, (int)rport, "tcp", (int64_t)time(nullptr));
+      }
+      opens.fetch_add(1, std::memory_order_relaxed);
+      if (o.verbose) {
+        std::string s = u32_to_ip(rip);
+        std::lock_guard<std::mutex> lk(db_mu);
+        log_write(LOG_STDOUT, "  OPEN %s:%u\n", s.c_str(), (unsigned)rport);
+      }
+    }
+  });
+
+  /* ---- 5. TX loop: blast SYNs across the permuted space at rate ---- */
+  RateLimiter rl;
+  rate_init(rl, rate_pps);
+  std::mutex rate_mu;
+  time_t last_ckpt = time(nullptr);
+  time_t last_status = time(nullptr);
+  time_t scan_start = time(nullptr);
+  uint64_t idx = cp.next_index;
+  for (; idx < scan_end && !scan_interrupted; idx++) {
+    uint32_t ip = (target_count > 0)
+                    ? static_cast<uint32_t>(target_base + idx)
+                    : permute_ip(idx, seed);
+    if (ip == src_ip_host || is_excluded(ip, excludes)) continue;
+    struct in_addr victim;
+    victim.s_addr = htonl(ip);
+    for (size_t pi = 0; pi < ports.size(); pi++) {
+      if (scan_interrupted) break;
+      rate_wait(rl, rate_mu);
+      uint32_t cookie = raw_syn_cookie(ip, (uint16_t)ports[pi], secret);
+      send_tcp_raw(-1, &eth, &src_in, &victim, o.ttl ? o.ttl : 64, true,
+                   nullptr, 0, src_port, (u16)ports[pi],
+                   cookie, 0, 0, TH_SYN, 1024, 0, nullptr, 0, nullptr, 0);
+      sent.fetch_add(1, std::memory_order_relaxed);
+    }
+    time_t nowt = time(nullptr);
+    if (nowt - last_status >= 10) {
+      double el = (double)(nowt - scan_start) + 0.001;
+      double pct = scan_end > cp.next_index
+                     ? 100.0 * (double)(idx - cp.next_index) / (double)(scan_end - cp.next_index)
+                     : 100.0;
+      log_write(LOG_STDOUT,
+        "  raw: %.1f%% | sent %llu | open %llu | %.0f pps\n",
+        pct, (unsigned long long)sent.load(), (unsigned long long)opens.load(),
+        (double)sent.load() / el);
+      last_status = nowt;
+    }
+    if (nowt - last_ckpt >= 60) {
+      for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
+      cp.next_index = idx;
+      cp.packets_sent = sent.load();
+      cp.hosts_found = opens.load();
+      cp.last_save = nowt;
+      save_checkpoint(data_dir, cp);
+      last_ckpt = nowt;
+    }
+  }
+
+  tx_done.store(true, std::memory_order_release);
+  rx.join();
+
+  cp.next_index = scan_interrupted ? idx
+                  : (target_count > 0 ? scan_end : IP_SPACE);
+  cp.packets_sent = sent.load();
+  cp.hosts_found = opens.load();
+
+  pcap_close(pd);
+  eth_close_cached();
+  return 0;
+}
+
 int fast_syn_scan(const char *data_dir,
                   const std::vector<int> &ports,
                   int rate_pps,
@@ -717,7 +968,10 @@ int fast_syn_scan(const char *data_dir,
   }
 
   log_write(LOG_STDOUT, "\nnet-scan: Starting discovery scan\n");
-  log_write(LOG_STDOUT, "  Rate:       %d pps\n", rate_pps);
+  if (rate_pps > 0)
+    log_write(LOG_STDOUT, "  Rate:       %d pps\n", rate_pps);
+  else
+    log_write(LOG_STDOUT, "  Rate:       unlimited (no send-rate cap)\n");
   log_write(LOG_STDOUT, "  Ports:      %d\n", (int)ports.size());
   log_write(LOG_STDOUT, "  Excludes:   %d ranges\n", (int)excludes.size());
   log_write(LOG_STDOUT, "  Shards:     %d databases\n", shards_ok);
@@ -739,9 +993,10 @@ int fast_syn_scan(const char *data_dir,
 
   /* Main scan loop -- using connect() fallback for safety.
    * Raw SYN scanning requires root privileges and careful pcap setup
-   * that varies by OS.  The connect() approach works everywhere and
-   * for a home-machine scanner at 25k pps is adequate.  The rate
-   * limiter controls the pace. */
+   * that varies by OS.  The connect() approach works everywhere and is
+   * the fallback when raw setup is unavailable.  Send pace is governed by
+   * the rate limiter (unlimited by default; --rate re-enables throttling)
+   * and, on dark space, by the worker-pool ceiling noted above. */
 
   /* Compute the stop index.  When max_ips is set we cap the loop at
    * (resume-start + max_ips) so a re-run with the same checkpoint
@@ -771,6 +1026,48 @@ int fast_syn_scan(const char *data_dir,
       "  Sample mode: scanning %llu IPs starting at index %llu\n",
       (unsigned long long)(scan_end - cp.next_index),
       (unsigned long long)cp.next_index);
+  }
+
+  /* ---- Raw SYN fast path -------------------------------------------------
+     When raw packet access is available (Npcap / root: o.have_pcap &&
+     o.isr00t), use the stateless SYN engine instead of the connect() worker
+     pool below -- one TX loop + one RX thread, no thread-per-host, so
+     throughput is bounded by the send rate, not the 1024-thread ceiling.
+     KMAP_RAWSYN forces it on(1)/off(0); unset = auto (on when available).
+     On raw setup failure the engine returns -1 and we fall through to the
+     connect pool, so a box without raw access still scans. */
+  bool use_raw = (o.have_pcap && o.isr00t);
+  if (const char *e = getenv("KMAP_RAWSYN")) use_raw = atoi(e) > 0;
+  if (use_raw) {
+    int rrc = run_raw_syn_engine(shards, ports, rate_pps, excludes,
+                                 target_base, target_count, cp, scan_end,
+                                 seed, data_dir);
+    if (rrc == 0) {
+      /* Mirror the connect path's tail: commit, final checkpoint, summary,
+         restore the signal handler, close the shards, return. */
+      for (auto *db : shards) if (db) net_db_commit(db);
+      cp.last_save = time(nullptr);
+      save_checkpoint(data_dir, cp);
+      log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
+                scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
+      log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
+      log_write(LOG_STDOUT, "  Open ports:     %llu\n", (unsigned long long)cp.hosts_found);
+      for (int i = 0; i < NET_SHARD_COUNT; i++) {
+        if (shards[i]) {
+          int64_t cnt = net_db_count(shards[i]);
+          if (cnt > 0)
+            log_write(LOG_STDOUT, "  shard_%03d.db:   %lld entries\n", i, (long long)cnt);
+        }
+      }
+#ifndef WIN32
+      sigaction(SIGINT, &sa_old, nullptr);
+#else
+      SetConsoleCtrlHandler(win_console_ctrl_handler, FALSE);
+      timeEndPeriod(1);
+#endif
+      close_all_shards(shards);
+      return 0;
+    }
   }
 
   /* Parallel probe pool.
@@ -1050,13 +1347,22 @@ int fast_syn_scan(const char *data_dir,
   {
     double worst_case_pps =
         (double)total_workers * 1000.0 / (double)probe_timeout_ms;
-    if (worst_case_pps < (double)rate_pps * 0.5) {
+    /* With an explicit --rate, warn when the pool ceiling sits well under it.
+     * With unlimited rate (the default) the pool ceiling IS the only limit, so
+     * surface the knob whenever that floor is low. */
+    bool show_note = rate_pps > 0
+                       ? worst_case_pps < (double)rate_pps * 0.5
+                       : worst_case_pps < 5000.0;
+    if (show_note) {
+      char tgt[48];
+      if (rate_pps > 0) snprintf(tgt, sizeof(tgt), "the --rate %d target", rate_pps);
+      else              snprintf(tgt, sizeof(tgt), "an unlimited --rate");
       log_write(LOG_STDOUT,
         "  NOTE: on unresponsive ranges this pool tops out near %.0f pps "
-        "(%ld workers / %d ms timeout) -- below the --rate %d target. To "
+        "(%ld workers / %d ms timeout) -- below %s. To "
         "push filtered-space throughput, raise KMAP_NETSCAN_CONCURRENCY "
         "(e.g. 512-1024) or lower KMAP_PROBE_TIMEOUT_MS.\n",
-        worst_case_pps, total_workers, probe_timeout_ms, rate_pps);
+        worst_case_pps, total_workers, probe_timeout_ms, tgt);
     }
   }
 

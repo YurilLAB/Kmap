@@ -259,13 +259,14 @@ static bool parse_kmap_option(const char *name, const char *arg) {
   } else if (strcmp(name, "net-resume") == 0) {
     o.net_scan = true; o.net_resume = true; return true;
   } else if (strcmp(name, "rate") == 0) {
-    /* Upper bound is effectively "your hardware/link", not an artificial Kmap
-       ceiling: 1e9 pps fits in int and keeps the token-bucket math in range.
-       The default (25000) stays deliberately polite; raising --rate only
-       changes real throughput once KMAP_NETSCAN_CONCURRENCY is high enough that
-       the connect()-model probe rate would otherwise exceed it (see
-       docs/performance-roadmap.md). */
-    o.net_rate = parse_int_arg("rate", arg, 1, 1000000000);
+    /* 0 means "no send-rate cap" -- the default. A positive value re-enables
+       the token bucket; the upper bound is effectively "your hardware/link",
+       not an artificial Kmap ceiling (1e9 pps fits in int and keeps the
+       token-bucket math in range). On the connect() path a high --rate only
+       changes real throughput once KMAP_NETSCAN_CONCURRENCY is high enough
+       that the probe rate would otherwise exceed it; the raw-SYN path sends
+       at the requested rate directly (see docs/performance-roadmap.md). */
+    o.net_rate = parse_int_arg("rate", arg, 0, 1000000000);
     return true;
   } else if (strcmp(name, "net-max-ips") == 0) {
     long long v = strtoll(arg, nullptr, 10);
@@ -596,7 +597,7 @@ static void printusage() {
          "  --enrich-only: Only run the enrichment phase on existing data\n"
          "  --report-only: Only generate findings reports from enriched data\n"
          "  --net-resume: Resume an interrupted net-scan\n"
-         "  --rate <pps>: Packets per second send ceiling for discovery (default: 25000, max: 1000000000)\n"
+         "  --rate <pps>: Packets per second send cap for discovery (default: unlimited; 0 = unlimited; max: 1000000000)\n"
          "  --net-max-ips <N>: Cap discovery at N IPs (sample scan, default: unlimited)\n"
          "  --exclude-file <file>: Additional IP ranges to exclude\n"
          "  --no-builtin-excludes: Disable the built-in reserved/private/DoD\n"

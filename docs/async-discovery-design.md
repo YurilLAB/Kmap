@@ -72,7 +72,7 @@ Each must be re-established in the async model (source: `fast_syn.cc`):
 
 | Invariant | How async preserves it |
 |---|---|
-| **Token-bucket rate** (`rate_init`/`rate_wait`, 25k default) | Reuse verbatim. In a single-thread loop, call `rate_wait` in `try_admit` before each `nsock_connect_tcp`; when no token is available, schedule the next admission with an `nsock_timer` for the computed time-to-next-token instead of busy-waiting. |
+| **Token-bucket rate** (`rate_init`/`rate_wait`, unlimited by default) | Reuse verbatim (incl. the `unlimited` short-circuit). In a single-thread loop, call `rate_wait` in `try_admit` before each `nsock_connect_tcp`; when throttled and no token is available, schedule the next admission with an `nsock_timer` for the computed time-to-next-token instead of busy-waiting. |
 | **Permutation** (`permute_ip`, affine bijection) | The IP source for `try_admit`. `next_index` is the cursor; O(1), no materialised list — unchanged. |
 | **Exclusions** (`is_excluded`) | Checked per candidate IP in `try_admit` before connecting — unchanged. |
 | **Checkpoint / resume** (the per-worker low-water-mark) | **The riskiest piece.** In flight, probes complete out of order, so the resume point is `min(index of every outstanding AsyncProbe, next_index − active_count)` — the async analogue of `compute_low_water()`. **v1 recommendation: do NOT support `--net-resume` in async mode** (warn + run without checkpoint). Resume is the one part whose correctness is data-loss-critical and unverifiable without a real crash-resume cycle; add it only with that validation. |

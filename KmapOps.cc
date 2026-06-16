@@ -344,7 +344,7 @@ void KmapOps::Initialize() {
   net_enrich_only  = false;
   net_report_only  = false;
   net_resume       = false;
-  net_rate         = 25000;
+  net_rate         = 0;       /* 0 = unlimited send rate; --rate sets a cap */
   net_max_ips      = 0;
   net_exclude_file = nullptr;
   net_no_builtin_excludes = false;

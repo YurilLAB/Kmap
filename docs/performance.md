@@ -151,10 +151,12 @@ max_pps ≈ workers / (KMAP_PROBE_TIMEOUT_MS / 1000)
         = (KMAP_NETSCAN_CONCURRENCY × min(KMAP_DISCOVERY_PORT_PARALLELISM, #ports)) / timeout_s
 ```
 
-With the defaults (100 workers, 500 ms) a single-port sweep tops out near
-**200 pps** regardless of `--rate` — the token bucket never engages. To
-approach a high `--rate` on filtered space you must give it more concurrency
-or a shorter timeout:
+This applies to the **`connect()` fallback** path (raw packets unavailable); the
+raw-SYN engine is send-bound, not worker-bound, and sidesteps this ceiling
+entirely. With the connect defaults (100 workers, 500 ms) a single-port sweep
+tops out near **200 pps** — the send rate is unlimited by default, so this is
+the worker/timeout floor, not a `--rate` cap. To push filtered-space throughput
+on the connect path you must give it more concurrency or a shorter timeout:
 
 | Goal (filtered space) | Example settings |
 |-----------------------|------------------|

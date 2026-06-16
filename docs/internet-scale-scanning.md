@@ -41,12 +41,20 @@ are parked on a one-hour cool-down and retried on a later run.
 
 ## How discovery works
 
-Discovery does **not** require root/administrator. It uses non-blocking
-`connect()` probes rather than raw SYN packets, so it runs unprivileged on any
-OS. A shared token-bucket rate limiter caps the global send rate; a pool of
-worker threads keeps enough probes in flight to saturate network round-trip
-time without straining the CPU (a probe wave typically sits at ≈1–2% CPU — the
-bottleneck is the network, not your box).
+Discovery runs one of two engines. When raw packets are available
+(root/administrator **and** an Npcap/libpcap capture device) Kmap uses a
+**stateless raw-SYN engine**: a TX thread blasts cookie-stamped SYNs while a
+separate RX thread validates the returning SYN-ACKs against the cookie (the
+state lives in the TCP sequence number, so there is zero per-probe bookkeeping —
+masscan/zmap style). Where raw packets are unavailable it transparently falls
+back to non-blocking `connect()` probes, which run **unprivileged on any OS**. A
+shared token-bucket rate limiter can cap the global send rate (it is **unlimited
+by default** — pass `--rate <pps>` to throttle), and on the connect() path a
+pool of worker threads keeps enough probes in flight to saturate network
+round-trip time without straining the CPU (a probe wave typically sits at ≈1–2%
+CPU — the bottleneck is the network, not your box). Both engines write their
+discovered open ports into the same 32-shard store, so enrichment is identical
+regardless of which ran. Force a specific engine with `KMAP_RAWSYN=1` / `0`.
 
 Three properties make it internet-scale-safe:
 
@@ -96,17 +104,19 @@ count by the number of hosts.
 
 ### Rate
 
-`--rate <pps>` caps packets per second across all workers (default **25000**).
-The default is a deliberate, neighbourly ceiling that respects residential
-uplinks and avoids tripping upstream abuse detection. Raise it only when you
-own or are authorized for the path and have the bandwidth:
+`--rate <pps>` caps packets per second across all workers. It is **unlimited by
+default** (`--rate 0` is the same as omitting it); the send loop then runs as
+fast as the link/NIC/`send_tcp_raw` path allows. Because an unlimited rate can
+saturate a shared or metered uplink and trip upstream abuse detection, pass an
+explicit, neighbourly cap on anything but your own dedicated infrastructure:
 
 ```bash
-kmap --net-scan -p 443 --rate 50000
+kmap --net-scan -p 443 --rate 25000      # polite cap for a residential uplink
+kmap --net-scan -p 443 --rate 50000      # faster, when you own/authorize the path
 ```
 
-The rate limiter starts gently (no opening burst) so the first second of a scan
-doesn't spike your NIC or a downstream IDS.
+When a cap is set the token-bucket limiter starts gently (no opening burst) so
+the first second of a scan doesn't spike your NIC or a downstream IDS.
 
 ---
 
@@ -362,7 +372,7 @@ kmap --net-scan --watchlist assets.txt
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-p <spec>` | top-100 | Ports to probe (single port = fastest path) |
-| `--rate <pps>` | 25000 | Global send-rate ceiling |
+| `--rate <pps>` | unlimited | Global send-rate cap (`0` = unlimited; max 1e9) |
 | `--net-max-ips <N>` | unlimited | Stop after N IPs (sample mode) |
 | `--net-resume` | off | Continue from the last checkpoint |
 | `--discover-only` / `--enrich-only` / `--report-only` | off | Run one phase |
@@ -371,6 +381,13 @@ kmap --net-scan --watchlist assets.txt
 | `--data-dir <d>` | `kmap-data` | Shard DBs + checkpoint + log |
 | `--findings-dir <d>` | `Findings` | Report output |
 | `--watchlist <f>` | — | Fixed-target monitoring with diff report |
+
+Two environment variables tune the raw-SYN engine: `KMAP_RAWSYN=1`/`0` forces it
+on or off (default: on when raw packets are available), and
+`KMAP_RAWSYN_DRAIN_MS` (default `2000`) sets how long the RX thread keeps reading
+after the TX loop ends — the silence timer resets on any packet, so only the
+trailing dead air is bounded. Lower it for tighter small-scan latency, raise it
+to chase high-RTT stragglers.
 
 ---
 

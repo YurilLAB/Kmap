@@ -14,6 +14,8 @@
  *   - burst bound: after a long idle, a single instant cannot release more than
  *     max_tokens (the 20 ms ceiling that prevents the opening-spike IDS trip)
  *   - refill_rate == pps / 1e6; max_tokens == pps * 0.02 (floored at 4)
+ *   - unlimited path: pps <= 0 sets the no-throttle flag and grants every call
+ *     (the default now that the 25k pps ceiling has been removed)
  *
  * Build: g++ -O2 -g -std=gnu++17 -Wall fuzz/test_ratelimit.cc \
  *        -o fuzz/test_ratelimit.exe && fuzz/test_ratelimit.exe
@@ -24,9 +26,16 @@
 #include <initializer_list>
 
 /* ===== verbatim shape from fast_syn.cc ===== */
-struct RateLimiter { double tokens; double max_tokens; double refill_rate; int64_t last_refill; };
+struct RateLimiter { double tokens; double max_tokens; double refill_rate; int64_t last_refill; bool unlimited; };
 
 static void rate_init(RateLimiter &rl, int pps, int64_t now) {
+  /* pps <= 0 -> no throttle (the default since the 25k ceiling was removed). */
+  rl.unlimited = (pps <= 0);
+  if (rl.unlimited) {
+    rl.tokens = rl.max_tokens = rl.refill_rate = 0.0;
+    rl.last_refill = now;
+    return;
+  }
   rl.max_tokens = (double)pps * 0.02;
   if (rl.max_tokens < 4.0) rl.max_tokens = 4.0;
   rl.tokens = 1.0;
@@ -37,6 +46,7 @@ static void rate_init(RateLimiter &rl, int pps, int64_t now) {
 /* The arithmetic rate_wait runs under the mutex, with `now` injected instead
    of now_usec(). Returns true if a token was granted. */
 static bool rate_try(RateLimiter &rl, int64_t now) {
+  if (rl.unlimited) return true;  /* unlimited: always grant, no throttle */
   double elapsed = (double)(now - rl.last_refill);
   rl.tokens += elapsed * rl.refill_rate;
   if (rl.tokens > rl.max_tokens) rl.tokens = rl.max_tokens;
@@ -130,6 +140,22 @@ int main(void) {
     snprintf(m, sizeof(m), "pps=1e6 over 1s: granted %ld ~ %ld (err %.2f%%, <2%%)",
              got, exp, err * 100.0);
     expect(err < 0.02, m);
+  }
+
+  /* ---- unlimited path (pps <= 0): no throttle, every call grants ----
+     This is the default now that the 25k ceiling is gone. Both pps=0 and a
+     negative pps must set unlimited and grant on every attempt, including a
+     burst of many calls at the SAME instant (which the token bucket would
+     otherwise cap at max_tokens). */
+  for (int pps : {0, -1, -25000}) {
+    RateLimiter rl; rate_init(rl, pps, 0);
+    char m[128];
+    snprintf(m, sizeof(m), "pps=%d -> unlimited flag set", pps);
+    expect(rl.unlimited, m);
+    long burst = 0;
+    for (int i = 0; i < 100000; i++) if (rate_try(rl, 0)) burst++;  /* same instant */
+    snprintf(m, sizeof(m), "pps=%d: 100000/100000 grants at one instant (no cap), got %ld", pps, burst);
+    expect(burst == 100000, m);
   }
 
   printf("\n%s\n", g_fail == 0 ? "rate-limiter test: ALL PASS" : "rate-limiter test: FAILURES");

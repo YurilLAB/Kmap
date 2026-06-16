@@ -98,11 +98,17 @@ All per-host features auto-enable `-sV` (service/version detection) and print re
 
 ## Benchmarks
 
-Kmap's discovery path is a non-blocking `connect()` sweep, **not** a raw-SYN
-firehose, so throughput is bounded by how many sockets are in flight, not by the
-`--rate` ceiling — and the whole pipeline is **network-bound**: the machine
-spends its time waiting on round-trips, not computing (a `/24` scan burns under
-1 second of CPU). Every figure is labelled by how it was obtained:
+Kmap discovers with one of two engines. When raw packets are available
+(root/admin **and** an Npcap/libpcap capture device) it runs a **stateless
+raw-SYN engine**: a TX thread blasts cookie-stamped SYNs while a separate RX
+thread validates the SYN-ACKs, carrying **zero per-probe state** (masscan/zmap
+style — the SYN cookie lives in the TCP sequence number). Otherwise it falls
+back to a non-blocking **`connect()` sweep** bounded by how many sockets are in
+flight. Both feed the *same* enrichment pipeline, and enrichment — the bulk of
+any real scan — is **network-bound**: the machine spends its time waiting on
+round-trips, not computing (a `/24`'s discovery burns under 1 second of CPU).
+The send rate is **unlimited by default**; pass `--rate <pps>` to re-engage the
+token-bucket throttle. Every figure is labelled by how it was obtained:
 
 - 🟢 **Measured** on a real run · 🔵 **Derived** from source constants (a hard
   ceiling the code cannot exceed) · ⚪ **Run-it-yourself** (depends on your link
@@ -142,19 +148,51 @@ against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS, HTTP, reverse-DN
 > `nginx` web server never gets the Kubernetes *ingress-nginx* CVE-2025-1974, and
 > Apache 2.4.52 is not flagged with a bug fixed *in* 2.4.52.
 
+### Raw-SYN vs `connect()` discovery 🟢
+
+Both engines were run on the **same real targets** (current 32-bit MSVC build,
+unlimited rate, `--discover-only`). The open-port counts are **identical** on
+the deterministic same-IP runs, so the only variable is speed:
+
+| Target (ports) | Density | Raw-SYN | `connect()` | Faster |
+|---|---|---|---|---|
+| Random **50,000** sample (80/443/22) | sparse (~3 % open) | **13.7 s** / 1612 opens | 60.4 s / 1610 opens | 🟢 **raw 4.4×** |
+| Cloudflare **`/20`** (80/443, same 4096 IPs) | dense (100 %) | 13.2 s / **8192** | **2.5 s** / **8192** | connect 5.3× |
+| Cloudflare **`/24`** (80/443/22, same 256 IPs) | dense | 2.6 s / **512** | 1.5 s / **512** | connect |
+
+> **The two engines win in opposite regimes.** On **sparse internet-scale**
+> space — the headline `--net-scan` use case — raw is far faster (4.4× here)
+> because `connect()` burns its worker pool waiting out the per-IP timeout on
+> dark addresses, while raw just fires a SYN and moves on. On **dense,
+> responsive** ranges `connect()` wins: live hosts answer in ~1 RTT so the pool
+> churns quickly, whereas raw pays a serial RX cost per open port (cookie
+> validate + a RST syscall + a sharded-SQLite insert), and the synchronous RST
+> send dominates when nearly every probe is a hit. Kmap therefore defaults to
+> **raw-when-available** (the wide sweep is the point) and keeps `connect()` as
+> the universal fallback. Force either with `KMAP_RAWSYN=1`/`0`. Completeness is
+> equal in both (single-shot raw has no SYN retransmit, so on lossy paths it can
+> miss a few hosts a retransmitting `connect()` would catch — a per-pass
+> `--retries` option is the next raw-engine lever).
+
+The raw RX keeps reading until `KMAP_RAWSYN_DRAIN_MS` (default **2000 ms**) of
+total silence after the TX loop ends; the timer resets on any packet, so a large
+scan's SYN-ACK tail is never cut short — only the trailing dead air is bounded.
+Lower it for tighter small-scan latency, raise it to chase high-RTT stragglers.
+
 ### Network throughput — the binding constraints
 
 | Metric | Value | Notes |
 |---|---|---|
-| Discovery, **measured** | **~634 IPs/sec** (300 conc × 3 ports = 900 workers) | 🟢 random sample; tracks `workers / per-IP-time` exactly |
-| Discovery, **shipped default** (100 conc) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` — the `--rate` ceiling never engages |
-| Discovery, **tuned** (1000 conc, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` before `--rate` |
+| Raw-SYN discovery, **sparse** | **~3,650 IPs/sec** (50k sample, unlimited rate) | 🟢 send-bound by `send_tcp_raw` cost (~10k pps), not `--rate` |
+| `connect()` discovery, **measured** | **~634 IPs/sec** (300 conc × 3 ports = 900 workers) | 🟢 random sample; tracks `workers / per-IP-time` exactly |
+| `connect()` fallback, **default** (100 conc) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` bound — no `--rate` cap engaged |
+| `connect()` fallback, **tuned** (1000 conc, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` (the raw engine sidesteps this entirely) |
 | Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
 | Worker pool, **32-bit build** | capped at **1024 threads** (`concurrency × ports`) | 🟢 address-space guard; `--fast` auto-scales up to the cap |
 | Enrichment, **dense range** | **~6.7 hosts/sec** (avg 2.9 s/host) | 🟢 ASN-deduped; banner + HTTP + TLS RTTs |
 | Enrichment, **random sample** | **~3.4 hosts/sec** (avg 3.2 s/host) | 🟢 per-host ASN round-trip dominates |
 | Enrichment, **ceiling** | ~40 → ~850 hosts/sec (concurrency 40 → 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
-| `--rate` send ceiling (token bucket) | 25,000 pps default (1–1e9 configurable) | 🔵 a polite cap, not the throughput |
+| `--rate` send rate (token bucket) | **unlimited by default** (`0`–1e9 configurable; `0` = unlimited) | 🔵 opt-in throttle, not the default throughput |
 | Screenshots | ~0.2–1 /sec (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
 
 > The enrichment recv path now uses a **separate ~2 s read timeout** instead of
@@ -205,8 +243,9 @@ point: **CPU is never the bottleneck.**
 | Favicon hash (base64 + mmh3, 4 KB) | ~86 K/sec |
 | CPE derivation | ~3.4 M/sec |
 
-> IP generation runs ~4,000× faster than the 25,000-pps rate ceiling, so the
-> address pipeline never limits a sweep.
+> IP generation runs orders of magnitude faster than any real link or NIC send
+> rate, so the address pipeline never limits a sweep — even with `--rate`
+> unlimited the bottleneck is `send_tcp_raw`/the socket layer, never permutation.
 
 > **Honest headline:** a single-port sweep at shipped defaults is thread-bound at
 > **~200 IPs/sec on filtered space** — tune `KMAP_NETSCAN_CONCURRENCY` (512–1024)
@@ -260,13 +299,14 @@ kmap --color=always -sV 10.0.0.1
 
 ```bash
 # Scan the entire public IPv4 space (discover + enrich + report)
-kmap --net-scan --rate 25000
+# Send rate is unlimited by default; raw-SYN engine used when raw packets are available
+kmap --net-scan
 
-# Scan specific ports only
+# Throttle the send rate explicitly (re-engages the token bucket)
 kmap --net-scan --rate 25000 -p 22,80,443,3306,8080
 
 # Run phases independently
-kmap --net-scan --discover-only --rate 25000    # Fast SYN discovery only
+kmap --net-scan --discover-only                  # Raw-SYN (or connect) discovery only
 kmap --net-scan --enrich-only                    # Enrich existing data
 kmap --net-scan --report-only                    # Generate findings reports
 
@@ -547,8 +587,9 @@ Phase 3: REPORT       Reads enriched data
 ```
 
 **Discovery** uses a custom high-speed scanner with:
+- A **stateless raw-SYN engine** (used when raw packets are available) with a connect() fallback — both feed the same enrichment pipeline
 - Randomized IP iteration (multiplicative-inverse permutation — avoids sequential sweeps that ISPs detect)
-- Token bucket rate limiter (default 25,000 pps, configurable)
+- Token bucket rate limiter — **unlimited by default**; pass `--rate <pps>` (`0` = unlimited) to throttle
 - Hard-coded exclusion of all private, reserved, multicast, and DoD ranges
 - Checkpoint/resume support (Ctrl+C saves progress, `--net-resume` continues)
 
@@ -563,14 +604,14 @@ Phase 3: REPORT       Reads enriched data
 ### Commands
 
 ```bash
-# Full pipeline: discover → enrich → report
-kmap --net-scan --rate 25000
+# Full pipeline: discover → enrich → report (unlimited send rate by default)
+kmap --net-scan
 
-# Scan only specific ports
+# Scan only specific ports, throttled to a polite 25k pps
 kmap --net-scan --rate 25000 -p 22,80,443,3306,8080
 
 # Run each phase independently
-kmap --net-scan --discover-only --rate 25000
+kmap --net-scan --discover-only
 kmap --net-scan --enrich-only
 kmap --net-scan --report-only
 
@@ -762,7 +803,7 @@ to disable the governor (worker-pool sizing still applies).
 | `--enrich-only` | Only enrich existing shard databases |
 | `--report-only` | Only generate findings from enriched data |
 | `--net-resume` | Resume an interrupted net-scan |
-| `--rate <pps>` | Discovery rate in packets per second (default: 25,000) |
+| `--rate <pps>` | Discovery send-rate cap in packets/sec (default: unlimited; `0` = unlimited; max 1e9) |
 | `--exclude-file <file>` | Additional IP ranges to exclude from scanning |
 | `--data-dir <dir>` | Shard database directory (default: `kmap-data`) |
 | `--findings-dir <dir>` | Findings output directory (default: `Findings`) |
@@ -870,7 +911,7 @@ All existing nmap scan types, NSE scripts, OS fingerprinting, timing profiles, d
 
 When using `--net-scan` for internet-wide scanning:
 
-- **Rate limit appropriately** — the default 25,000 pps is safe for most broadband connections. Start lower if unsure.
+- **Rate limit appropriately** — the send rate is **unlimited by default**, which can saturate a shared or metered link and trip upstream abuse detection. On anything but your own dedicated infrastructure, pass an explicit `--rate` (e.g. `--rate 25000` is polite for most broadband). Start lower if unsure.
 - **Set up identification** — configure a reverse DNS PTR record on your scanning IP (e.g., `scanner.yourdomain.com`) and host a simple page explaining your research.
 - **Honor opt-outs** — maintain an abuse contact email and respect requests to exclude IP ranges.
 - **Know your jurisdiction** — network scanning laws vary by country. Ensure compliance with local regulations.
