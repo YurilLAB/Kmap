@@ -887,6 +887,26 @@ int fast_syn_scan(const char *data_dir,
                        static_cast<long>(inner_workers);
   const long TOTAL_WORKER_CAP = 4096;
   if (total_workers > TOTAL_WORKER_CAP) total_workers = TOTAL_WORKER_CAP;
+  /* 32-bit address-space guard. A 32-bit process has ~2 GB of user address
+     space and each std::thread reserves ~1 MB of stack by default, so a pool of
+     a few thousand persistent workers exhausts the address space and the
+     process FAST-FAILS (STATUS_STACK_BUFFER_OVERRUN, 0xC0000409) before it
+     probes anything -- reproduced at 2400 workers (400 conc x 6 ports) on the
+     Win32 build; 1200 was fine. Cap so the pool's stack reservation stays ~1 GB,
+     leaving room for the results vector, the 32 shard DBs and OpenSSL. 64-bit
+     builds keep the full 4096. */
+#if (defined(_WIN32) && !defined(_WIN64)) || \
+    (defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ <= 4)
+  const long CAP_32BIT = 1024;
+  if (total_workers > CAP_32BIT) {
+    log_write(LOG_STDOUT,
+      "  NOTE: 32-bit build -- capping the discovery pool at %ld workers "
+      "(%ld requested) to stay within address space. For higher throughput use "
+      "the 64-bit build, fewer ports, or a lower KMAP_NETSCAN_CONCURRENCY.\n",
+      CAP_32BIT, total_workers);
+    total_workers = CAP_32BIT;
+  }
+#endif
   if (total_workers < 1) total_workers = 1;
 
   /* Per-worker in-flight index tracking for an EXACT resume low-water-mark.
