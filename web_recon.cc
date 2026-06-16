@@ -255,6 +255,7 @@ static void close_fd_wr(wr_fd_t fd) {
 #endif
 }
 
+#ifdef HAVE_OPENSSL
 /* Bounded, poll-driven TLS handshake.  tcp_connect_wr hands back a BLOCKING
    socket, so a bare SSL_connect() on it has NO read deadline: a host that
    completes the TCP handshake but then stalls the TLS handshake (a silent /
@@ -299,6 +300,7 @@ static bool wr_ssl_handshake(SSL *ssl, wr_fd_t fd, int timeout_ms) {
   }
   return ok;
 }
+#endif  /* HAVE_OPENSSL */
 
 static bool send_all(wr_fd_t fd, const char *buf, size_t len) {
   size_t sent = 0;
