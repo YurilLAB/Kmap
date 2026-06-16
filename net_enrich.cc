@@ -1202,11 +1202,51 @@ static int tls_capture_cert(const char *ip, int port, int timeout_ms,
      forbids SNI on IP-form hosts.  Some pedantic servers will close
      instead of returning a default vhost; that's a wash given the volume. */
 
-  if (SSL_connect(ssl) != 1) {
-    SSL_free(ssl);
-    enrich_close_fd(fd);
-    return -1;
+  /* Bounded, poll-driven handshake.  enrich_tcp_connect hands back a BLOCKING
+     socket, and SSL_connect() on a blocking fd has NO read deadline: a host
+     that completes the TCP handshake but then stalls the TLS handshake (a
+     silent / tarpit 443, which you WILL meet at internet scale) blocks this
+     worker forever.  enrich_single_host join()s all its port-threads and
+     run_enrichment join()s all its host-workers, so one stalled handshake
+     hangs the entire enrichment phase with nothing ever committed.  The
+     timeout_ms passed in was previously only honoured by the TCP connect;
+     apply it to the handshake too by driving SSL_connect non-blocking through
+     the same poll helper the banner/HTTP recv loops use, with an overall
+     deadline that is cumulative across WANT_READ/WANT_WRITE waits (so a
+     byte-at-a-time tarpit cannot extend it past timeout_ms). */
+#ifdef WIN32
+  { u_long nb = 1; ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &nb); }
+#else
+  fcntl(static_cast<int>(fd), F_SETFL,
+        fcntl(static_cast<int>(fd), F_GETFL, 0) | O_NONBLOCK);
+#endif
+  {
+    auto hs_deadline = std::chrono::steady_clock::now() +
+                       std::chrono::milliseconds(timeout_ms > 0 ? timeout_ms : 1);
+    bool hs_ok = false;
+    for (;;) {
+      int r = SSL_connect(ssl);
+      if (r == 1) { hs_ok = true; break; }
+      int err = SSL_get_error(ssl, r);
+      bool want_write;
+      if      (err == SSL_ERROR_WANT_READ)  want_write = false;
+      else if (err == SSL_ERROR_WANT_WRITE) want_write = true;
+      else break;                        /* fatal handshake error -> give up */
+      int rem = static_cast<int>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+          hs_deadline - std::chrono::steady_clock::now()).count());
+      if (rem <= 0) break;               /* handshake deadline exceeded */
+      if (enrich_wait_fd(fd, want_write, rem) <= 0) break;  /* timeout / error */
+    }
+    if (!hs_ok) {
+      SSL_free(ssl);
+      enrich_close_fd(fd);
+      return -1;
+    }
   }
+  /* Socket stays non-blocking through the in-memory cert reads (which touch
+     no fd) and the single best-effort SSL_shutdown below, so neither can
+     re-introduce an unbounded blocking read. */
 
   out.protocol = SSL_get_version(ssl);
 

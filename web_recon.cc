@@ -28,6 +28,7 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdio>
+#include <chrono>
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -254,6 +255,51 @@ static void close_fd_wr(wr_fd_t fd) {
 #endif
 }
 
+/* Bounded, poll-driven TLS handshake.  tcp_connect_wr hands back a BLOCKING
+   socket, so a bare SSL_connect() on it has NO read deadline: a host that
+   completes the TCP handshake but then stalls the TLS handshake (a silent /
+   tarpit 443, which you WILL meet at internet scale) blocks the scan worker
+   forever.  Drive SSL_connect non-blocking through wr_wait_fd with an overall
+   timeout_ms deadline (cumulative across WANT_READ/WANT_WRITE, so a
+   byte-at-a-time tarpit cannot extend it).  On success the socket is restored
+   to BLOCKING so the existing wr_wait_fd-guarded SSL_write / SSL_read loops
+   keep their original semantics -- only the handshake is changed.  Mirrors the
+   same fix in net_enrich.cc's tls_capture_cert. */
+static bool wr_ssl_handshake(SSL *ssl, wr_fd_t fd, int timeout_ms) {
+#ifdef WIN32
+  { u_long nb = 1; ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &nb); }
+#else
+  fcntl(static_cast<int>(fd), F_SETFL,
+        fcntl(static_cast<int>(fd), F_GETFL, 0) | O_NONBLOCK);
+#endif
+  bool ok = false;
+  auto deadline = std::chrono::steady_clock::now() +
+                  std::chrono::milliseconds(timeout_ms > 0 ? timeout_ms : 1);
+  for (;;) {
+    int r = SSL_connect(ssl);
+    if (r == 1) { ok = true; break; }
+    int err = SSL_get_error(ssl, r);
+    bool want_write;
+    if      (err == SSL_ERROR_WANT_READ)  want_write = false;
+    else if (err == SSL_ERROR_WANT_WRITE) want_write = true;
+    else break;                          /* fatal handshake error -> give up */
+    int rem = static_cast<int>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+        deadline - std::chrono::steady_clock::now()).count());
+    if (rem <= 0) break;                 /* handshake deadline exceeded */
+    if (wr_wait_fd(fd, want_write, rem) <= 0) break;  /* timeout / error */
+  }
+  if (ok) {
+#ifdef WIN32
+    u_long nb = 0; ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &nb);
+#else
+    fcntl(static_cast<int>(fd), F_SETFL,
+          fcntl(static_cast<int>(fd), F_GETFL, 0) & ~O_NONBLOCK);
+#endif
+  }
+  return ok;
+}
+
 static bool send_all(wr_fd_t fd, const char *buf, size_t len) {
   size_t sent = 0;
   while (sent < len) {
@@ -434,7 +480,7 @@ static std::string https_get(const char *ip, uint16_t port,
     if (cipher_list) SSL_set_cipher_list(ssl, cipher_list);
   }
 
-  if (SSL_connect(ssl) != 1) {
+  if (!wr_ssl_handshake(ssl, fd, timeout_ms)) {
     SSL_free(ssl); close_fd_wr(fd); return "";
   }
 
@@ -848,7 +894,7 @@ http_options_probe(const char *ip, uint16_t port,
       const char *cipher_list = os_profile_tls_cipher_list(prof);
       if (cipher_list) SSL_set_cipher_list(ssl, cipher_list);
     }
-    if (SSL_connect(ssl) != 1) {
+    if (!wr_ssl_handshake(ssl, fd, timeout_ms)) {
       SSL_free(ssl); close_fd_wr(fd); return {};
     }
     if (SSL_write(ssl, req.c_str(), static_cast<int>(req.size())) <= 0) {
