@@ -401,7 +401,7 @@ static std::string format_result_json(const std::string &ip, int port,
                                       const std::string &service,
                                       const std::string &version,
                                       const std::string &cves_json,
-                                      int asn, const std::string &as_name,
+                                      int64_t asn, const std::string &as_name,
                                       const std::string &country,
                                       const std::string &hostname,
                                       const std::string &web_title,
@@ -672,7 +672,12 @@ int run_net_query(const char *data_dir,
       std::string row_svc     = col_str(3);
       std::string row_ver     = col_str(4);
       std::string row_cves    = col_str(5);
-      int         row_asn     = sqlite3_column_int(stmt, 6);
+      /* asn is stored as int64 (net_db.cc binds sqlite3_bind_int64 and the
+         sibling reader net_db_get_host uses sqlite3_column_int64) so 4-byte
+         ASNs in the top half of the 32-bit space (>= 2^31) round-trip intact.
+         sqlite3_column_int would truncate those to a negative int32, which the
+         `asn > 0` emit guard then drops from the JSON output entirely. */
+      int64_t     row_asn     = sqlite3_column_int64(stmt, 6);
       std::string row_as_name = col_str(7);
       std::string row_country = col_str(8);
       std::string row_host    = col_str(9);

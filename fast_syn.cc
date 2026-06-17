@@ -450,6 +450,15 @@ static BOOL WINAPI win_console_ctrl_handler(DWORD /*type*/) {
 }
 #endif
 
+/* Exposed so the net-scan orchestrator can fold a discovery-phase Ctrl+C into
+   its own cross-phase interrupt flag (fast_syn_scan returns 0 even when
+   interrupted; this reports the true state of the last run).  scan_interrupted
+   is reset to 0 at the top of each fast_syn_scan, so this reflects only the most
+   recent discovery run. */
+bool fast_syn_was_interrupted() {
+  return scan_interrupted != 0;
+}
+
 /* -----------------------------------------------------------------------
  * Fast SYN scan implementation
  *
@@ -966,6 +975,27 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
      send from the RX hot path.  Set KMAP_RAWSYN_MANUAL_RST=1 to restore the
      explicit RST (e.g. if a host's stack is seen retransmitting SYN-ACKs). */
   bool manual_rst = (getenv("KMAP_RAWSYN_MANUAL_RST") != nullptr);
+  /* Dedicated L2 send handle for the RX thread's manual RSTs.  The RX path must
+     NOT share TX thread 0's handle (ethsd / txh[0]): libpcap/dnet send handles
+     are not safe for concurrent use, and TX thread 0 blasts SYNs on ethsd for
+     the whole sweep (the very reason each extra TX thread opens its own handle
+     below).  Open a private handle here, driven solely by the single RX thread,
+     so the RST send never races the TX send.  If it can't be opened, disable
+     manual RST rather than race the shared handle -- the kernel auto-RSTs the
+     unsolicited SYN-ACK anyway, so dropping the explicit RST is safe. */
+  netutil_eth_t *rst_handle = nullptr;
+  struct eth_nfo rst_eth = eth;
+  if (manual_rst) {
+    rst_handle = netutil_eth_open(rnfo.ii.devfullname);
+    if (rst_handle) {
+      rst_eth.ethsd = rst_handle;
+    } else {
+      manual_rst = false;
+      log_write(LOG_STDOUT,
+        "  raw: KMAP_RAWSYN_MANUAL_RST set but a dedicated RST send handle could "
+        "not be opened; relying on the kernel auto-RST instead.\n");
+    }
+  }
   /* Hard cap on buffered opens before a forced spill, so an extreme dense sweep
      can't grow rx_opens without bound between the 60 s checkpoints. 1,000,000
      opens ~= 16 MB. Tunable. */
@@ -1005,8 +1035,8 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     int64_t drain_anchor_us = now_usec();  /* last NEW open, or TX-completion */
     bool tx_anchored = false;
     RawRxCtx ctx{ l2off, secret, &seen, &rx_opens, &opens_mu, &opens,
-                  &drain_anchor_us, manual_rst, &eth, src_in, src_port,
-                  o.ttl ? o.ttl : 64, o.verbose != 0 };
+                  &drain_anchor_us, manual_rst, manual_rst ? &rst_eth : &eth,
+                  src_in, src_port, o.ttl ? o.ttl : 64, o.verbose != 0 };
     while (!scan_interrupted) {
       /* pcap_dispatch processes a whole kernel-read batch per call (callback per
          packet), so the per-packet kernel round-trip that capped pcap_next_ex /
@@ -1247,6 +1277,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
 
   for (int t = 0; t < tx_threads; t++)
     if (txh_owned[t]) netutil_eth_close(txh[t]);
+  if (rst_handle) netutil_eth_close(rst_handle);  /* RX-only manual-RST handle */
 
   pcap_close(pd);
   eth_close_cached();

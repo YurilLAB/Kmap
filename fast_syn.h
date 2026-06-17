@@ -69,6 +69,13 @@ int fast_syn_scan(const char *data_dir,
                   uint32_t target_base = 0,
                   uint64_t target_count = 0);
 
+/* True if the most recent fast_syn_scan() was aborted by Ctrl+C / SIGINT.
+   fast_syn drives its own private interrupt flag and returns 0 even when
+   interrupted, so the net-scan orchestrator queries this after discovery to
+   fold the interrupt into its own cross-phase interrupt state (correct
+   COMPLETE/INTERRUPTED summary, enrichment skip, and exit code). */
+bool fast_syn_was_interrupted();
+
 /* Parse a port specification string like "22,80,443" or "1-1024".
    Returns sorted, deduplicated list of port numbers. */
 std::vector<int> parse_port_spec(const char *spec);

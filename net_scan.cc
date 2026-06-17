@@ -1589,6 +1589,33 @@ int run_net_scan() {
              : o.net_report_only ? " [report-only]" : "",
            o.net_resume ? " [resume]" : "");
 
+  /* Single interrupt owner for the whole discover->enrich->report sequence.
+     Previously NOTHING in this path set g_scan_interrupted (only run_watchlist
+     installed a handler), so the enrichment drain-loop break, the
+     COMPLETE/INTERRUPTED summary, and the exit code below all read a flag that
+     could never change: Ctrl+C was effectively swallowed for the headline
+     net-scan mode.  Install the same handler run_watchlist uses (sets
+     g_scan_interrupted) around the entire sequence.  fast_syn's discovery
+     installs its OWN handler over the top and restores this one on return; we
+     fold its private interrupt flag into g_scan_interrupted right after the
+     discovery call so a Ctrl+C during EITHER phase is honored.  RAII restore
+     covers every return path. */
+  g_scan_interrupted.store(0);
+  struct ScanIntGuard {
+#ifndef WIN32
+    struct sigaction old{};
+    ScanIntGuard() {
+      struct sigaction sa{};
+      sa.sa_handler = watchlist_sigint;
+      sigaction(SIGINT, &sa, &old);
+    }
+    ~ScanIntGuard() { sigaction(SIGINT, &old, nullptr); }
+#else
+    ScanIntGuard()  { SetConsoleCtrlHandler(watchlist_ctrl_handler, TRUE); }
+    ~ScanIntGuard() { SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE); }
+#endif
+  } scan_int_guard;
+
   /* Phase 1: Discover */
   if (!o.net_enrich_only && !o.net_report_only) {
     /* Build exclusion list. The built-in reserved/private/DoD ranges are
@@ -1689,11 +1716,18 @@ int run_net_scan() {
     scan_log("INFO", "discovery phase complete (%lds)",
              (long)(time(nullptr) - disc_t0));
 
+    /* fast_syn drives its OWN private interrupt flag and returns 0 even when
+       Ctrl+C aborted discovery; fold that into the orchestrator flag so the
+       enrichment drain-loop break, the COMPLETE/INTERRUPTED summary, and the
+       exit code all reflect the interrupt. */
+    if (fast_syn_was_interrupted()) g_scan_interrupted.store(1);
+
     if (o.net_discover_only) {
-      scan_log("INFO", "net-scan finished: discover-only (%lds total)",
-               (long)(time(nullptr) - ns_start));
+      scan_log("INFO", "net-scan finished: discover-only (%lds total)%s",
+               (long)(time(nullptr) - ns_start),
+               g_scan_interrupted.load() ? " [interrupted]" : "");
       scan_log_close();
-      return 0;
+      return g_scan_interrupted.load() ? 130 : 0;
     }
   }
 
@@ -1759,10 +1793,11 @@ int run_net_scan() {
              (long)(time(nullptr) - enr_t0), pass, pass == 1 ? "" : "es");
 
     if (o.net_enrich_only) {
-      scan_log("INFO", "net-scan finished: enrich-only (%lds total)",
-               (long)(time(nullptr) - ns_start));
+      scan_log("INFO", "net-scan finished: enrich-only (%lds total)%s",
+               (long)(time(nullptr) - ns_start),
+               g_scan_interrupted.load() ? " [interrupted]" : "");
       scan_log_close();
-      return 0;
+      return g_scan_interrupted.load() ? 130 : 0;
     }
   }
 
@@ -1834,7 +1869,10 @@ int run_net_scan() {
       disc_s, disc_rate, enr_s, enr_rate, pipe_rate);
   }
   scan_log_close();
-  return rc;
+  /* Preserve a real error rc; otherwise signal an interrupted run with 130
+     (128 + SIGINT) so scripts can tell an aborted sweep from a clean one. */
+  if (rc != 0) return rc;
+  return g_scan_interrupted.load() ? 130 : 0;
 }
 
 /* -----------------------------------------------------------------------
