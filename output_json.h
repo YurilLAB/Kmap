@@ -79,7 +79,7 @@ void json_initialize(const char *filename);
 
 /* Record top-level kmap metadata: scanner version, command-line args,
    and the epoch start time of the scan. */
-void json_write_scaninfo(const char *version, const char *args, long start_time);
+void json_write_scaninfo(const char *version, const char *args, long long start_time);
 
 /* Serialize a single scanned host (addresses, hostnames, ports, OS) and
    append it to the "hosts" array in the document. */

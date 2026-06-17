@@ -130,7 +130,7 @@ void json_initialize(const char *filename) {
     };
 }
 
-void json_write_scaninfo(const char *version, const char *args, long start_time) {
+void json_write_scaninfo(const char *version, const char *args, long long start_time) {
     g_doc["kmap"]["version"]    = version ? std::string(version) : std::string();
     g_doc["kmap"]["args"]       = args    ? std::string(args)    : std::string();
     g_doc["kmap"]["start"]      = start_time;

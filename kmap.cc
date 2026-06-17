@@ -2532,9 +2532,9 @@ int kmap_main(int argc, char *argv[]) {
   log_write(LOG_NORMAL | LOG_MACHINE, "%s %s scan initiated %s as: %s", KMAP_NAME, KMAP_VERSION, mytime, join_quoted(argv, argc).c_str());
   log_write(LOG_NORMAL | LOG_MACHINE, "\n");
   if (o.json_output_file)
-    json_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long) timep);
+    json_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long long) timep);
   if (o.yuril_export_dir)
-    yuril_export_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long) timep);
+    yuril_export_write_scaninfo(KMAP_VERSION, join_quoted(argv, argc).c_str(), (long long) timep);
 
   /* Before we randomize the ports scanned, lets output them to machine
      parseable output */

@@ -62,7 +62,7 @@ void yuril_export_initialize(const char *out_dir);
 /* Record top-level scanner metadata (version, invocation args, start time). */
 void yuril_export_write_scaninfo(const char *kmap_version,
                                  const char *args,
-                                 long start_time);
+                                 long long start_time);
 
 /* Append a single scanned host (addresses, ports, OS, CVEs, creds, web).
    Must be called after yuril_export_initialize() and before finalize(). */

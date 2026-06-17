@@ -237,9 +237,15 @@ static QueryFilter build_filter(int port, const char *service,
   }
 
   if (cve && cve[0]) {
+    /* Anchor the match to the full quoted id.  cves is a JSON array of
+       [{"id":"CVE-...",...}] (no space after the colon), so binding the id
+       wrapped in quotes makes the whole id match: "CVE-2024-1" no longer
+       prefix-collides with "CVE-2024-100"/"CVE-2024-1234", and it matches the
+       id field rather than CVE-description prose.  Still a substring LIKE (no
+       cves index), but now correct. */
     conditions.push_back("cves LIKE ?");
     f.binds.push_back({QueryFilter::BTEXT,
-                       "%" + std::string(cve) + "%", 0});
+                       "%\"" + std::string(cve) + "\"%", 0});
   }
 
   /* CVSS filtering is done in post-processing since the score is
@@ -272,7 +278,11 @@ static QueryFilter build_filter(int port, const char *service,
     std::string cc = country;
     std::transform(cc.begin(), cc.end(), cc.begin(),
                    [](unsigned char c){ return static_cast<char>(toupper(c)); });
-    conditions.push_back("UPPER(country) = ?");
+    /* Compare the bare column (which is stored uppercase) against the
+       uppercased argument rather than UPPER(country): wrapping the column in a
+       function defeats idx_hosts_country and forces a full table scan (verified
+       via EXPLAIN QUERY PLAN). With the raw column the index is used. */
+    conditions.push_back("country = ?");
     f.binds.push_back({QueryFilter::BTEXT, cc, 0});
   }
 
@@ -356,26 +366,58 @@ static std::string classify_device(const std::string &service, int port) {
  * looks well-formed (starts with '['), and as an escaped string otherwise.
  * ----------------------------------------------------------------------- */
 
+/* Escape a string for a JSON value AND guarantee the result is valid UTF-8.
+   Scan targets routinely return banners / web titles / versions that are not
+   valid UTF-8 (raw Latin-1 bytes, or a multi-byte sequence the capture truncated
+   mid-codepoint). RFC 8259 requires JSON text to be UTF-8, so any malformed or
+   truncated sequence is replaced with U+FFFD; otherwise jq / Python json / the
+   ingester reject the whole document. This mirrors the error_handler_t::replace
+   that yuril_export.cc and output_json.cc already use via nlohmann. */
 static std::string json_escape(const std::string &in) {
   std::string out;
   out.reserve(in.size() + 8);
-  for (unsigned char c : in) {
-    switch (c) {
-      case '"':  out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      case '\b': out += "\\b";  break;
-      case '\f': out += "\\f";  break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:
-        if (c < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", c);
-          out += buf;
-        } else {
-          out += static_cast<char>(c);
-        }
+  size_t i = 0, n = in.size();
+  while (i < n) {
+    unsigned char c = static_cast<unsigned char>(in[i]);
+    if (c < 0x80) {                         /* ASCII: escape JSON metachars/ctrl */
+      switch (c) {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\b': out += "\\b";  break;
+        case '\f': out += "\\f";  break;
+        case '\n': out += "\\n";  break;
+        case '\r': out += "\\r";  break;
+        case '\t': out += "\\t";  break;
+        default:
+          if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); out += b; }
+          else          out += static_cast<char>(c);
+      }
+      i++;
+      continue;
+    }
+    /* Validate a multi-byte UTF-8 sequence (RFC 3629); emit U+FFFD on any
+       malformed / overlong / surrogate / truncated sequence. */
+    int len = (c >= 0xF0 && c <= 0xF4) ? 4
+            : (c >= 0xE0 && c <= 0xEF) ? 3
+            : (c >= 0xC2 && c <= 0xDF) ? 2 : 0;   /* 0xC0/0xC1 = overlong */
+    bool ok = (len != 0) && (i + static_cast<size_t>(len) <= n);
+    for (int k = 1; ok && k < len; k++) {
+      unsigned char cc = static_cast<unsigned char>(in[i + k]);
+      if (cc < 0x80 || cc > 0xBF) ok = false;     /* not a continuation byte */
+    }
+    if (ok) {
+      unsigned char c1 = (len > 1) ? static_cast<unsigned char>(in[i + 1]) : 0;
+      if (len == 3 && c == 0xE0 && c1 < 0xA0) ok = false;   /* overlong */
+      else if (len == 3 && c == 0xED && c1 > 0x9F) ok = false; /* surrogate */
+      else if (len == 4 && c == 0xF0 && c1 < 0x90) ok = false; /* overlong */
+      else if (len == 4 && c == 0xF4 && c1 > 0x8F) ok = false; /* > U+10FFFF */
+    }
+    if (ok) {
+      out.append(in, i, static_cast<size_t>(len));
+      i += static_cast<size_t>(len);
+    } else {
+      out += "\xEF\xBF\xBD";                 /* U+FFFD REPLACEMENT CHARACTER */
+      i++;
     }
   }
   return out;
@@ -607,8 +649,11 @@ int run_net_query(const char *data_dir,
     "SELECT ip, port, proto, service, version, cves, "
     "       asn, as_name, country, hostname, web_title, web_server, cpe, "
     "       cloud_provider "
-    "FROM hosts WHERE " + filter.where_clause
-    + " ORDER BY ip, port";
+    "FROM hosts WHERE " + filter.where_clause;
+  /* Deliberately no SQL "ORDER BY ip": hosts.ip is dotted-quad TEXT, so it would
+     sort lexicographically ("10.0.0.1" < "2.2.2.2" < "9.9.9.9"). Each shard's
+     surviving rows are collected and sorted by numeric ip_to_u32 below, the same
+     fix net_report.cc already applies. */
 
   int64_t total_count = 0;
   int shards_searched = 0;
@@ -660,6 +705,14 @@ int run_net_query(const char *data_dir,
 
     bind_filter(stmt, filter);
 
+    /* Buffer this shard's surviving rows, then emit in NUMERIC ip order (the DB
+       cannot, since ip is TEXT). Per-shard bound, same as net_report.cc;
+       count_only never buffers. Shards are walked in ascending index order and
+       the index is the top 5 IP bits, so cross-shard order is already numeric --
+       only within-shard order needed fixing. */
+    struct EmitRow { uint32_t ipnum; int port; std::string payload; };
+    std::vector<EmitRow> shard_rows;
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       auto col_str = [&](int c) -> std::string {
         const unsigned char *p = sqlite3_column_text(stmt, c);
@@ -708,27 +761,34 @@ int run_net_query(const char *data_dir,
       total_count++;
 
       if (!count_only) {
-        if (emit_json) {
-          std::string obj = format_result_json(
-              row_ip, row_port, row_proto, row_svc, row_ver, row_cves,
-              row_asn, row_as_name, row_country, row_host,
-              row_wtitle, row_wsrv, row_cpe, row_cloud, dev_class);
-          if (json_first) {
-            json_first = false;
-            emit_raw(obj.c_str());
-          } else {
-            emit_raw(",");
-            emit_raw(obj.c_str());
-          }
-        } else {
-          emit_line(format_result(row_ip, row_port, row_proto,
-                                  row_svc, row_ver, row_cves));
-        }
+        std::string payload = emit_json
+          ? format_result_json(row_ip, row_port, row_proto, row_svc, row_ver,
+                               row_cves, row_asn, row_as_name, row_country,
+                               row_host, row_wtitle, row_wsrv, row_cpe, row_cloud,
+                               dev_class)
+          : format_result(row_ip, row_port, row_proto, row_svc, row_ver, row_cves);
+        shard_rows.push_back({ ip_to_u32(row_ip.c_str()), row_port, payload });
       }
     }
 
     sqlite3_finalize(stmt);
     net_db_close(db);
+
+    if (!count_only && !shard_rows.empty()) {
+      std::sort(shard_rows.begin(), shard_rows.end(),
+                [](const EmitRow &a, const EmitRow &b) {
+                  return a.ipnum != b.ipnum ? a.ipnum < b.ipnum : a.port < b.port;
+                });
+      for (const auto &r : shard_rows) {
+        if (emit_json) {
+          if (!json_first) emit_raw(",");
+          json_first = false;
+          emit_raw(r.payload.c_str());
+        } else {
+          emit_line(r.payload);
+        }
+      }
+    }
   }
 
   /* Output final results */

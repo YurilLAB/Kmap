@@ -290,6 +290,11 @@ sqlite3 *net_db_open(const std::string &path) {
   sqlite3_exec(db, "PRAGMA synchronous=NORMAL", nullptr, nullptr, nullptr);
   sqlite3_exec(db, "PRAGMA cache_size=-64000", nullptr, nullptr, nullptr);
   sqlite3_exec(db, "PRAGMA temp_store=MEMORY", nullptr, nullptr, nullptr);
+  /* Block (up to 5 s) rather than return SQLITE_BUSY immediately when another
+     connection holds the write lock -- e.g. a --net-query / --search running
+     while a scan writes the same shard. Without this, an insert could hit BUSY
+     after a few short retries and silently drop a discovered open. */
+  sqlite3_busy_timeout(db, 5000);
 
   /* Create schema */
   char *errmsg = nullptr;
@@ -396,19 +401,30 @@ int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  int written = 0;
+  int written = 0, failed = 0;
   for (size_t i = 0; i < n; i++) {
     std::string ip_str = u32_to_ip(recs[i].ip);
     sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, recs[i].port);
     sqlite3_bind_int64(stmt, 3, recs[i].ts);
     sqlite3_bind_int64(stmt, 4, recs[i].ts);
-    if (sqlite3_step_retry(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0)
-      written++;
+    if (sqlite3_step_retry(stmt) == SQLITE_DONE) {
+      if (sqlite3_changes(db) > 0) written++;
+    } else {
+      /* Step did not complete even after the BUSY retries -- the discovered
+         open is about to be lost (the caller already swapped the batch out).
+         With busy_timeout set this is now rare, but never drop it silently. */
+      failed++;
+    }
     sqlite3_reset(stmt);
     sqlite3_clear_bindings(stmt);
   }
   sqlite3_finalize(stmt);
+  if (failed > 0)
+    fprintf(stderr,
+      "net-scan: WARNING: %u of %u discovered open(s) could not be written to "
+      "shard (db busy/locked) and were dropped this flush.\n",
+      (unsigned)failed, (unsigned)n);
   return written;
 }
 
@@ -872,12 +888,20 @@ std::vector<NetSearchHit> net_db_search_fts(sqlite3 *db, const char *query,
     return hits;
   }
   sqlite3_exec(db, "DELETE FROM temp.kmap_fts;", nullptr, nullptr, nullptr);
+  /* Only index rows that carry at least one searchable value.  A bare
+     discovery row (port open, never enriched/annotated) has all ten searchable
+     columns NULL, so it can never match any MATCH and only bloats the transient
+     index.  COALESCE(...) IS NOT NULL keeps every row with ANY of the indexed
+     fields populated, so this is correctness-preserving while shrinking the
+     per-query index build to the enriched/annotated subset.  (A persistent,
+     incrementally-maintained FTS index is the real fix at internet scale.) */
   static const char *fill_sql =
     "INSERT INTO temp.kmap_fts SELECT ip, port, COALESCE(service,''), "
     "COALESCE(version,''), COALESCE(cpe,''), COALESCE(web_title,''), "
     "COALESCE(web_server,''), COALESCE(tls_subject_cn,''), COALESCE(as_name,''), "
     "COALESCE(country,''), COALESCE(cloud_provider,''), COALESCE(hostname,'') "
-    "FROM hosts;";
+    "FROM hosts WHERE COALESCE(service, version, cpe, web_title, web_server, "
+    "tls_subject_cn, as_name, country, cloud_provider, hostname) IS NOT NULL;";
   if (sqlite3_exec(db, fill_sql, nullptr, nullptr, &emsg) != SQLITE_OK) {
     if (err) *err = emsg ? emsg : "FTS populate failed";
     sqlite3_free(emsg);
@@ -941,9 +965,13 @@ int64_t net_db_count(sqlite3 *db) {
 int64_t net_db_count_unenriched(sqlite3 *db, int64_t retry_after_seconds) {
   if (!db) return -1;
   /* Predicate mirror of net_db_get_unenriched -- see the long comment
-   * there for the (enriched=0 OR last_seen > enriched_at) rationale. */
+   * there for the (enriched=0 OR last_seen > enriched_at) rationale.
+   * COUNT(DISTINCT ip), not COUNT(*): get_unenriched returns DISTINCT ip (one
+   * work item per host), so a plain row count over-reported the host count by
+   * the average open-ports-per-host factor, inflating the "enriching N host(s)"
+   * message and the results.reserve() in the enrich driver. */
   static const char *sql =
-    "SELECT COUNT(*) FROM hosts "
+    "SELECT COUNT(DISTINCT ip) FROM hosts "
     "WHERE (enriched=0 OR last_seen > enriched_at) "
     "  AND (enrichment_error_at = 0 "
     "       OR enrichment_error_at <= strftime('%s','now') - ?)";

@@ -245,7 +245,10 @@ static bool dir_is_writable(const std::string &dir) {
     return true;
 }
 
-static std::string iso8601_utc(long epoch) {
+static std::string iso8601_utc(long long epoch) {
+    /* long long (64-bit everywhere), not long: long is 32-bit on Win64 (LLP64)
+       while time_t is 64-bit, so a `long` parameter truncated any timestamp
+       past 2038-01-19. */
     std::time_t t = static_cast<std::time_t>(epoch);
     std::tm tmv{};
 #ifdef WIN32
@@ -305,7 +308,7 @@ void yuril_export_initialize(const char *out_dir) {
 
 void yuril_export_write_scaninfo(const char *kmap_version,
                                  const char *args,
-                                 long start_time) {
+                                 long long start_time) {
     if (!g_active) return;
     g_kmap_version = kmap_version ? std::string(kmap_version) : std::string();
     g_doc["kmap"]["version"] = g_kmap_version;

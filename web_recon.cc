@@ -367,12 +367,29 @@ static std::string extract_title(const std::string &body) {
   if (ts == std::string::npos) return "";
   ts += 7;
   size_t te = lower.find("</title>", ts);
-  if (te == std::string::npos) te = std::min(ts + 200, body.size());
+  bool capped = (te == std::string::npos);
+  if (capped) te = std::min(ts + 200, body.size());
   std::string t = body.substr(ts, te - ts);
   // Strip whitespace
   size_t a = t.find_first_not_of(" \t\r\n");
   size_t b = t.find_last_not_of(" \t\r\n");
-  return (a == std::string::npos) ? "" : t.substr(a, b - a + 1);
+  std::string title = (a == std::string::npos) ? "" : t.substr(a, b - a + 1);
+  /* When hard-capped at 200 bytes (no </title> within reach) the cut can land
+     inside a multi-byte UTF-8 codepoint, leaving a dangling partial sequence
+     that makes the stored title -- and any JSON export of it -- invalid UTF-8.
+     Drop a trailing incomplete sequence so what we store is well-formed. */
+  if (capped && !title.empty()) {
+    size_t i = title.size();
+    while (i > 0 && (static_cast<unsigned char>(title[i - 1]) & 0xC0) == 0x80) i--;
+    if (i > 0) {
+      unsigned char lead = static_cast<unsigned char>(title[i - 1]);
+      int need = (lead < 0x80) ? 1 : (lead >= 0xF0) ? 4
+               : (lead >= 0xE0) ? 3 : (lead >= 0xC2) ? 2 : 0;
+      size_t have = title.size() - (i - 1);
+      if (need == 0 || have < static_cast<size_t>(need)) title.erase(i - 1);
+    }
+  }
+  return title;
 }
 
 static int extract_status_code(const std::string &response) {
