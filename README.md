@@ -10,10 +10,6 @@
 
 > **Part of the Yuril suite — ypanel.** Kmap is driven from **ypanel**, Yuril Security's unified operator control panel (`https://yurillab.dev/ypanel`): dispatch scans remotely, browse the discovered attack surface, and triage CVE/NSE findings. See [`docs/ypanel.md`](docs/ypanel.md) for the connection model + current status.
 
-> **Internet-scale scanning.** Kmap's headline capability is sweeping large slices of the IPv4 internet from one machine — a randomized, resumable discover → enrich → report pipeline that turns open ports into a queryable, CVE-tagged attack surface. See [`docs/internet-scale-scanning.md`](docs/internet-scale-scanning.md) for the full workflow: sampling, resuming, phase splitting, excludes, sharding, and watchlist monitoring.
-
-> **Built for gaming PCs, not server farms.** Kmap's discovery path is RTT-bound (≈1–2% CPU during a probe wave), so an ordinary desktop can drive internet-scale scans. The `--fast` / `--efficient` modes scale to your hardware and stay capped so the box remains usable. See [`docs/performance.md`](docs/performance.md) for modes, tuning flags, the full env-var reference, and gaming-PC recipes.
-
 > **Query what you collected.** After a scan, `--net-query` searches the persisted store by port, service, CVE, CVSS, ASN, country, web fingerprint, or device class — no re-scan needed. See [`docs/querying.md`](docs/querying.md) for the full filter reference and examples.
 
 ---
@@ -165,53 +161,6 @@ version to fall inside the CVE's range, so a *patched* release is never flagged
 Apache 2.4.52 is never flagged with a bug fixed *in* 2.4.52. A dense same-prefix
 range enriches faster than a scattered sample: its hosts share one ASN lookup
 (the prefix cache collapses many Cymru queries to a few) and answer at lower RTT.
-
-### Which engine wins, and why
-
-| Regime (real targets) | raw-SYN | `connect()` | Why |
-|---|---|---|---|
-| **Sparse** internet sweep (random IPs) | ~38k IPs/sec | 0.2–0.7k IPs/sec | `connect()` pins a worker on every dark IP for the full timeout; raw fires and moves on — its reason to exist |
-| **Dense** responsive `/20` (CDN, ~8k opens) | ~14 s | 3–5 s | bounded by the *inbound path*, not the engine (see below) |
-| **Same `/24`**, open-port parity | 512 / 512 | 512 | identical counts on a fixed range |
-
-All three rows are measured [M]. On the **dense** `/20` the raw engine collected
-its ~8,200 opens at only ~1.3k/s — and **Cloudflare and Fastly paced identically**,
-which pins the limit on our own **residential link** (a stateful router/ISP
-rate-limit on new inbound flows), not on Kmap or the target: the RX captures every
-reply with **zero drops**, and the read path (`pcap_dispatch`) is not the
-bottleneck. `connect()` is faster here because its replies belong to *established*
-handshakes rather than rate-limited new flows; on an unrestricted (datacenter)
-uplink the raw engine is not so bounded. Single-shot raw has no SYN retransmit, so
-at unlimited rate it can miss ~0.2–0.4 % of opens that a retransmitting `connect()`
-catches (e.g. 511 of 512) — close that with a modest `--rate` or the planned
-per-pass `--retries`.
-
-Kmap defaults to **raw-when-available** (the wide sparse sweep is the point), with
-`connect()` as the universal fallback; force either with `KMAP_RAWSYN=1`/`0`. The
-RX drain stops after `KMAP_RAWSYN_DRAIN_MS` (default 2000) elapse with no *new*
-open — time-based, so a dense target's SYN-ACK retransmit storm cannot hold it
-open.
-
-### Binding constraints (reference)
-
-| Path | Value | |
-|---|---|:--:|
-| Raw-SYN TX send rate | ~90,000 pps (templated + batched) | [M] adapter Npcap ceiling; ~9x the old engine |
-| Raw-SYN discovery, sparse real sample | ~28–38k IPs/sec (1–2 send threads) | [M] |
-| Raw-SYN discovery, dense range | inbound-path-limited (~1.3k/s on this residential link) | [M] not engine-bound |
-| `connect()` discovery, 300 workers | ~735 IPs/sec | [M] tracks `workers / per-IP-time` |
-| `connect()` fallback, default 100 workers | ~238 IPs/sec on dark space | [M] `workers / timeout` bound |
-| Worker pool, 32-bit build | capped at 1024 threads (`concurrency × ports`) | [D] address-space guard |
-| Enrichment, dense range | ~6.7 hosts/sec | [M] ASN-deduped; banner + HTTP + TLS RTTs |
-| Enrichment, random sample | ~3.2 hosts/sec | [M] per-host ASN round-trip dominates |
-| `--rate` send cap | unlimited by default (`0`–1e9; `0` = unlimited) | [D] opt-in throttle |
-| Screenshots | ~0.2–1 /sec (serial headless browser) | [D] launch-bound |
-
-> The enrichment recv path now uses a **separate ~2 s read timeout** instead of
-> reusing the 3 s connect timeout — a plain HTTP server never speaks first, so
-> the old code waited the full connect timeout for a banner that never came
-> before sending the GET. Fixing it roughly **doubled enrichment throughput** on
-> dense ranges (a controlled A/B on the same `/24`: 3.4 → 6.7 hosts/sec).
 
 ### Resource usage
 
