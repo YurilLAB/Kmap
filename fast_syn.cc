@@ -1006,7 +1006,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     bool tx_anchored = false;
     RawRxCtx ctx{ l2off, secret, &seen, &rx_opens, &opens_mu, &opens,
                   &drain_anchor_us, manual_rst, &eth, src_in, src_port,
-                  o.ttl ? o.ttl : 64, o.verbose };
+                  o.ttl ? o.ttl : 64, o.verbose != 0 };
     while (!scan_interrupted) {
       /* pcap_dispatch processes a whole kernel-read batch per call (callback per
          packet), so the per-packet kernel round-trip that capped pcap_next_ex /
