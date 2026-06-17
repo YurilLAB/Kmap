@@ -387,9 +387,10 @@ The raw-SYN engine is masscan/zmap-class: it builds the SYN frame once as a
 with an incremental checksum, transmits frames **batched** (Npcap `pcap_sendqueue`
 on Windows), buffers discovered opens **in memory**, and **flushes them to the
 shard DBs after the sweep** (bulk prepared-statement insert) so discovery never
-blocks on SQLite. Measured **~90k pps** TX on the reference adapter (~9× the old
-per-packet loop; that NIC's Npcap ceiling — the architecture goes higher on faster
-send paths). Environment variables that tune it:
+blocks on SQLite. Measured **~90k pps** TX peak and **~28-38k IPs/sec** on a sparse
+real internet sample (~9x the old per-packet loop; ~90k is that NIC's Npcap ceiling
+-- the architecture goes higher on faster send paths). Environment variables that
+tune it:
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -400,11 +401,14 @@ send paths). Environment variables that tune it:
 | `KMAP_RAWSYN_MAX_OPENS` | `1000000` | In-memory open buffer cap before a forced mid-scan spill to the DB (bounds RAM on a very dense sweep). |
 | `KMAP_RAWSYN_MANUAL_RST` | off | Send an explicit RST per open (default off — the kernel RSTs the unbound source port). |
 
-> Against a target that rate-limits unsolicited half-open SYNs (e.g. Cloudflare
-> paces SYN-ACK replies to ~1.3k/s as SYN-flood mitigation), dense-range speed is
-> bounded by the *target*, not Kmap — the RX captures every reply with zero drops.
-> `connect()` completes the handshake so it is not throttled and can be faster
-> against such protected ranges; on a dense range without mitigation the two tie.
+> On a **dense** responsive `/20`, the inbound SYN-ACK rate measured ~1.3k/s and
+> was **identical for Cloudflare and Fastly** — which pins the limit on the
+> residential inbound path (a router/ISP rate-limit on new flows), not on Kmap or
+> the target: the RX captures every reply with zero drops and `pcap_dispatch` is
+> not the bottleneck. `connect()` is faster on dense ranges because its replies
+> belong to established handshakes, not rate-limited new flows; on an unrestricted
+> uplink the raw engine is not so bounded. Sparse internet sweeps (the headline
+> use case) are send-bound and unaffected.
 
 ---
 

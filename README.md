@@ -99,128 +99,113 @@ All per-host features auto-enable `-sV` (service/version detection) and print re
 ## Benchmarks
 
 Kmap discovers with one of two engines. When raw packets are available
-(root/admin **and** an Npcap/libpcap capture device) it runs a **stateless
-raw-SYN engine**: a TX thread blasts cookie-stamped SYNs while a separate RX
-thread validates the SYN-ACKs, carrying **zero per-probe state** (masscan/zmap
-style — the SYN cookie lives in the TCP sequence number). Otherwise it falls
-back to a non-blocking **`connect()` sweep** bounded by how many sockets are in
-flight. Both feed the *same* enrichment pipeline, and enrichment — the bulk of
-any real scan — is **network-bound**: the machine spends its time waiting on
-round-trips, not computing (a `/24`'s discovery burns under 1 second of CPU).
-The send rate is **unlimited by default**; pass `--rate <pps>` to re-engage the
-token-bucket throttle. Every figure is labelled by how it was obtained:
+(root/admin and an Npcap/libpcap capture device) it runs a stateless **raw-SYN
+engine** — a TX thread blasts cookie-stamped SYNs while a separate RX thread
+validates the SYN-ACKs, carrying zero per-probe state (masscan/zmap style: the
+SYN cookie lives in the TCP sequence number). Otherwise it falls back to a
+**`connect()` sweep** bounded by how many sockets are in flight. Both feed the
+same enrichment pipeline. The send rate is unlimited by default; pass
+`--rate <pps>` to throttle.
 
-- 🟢 **Measured** on a real run · 🔵 **Derived** from source constants (a hard
-  ceiling the code cannot exceed) · ⚪ **Run-it-yourself** (depends on your link
-  and target responsiveness).
-
-🟢 numbers are from **Windows 11 Pro, AMD Ryzen 5 5600X (6C/12T), 32 GB**. The
-shipping `kmap.exe` is the 32-bit MSVC (VS 2026) build; the component
-micro-benchmarks are MinGW g++ 16.1 `-O2` linking the real Kmap `.cc`. Reproduce
-with [`bench/`](bench/); behaviour is also verified on Linux in CI
+Each figure is tagged by how it was obtained — **[M]** measured on a real run,
+**[D]** derived from a source constant (a ceiling the code cannot exceed), or
+**[Y]** run-it-yourself (depends on your link and targets). Measured numbers are
+from **Windows 11, Ryzen 5 5600X (6C/12T), 32 GB, Npcap 1.88**, scanning **real
+internet hosts** — no synthetic ranges, no loopback. The binary is the 32-bit
+MSVC build; component micro-benchmarks are MinGW g++ `-O2` linking the real Kmap
+`.cc`. Reproduce with [`bench/`](bench/); Linux behaviour is verified in CI
 ([`fuzz.yml`](.github/workflows/fuzz.yml)).
 
-### Full pipeline, end-to-end on real hosts 🟢
+### Raw-SYN engine
 
-The whole pipeline at once — discovery → service/version detection → CVE matching
-against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS, HTTP, reverse-DNS)
-→ sharded storage → report — on two real runs, **no synthetic targets**. Scan
-*density* is the biggest variable, so both are shown:
+The SYN frame is built once as a 54-byte **template**, then per probe only the
+dst IP, dst port and SYN cookie are patched in with an **incremental (RFC 1624)
+checksum** — no per-packet rebuild, malloc or full re-sum. Frames transmit
+**batched** (one Npcap `pcap_sendqueue` per batch on Windows, a tight `send` loop
+on POSIX), optionally **sharded across N send handles**
+(`KMAP_RAWSYN_TX_THREADS`). The RX captures the burst with `pcap_dispatch` and
+only **buffers opens in memory**; the whole result set is **flushed to the shard
+DBs after the sweep** (one prepared UPSERT reused per shard), so discovery never
+blocks on SQLite and enrichment runs unchanged over the same shards.
 
-| Stage (ports 80/443/22, `--cve-map`) | Dense range (a real `/24`) | Random internet sample |
-|---|---|---|
-| Discovery | 256 IPs in 1.9 s | **5,000 IPs in 7.9 s** (~634 IPs/sec, 300 workers) |
-| Open ports / live hosts | 170 ports / 72 hosts | 128 ports / 81 hosts |
-| Enrichment | **10.7 s — ~6.7 hosts/sec** (avg 2.9 s/host) | 24 s — ~3.4 hosts/sec (avg 3.2 s/host) |
-| ASN origin queries (Cymru) | **2** for 72 hosts (prefix-deduped) | 81 for 81 hosts (sparse → nothing to dedup) |
-| End-to-end wall | **12.7 s** | 31.9 s |
+Sustained discovery on a random internet sample (real IPs, `--discover-only`,
+unlimited rate):
 
-> A **dense range enriches ~2× faster** than a scattered sample: same-prefix
-> hosts share one ASN lookup (the prefix cache collapsed 72 Cymru queries to 2),
-> and datacenter hosts answer in a lower RTT. A random sample instead pays a
-> separate ASN round-trip per host — batching those as a pre-pass is the next
-> throughput lever (roadmap). The scan summary prints both the hosts/sec figure
-> and the ASN dedup ratio so you can see this live.
+| Engine | Throughput | vs `connect()` | |
+|---|---|---|:--:|
+| raw-SYN, 2 send threads | **~38,000 IPs/sec** (500k sample, 13 s) | — | [M] |
+| raw-SYN, 1 send thread | ~28,000 IPs/sec (500k, 18 s) | — | [M] |
+| `connect()`, 300 workers | 735 IPs/sec (50k, 68 s) | raw **~52x faster** | [M] |
+| `connect()`, 100 workers (default) | 238 IPs/sec | raw **~160x faster** | [M] |
 
-> CVE matching is **version-precise**: a match requires the detected version to
-> fall inside the CVE's range, so a *patched* release is never flagged (≈half of
-> raw NVD rows carry no version bound and are not asserted) — e.g. a plain
-> `nginx` web server never gets the Kubernetes *ingress-nginx* CVE-2025-1974, and
-> Apache 2.4.52 is not flagged with a bug fixed *in* 2.4.52.
+Peak TX is **~90,000 pps** on a saturated send (~9x Kmap's prior per-packet SYN
+engine, and this adapter's Npcap per-send ceiling — two separate processes aggregate
+to ~90k). The architecture sustains 100k+ where the send path is faster (Linux
+`sendmmsg`/PF-RING, server NICs). Throughput is send-bound, not `--rate`-bound.
 
-### Raw-SYN vs `connect()` discovery 🟢
+### Full pipeline, end-to-end on real hosts
 
-The raw engine is a true masscan/zmap-class **stateless TX/RX**: the SYN frame is
-built **once** as a 54-byte template and per probe only the dst IP, dst port and
-SYN-cookie are patched in with an **incremental (RFC 1624) checksum** — no
-per-packet rebuild, malloc or full re-sum. Frames go out **batched** (one Npcap
-`pcap_sendqueue` transmit per batch on Windows; a tight `sendmmsg`-style loop on
-POSIX), optionally **sharded across N send handles** (`KMAP_RAWSYN_TX_THREADS`).
-The RX thread only validates + buffers opens **in memory**; the entire result set
-is **flushed to the sharded DBs after the sweep** (bulk prepared-statement
-insert), so discovery never blocks on SQLite and enrichment runs unchanged over
-the same shards.
+The whole pipeline at once — discovery -> service/version detection -> CVE matching
+against the live `kmap-cve.db` -> enrichment (ASN, cloud, TLS, HTTP, reverse-DNS)
+-> sharded storage -> report — on a random internet sample, real hosts only:
 
-| Metric (current 32-bit MSVC build, unlimited rate) | Old per-packet engine | New templated engine | Gain |
+| Stage | 3,000 real IPs, ports 80/443/22 | |
+|---|---|:--:|
+| Discovery (raw) | 3,000 IPs in **3.2 s** (~940 IPs/sec) | [M] |
+| Open ports / live hosts | 90 ports / 50 hosts | [M] |
+| Enrichment (50 live hosts) | **15.6 s — 3.2 hosts/sec** | [M] |
+| ASN origin queries (Cymru) | 50 in 0.67 s (prefix-deduped) | [M] |
+| End-to-end wall | **18.9 s** | [M] |
+
+Real services detected in that run included `nginx/1.24.0 (Ubuntu)`, `Apache`,
+`AkamaiGHost` and `OpenSSH 9.6p1`, with a real CVE matched against the detected
+nginx version. CVE matching is **version-precise**: a match requires the detected
+version to fall inside the CVE's range, so a *patched* release is never flagged
+(about half of raw NVD rows carry no version bound and are not asserted) — e.g.
+Apache 2.4.52 is never flagged with a bug fixed *in* 2.4.52. A dense same-prefix
+range enriches faster than a scattered sample: its hosts share one ASN lookup
+(the prefix cache collapses many Cymru queries to a few) and answer at lower RTT.
+
+### Which engine wins, and why
+
+| Regime (real targets) | raw-SYN | `connect()` | Why |
 |---|---|---|---|
-| **TX send rate**, 1 thread (1 M SYNs, dark range) | ~10,000 pps | **~90,000 pps** | 🟢 **~9×** |
-| **TX send rate**, `KMAP_RAWSYN_TX_THREADS=2` | — | **~90,000 pps** | 🟢 adapter packet-rate ceiling |
-| **RX read rate** (Fastly `/22`, 2,047 opens) | ~745 pkt/s* | **~6,300 pkt/s**, 0 drops | 🟢 **~8×** |
+| **Sparse** internet sweep (random IPs) | ~38k IPs/sec | 0.2–0.7k IPs/sec | `connect()` pins a worker on every dark IP for the full timeout; raw fires and moves on — its reason to exist |
+| **Dense** responsive `/20` (CDN, ~8k opens) | ~14 s | 3–5 s | bounded by the *inbound path*, not the engine (see below) |
+| **Same `/24`**, open-port parity | 512 / 512 | 512 | identical counts on a fixed range |
 
-> *The old RX read each packet through `readip_pcap`, which on Windows toggles
-> pcap non-blocking mode twice per packet (a driver round-trip each). The new RX
-> reads a **buffered** capture handle directly with `pcap_next_ex`, so it keeps
-> up with line-rate bursts (verified `pcap_stats` drop=0).
+All three rows are measured [M]. On the **dense** `/20` the raw engine collected
+its ~8,200 opens at only ~1.3k/s — and **Cloudflare and Fastly paced identically**,
+which pins the limit on our own **residential link** (a stateful router/ISP
+rate-limit on new inbound flows), not on Kmap or the target: the RX captures every
+reply with **zero drops**, and the read path (`pcap_dispatch`) is not the
+bottleneck. `connect()` is faster here because its replies belong to *established*
+handshakes rather than rate-limited new flows; on an unrestricted (datacenter)
+uplink the raw engine is not so bounded. Single-shot raw has no SYN retransmit, so
+at unlimited rate it can miss ~0.2–0.4 % of opens that a retransmitting `connect()`
+catches (e.g. 511 of 512) — close that with a modest `--rate` or the planned
+per-pass `--retries`.
 
-~90k pps is this NIC's Npcap **per-adapter packet-rate ceiling** (two independent
-processes also aggregate to ~90k), so sharding adds little *here*; the same engine
-sustains **100k+** where the send path is faster (Linux `sendmmsg`/PF-RING, server
-NICs). It is **send-bound, not `--rate`-bound** — the token bucket is unlimited by
-default.
+Kmap defaults to **raw-when-available** (the wide sparse sweep is the point), with
+`connect()` as the universal fallback; force either with `KMAP_RAWSYN=1`/`0`. The
+RX drain stops after `KMAP_RAWSYN_DRAIN_MS` (default 2000) elapse with no *new*
+open — time-based, so a dense target's SYN-ACK retransmit storm cannot hold it
+open.
 
-**The two engines still win in opposite regimes**, but for a *different* reason
-than first thought:
+### Binding constraints (reference)
 
-| Target (ports 80/443) | Density | Raw-SYN | `connect()` | Note |
-|---|---|---|---|---|
-| Random **50,000** sample | sparse (~3 % open) | 🟢 **far faster** | slow | `connect()` waits out the per-IP timeout on dark space; raw fires and moves on |
-| **Fastly `/22`** (2,047 opens) | dense, no anti-scan | **~3 s** | ~3 s | raw RX keeps up at line rate — competitive |
-| **Cloudflare `/20`** (8,190 opens) | dense, **SYN-flood mitigated** | ~14 s | **~2 s** | external rate-limit, *not* the engine — see below |
-
-> The Cloudflare gap is **not** Kmap: the RX captures every response with **zero
-> drops**, but Cloudflare's SYN-flood mitigation **paces SYN-ACK replies to our
-> *half-open* raw SYNs to ~1.3k/s**. `connect()` completes the handshake, so its
-> replies are treated as legitimate and not throttled — which is why it is faster
-> *against that specific protected target*. On a dense range without such
-> mitigation (Fastly) the engines tie. Completeness: single-shot raw has no SYN
-> retransmit, so at unlimited rate it can miss ~0.2–0.4 % of opens that a
-> retransmitting `connect()` catches (511–510 / 512 here) — close with a modest
-> `--rate` or the planned per-pass `--retries`.
-
-Kmap defaults to **raw-when-available** (the wide sparse sweep is the point) with
-`connect()` as the universal fallback; force either with `KMAP_RAWSYN=1`/`0`.
-
-The raw RX stops draining after `KMAP_RAWSYN_DRAIN_MS` (default **2000 ms**)
-elapse **with no *new* open discovered** (time-based, anchored at TX-completion).
-This is deliberately not a count-of-silent-reads: a dense target retransmits
-SYN-ACKs for ~10 s, so silence never arrives — but those are deduped and don't
-extend the window, while a genuine late first response (a straggler) does.
-
-### Network throughput — the binding constraints
-
-| Metric | Value | Notes |
-|---|---|---|
-| Raw-SYN **TX send rate** | **~90,000 pps** (templated + batched, 1 thread) | 🟢 ~9× the old per-packet engine; this NIC's Npcap per-adapter ceiling |
-| `connect()` discovery, **measured** | **~634 IPs/sec** (300 conc × 3 ports = 900 workers) | 🟢 random sample; tracks `workers / per-IP-time` exactly |
-| `connect()` fallback, **default** (100 conc) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` bound — no `--rate` cap engaged |
-| `connect()` fallback, **tuned** (1000 conc, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` (the raw engine sidesteps this entirely) |
-| Discovery on **responsive** hosts | `workers / RTT` (≫ the dark floor) | ⚪ live hosts answer in ~1 RTT, not the full timeout |
-| Worker pool, **32-bit build** | capped at **1024 threads** (`concurrency × ports`) | 🟢 address-space guard; `--fast` auto-scales up to the cap |
-| Enrichment, **dense range** | **~6.7 hosts/sec** (avg 2.9 s/host) | 🟢 ASN-deduped; banner + HTTP + TLS RTTs |
-| Enrichment, **random sample** | **~3.4 hosts/sec** (avg 3.2 s/host) | 🟢 per-host ASN round-trip dominates |
-| Enrichment, **ceiling** | ~40 → ~850 hosts/sec (concurrency 40 → 256, fast hosts) | ⚪ `enrich_concurrency / avg_host_time` |
-| `--rate` send rate (token bucket) | **unlimited by default** (`0`–1e9 configurable; `0` = unlimited) | 🔵 opt-in throttle, not the default throughput |
-| Screenshots | ~0.2–1 /sec (one headless browser per web port, serial) | 🔵 launch-bound; parallelising it is on the roadmap |
+| Path | Value | |
+|---|---|:--:|
+| Raw-SYN TX send rate | ~90,000 pps (templated + batched) | [M] adapter Npcap ceiling; ~9x the old engine |
+| Raw-SYN discovery, sparse real sample | ~28–38k IPs/sec (1–2 send threads) | [M] |
+| Raw-SYN discovery, dense range | inbound-path-limited (~1.3k/s on this residential link) | [M] not engine-bound |
+| `connect()` discovery, 300 workers | ~735 IPs/sec | [M] tracks `workers / per-IP-time` |
+| `connect()` fallback, default 100 workers | ~238 IPs/sec on dark space | [M] `workers / timeout` bound |
+| Worker pool, 32-bit build | capped at 1024 threads (`concurrency × ports`) | [D] address-space guard |
+| Enrichment, dense range | ~6.7 hosts/sec | [M] ASN-deduped; banner + HTTP + TLS RTTs |
+| Enrichment, random sample | ~3.2 hosts/sec | [M] per-host ASN round-trip dominates |
+| `--rate` send cap | unlimited by default (`0`–1e9; `0` = unlimited) | [D] opt-in throttle |
+| Screenshots | ~0.2–1 /sec (serial headless browser) | [D] launch-bound |
 
 > The enrichment recv path now uses a **separate ~2 s read timeout** instead of
 > reusing the 3 s connect timeout — a plain HTTP server never speaks first, so
@@ -228,7 +213,7 @@ extend the window, while a genuine late first response (a straggler) does.
 > before sending the GET. Fixing it roughly **doubled enrichment throughput** on
 > dense ranges (a controlled A/B on the same `/24`: 3.4 → 6.7 hosts/sec).
 
-### Resource usage 🟢
+### Resource usage
 
 Network-bound, so the host machine is barely touched:
 
@@ -248,15 +233,15 @@ Network-bound, so the host machine is barely touched:
 
 | Metric | Value | How |
 |---|---|---|
-| DB write (Stage-C, 1 shard, 1 thread) | **~8,060 enriched hosts/sec** (56.4 K row-ops/sec) | 🟢 `bench/bench_db 200000` |
-| On-disk size per enriched host | **~1.86 KB** (1 port + 5 fingerprints + ASN/cloud/TLS) | 🟢 `bench/bench_db` |
-| **Growth per 1 billion IPs scanned** | **~8.7 GB** @0.5% · **~17 GB** @1% · **~35 GB** @2% open-port rate | 🟢 derived from 1.86 KB/host |
-| Bundled CVE database | ~5.05 MB | 🟢 |
+| DB write (Stage-C, 1 shard, 1 thread) | **~8,060 enriched hosts/sec** (56.4 K row-ops/sec) | [M] `bench/bench_db 200000` |
+| On-disk size per enriched host | **~1.86 KB** (1 port + 5 fingerprints + ASN/cloud/TLS) | [M] `bench/bench_db` |
+| **Growth per 1 billion IPs scanned** | **~8.7 GB** @0.5% · **~17 GB** @1% · **~35 GB** @2% open-port rate | [D] from 1.86 KB/host |
+| Bundled CVE database | ~5.05 MB | [M] |
 
 > Only IPs with an open port are stored, so DB growth tracks *discovered hosts*,
 > not addresses swept — ~0.3–1 GB/shard across the 32 shards at a 1–2 % hit rate.
 
-### CPU primitives — ceilings (single-thread) 🟢
+### CPU primitives — ceilings (single-thread)
 
 Real enrichment is network-bound and runs far below these, which is the whole
 point: **CPU is never the bottleneck.**
@@ -272,17 +257,16 @@ point: **CPU is never the bottleneck.**
 
 > IP generation runs orders of magnitude faster than any real link or NIC send
 > rate, so the address pipeline never limits a sweep — even with `--rate`
-> unlimited the bottleneck is `send_tcp_raw`/the socket layer, never permutation.
+> unlimited the bottleneck is the NIC/driver send rate, never permutation.
 
-> **Honest headline:** a single-port sweep at shipped defaults is thread-bound at
-> **~200 IPs/sec on filtered space** — tune `KMAP_NETSCAN_CONCURRENCY` (512–1024)
-> and `KMAP_PROBE_TIMEOUT_MS` for internet-scale rates; real ranges go far faster
-> because live hosts answer in ~1 RTT. The largest planned speedup — an async
-> epoll/IOCP connect engine (~100× on dark space) — and the rest of the backlog
-> are tracked in [`docs/performance-roadmap.md`](docs/performance-roadmap.md).
+> The unprivileged `connect()` fallback (no raw packets) is thread-bound at
+> ~200–700 IPs/sec depending on `KMAP_NETSCAN_CONCURRENCY`; the largest planned
+> speedup there is an async epoll/IOCP connect engine (~100x on dark space),
+> tracked with the rest of the backlog in
+> [`docs/performance-roadmap.md`](docs/performance-roadmap.md).
 
 Methodology and the full env-var reference live in
-[`docs/performance.md`](docs/performance.md). Reproduce the 🟢 component numbers
+[`docs/performance.md`](docs/performance.md). Reproduce the [M] component numbers
 with [`bench/`](bench/) and the live network/RAM numbers with
 [`bench/measure-live.sh`](bench/measure-live.sh).
 

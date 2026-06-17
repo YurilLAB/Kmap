@@ -54,7 +54,7 @@ NID_commonName,...)` (`net_enrich.cc:1151`). Add a sibling call with
 `NID_organizationName` → a new `tls_subject_org` column (mirror the cpe/cloud
 column pattern: schema + migration + `NetHost` field + `get_host` index +
 `net_db_update_tls` param + both Stage-C sites). This gives the
-**`--entity-graph` a direct `cert──issued_to──▶org` edge** (today the org node is
+**`--entity-graph` a direct `cert --issued_to--> org` edge** (today the org node is
 the AS owner) and is fully offline + locally verifiable — it should land as the
 next concrete step, independent of the online client.
 

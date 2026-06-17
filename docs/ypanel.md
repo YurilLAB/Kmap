@@ -17,10 +17,10 @@ the DireC **activation worker** (the operator plane), and ingests the structured
 results.
 
 ```
-  ypanel ──scan job──▶ activation worker ──job──▶ Kmap runner (kmap CLI)
-  (browser)            (operator plane)            │ runs the scan
-       ▲                                           ▼
-       └────────── results (hosts/services/findings) ◀── XML/JSON output
+  ypanel --scan job--> activation worker --job--> Kmap runner (kmap CLI)
+  (browser)            (operator plane)           | runs the scan
+       ^                                          v
+       \---------- results (hosts/services/findings) <-- XML/JSON output
 ```
 
 - A **scan job** carries the target (host / CIDR / hostname), profile

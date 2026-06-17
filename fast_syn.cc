@@ -816,6 +816,65 @@ static inline void syn_template_patch(const SynTemplate &t, uint8_t *out,
   st_wr16(out + ST_TCP_CSUM, ts);
 }
 
+/* RX state shared with the pcap_dispatch callback (one RX thread, so the only
+   lock is opens_mu guarding the open buffer against the spill writer). */
+struct RawRxCtx {
+  int l2off;
+  uint64_t secret;
+  std::set<uint64_t> *seen;
+  std::vector<OpenRec> *rx_opens;
+  std::mutex *opens_mu;
+  std::atomic<uint64_t> *opens;
+  int64_t *drain_anchor_us;   /* bumped on each NEW open */
+  bool manual_rst;
+  const struct eth_nfo *eth;
+  struct in_addr src_in;
+  uint16_t src_port;
+  int ttl;
+  bool verbose;
+};
+
+/* pcap_dispatch callback: validate one captured frame's SYN-ACK cookie, dedup,
+   and buffer the open.  pcap_dispatch hands us a whole kernel-read batch per
+   call, so the per-packet kernel round-trip that capped pcap_next_ex at
+   ~1.5k pkt/s on Npcap is amortised across the batch. */
+static void raw_rx_cb(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) {
+  RawRxCtx *c = reinterpret_cast<RawRxCtx *>(user);
+  if (!h || !bytes || h->caplen <= (bpf_u_int32)c->l2off) return;
+  const u8 *ipp = bytes + c->l2off;
+  unsigned int iplen = h->caplen - (unsigned)c->l2off;
+  if (iplen < 40) return;
+  unsigned ihl = (ipp[0] & 0x0f) * 4;
+  if (ihl < 20 || iplen < ihl + 20) return;
+  const u8 *t = ipp + ihl;
+  if ((t[13] & 0x12) != 0x12) return;  /* not SYN+ACK */
+  uint32_t rip = ((uint32_t)ipp[12] << 24) | ((uint32_t)ipp[13] << 16) |
+                 ((uint32_t)ipp[14] << 8) | (uint32_t)ipp[15];
+  uint16_t rport = ((uint16_t)t[0] << 8) | t[1];
+  uint32_t rack = ((uint32_t)t[8] << 24) | ((uint32_t)t[9] << 16) |
+                  ((uint32_t)t[10] << 8) | (uint32_t)t[11];
+  if (rack - 1 != raw_syn_cookie(rip, rport, c->secret)) return;  /* not ours */
+  uint64_t key = ((uint64_t)rip << 16) | (uint64_t)rport;
+  if (!c->seen->insert(key).second) return;  /* retransmit -- already handled */
+  *c->drain_anchor_us = now_usec();          /* NEW open extends the drain */
+  if (c->manual_rst) {
+    struct in_addr rvictim;
+    rvictim.s_addr = htonl(rip);
+    send_tcp_raw(-1, c->eth, &c->src_in, &rvictim, c->ttl, true,
+                 nullptr, 0, c->src_port, rport, rack, 0, 0, TH_RST, 0, 0,
+                 nullptr, 0, nullptr, 0);
+  }
+  {
+    std::lock_guard<std::mutex> lk(*c->opens_mu);
+    c->rx_opens->push_back({rip, rport, (int64_t)time(nullptr)});
+    if (c->verbose) {
+      std::string s = u32_to_ip(rip);
+      log_write(LOG_STDOUT, "  OPEN %s:%u\n", s.c_str(), (unsigned)rport);
+    }
+  }
+  c->opens->fetch_add(1, std::memory_order_relaxed);
+}
+
 static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
                               const std::vector<int> &ports, int rate_pps,
                               const std::vector<ExcludeRange> &excludes,
@@ -937,78 +996,33 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   int rx_dl = pcap_datalink(pd);
   int l2off = (rx_dl == DLT_NULL) ? 4 : (rx_dl == DLT_RAW) ? 0 : 14;
 
-  /* ---- 4. RX thread: validate SYN-ACK cookies, insert opens ---- */
+  /* ---- 4. RX thread: validate SYN-ACK cookies, buffer opens ---- */
   std::thread rx([&]() {
-    /* Distinct opens already reported -- dedups SYN-ACK retransmits. Holds one
-       entry per OPEN port (scales with results, not probes), single-thread so
-       no lock needed. */
+    /* `seen` dedups SYN-ACK retransmits; one entry per OPEN port (scales with
+       results, not probes). Single RX thread -> no lock on it. */
     std::set<uint64_t> seen;
     const int64_t drain_us = (int64_t)drain_ms * 1000;
     int64_t drain_anchor_us = now_usec();  /* last NEW open, or TX-completion */
     bool tx_anchored = false;
+    RawRxCtx ctx{ l2off, secret, &seen, &rx_opens, &opens_mu, &opens,
+                  &drain_anchor_us, manual_rst, &eth, src_in, src_port,
+                  o.ttl ? o.ttl : 64, o.verbose };
     while (!scan_interrupted) {
-      /* Read the next frame directly via pcap_next_ex.  We deliberately do NOT
-         use readip_pcap()/read_reply_pcap() here: on Windows that path toggles
-         pcap non-blocking mode TWICE per packet (a driver round-trip each), which
-         capped the RX at ~750 pkt/s and made a dense /20 take ~13 s just to dequeue
-         its SYN-ACKs.  pd is in immediate mode with mintocopy=0, so pcap_next_ex
-         returns each frame as it arrives and returns 0 after the open's to_ms when
-         idle (which the time-based drain below handles). */
-      struct pcap_pkthdr *phdr = nullptr;
-      const u_char *pdata = nullptr;
-      int prc = pcap_next_ex(pd, &phdr, &pdata);
-      if (prc == PCAP_ERROR) break;  /* capture handle died */
-      const u8 *ipp = nullptr;
-      unsigned int iplen = 0;
-      if (prc == 1 && pdata && phdr && phdr->caplen > (bpf_u_int32)l2off) {
-        ipp = pdata + l2off;
-        iplen = phdr->caplen - (unsigned)l2off;
-      }
+      /* pcap_dispatch processes a whole kernel-read batch per call (callback per
+         packet), so the per-packet kernel round-trip that capped pcap_next_ex /
+         readip_pcap at ~1.5k pkt/s on Npcap is amortised across the batch.  We do
+         NOT use readip_pcap(): on Windows it toggles pcap non-blocking mode twice
+         per packet.  pd is a buffered handle (my_pcap_open_live_buffered), so a
+         dense range's SYN-ACK burst is captured and drained in big batches. */
+      int n = pcap_dispatch(pd, 1024, raw_rx_cb, reinterpret_cast<u_char *>(&ctx));
+      if (n == PCAP_ERROR) break;  /* capture handle died */
       /* Re-anchor the drain window to the moment TX finished, so a final
-         in-flight SYN-ACK still gets a full drain_ms regardless of how long ago
-         the last open was seen. */
+         in-flight SYN-ACK still gets a full drain_ms; a NEW open (in the callback)
+         pushes it out further, deduped retransmits do not. */
       if (tx_done.load(std::memory_order_acquire)) {
         if (!tx_anchored) { tx_anchored = true; drain_anchor_us = now_usec(); }
         if (now_usec() - drain_anchor_us >= drain_us) break;  /* drain_ms since last NEW open */
       }
-      if (!ipp) continue;
-      if (iplen < 40) continue;
-      unsigned ihl = (ipp[0] & 0x0f) * 4;
-      if (ihl < 20 || iplen < ihl + 20) continue;
-      const u8 *t = ipp + ihl;
-      if ((t[13] & 0x12) != 0x12) continue;  /* not SYN+ACK */
-      uint32_t rip = ((uint32_t)ipp[12] << 24) | ((uint32_t)ipp[13] << 16) |
-                     ((uint32_t)ipp[14] << 8) | (uint32_t)ipp[15];
-      uint16_t rport = ((uint16_t)t[0] << 8) | t[1];
-      uint32_t rack = ((uint32_t)t[8] << 24) | ((uint32_t)t[9] << 16) |
-                      ((uint32_t)t[10] << 8) | (uint32_t)t[11];
-      if (rack - 1 != raw_syn_cookie(rip, rport, secret)) continue;  /* not ours */
-      uint64_t key = ((uint64_t)rip << 16) | (uint64_t)rport;
-      if (!seen.insert(key).second) continue;  /* retransmit -- already handled */
-      /* A NEW open: push the drain deadline out.  Deduped retransmits above never
-         reach here, so a dense range's retransmit storm cannot extend the drain;
-         a genuine late first response (straggler) does. */
-      drain_anchor_us = now_usec();
-      /* Optional explicit RST (default off -- the kernel RSTs the unbound source
-         port for us).  Off the DB path; only built when the operator opts in. */
-      if (manual_rst) {
-        struct in_addr rvictim;
-        rvictim.s_addr = htonl(rip);
-        send_tcp_raw(-1, &eth, &src_in, &rvictim, o.ttl ? o.ttl : 64, true,
-                     nullptr, 0, src_port, rport, rack, 0, 0, TH_RST, 0, 0,
-                     nullptr, 0, nullptr, 0);
-      }
-      /* Buffer the open; the DB write happens off the hot path (post-scan /
-         periodic flush). Single short critical section, no sqlite under lock. */
-      {
-        std::lock_guard<std::mutex> lk(opens_mu);
-        rx_opens.push_back({rip, rport, (int64_t)time(nullptr)});
-        if (o.verbose) {
-          std::string s = u32_to_ip(rip);
-          log_write(LOG_STDOUT, "  OPEN %s:%u\n", s.c_str(), (unsigned)rport);
-        }
-      }
-      opens.fetch_add(1, std::memory_order_relaxed);
     }
   });
 
