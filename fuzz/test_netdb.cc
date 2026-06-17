@@ -262,6 +262,11 @@ int main() {
   }
 
   printf("\nnet_db live test: %d passed, %d failed\n", passes, fails);
+  net_db_close(db);   /* close the connection so LeakSanitizer sees no leak --
+                         net_db_count_unenriched's COUNT(DISTINCT ip) holds a
+                         temp b-tree on the connection (temp_store=MEMORY) that
+                         is only freed on close; the real code always closes its
+                         shards (close_all_shards). */
   remove("test_netdb.db");
   return fails ? 1 : 0;
 }
