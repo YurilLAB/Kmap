@@ -29,6 +29,9 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <vector>
+#include <memory>
+#include <cstdint>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -649,6 +652,170 @@ static inline uint32_t raw_syn_cookie(uint32_t ip_host, uint16_t port, uint64_t 
   return (uint32_t)x;
 }
 
+/* An open port found by the RX thread, buffered in memory during the blast and
+   flushed to the shard DBs after the sweep (decoupled from the RX hot path so a
+   per-open sqlite write no longer serialises discovery). 16 bytes. */
+struct OpenRec { uint32_t ip; uint16_t port; int64_t ts; };
+
+/* Insert every buffered open into the shard DBs (within the transaction the
+   caller already opened on each shard -- see net_db_begin at the top of
+   fast_syn_scan).  Swaps the buffer out under the lock so the RX thread can keep
+   appending while the (single) writer thread does the sqlite work lock-free. */
+static void flush_opens(std::vector<sqlite3 *> &shards,
+                        std::vector<OpenRec> &rx_opens, std::mutex &opens_mu) {
+  std::vector<OpenRec> batch;
+  { std::lock_guard<std::mutex> lk(opens_mu); batch.swap(rx_opens); }
+  if (batch.empty()) return;
+  /* Group opens by shard, then bulk-insert each shard with ONE prepared
+     statement reused across its rows.  Per-row net_db_insert_host re-compiled
+     the UPSERT every call (~1.3 ms/row), which made flushing a dense /20's 8192
+     opens take ~10 s -- the real reason raw lost to connect() on dense ranges. */
+  std::vector<std::vector<NetDbOpen>> by_shard(shards.size());
+  for (const auto &r : batch) {
+    int s = net_shard_index(r.ip);
+    if (s >= 0 && s < (int)shards.size() && shards[s])
+      by_shard[s].push_back({r.ip, (int)r.port, r.ts});
+  }
+  for (size_t s = 0; s < shards.size(); s++)
+    if (shards[s] && !by_shard[s].empty())
+      net_db_insert_opens_bulk(shards[s], by_shard[s].data(), by_shard[s].size());
+}
+
+/* Batched, lock-free token-bucket wait for the single TX thread: acquire n
+   tokens at once (one check per flushed batch instead of one per packet).
+   Returns immediately when unlimited (the default).  No mutex -- only the TX
+   thread touches the bucket. */
+static void rate_wait_batch(RateLimiter &rl, int n) {
+  if (rl.unlimited) return;
+  while (!scan_interrupted) {
+    int64_t now = now_usec();
+    double elapsed = (double)(now - rl.last_refill);
+    rl.tokens += elapsed * rl.refill_rate;
+    if (rl.tokens > rl.max_tokens) rl.tokens = rl.max_tokens;
+    rl.last_refill = now;
+    if (rl.tokens >= (double)n) { rl.tokens -= (double)n; return; }
+#ifdef WIN32
+    Sleep(1);
+#else
+    usleep(100);
+#endif
+  }
+}
+
+/* ---- Per-probe packet template (masscan/zmap-style) -----------------------
+   The 54-byte Ethernet+IP+TCP SYN frame is constant except for the destination
+   IP, destination port, and sequence (the cookie).  We build it ONCE via the
+   canonical build_tcp_raw() (byte-for-byte parity with the per-packet path),
+   then per probe patch only those three fields and fix the IP and TCP checksums
+   INCREMENTALLY (RFC 1624) instead of rebuilding + re-summing the whole packet.
+   That removes the 3 malloc/free + full checksum + per-call header build that
+   capped the old TX loop near ~10k pps. */
+#ifndef DLT_EN10MB
+#define DLT_EN10MB 1
+#endif
+
+/* RFC 1624: update a one's-complement checksum HC when a 16-bit header word
+   changes from old_word to new_word.  Works in the same big-endian word space
+   the checksum is stored in, so it stays consistent with the on-wire bytes. */
+static inline uint16_t csum_patch(uint16_t hc, uint16_t old_word, uint16_t new_word) {
+  uint32_t sum = (uint16_t)~hc;       /* ~HC  */
+  sum += (uint16_t)~old_word;         /* + ~m */
+  sum += new_word;                    /* + m' */
+  while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+  return (uint16_t)~sum;
+}
+
+/* Frame field offsets for DLT_EN10MB (eth=14, ip=20, tcp=20). */
+enum {
+  ST_IP        = 14,
+  ST_IP_CSUM   = 14 + 10,   /* IP header checksum     */
+  ST_IP_DST    = 14 + 16,   /* IP destination address */
+  ST_TCP_DPORT = 34 + 2,    /* TCP destination port   */
+  ST_TCP_SEQ   = 34 + 4,    /* TCP sequence number    */
+  ST_TCP_CSUM  = 34 + 16    /* TCP checksum           */
+};
+
+static inline uint16_t st_rd16(const uint8_t *p) { return (uint16_t)((p[0] << 8) | p[1]); }
+static inline void st_wr16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
+static inline void st_wr32(uint8_t *p, uint32_t v) {
+  p[0] = (uint8_t)(v >> 24); p[1] = (uint8_t)(v >> 16);
+  p[2] = (uint8_t)(v >> 8);  p[3] = (uint8_t)v;
+}
+
+struct SynTemplate {
+  bool     usable;        /* false if datalink isn't Ethernet -> per-packet fallback */
+  uint8_t  frame[54];     /* eth(14) + ip(20) + tcp(20), no options/payload */
+  uint16_t base_ip_sum;   /* IP checksum with dst IP = 0            */
+  uint16_t base_tcp_sum;  /* TCP checksum with dst IP/dport/seq = 0 */
+};
+
+static void syn_template_init(SynTemplate &t, const struct eth_nfo &eth,
+                              const struct in_addr &src, uint16_t sport,
+                              int ttl, uint16_t ipid, int datalink) {
+  memset(&t, 0, sizeof(t));
+  if (datalink != DLT_EN10MB) { t.usable = false; return; }
+
+  /* Ethernet header: dst mac | src mac | 0x0800 (IPv4). */
+  memcpy(t.frame + 0, eth.dstmac, 6);
+  memcpy(t.frame + 6, eth.srcmac, 6);
+  t.frame[12] = 0x08; t.frame[13] = 0x00;
+
+  /* IP+TCP via the canonical builder.  victim 0.0.0.0 and dport 0 are already
+     the "base" for those fields; the placeholder seq we subtract out below. */
+  struct in_addr victim0; victim0.s_addr = 0;
+  const uint32_t PLACEHOLDER_SEQ = 0xDEADBEEFu;
+  u32 plen = 0;
+  u8 *iptcp = build_tcp_raw(&src, &victim0, ttl, ipid, 0 /*tos*/, true /*df*/,
+                            nullptr, 0, sport, 0 /*dport*/,
+                            PLACEHOLDER_SEQ, 0 /*ack*/, 0 /*reserved*/, TH_SYN,
+                            1024 /*window*/, 0 /*urp*/, nullptr, 0, nullptr, 0, &plen);
+  if (!iptcp || plen != 40) { if (iptcp) free(iptcp); t.usable = false; return; }
+  memcpy(t.frame + ST_IP, iptcp, 40);
+  free(iptcp);
+
+  /* Cache the base checksums.  dst IP and dport are already 0 in the frame, so
+     their contribution is already absent; the placeholder seq is present, so
+     subtract it out to get the seq=0 base. */
+  uint16_t ip_sum  = st_rd16(t.frame + ST_IP_CSUM);
+  uint16_t tcp_sum = st_rd16(t.frame + ST_TCP_CSUM);
+  tcp_sum = csum_patch(tcp_sum, (uint16_t)(PLACEHOLDER_SEQ >> 16), 0);
+  tcp_sum = csum_patch(tcp_sum, (uint16_t)(PLACEHOLDER_SEQ & 0xFFFF), 0);
+  t.base_ip_sum  = ip_sum;
+  t.base_tcp_sum = tcp_sum;
+
+  /* Zero the mutable fields in the stored frame (overwritten per probe anyway). */
+  st_wr32(t.frame + ST_IP_DST, 0);
+  st_wr16(t.frame + ST_TCP_DPORT, 0);
+  st_wr32(t.frame + ST_TCP_SEQ, 0);
+  t.usable = true;
+}
+
+/* Patch dst IP, dst port, and seq (all host order) into a 54-byte output frame
+   and fix both checksums incrementally.  out must be at least 54 bytes. */
+static inline void syn_template_patch(const SynTemplate &t, uint8_t *out,
+                                      uint32_t ip, uint16_t port, uint32_t cookie) {
+  memcpy(out, t.frame, 54);
+  st_wr32(out + ST_IP_DST, ip);
+  st_wr16(out + ST_TCP_DPORT, port);
+  st_wr32(out + ST_TCP_SEQ, cookie);
+
+  uint16_t ih = (uint16_t)(ip >> 16),     il = (uint16_t)(ip & 0xFFFF);
+  uint16_t sh = (uint16_t)(cookie >> 16), sl = (uint16_t)(cookie & 0xFFFF);
+
+  /* IP checksum: only dst IP changed (from 0). */
+  uint16_t ips = csum_patch(t.base_ip_sum, 0, ih);
+  ips = csum_patch(ips, 0, il);
+  st_wr16(out + ST_IP_CSUM, ips);
+
+  /* TCP checksum: dst IP (pseudo-header), dst port, seq changed (all from 0). */
+  uint16_t ts = csum_patch(t.base_tcp_sum, 0, ih);
+  ts = csum_patch(ts, 0, il);
+  ts = csum_patch(ts, 0, port);
+  ts = csum_patch(ts, 0, sh);
+  ts = csum_patch(ts, 0, sl);
+  st_wr16(out + ST_TCP_CSUM, ts);
+}
+
 static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
                               const std::vector<int> &ports, int rate_pps,
                               const std::vector<ExcludeRange> &excludes,
@@ -689,7 +856,12 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   strncpy(eth.devname, rnfo.ii.devfullname, sizeof(eth.devname) - 1);
 
   /* ---- 3. Open the pcap RX handle with a tight SYN-ACK filter ---- */
-  pcap_t *pd = my_pcap_open_live(rnfo.ii.devfullname, 100, 0, 10);
+  /* Buffered (NOT immediate-mode) capture with a big kernel buffer: the RX must
+     absorb a dense range's whole SYN-ACK burst and read it in batches.  Immediate
+     mode delivers one packet per kernel round-trip (~0.8 ms), which capped the RX
+     at ~1200 pkt/s and made a dense /20 take ~13 s. */
+  pcap_t *pd = my_pcap_open_live_buffered(rnfo.ii.devfullname, 100, 0, 100,
+                                          32 * 1024 * 1024);
   if (!pd) {
     eth_close_cached();
     log_write(LOG_STDOUT, "  raw: could not open pcap for receive; using connect() mode\n");
@@ -718,23 +890,52 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   std::atomic<bool> tx_done{false};
   std::atomic<uint64_t> opens{0};
   std::atomic<uint64_t> sent{0};
-  std::mutex db_mu;
+
+  /* Opens are buffered here during the blast and flushed to the shard DBs after
+     the sweep (or periodically when the buffer grows), NOT written one-per-open
+     on the RX hot path.  That decoupling is what lets the raw engine win on
+     dense ranges too (the old per-open sqlite write cost ~1.3 ms each).  The RX
+     thread is the only appender; the TX/main thread is the only DB writer, so
+     opens_mu guards just the vector (swapped out cheaply in flush_opens). */
+  std::vector<OpenRec> rx_opens;
+  rx_opens.reserve(8192);
+  std::mutex opens_mu;
+  /* The kernel auto-RSTs an unsolicited SYN-ACK arriving on our unbound source
+     port (RFC 793), so the half-open connection is torn down for free and an
+     explicit RST per open is redundant -- masscan/zmap omit it in stateless
+     mode for exactly this reason.  Dropping it removes a full build+checksum+
+     send from the RX hot path.  Set KMAP_RAWSYN_MANUAL_RST=1 to restore the
+     explicit RST (e.g. if a host's stack is seen retransmitting SYN-ACKs). */
+  bool manual_rst = (getenv("KMAP_RAWSYN_MANUAL_RST") != nullptr);
+  /* Hard cap on buffered opens before a forced spill, so an extreme dense sweep
+     can't grow rx_opens without bound between the 60 s checkpoints. 1,000,000
+     opens ~= 16 MB. Tunable. */
+  size_t max_opens = 1000000;
+  if (const char *e = getenv("KMAP_RAWSYN_MAX_OPENS")) {
+    long v = atol(e);
+    if (v >= 1000 && v <= 100000000L) max_opens = (size_t)v;
+  }
 
   /* Post-TX drain window: after the TX loop finishes, keep reading until this
-   * many ms of TOTAL silence (no packets at all) elapse. Each empty
-   * readip_pcap() returns after ~100 ms, so the threshold is drain_ms/100
-   * empty reads. The silence timer resets on ANY received packet, so a large
-   * scan's SYN-ACK tail keeps the RX alive -- only trailing dead air is
-   * bounded. Default 2000 ms: enough to catch high-RTT stragglers without the
-   * old flat 4 s tail dominating small scans. Tunable for tighter latency
-   * (lower) or chasing distant hosts (higher). */
+   * many ms elapse with no NEW open discovered (TIME-based, not empty-read
+   * counted).  This must be time-based: on a dense range the hosts retransmit
+   * SYN-ACKs for their half-open connections for ~10 s, so readip_pcap() keeps
+   * returning packets (never an empty read) -- a count-of-empty-reads drain
+   * would never fire and the scan would hang ~14 s on retransmit noise.  Tracking
+   * "time since the last NEW open" instead means deduped retransmits cannot keep
+   * the drain alive, while a genuine late FIRST response (a straggler) is a new
+   * open and does extend it.  The window is anchored at TX-completion so a final
+   * in-flight response still gets a full drain_ms to arrive.  Default 2000 ms. */
   int drain_ms = 2000;
   if (const char *e = getenv("KMAP_RAWSYN_DRAIN_MS")) {
     int v = atoi(e);
     if (v >= 100 && v <= 60000) drain_ms = v;
   }
-  int drain_limit = drain_ms / 100;
-  if (drain_limit < 1) drain_limit = 1;
+
+  /* Link-layer header length of the RX handle, so we can read frames directly
+     with pcap_next_ex (see the RX loop).  Ethernet is the internet-scan case. */
+  int rx_dl = pcap_datalink(pd);
+  int l2off = (rx_dl == DLT_NULL) ? 4 : (rx_dl == DLT_RAW) ? 0 : 14;
 
   /* ---- 4. RX thread: validate SYN-ACK cookies, insert opens ---- */
   std::thread rx([&]() {
@@ -742,17 +943,35 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
        entry per OPEN port (scales with results, not probes), single-thread so
        no lock needed. */
     std::set<uint64_t> seen;
-    int drain_empty = 0;
+    const int64_t drain_us = (int64_t)drain_ms * 1000;
+    int64_t drain_anchor_us = now_usec();  /* last NEW open, or TX-completion */
+    bool tx_anchored = false;
     while (!scan_interrupted) {
+      /* Read the next frame directly via pcap_next_ex.  We deliberately do NOT
+         use readip_pcap()/read_reply_pcap() here: on Windows that path toggles
+         pcap non-blocking mode TWICE per packet (a driver round-trip each), which
+         capped the RX at ~750 pkt/s and made a dense /20 take ~13 s just to dequeue
+         its SYN-ACKs.  pd is in immediate mode with mintocopy=0, so pcap_next_ex
+         returns each frame as it arrives and returns 0 after the open's to_ms when
+         idle (which the time-based drain below handles). */
+      struct pcap_pkthdr *phdr = nullptr;
+      const u_char *pdata = nullptr;
+      int prc = pcap_next_ex(pd, &phdr, &pdata);
+      if (prc == PCAP_ERROR) break;  /* capture handle died */
+      const u8 *ipp = nullptr;
       unsigned int iplen = 0;
-      struct timeval rcvd;
-      const u8 *ipp = readip_pcap(pd, &iplen, 100000, &rcvd, nullptr, true);
-      if (!ipp) {
-        if (tx_done.load(std::memory_order_acquire) && ++drain_empty >= drain_limit)
-          break;  /* TX done + drain_ms of silence -> stop draining */
-        continue;
+      if (prc == 1 && pdata && phdr && phdr->caplen > (bpf_u_int32)l2off) {
+        ipp = pdata + l2off;
+        iplen = phdr->caplen - (unsigned)l2off;
       }
-      drain_empty = 0;
+      /* Re-anchor the drain window to the moment TX finished, so a final
+         in-flight SYN-ACK still gets a full drain_ms regardless of how long ago
+         the last open was seen. */
+      if (tx_done.load(std::memory_order_acquire)) {
+        if (!tx_anchored) { tx_anchored = true; drain_anchor_us = now_usec(); }
+        if (now_usec() - drain_anchor_us >= drain_us) break;  /* drain_ms since last NEW open */
+      }
+      if (!ipp) continue;
       if (iplen < 40) continue;
       unsigned ihl = (ipp[0] & 0x0f) * 4;
       if (ihl < 20 || iplen < ihl + 20) continue;
@@ -766,84 +985,254 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
       if (rack - 1 != raw_syn_cookie(rip, rport, secret)) continue;  /* not ours */
       uint64_t key = ((uint64_t)rip << 16) | (uint64_t)rport;
       if (!seen.insert(key).second) continue;  /* retransmit -- already handled */
-      /* RST the half-open connection: polite to the target AND stops the
-         host's SYN-ACK retransmits. seq = the value the host expects next
-         (its SYN-ACK's ack number). */
-      struct in_addr rvictim;
-      rvictim.s_addr = htonl(rip);
-      send_tcp_raw(-1, &eth, &src_in, &rvictim, o.ttl ? o.ttl : 64, true,
-                   nullptr, 0, src_port, rport, rack, 0, 0, TH_RST, 0, 0,
-                   nullptr, 0, nullptr, 0);
-      int shard_idx = net_shard_index(rip);
-      sqlite3 *db = (shard_idx >= 0 && shard_idx < (int)shards.size())
-                      ? shards[shard_idx] : nullptr;
-      if (db) {
-        std::lock_guard<std::mutex> lk(db_mu);
-        net_db_insert_host(db, rip, (int)rport, "tcp", (int64_t)time(nullptr));
+      /* A NEW open: push the drain deadline out.  Deduped retransmits above never
+         reach here, so a dense range's retransmit storm cannot extend the drain;
+         a genuine late first response (straggler) does. */
+      drain_anchor_us = now_usec();
+      /* Optional explicit RST (default off -- the kernel RSTs the unbound source
+         port for us).  Off the DB path; only built when the operator opts in. */
+      if (manual_rst) {
+        struct in_addr rvictim;
+        rvictim.s_addr = htonl(rip);
+        send_tcp_raw(-1, &eth, &src_in, &rvictim, o.ttl ? o.ttl : 64, true,
+                     nullptr, 0, src_port, rport, rack, 0, 0, TH_RST, 0, 0,
+                     nullptr, 0, nullptr, 0);
+      }
+      /* Buffer the open; the DB write happens off the hot path (post-scan /
+         periodic flush). Single short critical section, no sqlite under lock. */
+      {
+        std::lock_guard<std::mutex> lk(opens_mu);
+        rx_opens.push_back({rip, rport, (int64_t)time(nullptr)});
+        if (o.verbose) {
+          std::string s = u32_to_ip(rip);
+          log_write(LOG_STDOUT, "  OPEN %s:%u\n", s.c_str(), (unsigned)rport);
+        }
       }
       opens.fetch_add(1, std::memory_order_relaxed);
-      if (o.verbose) {
-        std::string s = u32_to_ip(rip);
-        std::lock_guard<std::mutex> lk(db_mu);
-        log_write(LOG_STDOUT, "  OPEN %s:%u\n", s.c_str(), (unsigned)rport);
-      }
     }
   });
 
-  /* ---- 5. TX loop: blast SYNs across the permuted space at rate ---- */
-  RateLimiter rl;
-  rate_init(rl, rate_pps);
-  std::mutex rate_mu;
-  time_t last_ckpt = time(nullptr);
-  time_t last_status = time(nullptr);
+  /* ---- 5. TX: blast SYNs across the permuted space ----
+     One or more TX threads (KMAP_RAWSYN_TX_THREADS, default 1).  A single Npcap
+     send handle saturates near ~70-75k pps on a typical NIC; sharding the
+     address space across N threads, each with its OWN send handle, pushes the
+     aggregate toward the adapter's packet-rate ceiling (zmap's multi-sender
+     trick).  Thread t walks idx = start+t, start+t+N, ... so the union covers
+     the whole range with no overlap; permute_ip()/target_base are stateless, so
+     the split needs no shared cursor. */
+  int datalink = netutil_eth_datalink(ethsd);
+  SynTemplate tpl;
+  syn_template_init(tpl, eth, src_in, src_port, o.ttl ? o.ttl : 64,
+                    (uint16_t)(seed & 0xFFFF), datalink);
+  bool use_tpl = tpl.usable;
+
+  /* Frames accumulated before one transmit (Windows pcap_sendqueue = one kernel
+     call per batch) or one throttle check (POSIX per-frame send). Env-tunable. */
+  int batch = 64;
+  if (const char *e = getenv("KMAP_RAWSYN_BATCH")) {
+    int v = atoi(e);
+    if (v >= 1 && v <= 1024) batch = v;
+  }
+
+  int tx_threads = 1;
+  if (const char *e = getenv("KMAP_RAWSYN_TX_THREADS")) {
+    int v = atoi(e);
+    if (v >= 1 && v <= 16) tx_threads = v;
+  }
+
+  /* One send handle per TX thread.  Thread 0 reuses the cached handle; extra
+     threads open their own (a single handle is not safe for concurrent send). */
+  std::vector<netutil_eth_t *> txh(tx_threads, nullptr);
+  std::vector<bool> txh_owned(tx_threads, false);
+  txh[0] = ethsd;
+  for (int t = 1; t < tx_threads; t++) {
+    txh[t] = netutil_eth_open(rnfo.ii.devfullname);
+    if (!txh[t]) {  /* couldn't open an extra handle -> degrade to one thread */
+      for (int u = 1; u < t; u++) if (txh_owned[u]) netutil_eth_close(txh[u]);
+      tx_threads = 1;
+      txh.resize(1);
+      txh_owned.resize(1);
+      log_write(LOG_STDOUT, "  raw: extra TX handle open failed; using 1 TX thread\n");
+      break;
+    }
+    txh_owned[t] = true;
+  }
+
+  log_write(LOG_STDOUT, "  TX mode: %s, batch=%d, tx-threads=%d\n",
+            use_tpl ? "templated+batched" : "per-packet (fallback)",
+            batch, tx_threads);
+
+  const uint64_t start_index = cp.next_index;
+  std::unique_ptr<std::atomic<uint64_t>[]> tx_cur(new std::atomic<uint64_t>[tx_threads]);
+  for (int t = 0; t < tx_threads; t++)
+    tx_cur[t].store(start_index, std::memory_order_relaxed);
+
   time_t scan_start = time(nullptr);
-  uint64_t idx = cp.next_index;
-  for (; idx < scan_end && !scan_interrupted; idx++) {
-    uint32_t ip = (target_count > 0)
-                    ? static_cast<uint32_t>(target_base + idx)
-                    : permute_ip(idx, seed);
-    if (ip == src_ip_host || is_excluded(ip, excludes)) continue;
-    struct in_addr victim;
-    victim.s_addr = htonl(ip);
-    for (size_t pi = 0; pi < ports.size(); pi++) {
-      if (scan_interrupted) break;
-      rate_wait(rl, rate_mu);
-      uint32_t cookie = raw_syn_cookie(ip, (uint16_t)ports[pi], secret);
-      send_tcp_raw(-1, &eth, &src_in, &victim, o.ttl ? o.ttl : 64, true,
-                   nullptr, 0, src_port, (u16)ports[pi],
-                   cookie, 0, 0, TH_SYN, 1024, 0, nullptr, 0, nullptr, 0);
-      sent.fetch_add(1, std::memory_order_relaxed);
+
+  /* The per-thread TX worker.  `leader` (thread 0) also prints status and writes
+     periodic checkpoints; the others just send. */
+  auto tx_worker = [&](int t, bool leader) {
+    netutil_eth_t *h = txh[t];
+    RateLimiter rl;
+    /* Split the global rate across the TX threads so the aggregate honours
+       --rate; unlimited (the default) stays unlimited per thread. */
+    rate_init(rl, rate_pps > 0 ? (rate_pps / tx_threads > 0 ? rate_pps / tx_threads : 1) : 0);
+    if (!rl.unlimited && rl.max_tokens < (double)batch) rl.max_tokens = (double)batch;
+
+    bool tpl_ok = use_tpl;
+#ifdef WIN32
+    pcap_t *pt = tpl_ok ? (pcap_t *)netutil_eth_pcap_handle(h) : nullptr;
+    pcap_send_queue *sq = nullptr;
+    if (tpl_ok && pt) {
+      unsigned slot = (unsigned)(sizeof(struct pcap_pkthdr) + 54);
+      sq = pcap_sendqueue_alloc((unsigned)batch * slot + 128);
     }
-    time_t nowt = time(nullptr);
-    if (nowt - last_status >= 10) {
-      double el = (double)(nowt - scan_start) + 0.001;
-      double pct = scan_end > cp.next_index
-                     ? 100.0 * (double)(idx - cp.next_index) / (double)(scan_end - cp.next_index)
-                     : 100.0;
-      log_write(LOG_STDOUT,
-        "  raw: %.1f%% | sent %llu | open %llu | %.0f pps\n",
-        pct, (unsigned long long)sent.load(), (unsigned long long)opens.load(),
-        (double)sent.load() / el);
-      last_status = nowt;
+#else
+    std::vector<uint8_t> pbuf;
+    if (tpl_ok) pbuf.resize((size_t)batch * 54);
+    size_t pcount = 0;
+#endif
+    uint8_t fbuf[54];
+    size_t inbatch = 0;
+    time_t last_ckpt = scan_start, last_status = scan_start;
+
+    /* Flush the accumulated batch (templated path), pacing first. */
+    auto flush_tx = [&]() {
+      if (!inbatch) return;
+      rate_wait_batch(rl, (int)inbatch);
+#ifdef WIN32
+      if (sq) { pcap_sendqueue_transmit(pt, sq, 0); sq->len = 0; }
+#else
+      for (size_t k = 0; k < pcount; k++) netutil_eth_send(h, &pbuf[k * 54], 54);
+      pcount = 0;
+#endif
+      inbatch = 0;
+    };
+
+    for (uint64_t idx = start_index + (uint64_t)t;
+         idx < scan_end && !scan_interrupted;
+         idx += (uint64_t)tx_threads) {
+      uint32_t ip = (target_count > 0)
+                      ? static_cast<uint32_t>(target_base + idx)
+                      : permute_ip(idx, seed);
+      tx_cur[t].store(idx, std::memory_order_relaxed);
+      if (ip == src_ip_host || is_excluded(ip, excludes)) continue;
+      struct in_addr victim;
+      victim.s_addr = htonl(ip);
+      for (size_t pi = 0; pi < ports.size(); pi++) {
+        if (scan_interrupted) break;
+        uint32_t cookie = raw_syn_cookie(ip, (uint16_t)ports[pi], secret);
+        if (tpl_ok) {
+          syn_template_patch(tpl, fbuf, ip, (uint16_t)ports[pi], cookie);
+#ifdef WIN32
+          if (sq) {
+            struct pcap_pkthdr ph;
+            memset(&ph, 0, sizeof(ph));
+            ph.caplen = 54; ph.len = 54;
+            pcap_sendqueue_queue(sq, &ph, fbuf);
+          } else {
+            pcap_inject(pt, fbuf, 54);   /* no sendqueue -> per-frame inject */
+          }
+#else
+          memcpy(&pbuf[pcount * 54], fbuf, 54);
+          pcount++;
+#endif
+          sent.fetch_add(1, std::memory_order_relaxed);
+          if (++inbatch >= (size_t)batch) flush_tx();
+        } else {
+          struct eth_nfo eth_h = eth;
+          eth_h.ethsd = h;
+          rate_wait_batch(rl, 1);
+          send_tcp_raw(-1, &eth_h, &src_in, &victim, o.ttl ? o.ttl : 64, true,
+                       nullptr, 0, src_port, (u16)ports[pi],
+                       cookie, 0, 0, TH_SYN, 1024, 0, nullptr, 0, nullptr, 0);
+          sent.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+      if (leader) {
+        time_t nowt = time(nullptr);
+        if (nowt - last_status >= 10) {
+          double el = (double)(nowt - scan_start) + 0.001;
+          double pct = scan_end > start_index
+                         ? 100.0 * (double)(idx - start_index) / (double)(scan_end - start_index)
+                         : 100.0;
+          if (pct > 100.0) pct = 100.0;
+          log_write(LOG_STDOUT,
+            "  raw: %.1f%% | sent %llu | open %llu | %.0f pps\n",
+            pct, (unsigned long long)sent.load(), (unsigned long long)opens.load(),
+            (double)sent.load() / el);
+          last_status = nowt;
+          /* Hard memory guard: spill if the open buffer grew past the cap
+             between checkpoints (keeps the open set bounded on dense sweeps). */
+          size_t cur;
+          { std::lock_guard<std::mutex> lk(opens_mu); cur = rx_opens.size(); }
+          if (cur >= max_opens) {
+            flush_opens(shards, rx_opens, opens_mu);
+            for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
+          }
+        }
+        if (nowt - last_ckpt >= 60) {
+          /* Persist buffered opens into the open shard transactions at the same
+             60 s cadence the per-open path used, then checkpoint at the lowest
+             index any thread has not yet passed. */
+          flush_opens(shards, rx_opens, opens_mu);
+          for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
+          uint64_t lo = scan_end;
+          for (int u = 0; u < tx_threads; u++) {
+            uint64_t v = tx_cur[u].load(std::memory_order_relaxed);
+            if (v < lo) lo = v;
+          }
+          cp.next_index = lo;
+          cp.packets_sent = sent.load();
+          cp.hosts_found = opens.load();
+          cp.last_save = nowt;
+          save_checkpoint(data_dir, cp);
+          last_ckpt = nowt;
+        }
+      }
     }
-    if (nowt - last_ckpt >= 60) {
-      for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
-      cp.next_index = idx;
-      cp.packets_sent = sent.load();
-      cp.hosts_found = opens.load();
-      cp.last_save = nowt;
-      save_checkpoint(data_dir, cp);
-      last_ckpt = nowt;
-    }
+    flush_tx();
+#ifdef WIN32
+    if (sq) pcap_sendqueue_destroy(sq);
+#endif
+  };
+
+  if (tx_threads == 1) {
+    tx_worker(0, true);
+  } else {
+    std::vector<std::thread> workers;
+    for (int t = 1; t < tx_threads; t++)
+      workers.emplace_back([&, t]() { tx_worker(t, false); });
+    tx_worker(0, true);              /* leader runs inline */
+    for (auto &w : workers) w.join();
   }
 
   tx_done.store(true, std::memory_order_release);
   rx.join();
 
-  cp.next_index = scan_interrupted ? idx
-                  : (target_count > 0 ? scan_end : IP_SPACE);
+  /* RX has joined: drain the remaining buffered opens into the (still-open)
+     shard transactions.  The caller commits them (see the fast_syn_scan tail),
+     then enrichment / CVE / report run unchanged over the same shard DBs. */
+  flush_opens(shards, rx_opens, opens_mu);
+
+  /* Resume point: the lowest index any thread had not yet passed.  Everything
+     below it was sent; a few duplicates above it on resume are harmless (SYNs
+     are idempotent and opens dedup). */
+  if (scan_interrupted) {
+    uint64_t lo = scan_end;
+    for (int t = 0; t < tx_threads; t++) {
+      uint64_t v = tx_cur[t].load(std::memory_order_relaxed);
+      if (v < lo) lo = v;
+    }
+    cp.next_index = lo;
+  } else {
+    cp.next_index = (target_count > 0) ? scan_end : IP_SPACE;
+  }
   cp.packets_sent = sent.load();
   cp.hosts_found = opens.load();
+
+  for (int t = 0; t < tx_threads; t++)
+    if (txh_owned[t]) netutil_eth_close(txh[t]);
 
   pcap_close(pd);
   eth_close_cached();

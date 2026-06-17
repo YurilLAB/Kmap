@@ -382,12 +382,29 @@ kmap --net-scan --watchlist assets.txt
 | `--findings-dir <d>` | `Findings` | Report output |
 | `--watchlist <f>` | — | Fixed-target monitoring with diff report |
 
-Two environment variables tune the raw-SYN engine: `KMAP_RAWSYN=1`/`0` forces it
-on or off (default: on when raw packets are available), and
-`KMAP_RAWSYN_DRAIN_MS` (default `2000`) sets how long the RX thread keeps reading
-after the TX loop ends — the silence timer resets on any packet, so only the
-trailing dead air is bounded. Lower it for tighter small-scan latency, raise it
-to chase high-RTT stragglers.
+The raw-SYN engine is masscan/zmap-class: it builds the SYN frame once as a
+54-byte template and per probe patches only the dst IP, dst port and SYN-cookie
+with an incremental checksum, transmits frames **batched** (Npcap `pcap_sendqueue`
+on Windows), buffers discovered opens **in memory**, and **flushes them to the
+shard DBs after the sweep** (bulk prepared-statement insert) so discovery never
+blocks on SQLite. Measured **~90k pps** TX on the reference adapter (~9× the old
+per-packet loop; that NIC's Npcap ceiling — the architecture goes higher on faster
+send paths). Environment variables that tune it:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `KMAP_RAWSYN` | auto (on when raw packets available) | `1`/`0` forces the raw engine on/off |
+| `KMAP_RAWSYN_TX_THREADS` | `1` | Send-handle shards (each its own pcap handle); raise to approach the adapter's aggregate packet rate. A few duplicate probes on `--net-resume` are harmless. |
+| `KMAP_RAWSYN_BATCH` | `64` | Frames per transmit (1–1024). |
+| `KMAP_RAWSYN_DRAIN_MS` | `2000` | Time the RX keeps reading after TX ends, measured as **silence since the last *new* open** (deduped retransmits do not extend it; a late first response does). Lower for tighter small-scan latency, raise to chase high-RTT stragglers. |
+| `KMAP_RAWSYN_MAX_OPENS` | `1000000` | In-memory open buffer cap before a forced mid-scan spill to the DB (bounds RAM on a very dense sweep). |
+| `KMAP_RAWSYN_MANUAL_RST` | off | Send an explicit RST per open (default off — the kernel RSTs the unbound source port). |
+
+> Against a target that rate-limits unsolicited half-open SYNs (e.g. Cloudflare
+> paces SYN-ACK replies to ~1.3k/s as SYN-flood mitigation), dense-range speed is
+> bounded by the *target*, not Kmap — the RX captures every reply with zero drops.
+> `connect()` completes the handshake so it is not throttled and can be faster
+> against such protected ranges; on a dense range without mitigation the two tie.
 
 ---
 

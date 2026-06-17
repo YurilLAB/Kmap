@@ -301,6 +301,14 @@ void netutil_eth_close(netutil_eth_t *e);
 ssize_t netutil_eth_send(netutil_eth_t *e, const void *buf, size_t len);
 int netutil_eth_datalink(const netutil_eth_t *e);
 int netutil_eth_can_send(const netutil_eth_t *e);
+#ifdef WIN32
+/* Windows sends L2 frames through libpcap (pcap_inject), so the eth handle wraps
+   a pcap_t*.  Expose it (as void* to avoid forcing pcap.h on every includer) so a
+   caller can batch frames via pcap_sendqueue_* for high-rate transmit.  Returns
+   NULL if unavailable.  POSIX uses dnet's eth_t and has no pcap handle, so this
+   is WIN32-only. */
+void *netutil_eth_pcap_handle(const netutil_eth_t *e);
+#endif
 
 /* See the description for eth_open_cached */
 void eth_close_cached();
@@ -489,6 +497,10 @@ int Sendto(const char *functionname, int sd, const unsigned char *packet,
  * checking.  Prints an error and fatal()s if the call fails, so a
  * valid pcap_t will always be returned. */
 pcap_t *my_pcap_open_live(const char *device, int snaplen, int promisc, int to_ms);
+/* High-rate bulk-capture variant: no immediate mode, large kernel buffer.
+   bufsize is the capture buffer in bytes (0 = default). */
+pcap_t *my_pcap_open_live_buffered(const char *device, int snaplen, int promisc,
+                                   int to_ms, int bufsize);
 
 /* Set a pcap filter */
 void set_pcap_filter(const char *device, pcap_t *pd, const char *bpf, ...);

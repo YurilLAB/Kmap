@@ -150,40 +150,67 @@ against the live `kmap-cve.db` → enrichment (ASN, cloud, TLS, HTTP, reverse-DN
 
 ### Raw-SYN vs `connect()` discovery 🟢
 
-Both engines were run on the **same real targets** (current 32-bit MSVC build,
-unlimited rate, `--discover-only`). The open-port counts are **identical** on
-the deterministic same-IP runs, so the only variable is speed:
+The raw engine is a true masscan/zmap-class **stateless TX/RX**: the SYN frame is
+built **once** as a 54-byte template and per probe only the dst IP, dst port and
+SYN-cookie are patched in with an **incremental (RFC 1624) checksum** — no
+per-packet rebuild, malloc or full re-sum. Frames go out **batched** (one Npcap
+`pcap_sendqueue` transmit per batch on Windows; a tight `sendmmsg`-style loop on
+POSIX), optionally **sharded across N send handles** (`KMAP_RAWSYN_TX_THREADS`).
+The RX thread only validates + buffers opens **in memory**; the entire result set
+is **flushed to the sharded DBs after the sweep** (bulk prepared-statement
+insert), so discovery never blocks on SQLite and enrichment runs unchanged over
+the same shards.
 
-| Target (ports) | Density | Raw-SYN | `connect()` | Faster |
+| Metric (current 32-bit MSVC build, unlimited rate) | Old per-packet engine | New templated engine | Gain |
+|---|---|---|---|
+| **TX send rate**, 1 thread (1 M SYNs, dark range) | ~10,000 pps | **~90,000 pps** | 🟢 **~9×** |
+| **TX send rate**, `KMAP_RAWSYN_TX_THREADS=2` | — | **~90,000 pps** | 🟢 adapter packet-rate ceiling |
+| **RX read rate** (Fastly `/22`, 2,047 opens) | ~745 pkt/s* | **~6,300 pkt/s**, 0 drops | 🟢 **~8×** |
+
+> *The old RX read each packet through `readip_pcap`, which on Windows toggles
+> pcap non-blocking mode twice per packet (a driver round-trip each). The new RX
+> reads a **buffered** capture handle directly with `pcap_next_ex`, so it keeps
+> up with line-rate bursts (verified `pcap_stats` drop=0).
+
+~90k pps is this NIC's Npcap **per-adapter packet-rate ceiling** (two independent
+processes also aggregate to ~90k), so sharding adds little *here*; the same engine
+sustains **100k+** where the send path is faster (Linux `sendmmsg`/PF-RING, server
+NICs). It is **send-bound, not `--rate`-bound** — the token bucket is unlimited by
+default.
+
+**The two engines still win in opposite regimes**, but for a *different* reason
+than first thought:
+
+| Target (ports 80/443) | Density | Raw-SYN | `connect()` | Note |
 |---|---|---|---|---|
-| Random **50,000** sample (80/443/22) | sparse (~3 % open) | **13.7 s** / 1612 opens | 60.4 s / 1610 opens | 🟢 **raw 4.4×** |
-| Cloudflare **`/20`** (80/443, same 4096 IPs) | dense (100 %) | 13.2 s / **8192** | **2.5 s** / **8192** | connect 5.3× |
-| Cloudflare **`/24`** (80/443/22, same 256 IPs) | dense | 2.6 s / **512** | 1.5 s / **512** | connect |
+| Random **50,000** sample | sparse (~3 % open) | 🟢 **far faster** | slow | `connect()` waits out the per-IP timeout on dark space; raw fires and moves on |
+| **Fastly `/22`** (2,047 opens) | dense, no anti-scan | **~3 s** | ~3 s | raw RX keeps up at line rate — competitive |
+| **Cloudflare `/20`** (8,190 opens) | dense, **SYN-flood mitigated** | ~14 s | **~2 s** | external rate-limit, *not* the engine — see below |
 
-> **The two engines win in opposite regimes.** On **sparse internet-scale**
-> space — the headline `--net-scan` use case — raw is far faster (4.4× here)
-> because `connect()` burns its worker pool waiting out the per-IP timeout on
-> dark addresses, while raw just fires a SYN and moves on. On **dense,
-> responsive** ranges `connect()` wins: live hosts answer in ~1 RTT so the pool
-> churns quickly, whereas raw pays a serial RX cost per open port (cookie
-> validate + a RST syscall + a sharded-SQLite insert), and the synchronous RST
-> send dominates when nearly every probe is a hit. Kmap therefore defaults to
-> **raw-when-available** (the wide sweep is the point) and keeps `connect()` as
-> the universal fallback. Force either with `KMAP_RAWSYN=1`/`0`. Completeness is
-> equal in both (single-shot raw has no SYN retransmit, so on lossy paths it can
-> miss a few hosts a retransmitting `connect()` would catch — a per-pass
-> `--retries` option is the next raw-engine lever).
+> The Cloudflare gap is **not** Kmap: the RX captures every response with **zero
+> drops**, but Cloudflare's SYN-flood mitigation **paces SYN-ACK replies to our
+> *half-open* raw SYNs to ~1.3k/s**. `connect()` completes the handshake, so its
+> replies are treated as legitimate and not throttled — which is why it is faster
+> *against that specific protected target*. On a dense range without such
+> mitigation (Fastly) the engines tie. Completeness: single-shot raw has no SYN
+> retransmit, so at unlimited rate it can miss ~0.2–0.4 % of opens that a
+> retransmitting `connect()` catches (511–510 / 512 here) — close with a modest
+> `--rate` or the planned per-pass `--retries`.
 
-The raw RX keeps reading until `KMAP_RAWSYN_DRAIN_MS` (default **2000 ms**) of
-total silence after the TX loop ends; the timer resets on any packet, so a large
-scan's SYN-ACK tail is never cut short — only the trailing dead air is bounded.
-Lower it for tighter small-scan latency, raise it to chase high-RTT stragglers.
+Kmap defaults to **raw-when-available** (the wide sparse sweep is the point) with
+`connect()` as the universal fallback; force either with `KMAP_RAWSYN=1`/`0`.
+
+The raw RX stops draining after `KMAP_RAWSYN_DRAIN_MS` (default **2000 ms**)
+elapse **with no *new* open discovered** (time-based, anchored at TX-completion).
+This is deliberately not a count-of-silent-reads: a dense target retransmits
+SYN-ACKs for ~10 s, so silence never arrives — but those are deduped and don't
+extend the window, while a genuine late first response (a straggler) does.
 
 ### Network throughput — the binding constraints
 
 | Metric | Value | Notes |
 |---|---|---|
-| Raw-SYN discovery, **sparse** | **~3,650 IPs/sec** (50k sample, unlimited rate) | 🟢 send-bound by `send_tcp_raw` cost (~10k pps), not `--rate` |
+| Raw-SYN **TX send rate** | **~90,000 pps** (templated + batched, 1 thread) | 🟢 ~9× the old per-packet engine; this NIC's Npcap per-adapter ceiling |
 | `connect()` discovery, **measured** | **~634 IPs/sec** (300 conc × 3 ports = 900 workers) | 🟢 random sample; tracks `workers / per-IP-time` exactly |
 | `connect()` fallback, **default** (100 conc) | **~200 IPs/sec** on dark space | 🔵 `workers / timeout` bound — no `--rate` cap engaged |
 | `connect()` fallback, **tuned** (1000 conc, 100 ms timeout) | **~10,000 IPs/sec** | 🔵 raise `KMAP_NETSCAN_CONCURRENCY` (the raw engine sidesteps this entirely) |

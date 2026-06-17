@@ -378,6 +378,40 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
   return -1;
 }
 
+int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n) {
+  if (!db || !recs || n == 0) return 0;
+
+  /* Same UPSERT as net_db_insert_host, but the statement is compiled ONCE and
+     reused (reset+bind+step) for all n rows.  net_db_insert_host re-ran
+     sqlite3_prepare_v2 per call, which on a dense sweep meant thousands of SQL
+     compilations -- the dominant cost of the post-discovery flush. */
+  static const char *sql =
+    "INSERT INTO hosts (ip, port, proto, first_seen, last_seen, scan_count) "
+    "VALUES (?, ?, 'tcp', ?, ?, 1) "
+    "ON CONFLICT(ip, port) DO UPDATE SET "
+    "  last_seen  = excluded.last_seen, "
+    "  scan_count = scan_count + 1";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return -1;
+
+  int written = 0;
+  for (size_t i = 0; i < n; i++) {
+    std::string ip_str = u32_to_ip(recs[i].ip);
+    sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, recs[i].port);
+    sqlite3_bind_int64(stmt, 3, recs[i].ts);
+    sqlite3_bind_int64(stmt, 4, recs[i].ts);
+    if (sqlite3_step_retry(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0)
+      written++;
+    sqlite3_reset(stmt);
+    sqlite3_clear_bindings(stmt);
+  }
+  sqlite3_finalize(stmt);
+  return written;
+}
+
 int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
                              const char *service, const char *version,
                              const char *cves_json,

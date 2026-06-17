@@ -18,9 +18,11 @@ thread for the whole probe timeout, so the fallback rate is `workers / timeout` 
 about **200 IPs/sec at shipped defaults** (100 workers, 500 ms). The send rate is
 now **unlimited by default** (the old 25k-pps `--rate` ceiling was removed; pass
 `--rate` to throttle), so on the connect path `workers / timeout` is the only
-ceiling and on the raw path it is the per-packet `send_tcp_raw` cost (~10k pps on
-the reference box). Everything downstream (CPU primitives at 10⁷–10⁹ ops/sec, DB
-writes at ~7,900 hosts/sec) has ample headroom. **The connect fallback is still
+ceiling and on the raw path it is now the **NIC/driver packet rate** — the
+templated+batched TX sustains **~90k pps** (≈9× the old per-packet `send_tcp_raw`
+loop), which is this adapter's Npcap per-send ceiling and crosses into
+masscan/zmap territory on faster send paths. Everything downstream (CPU primitives
+at 10⁷–10⁹ ops/sec, the bulk-insert DB flush) has ample headroom. **The connect fallback is still
 the ceiling on dark space**, and item #1 (async connect) targets exactly that;
 the raw engine already removes it where privileges allow.
 
@@ -34,8 +36,8 @@ the raw engine already removes it where privileges allow.
 | 4 | Enrichment (`net_enrich.cc`) | **Batch the ASN lookup** out of the synchronous Stage-B worker (rDNS is already batched; ASN was left behind and blocks up to 2 s/host). | Removes up to 2 s worst-case blocking per host | Med |
 | 5 | Enrichment RAM (`net_enrich.cc`) | **Per-shard flush / rolling window** instead of one global `results` vector across all 32 shards. | Up to **32× lower** enrichment peak RSS | Med |
 | 6 | Enrichment (`net_enrich.cc`) | **Gate or pipeline the favicon GET** (an extra TCP connect per web host) behind a flag, or fold it onto a keep-alive socket. | ~15–30% fewer connects on web hosts | Low |
-| 7 | Discovery (`fast_syn.cc`) | ✅ **SHIPPED** — stateless **raw-SYN engine** (pcap TX/RX, SYN cookie in the TCP sequence number, RST-on-hit). Default when raw packets are available; `connect()` stays the universal fallback. **Measured 4.4× over `connect()`** on a sparse 50k sample; identical open-port counts on same-IP runs. Follow-on levers: **(7a)** move the per-open RST + sharded-SQLite insert off the RX hot path (it dominates on *dense* ranges, where `connect()` currently still wins); **(7b)** add a stateless per-pass `--retries` to close the single-shot completeness gap on lossy paths. | Shipped; 7a/7b: Med | Done |
-| 8 | DB write (`net_db.cc`) | **Per-shard prepared statements** (`reset`+`bind`, `SQLITE_STATIC`, IP as int64) instead of `prepare_v2`+`finalize` per row, on both insert and Stage-C update paths. | 5–10× lower per-insert CPU, zero heap churn (matters once #1/#7 raise the probe rate) | Low |
+| 7 | Discovery (`fast_syn.cc`) | ✅ **SHIPPED + upgraded to masscan/zmap-class.** Stateless raw-SYN engine, now with a **54-byte packet template** patched per probe with an **incremental (RFC 1624) checksum** (no per-packet rebuild/malloc/re-sum); **batched transmit** (Npcap `pcap_sendqueue` on Windows, tight `netutil_eth_send` loop on POSIX); optional **multi-handle TX sharding** (`KMAP_RAWSYN_TX_THREADS`); **decoupled RX** — opens buffered in memory and **flushed after the sweep** (7a done), so discovery never blocks on SQLite; a **buffered `pcap_next_ex` RX** (bypasses the Windows nonblock-toggle in `readip_pcap`, ~745→~6,300 pkt/s, `pcap_stats` drop=0); and a **time-based drain** (silence since last *new* open, immune to retransmit storms). **Measured ~10k→~90k pps TX (~9×)**, ~90k being this adapter's Npcap ceiling. Dense-range note: where a target rate-limits half-open SYNs (e.g. Cloudflare paces SYN-ACKs to ~1.3k/s) the limit is external, not the engine — Fastly `/22` (no mitigation) ties `connect()`. **(7b)** stateless per-pass `--retries` is still open — closes the ~0.2–0.4 % single-shot completeness gap at unlimited rate. | Shipped; 7b: Med | Done |
+| 8 | DB write (`net_db.cc`) | ✅ **SHIPPED (insert path)** — `net_db_insert_opens_bulk()` prepares the UPSERT **once** and reuses it (reset+bind+step) for the whole post-discovery flush, grouped per shard, instead of `prepare_v2`+`finalize` per row. Removes the per-row SQL recompile from the decoupled flush. The Stage-C enrichment `UPDATE` path can still get the same treatment. | Insert done; update: Low | Mostly done |
 | 9 | Enrichment CPU (`net_enrich.cc`) | **Cache the `os_profile`/HTTP-request string per host** (currently rebuilt up to 3× per port). | Small CPU; free hps at high concurrency | Low |
 | 10 | Async path (`net_scan.cc`) | Give the async pre-pass **per-worker `cve_db` handles** rather than the shared handle. | Unblocks horizontal scaling of the async path | Low |
 | 11 | DB IO (`net_db.cc`) | `PRAGMA page_size=8192` + `mmap_size` **before first write** (shrinks overflow-page chains for `cves`/`web_headers` blobs and the fingerprints B-tree). | Modest IO + tighter on-disk size at full-sweep scale | Low |

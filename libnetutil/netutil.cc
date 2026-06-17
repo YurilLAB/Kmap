@@ -973,6 +973,13 @@ int netutil_eth_datalink(const netutil_eth_t *e) {
 }
 
 #ifdef WIN32
+void *netutil_eth_pcap_handle(const netutil_eth_t *e) {
+  if (e) return (void *)e->pt;
+  return NULL;
+}
+#endif
+
+#ifdef WIN32
 #define eth_handle(_eth) (_eth->pt)
 #define eth_handle_send pcap_inject
 #define eth_handle_close pcap_close
@@ -4244,6 +4251,54 @@ pcap_t *my_pcap_open_live(const char *device, int snaplen, int promisc, int to_m
   pcap_setuserbuffer(pt, 1000000);
 #endif
 
+  return pt;
+}
+
+/* Like my_pcap_open_live but tuned for HIGH-RATE bulk capture instead of
+   low-latency single replies: it does NOT enable immediate mode (which makes
+   Npcap deliver one packet per kernel round-trip -- ~0.8 ms each, capping a
+   capture at ~1200 pkt/s) and instead uses a large kernel buffer so a burst of
+   responses is buffered and read in batches.  Used by the raw-SYN engine, which
+   blasts then drains and wants throughput, not per-packet latency.  bufsize is
+   the kernel capture buffer in bytes (0 = leave the default). */
+pcap_t *my_pcap_open_live_buffered(const char *device, int snaplen, int promisc,
+                                   int to_ms, int bufsize) {
+  char err0r[PCAP_ERRBUF_SIZE];
+  pcap_t *pt;
+  char pcapdev[128];
+  int failed = 0;
+
+  assert(device != NULL);
+#ifdef WIN32
+  if (!DnetName2PcapName(device, pcapdev, sizeof(pcapdev)))
+    Strncpy(pcapdev, device, sizeof(pcapdev));
+#else
+  Strncpy(pcapdev, device, sizeof(pcapdev));
+#endif
+
+  pt = pcap_create(pcapdev, err0r);
+  if (!pt) {
+    netutil_error("pcap_create(%s) FAILED: %s.", pcapdev, err0r);
+    return NULL;
+  }
+  pcap_set_snaplen(pt, snaplen);
+  pcap_set_promisc(pt, promisc);
+  pcap_set_timeout(pt, to_ms);
+  if (bufsize > 0)
+    pcap_set_buffer_size(pt, bufsize);   /* big kernel buffer absorbs the burst */
+  /* NOTE: deliberately NOT pcap_set_immediate_mode() -- buffered delivery is the
+     whole point (batches packets per syscall). */
+  failed = pcap_activate(pt);
+  if (failed < 0) {
+    netutil_error("pcap_activate(%s) FAILED: %s.", pcapdev, pcap_geterr(pt));
+    pcap_close(pt);
+    return NULL;
+  }
+#ifdef WIN32
+  /* Match the user buffer to the kernel buffer so the whole burst can move in
+     one copy; mintocopy left at the default so reads batch (not per-packet). */
+  if (bufsize > 0) pcap_setuserbuffer(pt, bufsize);
+#endif
   return pt;
 }
 

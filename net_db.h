@@ -110,6 +110,17 @@ struct NetHost {
 int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
                        const char *proto, int64_t timestamp);
 
+/* One discovered tcp open, for the bulk insert path below. */
+struct NetDbOpen { uint32_t ip; int port; int64_t ts; };
+
+/* Bulk-insert n opens (all proto "tcp") into one shard DB, preparing the UPSERT
+   statement ONCE and reusing it (reset+bind+step) instead of prepare/finalize
+   per row.  This is the fast post-discovery flush path: on a dense range the
+   per-row prepare_v2 dominated (~1.3 ms/row -> ~10 s for a /20).  Caller should
+   have an open transaction (net_db_begin) so there is no per-row fsync.
+   Returns the number of rows written, or -1 on prepare failure. */
+int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n);
+
 /* Update a host with enrichment data.  Sets enriched=1 and clears any
    prior enrichment_error / enrichment_error_at fields.
    The trailing v4 params (powered_by, x_generator, redirect_target,
