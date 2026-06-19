@@ -12,28 +12,6 @@
 
 ---
 
-## Documentation
-
-All guides render on GitHub under [`docs/`](docs/):
-
-| Guide | What it covers |
-|-------|----------------|
-| [Internet-scale scanning](docs/internet-scale-scanning.md) | The core `--net-scan` workflow end-to-end: discover → enrich → report, single-port vs multi-port, `--rate`, sampling (`--net-max-ips`), resuming, phase splitting, excludes, 32-shard layout, and watchlist monitoring |
-| [Performance & resource tuning](docs/performance.md) | `--fast` / `--efficient` modes, the CPU governor, discovery/enrichment concurrency, the full environment-variable reference, and gaming-PC tuning recipes |
-| [Performance roadmap](docs/performance-roadmap.md) | Where throughput is bound today and the ranked backlog of changes that would lift it (async connect engine, screenshot pool, prepared-statement DB writes, …) |
-| [Async discovery engine (design)](docs/async-discovery-design.md) | Implementation-ready design for the nsock-based async connect engine — the ~100× discovery lever |
-| [Asset-intelligence (design)](docs/asset-intelligence-design.md) | Design for the remaining online enrichment legs — cert Org/CT/subdomains, WHOIS/RDAP, passive DNS — on a shared verifying-HTTPS client |
-| [Querying collected data](docs/querying.md) | `--net-query` filters (port, service, CVE, CVSS, ASN, country, web title/server, device class) and output formats |
-| [Pivoting & topology](docs/pivoting-and-topology.md) | `--net-cluster` (correlate hosts by shared TLS/host fingerprints), `--tracemap` / `--topo-export` (path & ASN topology graphs), and `--spoof-os` (OS/browser personality for enrichment) |
-| [Reading the findings report](docs/findings-report.md) | The `Findings/findings_NNN.txt` layout: file naming/ordering, the PORT TABLE / CVE MAP (`[REMOTE]` tags) / PATCH STATUS / WEB RECON sections, the file summary, and grep recipes |
-| [Data model](docs/data-model.md) | On-disk storage: 32-shard SQLite layout, the `hosts`/`fingerprints` schema, rescan/history semantics, and direct `sqlite3` queries |
-| [Troubleshooting](docs/troubleshooting.md) | Fixes for the common issues: slow scans, missing CVEs/ASN, resume failures, the Windows Npcap warning, and where results land |
-| [ypanel integration](docs/ypanel.md) | Driving Kmap remotely from the ypanel operator control plane |
-
-The full nmap-derived manual lives in [`docs/kmap.1`](docs/kmap.1) (`man kmap`).
-
----
-
 ## Background
 
 ### The NSA and Mapping the Internet
@@ -88,6 +66,27 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | Resource-aware speed modes | `--efficient` / `--fast` | Auto-scale worker pools to the machine's CPU/RAM; `--fast` is capped at a tunable share (default ~50% CPU / ~25% RAM) |
 
 All per-host features auto-enable `-sV` (service/version detection) and print results inline alongside the normal port table.
+
+---
+
+## Documentation
+
+All guides render on GitHub under [`docs/`](docs/):
+
+| Guide | What it covers |
+|-------|----------------|
+| [Internet-scale scanning](docs/internet-scale-scanning.md) | The core `--net-scan` workflow end-to-end: discover → enrich → report, single-port vs multi-port, `--rate`, sampling (`--net-max-ips`), resuming, phase splitting, excludes, 32-shard layout, and watchlist monitoring |
+| [Performance & resource tuning](docs/performance.md) | `--fast` / `--efficient` modes, the CPU governor, discovery/enrichment concurrency, the full environment-variable reference, and gaming-PC tuning recipes |
+| [Performance roadmap](docs/performance-roadmap.md) | Where throughput is bound today and the ranked backlog of changes that would lift it (async connect engine, screenshot pool, prepared-statement DB writes, …) |
+| [Async discovery engine (design)](docs/async-discovery-design.md) | Implementation-ready design for the nsock-based async connect engine — the ~100× discovery lever |
+| [Asset-intelligence (design)](docs/asset-intelligence-design.md) | Design for the remaining online enrichment legs — cert Org/CT/subdomains, WHOIS/RDAP, passive DNS — on a shared verifying-HTTPS client |
+| [Querying collected data](docs/querying.md) | `--net-query` filters (port, service, CVE, CVSS, EPSS, CISA-KEV, ASN, country, web title/server, device class, tags) and output formats |
+| [Pivoting & topology](docs/pivoting-and-topology.md) | `--net-cluster` (correlate hosts by shared TLS/SSH/host fingerprints), `--tracemap` / `--topo-export` (path & ASN topology graphs), and `--spoof-os` (OS/browser personality for enrichment) |
+| [Reading the findings report](docs/findings-report.md) | The `Findings/findings_NNN.txt` layout: file naming/ordering, the PORT TABLE / CVE MAP (`[REMOTE]` tags) / PATCH STATUS / WEB RECON sections, the file summary, and grep recipes |
+| [Data model](docs/data-model.md) | On-disk storage: 32-shard SQLite layout, the `hosts`/`fingerprints` schema, rescan/history semantics, and direct `sqlite3` queries |
+| [Troubleshooting](docs/troubleshooting.md) | Fixes for the common issues: slow scans, missing CVEs/ASN, resume failures, the Windows Npcap warning, and where results land |
+
+The full nmap-derived manual lives in [`docs/kmap.1`](docs/kmap.1) (`man kmap`).
 
 ---
 
