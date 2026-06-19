@@ -4,13 +4,11 @@
 
 # Kmap
 
-**Kmap** is a fork of [nmap](https://nmap.org/) extended with active pentesting and internet-scale reconnaissance capabilities. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds offensive features designed for security assessments, vulnerability research, and asset monitoring.
+**Kmap** is a fork of [nmap](https://nmap.org/) extended into a self-contained internet-scale reconnaissance and attack-surface platform. It keeps everything nmap does — port scanning, service detection, OS fingerprinting, NSE scripts — and adds a full discover → enrich → store → query pipeline that sweeps the public IPv4 space with a stateless raw-SYN engine, fingerprints what it finds (TLS, SSH HASSH, favicon, HTTP), cross-references versions against a bundled CVE database enriched with EPSS exploit-probability and CISA KEV flags, and persists everything to a sharded SQLite store you can search, tag, and pivot across — the kind of capability otherwise found only behind commercial services like Shodan and Censys. It also keeps the per-host offensive tooling for security assessments: default-credential probing, HTTP/S recon, and screenshots.
 
 > **License:** Kmap inherits the Nmap Public Source License (NPSL). See `LICENSE` for full terms.
 
-> **Part of the Yuril suite — ypanel.** Kmap is driven from **ypanel**, Yuril Security's unified operator control panel (`https://yurillab.dev/ypanel`): dispatch scans remotely, browse the discovered attack surface, and triage CVE/NSE findings. See [`docs/ypanel.md`](docs/ypanel.md) for the connection model + current status.
-
-> **Query what you collected.** After a scan, `--net-query` searches the persisted store by port, service, CVE, CVSS, ASN, country, web fingerprint, or device class — no re-scan needed. See [`docs/querying.md`](docs/querying.md) for the full filter reference and examples.
+> **Query what you collected.** After a scan, `--net-query` searches the persisted store by port, service, CVE, CVSS, EPSS, CISA-KEV, ASN, country, web fingerprint, device class, or derived tag (`self-signed`, `cloud`, `eol-product`, …) — no re-scan needed. See [`docs/querying.md`](docs/querying.md) for the full filter reference and examples.
 
 ---
 
