@@ -86,21 +86,26 @@ static bool ht_cpe_product_version(const std::string &cpe,
  *
  * Keyed by CPE product token (the same tokens net_hash_helpers.cc::derive_cpe
  * emits).  A detected version strictly below `eol_below` is past end-of-life.
- * Conservative on purpose: only products with a single, well-documented EOL
- * boundary are listed, so a tag is never a guess.  Sourced from
- * endoflife.date; the cutoff is the lowest still-supported major.minor as of
- * 2026-06.  Update alongside the CVE refresh.
+ * Conservative on purpose: only products whose EOL boundary is a single clean
+ * "everything below major.minor X is dead" cutoff are listed, so a tag is
+ * never a guess.  Products with interleaved LTS/short-term branches (e.g.
+ * MariaDB, where 10.6 LTS outlives the higher-numbered 10.7/10.8) cannot be
+ * expressed this way and are deliberately omitted.  Cutoffs verified against
+ * endoflife.date as of 2026-06; the comment on each rule cites the boundary
+ * release's EOL date.  Update alongside the CVE refresh.
  * ------------------------------------------------------------------------- */
 struct EolRule {
   const char *cpe_product;  /* CPE product field */
   const char *eol_below;    /* versions < this are EOL */
 };
 static const EolRule EOL_RULES[] = {
-  {"http_server", "2.4"},  /* Apache 2.2.x EOL 2017-12-31 */
-  {"mysql",       "8.0"},  /* MySQL 5.7 EOL 2023-10-31 */
-  {"postgresql",  "12"},   /* PostgreSQL <=11 EOL 2023-11-09 */
-  {"php",         "8.1"},  /* PHP 8.0 EOL 2023-11-26 */
-  {"tomcat",      "9.0"},  /* Tomcat 8.5 EOL 2024-03-31 */
+  {"http_server",   "2.4"},  /* Apache 2.2.x EOL 2017-07-11 */
+  {"mysql",         "8.0"},  /* MySQL 5.7 EOL 2023-10-31 */
+  {"postgresql",    "14"},   /* PostgreSQL 13 EOL 2025-11-13 (whole majors) */
+  {"php",           "8.1"},  /* PHP 8.0 EOL 2023-11-26 */
+  {"tomcat",        "9.0"},  /* Tomcat 8.5 EOL 2024-03-31 */
+  {"mongodb",       "7.0"},  /* MongoDB 6.0 and earlier EOL (lowest LTS 7.0) */
+  {"elasticsearch", "8.0"},  /* Elasticsearch 7.x EOL 2026-01-15; 6.x EOL 2022 */
 };
 
 static bool ht_is_eol(const std::string &cpe) {

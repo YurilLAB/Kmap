@@ -87,6 +87,16 @@ int main(int argc, char **argv) {
   expect(!eol("cpe:2.3:a:oracle:mysql:8.0.36:*:*:*:*:*:*:*"), "MySQL 8.0 not EOL");
   expect( eol("cpe:2.3:a:php_group:php:7.4.3:*:*:*:*:*:*:*"), "PHP 7.4 EOL");
   expect(!eol("cpe:2.3:a:php_group:php:8.3.0:*:*:*:*:*:*:*"), "PHP 8.3 not EOL");
+  /* PostgreSQL whole-major cutoff (13 EOL 2025-11-13) */
+  expect( eol("cpe:2.3:a:postgresql:postgresql:13.4:*:*:*:*:*:*:*"), "PostgreSQL 13 EOL");
+  expect(!eol("cpe:2.3:a:postgresql:postgresql:16.2:*:*:*:*:*:*:*"), "PostgreSQL 16 not EOL");
+  /* MongoDB: all 6.x and below EOL, 7.0 LTS supported */
+  expect( eol("cpe:2.3:a:mongodb:mongodb:5.0.3:*:*:*:*:*:*:*"), "MongoDB 5.0 EOL");
+  expect( eol("cpe:2.3:a:mongodb:mongodb:6.0.1:*:*:*:*:*:*:*"), "MongoDB 6.0 EOL");
+  expect(!eol("cpe:2.3:a:mongodb:mongodb:7.0.5:*:*:*:*:*:*:*"), "MongoDB 7.0 not EOL");
+  /* Elasticsearch conservative cutoff: 7.x/6.x EOL, 8.x not flagged */
+  expect( eol("cpe:2.3:a:elastic:elasticsearch:7.17.0:*:*:*:*:*:*:*"), "Elasticsearch 7.17 EOL");
+  expect(!eol("cpe:2.3:a:elastic:elasticsearch:8.12.0:*:*:*:*:*:*:*"), "Elasticsearch 8.12 not EOL");
   expect(!eol("cpe:2.3:a:f5:nginx:1.18.0:*:*:*:*:*:*:*"), "nginx has no EOL rule");
   expect(!eol("cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*"), "version ANY -> no EOL");
   expect(!eol(""), "empty cpe -> no EOL");
