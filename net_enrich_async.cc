@@ -327,10 +327,18 @@ static AsyncBannerResult classify_banner(const char *buf, int n, int port) {
     return result;
   }
 
-  /* PostgreSQL 'R' authentication response */
+  /* PostgreSQL 'R' AuthenticationRequest -- 'R', big-endian Int32 length, Int32
+     auth code. Bound the length to the real range so a bare 'R'+9 no longer
+     matches any R-prefixed banner (kept in sync with net_enrich.cc). */
   if (n >= 9 && buf[0] == 'R') {
-    result.service = "postgresql";
-    return result;
+    uint32_t pg_len = (static_cast<uint32_t>(static_cast<unsigned char>(buf[1])) << 24) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[2])) << 16) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[3])) << 8)  |
+                       static_cast<uint32_t>(static_cast<unsigned char>(buf[4]));
+    if (pg_len >= 8 && pg_len <= 64) {
+      result.service = "postgresql";
+      return result;
+    }
   }
 
   /* Unknown fallback */

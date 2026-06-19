@@ -128,8 +128,14 @@ static AsyncBannerResult classify_banner(const char *buf, int n, int port) {
   }
 
   if (n >= 9 && buf[0] == 'R') {
-    result.service = "postgresql";
-    return result;
+    uint32_t pg_len = (static_cast<uint32_t>(static_cast<unsigned char>(buf[1])) << 24) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[2])) << 16) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[3])) << 8)  |
+                       static_cast<uint32_t>(static_cast<unsigned char>(buf[4]));
+    if (pg_len >= 8 && pg_len <= 64) {
+      result.service = "postgresql";
+      return result;
+    }
   }
 
   if (!first_line.empty()) {
@@ -174,9 +180,9 @@ int main(int argc, char **argv) {
     if (r.version != "RFB 003.008") { printf("  FAIL vnc version '%s'\n", r.version.c_str()); g_fail++; } }
   want("RFB 004.001\n", 5901, "vnc", "vnc 4.x");
   want("RFB abc!", 5900, "unknown", "RFB + non-digit is not vnc");
-  /* Note: "RFB" followed by >=9 bytes and no space hits the (pre-existing,
-     deliberately loose) PostgreSQL 'R'+n>=9 branch -- VNC is ordered before it
-     so real "RFB <digit>" banners are never misclassified. */
+  /* "RFBxx ..." used to be mis-classified postgresql (the old 'R'+n>=9 check);
+     the bounded PG length field now rejects it (len bytes 'B','x','x' huge). */
+  want("RFBxx no space here", 5900, "unknown", "RFBxx no longer false-postgresql");
 
   want("220 ProFTPD 1.3.5 Server ready\r\n", 21, "ftp", "ftp");
   want("220 mail.example.com ESMTP Postfix\r\n", 25, "smtp", "smtp");
@@ -186,7 +192,12 @@ int main(int argc, char **argv) {
   { std::string m; m += '\x36'; m += '\x00'; m += '\x00'; m += '\x00'; m += '\x0a';
     m += "5.7.38\x00"; want(m, 3306, "mysql", "mysql handshake"); }
   want("-ERR unknown command\r\n", 6379, "redis", "redis");
-  { std::string pg; pg += 'R'; pg += std::string(8, '\x00'); want(pg, 5432, "postgresql", "postgresql R"); }
+  { /* AuthenticationOk: 'R' + Int32 len=8 + Int32 code=0 */
+    std::string pg; pg += 'R'; pg += '\x00'; pg += '\x00'; pg += '\x00'; pg += '\x08';
+    pg += std::string(4, '\x00'); want(pg, 5432, "postgresql", "postgresql AuthOK (len 8)"); }
+  { /* 'R' with an out-of-range length must NOT be postgresql */
+    std::string pg; pg += 'R'; pg += '\xff'; pg += '\xff'; pg += '\x00'; pg += '\x00';
+    pg += std::string(4, '\x00'); want(pg, 5432, "unknown", "R + huge length is not postgresql"); }
   { std::string mg(16, '\x00'); mg[12] = '\x01'; want(mg, 27017, "mongodb", "mongodb OP_REPLY"); }
   want("", 80, "", "empty banner -> empty");
   want("garbage banner text", 12345, "unknown", "unknown fallback");

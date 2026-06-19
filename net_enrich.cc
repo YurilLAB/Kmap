@@ -609,10 +609,20 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     return result;
   }
 
-  /* PostgreSQL: 'R' authentication response */
+  /* PostgreSQL: 'R' AuthenticationRequest -- byte 'R', then a big-endian
+     Int32 length (message length incl. itself) and an Int32 auth code. Bound
+     the length to the real range (AuthenticationOk=8 .. SASL ~ tens of bytes)
+     so a bare 'R'+9 no longer matches any R-prefixed banner (e.g. malformed
+     "RFB..." that slipped past the VNC check). */
   if (n >= 9 && buf[0] == 'R') {
-    result.service = "postgresql";
-    return result;
+    uint32_t pg_len = (static_cast<uint32_t>(static_cast<unsigned char>(buf[1])) << 24) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[2])) << 16) |
+                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[3])) << 8)  |
+                       static_cast<uint32_t>(static_cast<unsigned char>(buf[4]));
+    if (pg_len >= 8 && pg_len <= 64) {
+      result.service = "postgresql";
+      return result;
+    }
   }
 
   /* Fallback: unknown service, store raw banner snippet as version */
