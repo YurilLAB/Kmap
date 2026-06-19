@@ -215,6 +215,51 @@ static std::string first_cve_summary(const std::string &cves_json) {
     return cve_id + " (CVSS:" + cvss_str + ")";
   return cve_id;
 }
+/* classify_device: VERBATIM from net_query.cc -- the --nq-device facet
+   (Shodan-style device categorisation), service-name first then port. */
+static std::string classify_device(const std::string &service, int port) {
+  std::string s = str_lower(service);
+  if (s.find("http") != std::string::npos) return "web";
+  if (s == "ssh" || s.find("ssh") != std::string::npos) return "ssh";
+  if (s == "telnet") return "telnet";
+  if (s == "ftp" || s.rfind("ftp", 0) == 0) return "ftp";
+  if (s.find("smtp") != std::string::npos) return "smtp";
+  if (s.find("pop3") != std::string::npos ||
+      s.find("imap") != std::string::npos) return "mail";
+  if (s == "domain" || s == "dns") return "dns";
+  if (s == "snmp") return "snmp";
+  if (s == "microsoft-ds" || s == "netbios-ssn" || s == "smb") return "smb";
+  if (s == "ms-wbt-server" || s == "rdp") return "rdp";
+  if (s.rfind("vnc", 0) == 0) return "vnc";
+  if (s == "mysql" || s == "postgresql" || s == "redis" ||
+      s == "mongodb" || s == "ms-sql-s" || s == "memcached" ||
+      s == "couchdb" || s.find("sql") != std::string::npos) return "db";
+  if (s.find("rtsp") != std::string::npos ||
+      s.find("mqtt") != std::string::npos ||
+      s.find("coap") != std::string::npos) return "iot";
+  if (s.find("routeros") != std::string::npos ||
+      s.find("mikrotik") != std::string::npos) return "router";
+  switch (port) {
+    case 80: case 443: case 8000: case 8080: case 8081: case 8082:
+    case 8443: case 8888:                                return "web";
+    case 22:                                             return "ssh";
+    case 23:                                             return "telnet";
+    case 21:                                             return "ftp";
+    case 25: case 465: case 587: case 2525:              return "smtp";
+    case 110: case 143: case 993: case 995:              return "mail";
+    case 53:                                             return "dns";
+    case 161: case 162:                                  return "snmp";
+    case 139: case 445:                                  return "smb";
+    case 3389:                                           return "rdp";
+    case 3306: case 5432: case 6379: case 27017:
+    case 1433: case 11211: case 5984:                    return "db";
+    case 554: case 1883: case 5683: case 8554: case 8883: return "iot";
+    case 8291:                                           return "router";
+    default:
+      if (port >= 5900 && port <= 5910) return "vnc";
+      return "";
+  }
+}
 /* ===== end verbatim ===== */
 
 static sqlite3 *g_db;
@@ -350,6 +395,33 @@ int main() {
       volatile size_t d = first_cve_summary(s).size(); (void)d;
     }
     printf("  json-parser fuzz (300000 iters): no fault\n");
+  }
+
+  /* ---- classify_device (--nq-device facet) ---- */
+  CHECK(classify_device("http", 0) == "web", "service http -> web");
+  CHECK(classify_device("OpenSSH", 0) == "ssh", "service OpenSSH -> ssh (substr)");
+  CHECK(classify_device("https", 22) == "web", "service beats port (https on 22 -> web)");
+  CHECK(classify_device("mysql", 0) == "db", "service mysql -> db");
+  CHECK(classify_device("microsoft-ds", 0) == "smb", "service microsoft-ds -> smb");
+  CHECK(classify_device("ms-wbt-server", 0) == "rdp", "service ms-wbt-server -> rdp");
+  CHECK(classify_device("", 22) == "ssh", "port 22 -> ssh (no service)");
+  CHECK(classify_device("", 3306) == "db", "port 3306 -> db");
+  CHECK(classify_device("", 3389) == "rdp", "port 3389 -> rdp");
+  CHECK(classify_device("", 161) == "snmp", "port 161 -> snmp");
+  CHECK(classify_device("", 445) == "smb", "port 445 -> smb");
+  CHECK(classify_device("", 5901) == "vnc", "port 5901 -> vnc (range)");
+  CHECK(classify_device("", 1883) == "iot", "port 1883 (mqtt) -> iot");
+  CHECK(classify_device("", 8291) == "router", "port 8291 (mikrotik) -> router");
+  CHECK(classify_device("", 12345).empty(), "unknown service+port -> empty");
+  { /* never faults on arbitrary service strings / ports */
+    uint32_t r = 0xc0ffee;
+    auto x = [&](){ r^=r<<13; r^=r>>17; r^=r<<5; return r; };
+    for (int it = 0; it < 200000; it++) {
+      std::string s; int n = x()%12;
+      for (int k=0;k<n;k++) s += (char)(x()&0xff);
+      volatile size_t z = classify_device(s, (int)(x()%70000)-2000).size(); (void)z;
+    }
+    printf("  classify_device fuzz (200000 iters): no fault\n");
   }
 
   /* ---- SQL injection: payloads must be literal, returning 0 rows ---- */
