@@ -263,6 +263,15 @@ static AsyncBannerResult classify_banner(const char *buf, int n, int port) {
     return result;
   }
 
+  /* VNC / RFB: the server speaks first with "RFB <major>.<minor>\n" (RFC 6143),
+     e.g. "RFB 003.008". Distinctive prefix, no probe needed. */
+  if (banner.size() >= 8 && banner.compare(0, 4, "RFB ") == 0 &&
+      isdigit(static_cast<unsigned char>(banner[4]))) {
+    result.service = "vnc";
+    result.version = first_line;
+    return result;
+  }
+
   /* FTP / SMTP 220 greeting */
   if (banner.size() >= 4 &&
       (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {

@@ -534,6 +534,15 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     return result;
   }
 
+  /* VNC / RFB: the server speaks first with "RFB <major>.<minor>\n" (RFC 6143),
+     e.g. "RFB 003.008". Distinctive prefix, captured by the initial recv. */
+  if (banner.size() >= 8 && banner.compare(0, 4, "RFB ") == 0 &&
+      isdigit(static_cast<unsigned char>(banner[4]))) {
+    result.service = "vnc";
+    result.version = first_line;
+    return result;
+  }
+
   if (banner.size() >= 4 &&
       (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {
     /* Could be FTP or SMTP.  Check for FTP-specific keywords. */
