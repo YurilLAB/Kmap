@@ -49,11 +49,28 @@ int main(int argc, char **argv) {
   { HostTagInput in; in.tls_self_signed = -1;
     expect(!has(derive_host_tags(in), "self-signed"), "no self-signed when unknown"); }
 
-  /* cloud from any non-empty provider. */
+  /* cloud from any non-empty provider; cdn only for CDN providers. */
   { HostTagInput in; in.cloud_provider = "aws";
-    expect(has(derive_host_tags(in), "cloud"), "cloud when provider set"); }
+    auto t = derive_host_tags(in);
+    expect(has(t, "cloud"), "cloud when provider set");
+    expect(!has(t, "cdn"), "aws is cloud but not cdn"); }
   { HostTagInput in;
     expect(!has(derive_host_tags(in), "cloud"), "no cloud when provider empty"); }
+  { HostTagInput in; in.cloud_provider = "cloudflare";
+    auto t = derive_host_tags(in);
+    expect(has(t, "cloud") && has(t, "cdn"), "cloudflare -> cloud + cdn"); }
+  { HostTagInput in; in.cloud_provider = "akamai";
+    expect(has(derive_host_tags(in), "cdn"), "akamai -> cdn"); }
+
+  /* ics from canonical ICS/SCADA ports. */
+  { HostTagInput in; in.port = 502;
+    expect(has(derive_host_tags(in), "ics"), "port 502 (Modbus) -> ics"); }
+  { HostTagInput in; in.port = 47808;
+    expect(has(derive_host_tags(in), "ics"), "port 47808 (BACnet) -> ics"); }
+  { HostTagInput in; in.port = 102;
+    expect(has(derive_host_tags(in), "ics"), "port 102 (S7) -> ics"); }
+  { HostTagInput in; in.port = 80;
+    expect(!has(derive_host_tags(in), "ics"), "port 80 -> not ics"); }
 
   /* database from the service name. */
   { HostTagInput in; in.service = "mysql";

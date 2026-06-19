@@ -654,7 +654,7 @@ static void printusage() {
          "  --nq-device <tag>: Filter by device class (web, ssh, ftp, telnet, smtp,\n"
          "                     mail, dns, db, rdp, vnc, snmp, smb, iot, router)\n"
          "  --nq-tag <tag>: Filter by derived tag (self-signed, cloud, database,\n"
-         "                  vuln, kev, ransomware, eol-product)\n"
+         "                  vuln, kev, ransomware,\n                  eol-product, cdn, ics)\n"
          "  --nq-format <fmt>: Output format: text (default) or json\n"
          "  --nq-output <file>: Export query results to file\n"
          "  --nq-count: Show count instead of listing results\n"

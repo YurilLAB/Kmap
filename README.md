@@ -785,7 +785,7 @@ to disable the governor (worker-pool sizing still applies).
 | `--nq-min-cvss <score>` | Filter by minimum CVSS score |
 | `--nq-kev` | Only hosts carrying a CISA Known-Exploited (KEV) CVE |
 | `--nq-min-epss <0..1>` | Filter by minimum EPSS exploitation probability |
-| `--nq-tag <tag>` | Filter by derived tag (`self-signed`, `cloud`, `database`, `vuln`, `kev`, `ransomware`, `eol-product`) |
+| `--nq-tag <tag>` | Filter by derived tag (`self-signed`, `cloud`, `cdn`, `database`, `ics`, `vuln`, `kev`, `ransomware`, `eol-product`) |
 | `--nq-web-title <text>` | Filter by web page title |
 | `--nq-web-server <text>` | Filter by server header |
 | `--nq-ip-range <CIDR>` | Restrict search to IP range |

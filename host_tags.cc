@@ -131,12 +131,40 @@ static bool ht_is_database(const std::string &service) {
   return s.find("sql") != std::string::npos;
 }
 
+/* Known CDN providers (subset of cloud_map's provider tokens). Shodan splits
+   `cdn` from `cloud`; a CDN-fronted host gets both here. */
+static bool ht_is_cdn(const std::string &provider) {
+  std::string p = ht_lower(provider);
+  return p == "cloudflare" || p == "akamai" || p == "fastly" ||
+         p == "cloudfront" || p == "incapsula" || p == "imperva" ||
+         p == "stackpath" || p == "sucuri" || p == "edgecast" ||
+         p == "bunnycdn" || p == "keycdn";
+}
+
+/* Canonical ICS/SCADA service ports (Shodan's `ics` category). Kept to
+   strongly protocol-specific ports to avoid false positives:
+     502 Modbus | 102 Siemens S7 (ISO-TSAP) | 20000 DNP3 | 44818 EtherNet/IP |
+     47808 BACnet | 1911,4911 Niagara Fox | 2404 IEC 60870-5-104 |
+     1962 PCWorx | 789 Red Lion/Crimson | 18245,18246 GE-SRTP | 5094 HART-IP */
+static bool ht_is_ics_port(int port) {
+  switch (port) {
+    case 502: case 102: case 20000: case 44818: case 47808:
+    case 1911: case 4911: case 2404: case 1962: case 789:
+    case 18245: case 18246: case 5094:
+      return true;
+    default:
+      return false;
+  }
+}
+
 std::vector<std::string> derive_host_tags(const HostTagInput &in) {
   std::vector<std::string> tags;
 
   if (in.tls_self_signed == 1)        tags.push_back("self-signed");
   if (!in.cloud_provider.empty())     tags.push_back("cloud");
+  if (ht_is_cdn(in.cloud_provider))   tags.push_back("cdn");
   if (ht_is_database(in.service))     tags.push_back("database");
+  if (ht_is_ics_port(in.port))        tags.push_back("ics");
 
   /* CVE-derived tags. The cves column is a JSON array; "" or "[]" means none.
      kev/ransomware are substring-tested against the exact keys cves_to_json

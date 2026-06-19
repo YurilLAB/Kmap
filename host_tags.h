@@ -35,7 +35,9 @@ struct HostTagInput {
 /* Derive the sorted, de-duplicated tag set for one host.  Possible tags:
  *   self-signed  -- TLS leaf cert did not chain-validate
  *   cloud        -- IP fell in a known cloud provider range
+ *   cdn          -- cloud provider is a known CDN (Cloudflare, Akamai, ...)
  *   database     -- service is a database engine
+ *   ics          -- service port is a known ICS/SCADA protocol
  *   vuln         -- at least one CVE matched
  *   kev          -- a matched CVE is in the CISA KEV catalog
  *   ransomware   -- a matched KEV CVE is tied to a ransomware campaign

@@ -36,7 +36,7 @@ bare `--net-query` when you pass any filter.
 | `--nq-country <CC>`       | ISO 2-letter code  | exact, case-insensitive (`us` == `US`)                     |
 | `--nq-ip-range <cidr>`    | e.g. `8.8.0.0/16`  | restricts the search to shards overlapping that CIDR       |
 | `--nq-device <tag>`       | device class       | one of: web, ssh, ftp, telnet, smtp, mail, dns, db, rdp, vnc, snmp, smb, iot, router |
-| `--nq-tag <tag>`          | derived tag        | host carries the tag: self-signed, cloud, database, vuln, kev, ransomware, eol-product |
+| `--nq-tag <tag>`          | derived tag        | host carries the tag: self-signed, cloud, cdn, database, ics, vuln, kev, ransomware, eol-product |
 
 **Multiple filters combine with AND.** `--nq-service http --nq-country DE`
 returns only German web hosts. A service substring of `http` matches both
@@ -98,7 +98,9 @@ the fly from the stored columns — no re-scan needed:
 |-----|-------|
 | `self-signed` | TLS leaf cert did not chain-validate |
 | `cloud` | IP is in a known cloud-provider range |
+| `cdn` | cloud provider is a known CDN (Cloudflare, Akamai, Fastly, …) |
 | `database` | service is a database engine |
+| `ics` | service port is a known ICS/SCADA protocol (Modbus, S7, DNP3, BACnet, …) |
 | `vuln` | at least one CVE matched |
 | `kev` | a matched CVE is in the CISA KEV catalog |
 | `ransomware` | a matched KEV CVE is tied to a ransomware campaign |
