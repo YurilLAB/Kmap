@@ -92,6 +92,15 @@ jobs:
           /tmp/fz/test_host_tags 1337
           echo "::endgroup::"
 
+          # CVE version-comparison audit: KATs (numeric ordering, exclusive-bound
+          # "patched not flagged") + proves cve_map.cc and net_enrich.cc's two
+          # independent comparators agree over a 1M-pair fuzz + crash fuzz.
+          echo "::group::test_vercmp"
+          g++ $CXXFLAGS fuzz/test_vercmp.cc -o /tmp/fz/test_vercmp
+          /tmp/fz/test_vercmp 1
+          /tmp/fz/test_vercmp 1337
+          echo "::endgroup::"
+
           # Cloud-range matcher links the real cloud_map.cc (offline longest-
           # prefix match + strict CIDR parse). Known-IP -> known-provider KATs.
           echo "::group::test_cloud_match"

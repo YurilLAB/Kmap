@@ -94,8 +94,12 @@ static int ver_cmp(const std::string &a, const std::string &b) {
   return 0;
 }
 
-/* Extract the first dotted version number from a product string
-   e.g. "OpenSSH 8.2p1 Ubuntu 4" → "8.2" */
+/* Extract the first dotted version run from a product string, keeping an
+   OpenSSH-style "p" patch suffix, e.g. "OpenSSH 8.2p1 Ubuntu 4" → "8.2p1"
+   and "Apache/2.4.49 (Ubuntu)" → "2.4.49". Returns "" when no dotted run is
+   present. The result is only ever re-parsed by ver_cmp (which drops the
+   "p" suffix to the base components), so the retained "p" never affects a
+   comparison; it is kept so the string stays faithful to the banner. */
 static std::string extract_ver(const std::string &s) {
   size_t i = 0;
   while (i < s.size()) {
