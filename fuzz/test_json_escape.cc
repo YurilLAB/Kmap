@@ -1,17 +1,18 @@
 /*
- * test_json_escape.cc -- live correctness test for JSON string escaping
- * (net_enrich.cc json_escape, net_enrich_async.cc a_json_escape,
- *  net_scan.cc json_escape_topo -- all now identical RFC 8259 escapers).
+ * test_json_escape.cc -- correctness test for the shared JSON string escaper
+ * kmap_json_escape() in json_escape.h, used by net_enrich.cc,
+ * net_enrich_async.cc, net_query.cc and net_scan.cc.
  *
- * Regression test for: the escapers used to handle only " \ \n \r \t and
- * passed every other control byte (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) through
- * RAW. Service banners / HTTP headers / TLS fields are raw network bytes that
- * routinely contain control characters, so the emitted JSON was invalid and
- * broke downstream parsers. The fix escapes ALL U+0000..U+001F.
- *
- * The escaper below is byte-identical to the shipping (fixed) code (static,
- * can't be linked -- same pattern as the other fuzz harnesses). The oracle
- * (a minimal JSON-string validator) is an independent implementation.
+ * History: the escaper was copy-pasted into four TUs and drifted -- three kept
+ * a passthrough-high-bytes version while net_query.cc gained UTF-8 validation,
+ * so the same host serialised to valid JSON via --net-query and INVALID JSON in
+ * the findings report. The copies are now one header-only function; this test
+ * includes that real header (no hand-kept duplicate) and proves two invariants
+ * over a large fuzz corpus with INDEPENDENT oracles:
+ *   1. the output is a well-formed JSON string body (RFC 8259): no raw control
+ *      byte < 0x20, no bare '"', every '\' a valid escape;
+ *   2. the output is valid UTF-8 (RFC 3629) -- this is the property the three
+ *      drifted copies violated, since scan banners are routinely non-UTF-8.
  *
  * Build: g++ -O2 -g -std=gnu++17 -Wall fuzz/test_json_escape.cc \
  *        -o fuzz/test_json_escape.exe && fuzz/test_json_escape.exe
@@ -21,39 +22,13 @@
 #include <cstdint>
 #include <string>
 
-/* ---- byte-identical to the shipping fixed escaper ---- */
-static std::string json_escape(const std::string &s) {
-  std::string out;
-  out.reserve(s.size() + 8);
-  for (unsigned char c : s) {
-    switch (c) {
-      case '"':  out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      case '\b': out += "\\b";  break;
-      case '\f': out += "\\f";  break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:
-        if (c < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", c);
-          out += buf;
-        } else {
-          out += static_cast<char>(c);
-        }
-    }
-  }
-  return out;
-}
+#include "../json_escape.h"   /* the REAL shipping escaper */
 
 static bool is_hex(unsigned char c) {
   return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-/* INDEPENDENT oracle: validate that `esc` is the body of a well-formed JSON
- * string (RFC 8259): no raw control char < 0x20, no bare '"', and every '\'
- * begins a valid escape (one of " \ / b f n r t, or u + 4 hex digits). */
+/* INDEPENDENT oracle 1: valid JSON string body (RFC 8259). */
 static bool valid_json_string_body(const std::string &esc) {
   size_t i = 0;
   while (i < esc.size()) {
@@ -77,58 +52,94 @@ static bool valid_json_string_body(const std::string &esc) {
   return true;
 }
 
+/* INDEPENDENT oracle 2: valid UTF-8 (RFC 3629), written from scratch (does not
+ * share code with json_escape.h's validator). */
+static bool valid_utf8(const std::string &s) {
+  size_t i = 0, n = s.size();
+  while (i < n) {
+    unsigned char c = (unsigned char)s[i];
+    if (c < 0x80) { i++; continue; }
+    int len; uint32_t cp; unsigned char lo = 0x80, hi = 0xBF;
+    if (c >= 0xC2 && c <= 0xDF) { len = 2; cp = c & 0x1F; }
+    else if (c == 0xE0)         { len = 3; cp = c & 0x0F; lo = 0xA0; }
+    else if (c >= 0xE1 && c <= 0xEC) { len = 3; cp = c & 0x0F; }
+    else if (c == 0xED)         { len = 3; cp = c & 0x0F; hi = 0x9F; }
+    else if (c >= 0xEE && c <= 0xEF) { len = 3; cp = c & 0x0F; }
+    else if (c == 0xF0)         { len = 4; cp = c & 0x07; lo = 0x90; }
+    else if (c >= 0xF1 && c <= 0xF3) { len = 4; cp = c & 0x07; }
+    else if (c == 0xF4)         { len = 4; cp = c & 0x07; hi = 0x8F; }
+    else return false;
+    if (i + (size_t)len > n) return false;
+    for (int k = 1; k < len; k++) {
+      unsigned char cc = (unsigned char)s[i + k];
+      unsigned char l = (k == 1) ? lo : 0x80, h = (k == 1) ? hi : 0xBF;
+      if (cc < l || cc > h) return false;
+      cp = (cp << 6) | (cc & 0x3F);
+    }
+    if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return false;
+    i += len;
+  }
+  return true;
+}
+
 static uint64_t rng = 0xA5A5F00DCAFEBABEULL;
 static uint32_t rnd() { rng ^= rng<<13; rng ^= rng>>7; rng ^= rng<<17; return (uint32_t)(rng>>32); }
 
 int main(int argc, char **argv) {
   if (argc > 1) rng = (uint64_t)atoll(argv[1]) * 2654435761ULL + 1;
   int passed = 0, failed = 0;
+  #define OK(cond, msg) do { if (cond) passed++; else { failed++; printf("  FAIL %s\n", msg); } } while (0)
 
-  /* ---- every single byte 0x00..0xFF escapes to a valid JSON string body ---- */
-  for (int b = 0; b < 256; b++) {
-    std::string in(1, (char)(unsigned char)b);
-    std::string esc = json_escape(in);
-    if (valid_json_string_body(esc)) passed++;
-    else { failed++; printf("  FAIL byte 0x%02X -> '%s'\n", b, esc.c_str()); }
-    /* no raw control byte may survive */
-    bool raw_ctrl = false;
-    for (unsigned char c : esc) if (c < 0x20) raw_ctrl = true;
-    if (b < 0x20 && raw_ctrl) { failed++; printf("  FAIL byte 0x%02X left raw control in output\n", b); }
-    else passed++;
-  }
-
-  /* ---- specific mappings (independent hand-verified expectations) ---- */
-  struct M { unsigned char b; const char *exp; };
+  /* ---- ASCII control + metachar mappings (hand-verified) ---- */
+  struct M { const char *in; const char *exp; };
   M maps[] = {
-    {'"',  "\\\""}, {'\\', "\\\\"}, {'\b', "\\b"}, {'\f', "\\f"},
-    {'\n', "\\n"},  {'\r', "\\r"},  {'\t', "\\t"},
-    {0x00, "\\u0000"}, {0x01, "\\u0001"}, {0x0B, "\\u000b"},
-    {0x1B, "\\u001b"}, {0x1F, "\\u001f"}, {0x7F, "\x7f"}, {0xFF, "\xff"},
-    {'A',  "A"},
+    {"\"",  "\\\""}, {"\\", "\\\\"}, {"\b", "\\b"}, {"\f", "\\f"},
+    {"\n", "\\n"},  {"\r", "\\r"},  {"\t", "\\t"},
+    {"A",  "A"}, {"normal text 1.2.3", "normal text 1.2.3"},
   };
-  for (auto &m : maps) {
-    std::string esc = json_escape(std::string(1, (char)m.b));
-    if (esc == m.exp) passed++;
-    else { failed++; printf("  FAIL map 0x%02X -> '%s' (exp '%s')\n", m.b, esc.c_str(), m.exp); }
+  for (auto &m : maps)
+    OK(kmap_json_escape(m.in) == m.exp, (std::string("map ") + m.exp).c_str());
+  { std::string e = kmap_json_escape(std::string(1, (char)0x00)); OK(e == "\\u0000", "0x00 -> \\u0000"); }
+  { std::string e = kmap_json_escape(std::string(1, (char)0x1b)); OK(e == "\\u001b", "0x1b -> \\u001b"); }
+  { std::string e = kmap_json_escape(std::string(1, (char)0x7f)); OK(e == "\x7f", "0x7f DEL passes (ASCII)"); }
+
+  /* ---- valid UTF-8 sequences pass through unchanged ---- */
+  OK(kmap_json_escape("\xC3\xA9") == "\xC3\xA9", "U+00E9 (2-byte) passthrough");      /* é */
+  OK(kmap_json_escape("\xE2\x82\xAC") == "\xE2\x82\xAC", "U+20AC (3-byte) passthrough"); /* € */
+  OK(kmap_json_escape("\xF0\x9F\x98\x80") == "\xF0\x9F\x98\x80", "U+1F600 (4-byte) passthrough"); /* 😀 */
+
+  /* ---- malformed UTF-8 -> U+FFFD (EF BF BD); this is what the old copies
+          got wrong (they passed the raw bytes through -> invalid JSON). ---- */
+  const char *FFFD = "\xEF\xBF\xBD";
+  OK(kmap_json_escape("\xFF") == FFFD, "lone 0xFF -> U+FFFD");
+  OK(kmap_json_escape("\x80") == FFFD, "lone continuation 0x80 -> U+FFFD");
+  OK(kmap_json_escape("\xC0\xAF") == std::string(FFFD) + FFFD, "overlong C0 AF -> 2x U+FFFD");
+  OK(kmap_json_escape("\xE0\x80\xAF") == std::string(FFFD)+FFFD+FFFD, "overlong E0 -> 3x U+FFFD");
+  OK(kmap_json_escape("\xED\xA0\x80") == std::string(FFFD)+FFFD+FFFD, "surrogate ED A0 80 -> U+FFFD");
+  OK(kmap_json_escape("\xF4\x90\x80\x80") == std::string(FFFD)+FFFD+FFFD+FFFD, "> U+10FFFF -> U+FFFD");
+  OK(kmap_json_escape("\xE2\x82") == std::string(FFFD)+FFFD, "truncated 3-byte at EOF -> U+FFFD");
+  OK(kmap_json_escape("a\xC3\xA9\xFF""b") == std::string("a")+"\xC3\xA9"+FFFD+"b",
+     "mixed valid+invalid preserves good bytes");
+  int kat_fail = failed;
+  printf("KATs: %s (%d failed)\n", kat_fail ? "FAIL" : "OK", kat_fail);
+
+  /* ---- every single byte 0x00..0xFF -> valid JSON body AND valid UTF-8 ---- */
+  for (int b = 0; b < 256; b++) {
+    std::string e = kmap_json_escape(std::string(1, (char)(unsigned char)b));
+    OK(valid_json_string_body(e), "single-byte valid JSON body");
+    OK(valid_utf8(e), "single-byte valid UTF-8");
   }
 
-  /* high bytes 0x80..0xFF must pass through unescaped (UTF-8 continuation) */
-  for (int b = 0x80; b <= 0xFF; b++) {
-    std::string esc = json_escape(std::string(1, (char)(unsigned char)b));
-    if (esc.size() == 1 && (unsigned char)esc[0] == (unsigned char)b) passed++;
-    else { failed++; printf("  FAIL high byte 0x%02X was altered -> len=%zu\n", b, esc.size()); }
-  }
-
-  /* ---- fuzz random byte strings: output always a valid JSON string body ---- */
+  /* ---- fuzz: arbitrary byte strings -> always valid JSON body AND UTF-8 ---- */
   const int N = 3000000;
   for (int n = 0; n < N; n++) {
     int len = rnd() % 64;
-    std::string in;
-    in.reserve(len);
+    std::string in; in.reserve(len);
     for (int i = 0; i < len; i++) in += (char)(unsigned char)(rnd() & 0xFF);
-    std::string esc = json_escape(in);
-    if (valid_json_string_body(esc)) passed++;
-    else { failed++; if (failed <= 6) printf("  FAIL fuzz n=%d len=%d\n", n, len); }
+    std::string e = kmap_json_escape(in);
+    if (!valid_json_string_body(e)) { failed++; if (failed<=6) printf("  FAIL fuzz json-body n=%d\n", n); }
+    else if (!valid_utf8(e))        { failed++; if (failed<=6) printf("  FAIL fuzz utf8 n=%d\n", n); }
+    else passed++;
   }
 
   printf("\njson-escape test: %d passed, %d failed (%d random strings)\n",

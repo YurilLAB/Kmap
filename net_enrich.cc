@@ -20,6 +20,7 @@
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
 #include "ssh_hassh.h"          /* ssh_hassh_server_from_buffer (ssh.hassh) */
+#include "json_escape.h"      /* kmap_json_escape -- shared JSON escaper */
 #include "cloud_map.h"          /* lookup_cloud, cloud_ranges_load */
 #include "net_db.h"
 #include "net_scan.h"   /* net_event_log: mirror key events into kmap.log */
@@ -393,28 +394,7 @@ static int ver_cmp_enrich(const std::string &a, const std::string &b) {
    invalid JSON that broke downstream parsers. Iterate as unsigned char so
    UTF-8 high bytes (0x80..0xFF) are passed through, not mis-escaped. */
 static std::string json_escape(const std::string &s) {
-  std::string out;
-  out.reserve(s.size() + 8);
-  for (unsigned char c : s) {
-    switch (c) {
-      case '"':  out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      case '\b': out += "\\b";  break;
-      case '\f': out += "\\f";  break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:
-        if (c < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", c);
-          out += buf;
-        } else {
-          out += static_cast<char>(c);
-        }
-    }
-  }
-  return out;
+  return kmap_json_escape(s);   /* single source of truth: json_escape.h */
 }
 
 /* -----------------------------------------------------------------------

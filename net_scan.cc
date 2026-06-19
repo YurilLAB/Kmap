@@ -11,6 +11,7 @@
 
 #include "net_scan.h"
 #include "net_db.h"
+#include "json_escape.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
 #include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
@@ -2304,27 +2305,7 @@ int run_search_cli() {
    characters U+0000..U+001F. unsigned char iteration so UTF-8 high bytes
    pass through rather than being mis-escaped as negative < 0x20. */
 static std::string json_escape_topo(const std::string &s) {
-  std::string out; out.reserve(s.size() + 8);
-  for (unsigned char c : s) {
-    switch (c) {
-      case '"':  out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      case '\b': out += "\\b";  break;
-      case '\f': out += "\\f";  break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:
-        if (c < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", c);
-          out += buf;
-        } else {
-          out += static_cast<char>(c);
-        }
-    }
-  }
-  return out;
+  return kmap_json_escape(s);   /* single source of truth: json_escape.h */
 }
 
 /* BFS expansion of the neighborhood around `start` up to `depth` hops

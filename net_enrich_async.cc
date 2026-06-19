@@ -121,6 +121,7 @@
 
 #include "net_enrich_async.h"
 #include "net_enrich.h"   /* TlsCapture + EnrichMetrics decls */
+#include "json_escape.h"  /* kmap_json_escape -- shared JSON escaper */
 #include "os_profile.h"
 #include "KmapOps.h"
 
@@ -386,28 +387,7 @@ static int a_ver_cmp(const std::string &a, const std::string &b) {
    control bytes; emitting them unescaped produced invalid JSON). unsigned
    char iteration so UTF-8 high bytes are passed through, not mis-escaped. */
 static std::string a_json_escape(const std::string &s) {
-  std::string out;
-  out.reserve(s.size() + 8);
-  for (unsigned char c : s) {
-    switch (c) {
-      case '"':  out += "\\\""; break;
-      case '\\': out += "\\\\"; break;
-      case '\b': out += "\\b";  break;
-      case '\f': out += "\\f";  break;
-      case '\n': out += "\\n";  break;
-      case '\r': out += "\\r";  break;
-      case '\t': out += "\\t";  break;
-      default:
-        if (c < 0x20) {
-          char buf[8];
-          snprintf(buf, sizeof(buf), "\\u%04x", c);
-          out += buf;
-        } else {
-          out += static_cast<char>(c);
-        }
-    }
-  }
-  return out;
+  return kmap_json_escape(s);   /* single source of truth: json_escape.h */
 }
 
 static std::string a_normalize_product(const std::string &service,

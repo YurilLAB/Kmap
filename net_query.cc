@@ -15,6 +15,7 @@
 
 #include "net_query.h"
 #include "net_db.h"
+#include "json_escape.h"
 #include "KmapOps.h"
 #include "host_tags.h"
 #include "kmap.h"
@@ -415,53 +416,7 @@ static std::string classify_device(const std::string &service, int port) {
    ingester reject the whole document. This mirrors the error_handler_t::replace
    that yuril_export.cc and output_json.cc already use via nlohmann. */
 static std::string json_escape(const std::string &in) {
-  std::string out;
-  out.reserve(in.size() + 8);
-  size_t i = 0, n = in.size();
-  while (i < n) {
-    unsigned char c = static_cast<unsigned char>(in[i]);
-    if (c < 0x80) {                         /* ASCII: escape JSON metachars/ctrl */
-      switch (c) {
-        case '"':  out += "\\\""; break;
-        case '\\': out += "\\\\"; break;
-        case '\b': out += "\\b";  break;
-        case '\f': out += "\\f";  break;
-        case '\n': out += "\\n";  break;
-        case '\r': out += "\\r";  break;
-        case '\t': out += "\\t";  break;
-        default:
-          if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); out += b; }
-          else          out += static_cast<char>(c);
-      }
-      i++;
-      continue;
-    }
-    /* Validate a multi-byte UTF-8 sequence (RFC 3629); emit U+FFFD on any
-       malformed / overlong / surrogate / truncated sequence. */
-    int len = (c >= 0xF0 && c <= 0xF4) ? 4
-            : (c >= 0xE0 && c <= 0xEF) ? 3
-            : (c >= 0xC2 && c <= 0xDF) ? 2 : 0;   /* 0xC0/0xC1 = overlong */
-    bool ok = (len != 0) && (i + static_cast<size_t>(len) <= n);
-    for (int k = 1; ok && k < len; k++) {
-      unsigned char cc = static_cast<unsigned char>(in[i + k]);
-      if (cc < 0x80 || cc > 0xBF) ok = false;     /* not a continuation byte */
-    }
-    if (ok) {
-      unsigned char c1 = (len > 1) ? static_cast<unsigned char>(in[i + 1]) : 0;
-      if (len == 3 && c == 0xE0 && c1 < 0xA0) ok = false;   /* overlong */
-      else if (len == 3 && c == 0xED && c1 > 0x9F) ok = false; /* surrogate */
-      else if (len == 4 && c == 0xF0 && c1 < 0x90) ok = false; /* overlong */
-      else if (len == 4 && c == 0xF4 && c1 > 0x8F) ok = false; /* > U+10FFFF */
-    }
-    if (ok) {
-      out.append(in, i, static_cast<size_t>(len));
-      i += static_cast<size_t>(len);
-    } else {
-      out += "\xEF\xBF\xBD";                 /* U+FFFD REPLACEMENT CHARACTER */
-      i++;
-    }
-  }
-  return out;
+  return kmap_json_escape(in);   /* single source of truth: json_escape.h */
 }
 
 static void json_kv_str(std::ostringstream &oss, const char *key,
