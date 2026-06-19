@@ -543,6 +543,22 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
     return result;
   }
 
+  /* Telnet: server opens with IAC (0xFF) option negotiation -- the second byte
+     is WILL/WONT/DO/DONT (0xFB-0xFE). Distinctive binary prefix. */
+  if (n >= 2 && static_cast<unsigned char>(buf[0]) == 0xFF &&
+      static_cast<unsigned char>(buf[1]) >= 0xFB &&
+      static_cast<unsigned char>(buf[1]) <= 0xFE) {
+    result.service = "telnet";
+    return result;
+  }
+
+  /* rsync daemon: greets with "@RSYNCD: <version>". */
+  if (banner.compare(0, 8, "@RSYNCD:") == 0) {
+    result.service = "rsync";
+    result.version = first_line;
+    return result;
+  }
+
   if (banner.size() >= 4 &&
       (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {
     /* Could be FTP or SMTP.  Check for FTP-specific keywords. */

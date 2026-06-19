@@ -78,6 +78,19 @@ static AsyncBannerResult classify_banner(const char *buf, int n, int port) {
     return result;
   }
 
+  if (n >= 2 && static_cast<unsigned char>(buf[0]) == 0xFF &&
+      static_cast<unsigned char>(buf[1]) >= 0xFB &&
+      static_cast<unsigned char>(buf[1]) <= 0xFE) {
+    result.service = "telnet";
+    return result;
+  }
+
+  if (banner.compare(0, 8, "@RSYNCD:") == 0) {
+    result.service = "rsync";
+    result.version = first_line;
+    return result;
+  }
+
   if (banner.size() >= 4 &&
       (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {
     if (banner_lower.find("ftp") != std::string::npos) {
@@ -184,6 +197,16 @@ int main(int argc, char **argv) {
      the bounded PG length field now rejects it (len bytes 'B','x','x' huge). */
   want("RFBxx no space here", 5900, "unknown", "RFBxx no longer false-postgresql");
 
+  /* NEW: Telnet IAC negotiation + rsync daemon greeting */
+  { std::string t; t += (char)0xFF; t += (char)0xFD; t += (char)0x18;  /* IAC DO TTYPE */
+    want(t, 23, "telnet", "telnet IAC DO"); }
+  { std::string t; t += (char)0xFF; t += (char)0xFB; t += (char)0x01;  /* IAC WILL ECHO */
+    want(t, 23, "telnet", "telnet IAC WILL"); }
+  { std::string t; t += (char)0xFF; t += (char)0x05;  /* 0xFF + non-negotiation */
+    want(t, 23, "unknown", "0xFF + non-WILL/DO is not telnet"); }
+  want("@RSYNCD: 31.0\n", 873, "rsync", "rsync daemon greeting");
+  { AsyncBannerResult r = clf("@RSYNCD: 31.0\n", 873);
+    if (r.version != "@RSYNCD: 31.0") { printf("  FAIL rsync version '%s'\n", r.version.c_str()); g_fail++; } }
   want("220 ProFTPD 1.3.5 Server ready\r\n", 21, "ftp", "ftp");
   want("220 mail.example.com ESMTP Postfix\r\n", 25, "smtp", "smtp");
   want("220-FileZilla Server\r\n", 21, "ftp", "ftp 220-dash by port");
