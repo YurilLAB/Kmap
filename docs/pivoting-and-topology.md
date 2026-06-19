@@ -29,8 +29,13 @@ that tend to be reused across a single operator's infrastructure:
 | `tls_san` | Each Subject Alternative Name | Shared SANs link hosts behind one cert |
 | `hostname` | Reverse-DNS / discovered hostname | Same name family |
 | `redirect_host` | Host an HTTP probe was redirected to | Hosts funnelling to one front-end |
+| `hassh` | HASSH of the SSH server's `KEXINIT` algorithm lists (Shodan `ssh.hasshserver`) | Same SSH build/config — fleets, managed appliances, honeypots — even behind spoofed banners |
+| `favicon_mmh3` | MurmurHash3 of the base64'd `/favicon.ico` (Shodan `http.favicon.hash`) | Same web app/brand across many IPs |
+| `http_body_sha256` | SHA-256 of the HTTP root (`/`) body | Identical landing pages / default installs |
 
-(IP-literal CNs/SANs are skipped — they carry no correlation value.)
+(IP-literal CNs/SANs are skipped — they carry no correlation value. The
+`hassh`, `favicon_mmh3`, and `http_body_sha256` kinds are recorded by the
+full `--net-scan` enrichment path; the bounded watchlist path skips them.)
 
 `--net-cluster <ip>` pulls the target's own fingerprints, then walks all 32
 shards collecting every *other* IP that carries at least one of them. The

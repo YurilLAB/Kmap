@@ -82,12 +82,15 @@ sqlite3 kmap-data/shard_000.db \
 
 ## The `fingerprints` table
 
-A relationship index: each row is `(ip_u32, kind, value)`. The five `kind`s
-are `tls_sha256` (leaf-cert hash), `tls_subject_cn`, `tls_san`, `hostname`
-(reverse-DNS / discovered), and `redirect_host` (where an HTTP probe was
-redirected) — e.g. `('…','tls_sha256','<hex>')`,
-`('…','tls_san','*.example.com')`. The inverse index `(kind, value)` answers
-"which **other** hosts carry this same cert / SAN / hostname?" in one indexed
+A relationship index: each row is `(ip_u32, kind, value)`. The `kind`s are
+`tls_sha256` (leaf-cert hash), `tls_subject_cn`, `tls_san`, `hostname`
+(reverse-DNS / discovered), `redirect_host` (where an HTTP probe was
+redirected), `hassh` (HASSH of the SSH server's `KEXINIT` algorithm lists),
+`favicon_mmh3` (MurmurHash3 favicon hash) and `http_body_sha256` (root-page
+body hash) — e.g. `('…','tls_sha256','<hex>')`,
+`('…','tls_san','*.example.com')`, `('…','hassh','<md5hex>')`. The inverse
+index `(kind, value)` answers
+"which **other** hosts carry this same cert / SAN / hostname / SSH stack?" in one indexed
 lookup, even on a billions-of-rows table — this is exactly what
 [`--net-cluster`](pivoting-and-topology.md#--net-cluster--infrastructure-correlation-by-shared-fingerprints)
 walks. `ip_u32` is the 32-bit integer IP (compact, since this table outnumbers

@@ -72,6 +72,17 @@ jobs:
             echo "::endgroup::"
           done
 
+          # HASSH SSH fingerprint: links the REAL ssh_hassh.cc (and md5.h via
+          # include) so a drift in the shipping KEXINIT parser / MD5 is caught.
+          # Proves the RFC 1321 + Python-hashlib KATs, sweeps every truncation
+          # of a real OpenSSH server buffer, then fuzzes the parser over random
+          # + mutated bytes (must never fault under ASan/UBSan).
+          echo "::group::test_hassh"
+          g++ $CXXFLAGS fuzz/test_hassh.cc ssh_hassh.cc -o /tmp/fz/test_hassh
+          /tmp/fz/test_hassh 1
+          /tmp/fz/test_hassh 1337
+          echo "::endgroup::"
+
           # Cloud-range matcher links the real cloud_map.cc (offline longest-
           # prefix match + strict CIDR parse). Known-IP -> known-provider KATs.
           echo "::group::test_cloud_match"

@@ -81,6 +81,7 @@ Everything runs from a single `kmap` binary with no external dependencies — no
 | Web screenshots | `--screenshot` | Captures PNG screenshots of discovered web ports |
 | Internet-scale scanning | `--net-scan` | Full pipeline: discover, enrich, and report across the entire IPv4 space |
 | ASN/GeoIP enrichment | (automatic) | Resolves every IP to its ASN, owner, country via Team Cymru DNS |
+| SSH HASSH fingerprint | (automatic) | Hashes each SSH server's `KEXINIT` algorithm lists into a HASSH (Shodan `ssh.hasshserver`); a `--net-cluster` pivot that survives banner spoofing |
 | Watchlist monitoring | `--watchlist <file>` | Re-scan owned/client assets and detect changes |
 | Data query | `--net-query` | Search collected scan data by port, service, CVE, CVSS, ASN, country |
 | Full-text search | `--search <query>` | FTS5 free-text + faceted search over the catalog (e.g. `service:nginx country:US cloudflare`, boolean/phrase) |

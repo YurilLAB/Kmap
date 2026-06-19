@@ -261,6 +261,7 @@
     <ClCompile Include="..\net_enrich_async.cc" />
     <ClCompile Include="..\net_fp_helpers.cc" />
     <ClCompile Include="..\net_hash_helpers.cc" />
+    <ClCompile Include="..\ssh_hassh.cc" />
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
     <ClCompile Include="..\asn_lookup.cc" />
@@ -343,6 +344,8 @@
     <ClInclude Include="..\net_fp_helpers.h" />
     <ClInclude Include="..\net_hash_helpers.h" />
     <ClInclude Include="..\sha256.h" />
+    <ClInclude Include="..\md5.h" />
+    <ClInclude Include="..\ssh_hassh.h" />
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />
     <ClInclude Include="..\asn_lookup.h" />

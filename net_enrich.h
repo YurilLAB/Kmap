@@ -34,12 +34,16 @@ struct TlsCapture {
  * platforms record.  Empty fields are skipped at persistence time.
  *   favicon_mmh3 -- Shodan http.favicon.hash (mmh3 of base64'd /favicon.ico).
  *   body_sha256  -- SHA-256 of the HTTP root ("/") response body.
+ *   hassh        -- HASSH SSH-server fingerprint (Shodan ssh.hasshserver),
+ *                   MD5 of the SSH_MSG_KEXINIT algorithm name-lists; survives
+ *                   banner spoofing and clusters identical SSH builds.
  * Only populated when enrich_single_host is given a non-null out_fp (the
  * net-scan path); the bounded watchlist path leaves it null and pays no
  * extra probe cost. */
 struct HostFingerprints {
   std::string favicon_mmh3;
   std::string body_sha256;
+  std::string hassh;
 };
 
 /* Run the full enrichment pipeline across all shard databases.

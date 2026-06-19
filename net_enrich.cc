@@ -19,6 +19,7 @@
 #include "net_fp_helpers.h"
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
+#include "ssh_hassh.h"          /* ssh_hassh_server_from_buffer (ssh.hassh) */
 #include "cloud_map.h"          /* lookup_cloud, cloud_ranges_load */
 #include "net_db.h"
 #include "net_scan.h"   /* net_event_log: mirror key events into kmap.log */
@@ -428,6 +429,7 @@ struct BannerResult {
   std::string service;       /* e.g. "ssh", "http", "ftp", "smtp", "mysql" */
   std::string version;       /* e.g. "OpenSSH 8.2p1", "nginx 1.18.0" */
   std::string http_response; /* raw HTTP response if banner grab did an HTTP probe */
+  std::string hassh;         /* HASSH server fingerprint (ssh ports only); "" otherwise */
 };
 
 /* Try to grab a banner by just reading what the server sends after connect */
@@ -467,6 +469,29 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
                                   os_profile_seed_from_text(ip)));
     if (enrich_fd_send(fd, http_probe.c_str(), http_probe.size())) {
       n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, read_to);
+    }
+  }
+
+  /* SSH is speak-first: the server sends its "SSH-..." identification line
+     immediately followed by the SSH_MSG_KEXINIT packet, frequently larger than
+     ENRICH_BANNER_MAX (a stock OpenSSH KEXINIT is ~1.1 KB).  Drain a little
+     more here so the HASSH fingerprint sees the whole packet.  The bytes are
+     already in the socket buffer (the server then waits for our id, which we
+     never send), so each recv returns at once -- no extra round-trip, no new
+     timeout budget -- and we stop the instant a complete KEXINIT parses.
+     Hard-capped on iterations and total size so a dribbling/malicious server
+     can never stall the pipeline. */
+  std::string ssh_more;
+  if (n >= 4 && memcmp(buf, "SSH-", 4) == 0) {
+    std::string acc(buf, static_cast<size_t>(n));
+    char xb[ENRICH_BANNER_MAX];
+    for (int it = 0; it < 8 && acc.size() < 16384; it++) {
+      SshKexInit probe;
+      if (ssh_kexinit_from_server_buffer(acc, probe)) break;  /* have full KEXINIT */
+      int m = enrich_fd_recv(fd, xb, sizeof(xb), read_to);
+      if (m <= 0) break;
+      acc.append(xb, static_cast<size_t>(m));
+      ssh_more.append(xb, static_cast<size_t>(m));
     }
   }
 
@@ -522,6 +547,10 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
       /* Replace underscores with spaces for readability */
       std::replace(result.version.begin(), result.version.end(), '_', ' ');
     }
+    /* HASSH server fingerprint from the KEXINIT that followed the id line
+       (banner holds the first ENRICH_BANNER_MAX bytes, ssh_more the drained
+       remainder).  Best-effort: "" when the packet never fully arrived. */
+    result.hassh = ssh_hassh_server_from_buffer(banner + ssh_more);
     return result;
   }
 
@@ -1533,6 +1562,7 @@ int enrich_single_host(const char *ip,
         br = grab_banner(ip, ports[i], port_timeout);
         if (!br.service.empty()) out_services[i] = br.service;
         if (!br.version.empty()) out_versions[i] = br.version;
+        if (out_fp && !br.hassh.empty()) (*out_fp)[i].hassh = br.hassh;
       } else {
         /* Use pre-populated values for downstream branching
            (is_http_port / is_https_port read br.service). */
@@ -2222,6 +2252,11 @@ int run_enrichment(const char *data_dir, int batch_size) {
               net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                         "http_body_sha256",
                                         fp.body_sha256.c_str(), fp_ts);
+            }
+            if (!fp.hassh.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "hassh",
+                                        fp.hassh.c_str(), fp_ts);
             }
           }
         }
