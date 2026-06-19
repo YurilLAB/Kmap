@@ -167,6 +167,54 @@ static float max_epss_from_json(const std::string &cves_json) {
 static bool json_has_kev(const std::string &cves_json) {
   return cves_json.find("\"kev\":1") != std::string::npos;
 }
+/* max_cvss_from_json / first_cve_summary: VERBATIM from net_query.cc. */
+static float max_cvss_from_json(const std::string &cves_json) {
+  float max_score = -1.0f;
+  size_t pos = 0;
+  while (true) {
+    pos = cves_json.find("\"cvss\":", pos);
+    if (pos == std::string::npos) break;
+    pos += 7;
+    while (pos < cves_json.size() && cves_json[pos] == ' ') pos++;
+    size_t end = pos;
+    while (end < cves_json.size() &&
+           (isdigit(static_cast<unsigned char>(cves_json[end])) ||
+            cves_json[end] == '.' || cves_json[end] == '-'))
+      end++;
+    if (end > pos) {
+      float score = static_cast<float>(
+          atof(cves_json.substr(pos, end - pos).c_str()));
+      if (score > max_score) max_score = score;
+    }
+    pos = end;
+  }
+  return max_score;
+}
+static std::string first_cve_summary(const std::string &cves_json) {
+  size_t id_pos = cves_json.find("\"id\":\"");
+  if (id_pos == std::string::npos) return "";
+  id_pos += 6;
+  size_t id_end = cves_json.find('"', id_pos);
+  if (id_end == std::string::npos) return "";
+  std::string cve_id = cves_json.substr(id_pos, id_end - id_pos);
+  size_t cvss_pos = cves_json.find("\"cvss\":", id_pos);
+  std::string cvss_str;
+  if (cvss_pos != std::string::npos && cvss_pos < id_pos + 200) {
+    cvss_pos += 7;
+    while (cvss_pos < cves_json.size() && cves_json[cvss_pos] == ' ')
+      cvss_pos++;
+    size_t cvss_end = cvss_pos;
+    while (cvss_end < cves_json.size() &&
+           (isdigit(static_cast<unsigned char>(cves_json[cvss_end])) ||
+            cves_json[cvss_end] == '.'))
+      cvss_end++;
+    if (cvss_end > cvss_pos)
+      cvss_str = cves_json.substr(cvss_pos, cvss_end - cvss_pos);
+  }
+  if (!cvss_str.empty())
+    return cve_id + " (CVSS:" + cvss_str + ")";
+  return cve_id;
+}
 /* ===== end verbatim ===== */
 
 static sqlite3 *g_db;
@@ -253,6 +301,56 @@ int main() {
   CHECK(!json_has_kev("[{\"id\":\"a\",\"cvss\":9.1}]"), "json_has_kev false");
   /* "kev":0 (catalog-cleared) must not count as KEV. */
   CHECK(!json_has_kev("[{\"id\":\"a\",\"kev\":0}]"), "json_has_kev ignores kev:0");
+
+  /* ---- adversarial: a CVE description that mimics the kev/epss/cvss keys
+     must NOT spoof the filters. cves_to_json json-escapes desc, so an inner
+     quote is stored as \" -- the parsers key on the unescaped "key": form, so
+     the escaped text can never form a real key. These inputs are exactly what
+     would be stored for a malicious description. */
+  CHECK(!json_has_kev("[{\"id\":\"a\",\"desc\":\"x\\\",\\\"kev\\\":1\",\"kev\":0}]"),
+        "escaped kev text in desc does not spoof json_has_kev");
+  CHECK(json_has_kev("[{\"id\":\"a\",\"desc\":\"x\\\",\\\"kev\\\":1\",\"kev\":1}]"),
+        "real kev field still detected alongside spoof text");
+  CHECK(max_epss_from_json("[{\"id\":\"a\",\"desc\":\"see \\\"epss\\\":0.99\",\"epss\":0.10}]")
+          < 0.5f,
+        "escaped epss text in desc does not inflate max_epss");
+  CHECK(max_cvss_from_json("[{\"id\":\"a\",\"desc\":\"\\\"cvss\\\":9.9 in text\",\"cvss\":4.0}]")
+          < 5.0f,
+        "escaped cvss text in desc does not inflate max_cvss");
+
+  /* ---- first_cve_summary correctness ---- */
+  CHECK(first_cve_summary("[{\"id\":\"CVE-2024-6387\",\"cvss\":8.1}]")
+          == "CVE-2024-6387 (CVSS:8.1)", "first_cve_summary id+cvss");
+  CHECK(first_cve_summary("[{\"id\":\"CVE-2024-1\"}]") == "CVE-2024-1",
+        "first_cve_summary id only");
+  CHECK(first_cve_summary("[]").empty(), "first_cve_summary empty array");
+  CHECK(first_cve_summary("garbage").empty(), "first_cve_summary no id");
+  { /* first entry's id wins even when a later entry has higher cvss */
+    std::string s = "[{\"id\":\"CVE-A\",\"cvss\":1.0},{\"id\":\"CVE-B\",\"cvss\":9.9}]";
+    CHECK(first_cve_summary(s) == "CVE-A (CVSS:1.0)", "first_cve_summary takes first id"); }
+
+  /* ---- fuzz: the four JSON post-filter parsers must never fault (ASan/UBSan)
+     on arbitrary bytes -- truncation right after a key (e.g. "epss": at EOF)
+     is the classic over-read trigger. */
+  {
+    uint32_t rng = 0x9e3779b9u;
+    auto xr = [&](){ rng^=rng<<13; rng^=rng>>17; rng^=rng<<5; return rng; };
+    const char *frags[] = {"\"epss\":","\"cvss\":","\"kev\":1","\"id\":\"",
+                           "0.99",",","}","{","[","]","\\\"","CVE-1"};
+    for (int it = 0; it < 300000; it++) {
+      std::string s;
+      int n = xr() % 40;
+      for (int k = 0; k < n; k++) {
+        if (xr() & 1) s += frags[xr() % 12];
+        else s += (char)(xr() & 0xff);
+      }
+      volatile float a = max_cvss_from_json(s); (void)a;
+      volatile float b = max_epss_from_json(s); (void)b;
+      volatile bool  c = json_has_kev(s);       (void)c;
+      volatile size_t d = first_cve_summary(s).size(); (void)d;
+    }
+    printf("  json-parser fuzz (300000 iters): no fault\n");
+  }
 
   /* ---- SQL injection: payloads must be literal, returning 0 rows ---- */
   CHECK(run_query(build_filter(0,"' OR '1'='1",0,0,0,0,0,0)).empty(),
