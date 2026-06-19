@@ -97,6 +97,19 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
         result.version = banner.substr(vs, ve - vs);
       }
     }
+    /* SharePoint stamps its build in the MicrosoftSharePointTeamServices
+       header (always in the headers, so the version is reliably captured). */
+    {
+      size_t sp = banner_lower.find("\nmicrosoftsharepointteamservices:");
+      if (sp != std::string::npos) {
+        result.service = "sharepoint";
+        size_t vs = sp + 33;   /* past "\nmicrosoftsharepointteamservices:" */
+        while (vs < banner.size() && banner[vs] == ' ') vs++;
+        size_t ve = banner.find_first_of("\r\n", vs);
+        if (ve == std::string::npos) ve = banner.size();
+        result.version = banner.substr(vs, ve - vs);
+      }
+    }
     return result;
   }
 

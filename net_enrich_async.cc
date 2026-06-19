@@ -333,6 +333,8 @@ static std::string a_normalize_product(const std::string &service,
       svc == "jenkins")     return "jenkins";
   if (ver.find("php")          != std::string::npos) return "php";
   if (ver.find("wordpress")    != std::string::npos) return "wordpress";
+  if (svc == "sharepoint" || ver.find("sharepoint") != std::string::npos)
+    return "sharepoint_server";
 
   return "";
 }

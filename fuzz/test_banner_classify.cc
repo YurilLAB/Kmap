@@ -88,6 +88,12 @@ int main(int argc, char **argv) {
     BannerClass r = clf(j, 8080);
     if (r.service != "jenkins") { printf("  FAIL jenkins service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "2.401.3") { printf("  FAIL jenkins version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* SharePoint version from the MicrosoftSharePointTeamServices header. */
+  { std::string sp = "HTTP/1.1 200 OK\r\nMicrosoftSharePointTeamServices: 16.0.0.10337\r\n"
+      "Content-Type: text/html\r\n\r\n";
+    BannerClass r = clf(sp, 443);
+    if (r.service != "sharepoint") { printf("  FAIL sharepoint service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "16.0.0.10337") { printf("  FAIL sharepoint version '%s'\n", r.version.c_str()); g_fail++; } }
   /* A normal HTTP server is NOT reclassified. */
   want("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<html>hi</html>", 80, "http", "plain http not es");
   want("-ERR unknown command\r\n", 6379, "redis", "redis");
