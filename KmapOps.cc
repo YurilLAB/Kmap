@@ -159,6 +159,7 @@ KmapOps::~KmapOps() {
   if (nq_country) { free(nq_country); nq_country = NULL; }
   if (nq_device) { free(nq_device); nq_device = NULL; }
   if (nq_format) { free(nq_format); nq_format = NULL; }
+  if (nq_tag) { free(nq_tag); nq_tag = NULL; }
   if (tracemap_targets) { free(tracemap_targets); tracemap_targets = NULL; }
   if (tm_output) { free(tm_output); tm_output = NULL; }
   if (tm_format) { free(tm_format); tm_format = NULL; }
@@ -368,6 +369,7 @@ void KmapOps::Initialize() {
   nq_format        = nullptr;
   nq_kev           = false;
   nq_min_epss      = -1.0f;
+  nq_tag           = nullptr;
   net_cluster      = false;
   nc_ip            = nullptr;
   nc_min_shared    = 1;

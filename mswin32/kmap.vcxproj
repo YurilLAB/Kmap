@@ -262,6 +262,7 @@
     <ClCompile Include="..\net_fp_helpers.cc" />
     <ClCompile Include="..\net_hash_helpers.cc" />
     <ClCompile Include="..\ssh_hassh.cc" />
+    <ClCompile Include="..\host_tags.cc" />
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
     <ClCompile Include="..\asn_lookup.cc" />
@@ -346,6 +347,7 @@
     <ClInclude Include="..\sha256.h" />
     <ClInclude Include="..\md5.h" />
     <ClInclude Include="..\ssh_hassh.h" />
+    <ClInclude Include="..\host_tags.h" />
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />
     <ClInclude Include="..\asn_lookup.h" />

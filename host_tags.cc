@@ -1,0 +1,151 @@
+/*
+ * host_tags.cc -- implementation of derive_host_tags (see header).
+ *
+ * Pure string/version math over already-collected fields.  Every tag is a
+ * deterministic function of stored data, so the result is stable across runs
+ * and fully unit-testable (fuzz/test_host_tags.cc).
+ */
+
+#ifdef WIN32
+#include "kmap_winconfig.h"
+#endif
+
+#include "host_tags.h"
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+
+/* ---------------------------------------------------------------------------
+ * Small helpers
+ * ------------------------------------------------------------------------- */
+
+static std::string ht_lower(const std::string &s) {
+  std::string r = s;
+  std::transform(r.begin(), r.end(), r.begin(),
+                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
+  return r;
+}
+
+/* Numeric component-wise version compare: returns true if a < b.  Missing
+ * trailing components count as 0 ("2.4" == "2.4.0").  Non-numeric segments
+ * stop the parse (so "2.4.49 (Ubuntu)" reads as 2.4.49). */
+static std::vector<int> ht_ver_parts(const std::string &v) {
+  std::vector<int> out;
+  size_t i = 0, n = v.size();
+  while (i < n) {
+    if (!isdigit(static_cast<unsigned char>(v[i]))) break;
+    int val = 0;
+    while (i < n && isdigit(static_cast<unsigned char>(v[i]))) {
+      val = val * 10 + (v[i] - '0');
+      i++;
+    }
+    out.push_back(val);
+    if (i < n && v[i] == '.') { i++; continue; }
+    break;  /* stop at the first non-dot, non-digit (e.g. "p1", " (Ubuntu)") */
+  }
+  return out;
+}
+
+static bool ht_ver_lt(const std::string &a, const std::string &b) {
+  std::vector<int> pa = ht_ver_parts(a), pb = ht_ver_parts(b);
+  if (pa.empty()) return false;  /* unparseable version -> cannot assert EOL */
+  size_t m = std::max(pa.size(), pb.size());
+  for (size_t i = 0; i < m; i++) {
+    int x = i < pa.size() ? pa[i] : 0;
+    int y = i < pb.size() ? pb[i] : 0;
+    if (x != y) return x < y;
+  }
+  return false;
+}
+
+/* Pull the (product, version) out of a CPE 2.3 formatted string:
+ *   cpe:2.3:a:apache:http_server:2.4.49:*:*:*:*:*:*:*
+ * fields are colon-separated; [4]=product, [5]=version.  Returns false when
+ * the string is not a parseable CPE or the version is ANY ("*"). */
+static bool ht_cpe_product_version(const std::string &cpe,
+                                   std::string &product, std::string &version) {
+  if (cpe.compare(0, 8, "cpe:2.3:") != 0) return false;
+  std::vector<std::string> f;
+  size_t start = 0;
+  for (size_t i = 0; i <= cpe.size(); i++) {
+    if (i == cpe.size() || cpe[i] == ':') {
+      f.push_back(cpe.substr(start, i - start));
+      start = i + 1;
+    }
+  }
+  if (f.size() < 6) return false;
+  product = ht_lower(f[4]);
+  version = f[5];
+  if (version.empty() || version == "*" || version == "-") return false;
+  return true;
+}
+
+/* ---------------------------------------------------------------------------
+ * End-of-life ruleset
+ *
+ * Keyed by CPE product token (the same tokens net_hash_helpers.cc::derive_cpe
+ * emits).  A detected version strictly below `eol_below` is past end-of-life.
+ * Conservative on purpose: only products with a single, well-documented EOL
+ * boundary are listed, so a tag is never a guess.  Sourced from
+ * endoflife.date; the cutoff is the lowest still-supported major.minor as of
+ * 2026-06.  Update alongside the CVE refresh.
+ * ------------------------------------------------------------------------- */
+struct EolRule {
+  const char *cpe_product;  /* CPE product field */
+  const char *eol_below;    /* versions < this are EOL */
+};
+static const EolRule EOL_RULES[] = {
+  {"http_server", "2.4"},  /* Apache 2.2.x EOL 2017-12-31 */
+  {"mysql",       "8.0"},  /* MySQL 5.7 EOL 2023-10-31 */
+  {"postgresql",  "12"},   /* PostgreSQL <=11 EOL 2023-11-09 */
+  {"php",         "8.1"},  /* PHP 8.0 EOL 2023-11-26 */
+  {"tomcat",      "9.0"},  /* Tomcat 8.5 EOL 2024-03-31 */
+};
+
+static bool ht_is_eol(const std::string &cpe) {
+  std::string product, version;
+  if (!ht_cpe_product_version(cpe, product, version)) return false;
+  for (const EolRule &r : EOL_RULES) {
+    if (product == r.cpe_product)
+      return ht_ver_lt(version, r.eol_below);
+  }
+  return false;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tag derivation
+ * ------------------------------------------------------------------------- */
+
+static bool ht_is_database(const std::string &service) {
+  std::string s = ht_lower(service);
+  if (s == "mysql" || s == "mariadb" || s == "postgresql" || s == "mongodb" ||
+      s == "redis" || s == "elasticsearch" || s == "memcached" ||
+      s == "couchdb" || s == "ms-sql-s" || s == "mssql" || s == "oracle")
+    return true;
+  return s.find("sql") != std::string::npos;
+}
+
+std::vector<std::string> derive_host_tags(const HostTagInput &in) {
+  std::vector<std::string> tags;
+
+  if (in.tls_self_signed == 1)        tags.push_back("self-signed");
+  if (!in.cloud_provider.empty())     tags.push_back("cloud");
+  if (ht_is_database(in.service))     tags.push_back("database");
+
+  /* CVE-derived tags. The cves column is a JSON array; "" or "[]" means none.
+     kev/ransomware are substring-tested against the exact keys cves_to_json
+     emits ("kev":1 / "ransomware":1). */
+  const std::string &c = in.cves_json;
+  bool has_cves = !c.empty() && c != "[]";
+  if (has_cves)                                   tags.push_back("vuln");
+  if (c.find("\"kev\":1") != std::string::npos)        tags.push_back("kev");
+  if (c.find("\"ransomware\":1") != std::string::npos) tags.push_back("ransomware");
+
+  if (ht_is_eol(in.cpe))              tags.push_back("eol-product");
+
+  /* Deterministic, de-duplicated output. */
+  std::sort(tags.begin(), tags.end());
+  tags.erase(std::unique(tags.begin(), tags.end()), tags.end());
+  return tags;
+}

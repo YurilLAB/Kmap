@@ -16,6 +16,7 @@
 #include "net_query.h"
 #include "net_db.h"
 #include "KmapOps.h"
+#include "host_tags.h"
 #include "kmap.h"
 #include "output.h"
 
@@ -490,7 +491,8 @@ static std::string format_result_json(const std::string &ip, int port,
                                       const std::string &web_server,
                                       const std::string &cpe,
                                       const std::string &cloud_provider,
-                                      const std::string &device_class) {
+                                      const std::string &device_class,
+                                      const std::vector<std::string> &tags) {
   std::ostringstream oss;
   bool first = true;
   oss << '{';
@@ -508,6 +510,16 @@ static std::string format_result_json(const std::string &ip, int port,
   if (!cpe.empty()) json_kv_str(oss, "cpe", cpe, first);
   if (!cloud_provider.empty()) json_kv_str(oss, "cloud", cloud_provider, first);
   json_kv_str(oss, "device_class", device_class, first);
+  if (!tags.empty()) {
+    if (!first) oss << ',';
+    first = false;
+    oss << "\"tags\":[";
+    for (size_t i = 0; i < tags.size(); i++) {
+      if (i) oss << ',';
+      oss << '"' << json_escape(tags[i]) << '"';
+    }
+    oss << ']';
+  }
   /* cves is already JSON in the column.  Emit raw only if it looks like
    * a JSON array; otherwise fall back to an escaped string to keep the
    * output parseable. */
@@ -550,7 +562,8 @@ static std::string format_result(const std::string &ip, int port,
                                  const std::string &proto,
                                  const std::string &service,
                                  const std::string &version,
-                                 const std::string &cves_json) {
+                                 const std::string &cves_json,
+                                 const std::vector<std::string> &tags) {
   std::ostringstream oss;
 
   /* IP:port/proto */
@@ -582,6 +595,16 @@ static std::string format_result(const std::string &ip, int port,
       oss << "  " << cve_summary;
   }
 
+  /* Tags, bracketed: [self-signed, cloud, kev] */
+  if (!tags.empty()) {
+    oss << "  [";
+    for (size_t i = 0; i < tags.size(); i++) {
+      if (i) oss << ", ";
+      oss << tags[i];
+    }
+    oss << "]";
+  }
+
   return oss.str();
 }
 
@@ -604,8 +627,13 @@ int run_net_query(const char *data_dir,
                   const char *format,
                   bool count_only,
                   bool kev_only,
-                  float min_epss) {
+                  float min_epss,
+                  const char *tag) {
   if (!data_dir) return 1;
+
+  /* Pre-lowercase the tag filter for case-insensitive compare. */
+  std::string tag_filter;
+  if (tag && tag[0]) tag_filter = str_lower(tag);
 
   /* Validate port range if specified */
   if (port != -1 && (port < 1 || port > 65535)) {
@@ -690,7 +718,7 @@ int run_net_query(const char *data_dir,
   std::string sql =
     "SELECT ip, port, proto, service, version, cves, "
     "       asn, as_name, country, hostname, web_title, web_server, cpe, "
-    "       cloud_provider "
+    "       cloud_provider, tls_self_signed "
     "FROM hosts WHERE " + filter.where_clause;
   /* Deliberately no SQL "ORDER BY ip": hosts.ip is dotted-quad TEXT, so it would
      sort lexicographically ("10.0.0.1" < "2.2.2.2" < "9.9.9.9"). Each shard's
@@ -780,6 +808,8 @@ int run_net_query(const char *data_dir,
       std::string row_wsrv    = col_str(11);
       std::string row_cpe     = col_str(12);
       std::string row_cloud   = col_str(13);
+      int row_tls_self_signed = (sqlite3_column_type(stmt, 14) == SQLITE_NULL)
+                                  ? -1 : sqlite3_column_int(stmt, 14);
 
       /* Post-process: IP range filtering (exact CIDR check) */
       if (has_cidr) {
@@ -806,6 +836,21 @@ int run_net_query(const char *data_dir,
         if (dev_class != device_filter) continue;
       }
 
+      /* Post-process: Shodan-style tags, derived from this row's already-
+         collected columns (see host_tags.cc). --nq-tag filters on membership. */
+      HostTagInput ti;
+      ti.service = row_svc;
+      ti.port = row_port;
+      ti.version = row_ver;
+      ti.cpe = row_cpe;
+      ti.tls_self_signed = row_tls_self_signed;
+      ti.cloud_provider = row_cloud;
+      ti.cves_json = row_cves;
+      std::vector<std::string> tags = derive_host_tags(ti);
+      if (!tag_filter.empty() &&
+          std::find(tags.begin(), tags.end(), tag_filter) == tags.end())
+        continue;
+
       total_count++;
 
       if (!count_only) {
@@ -813,8 +858,9 @@ int run_net_query(const char *data_dir,
           ? format_result_json(row_ip, row_port, row_proto, row_svc, row_ver,
                                row_cves, row_asn, row_as_name, row_country,
                                row_host, row_wtitle, row_wsrv, row_cpe, row_cloud,
-                               dev_class)
-          : format_result(row_ip, row_port, row_proto, row_svc, row_ver, row_cves);
+                               dev_class, tags)
+          : format_result(row_ip, row_port, row_proto, row_svc, row_ver, row_cves,
+                          tags);
         shard_rows.push_back({ ip_to_u32(row_ip.c_str()), row_port, payload });
       }
     }

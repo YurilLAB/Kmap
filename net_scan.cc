@@ -1898,7 +1898,8 @@ int run_net_query_cli() {
     o.nq_format,
     o.nq_count,
     o.nq_kev,
-    o.nq_min_epss
+    o.nq_min_epss,
+    o.nq_tag
   );
 }
 

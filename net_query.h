@@ -27,6 +27,8 @@
  *   count_only  — if true, only print total count of matching rows
  *   kev_only    — restrict to hosts with a CISA-KEV-flagged CVE
  *   min_epss    — restrict to hosts whose max EPSS probability >= this (0..1)
+ *   tag         — restrict to hosts carrying this derived tag (self-signed,
+ *                 cloud, database, vuln, kev, ransomware, eol-product), or NULL
  * Returns 0 on success, 1 on error. */
 int run_net_query(const char *data_dir,
                   int port,
@@ -43,6 +45,7 @@ int run_net_query(const char *data_dir,
                   const char *format,
                   bool count_only,
                   bool kev_only,
-                  float min_epss);
+                  float min_epss,
+                  const char *tag);
 
 #endif /* NET_QUERY_H */

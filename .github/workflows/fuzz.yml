@@ -83,6 +83,15 @@ jobs:
           /tmp/fz/test_hassh 1337
           echo "::endgroup::"
 
+          # Host tags: links the REAL host_tags.cc so a drift in the tag rules /
+          # EOL version math / CPE parse is caught. KATs per tag + a random-field
+          # fuzz loop (must never fault under ASan/UBSan).
+          echo "::group::test_host_tags"
+          g++ $CXXFLAGS fuzz/test_host_tags.cc host_tags.cc -o /tmp/fz/test_host_tags
+          /tmp/fz/test_host_tags 1
+          /tmp/fz/test_host_tags 1337
+          echo "::endgroup::"
+
           # Cloud-range matcher links the real cloud_map.cc (offline longest-
           # prefix match + strict CIDR parse). Known-IP -> known-provider KATs.
           echo "::group::test_cloud_match"

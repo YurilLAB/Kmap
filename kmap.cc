@@ -325,6 +325,8 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.net_query = true; o.nq_country = strdup(arg); return true;
   } else if (strcmp(name, "nq-device") == 0) {
     o.net_query = true; o.nq_device = strdup(arg); return true;
+  } else if (strcmp(name, "nq-tag") == 0) {
+    o.net_query = true; o.nq_tag = strdup(arg); return true;
   } else if (strcmp(name, "nq-format") == 0) {
     if (strcmp(arg, "text") != 0 && strcmp(arg, "json") != 0)
       fatal("--nq-format must be one of: text, json");
@@ -651,6 +653,8 @@ static void printusage() {
          "  --nq-country <CC>: Filter query by ISO country code\n"
          "  --nq-device <tag>: Filter by device class (web, ssh, ftp, telnet, smtp,\n"
          "                     mail, dns, db, rdp, vnc, snmp, smb, iot, router)\n"
+         "  --nq-tag <tag>: Filter by derived tag (self-signed, cloud, database,\n"
+         "                  vuln, kev, ransomware, eol-product)\n"
          "  --nq-format <fmt>: Output format: text (default) or json\n"
          "  --nq-output <file>: Export query results to file\n"
          "  --nq-count: Show count instead of listing results\n"
@@ -1038,6 +1042,7 @@ void parse_options(int argc, char **argv) {
     {"nq-asn", required_argument, 0, 0},
     {"nq-country", required_argument, 0, 0},
     {"nq-device", required_argument, 0, 0},
+    {"nq-tag", required_argument, 0, 0},
     {"nq-format", required_argument, 0, 0},
     /* --net-cluster: relationship-cohort lookup */
     {"net-cluster", required_argument, 0, 0},

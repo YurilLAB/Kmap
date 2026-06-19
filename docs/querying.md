@@ -36,6 +36,7 @@ bare `--net-query` when you pass any filter.
 | `--nq-country <CC>`       | ISO 2-letter code  | exact, case-insensitive (`us` == `US`)                     |
 | `--nq-ip-range <cidr>`    | e.g. `8.8.0.0/16`  | restricts the search to shards overlapping that CIDR       |
 | `--nq-device <tag>`       | device class       | one of: web, ssh, ftp, telnet, smtp, mail, dns, db, rdp, vnc, snmp, smb, iot, router |
+| `--nq-tag <tag>`          | derived tag        | host carries the tag: self-signed, cloud, database, vuln, kev, ransomware, eol-product |
 
 **Multiple filters combine with AND.** `--nq-service http --nq-country DE`
 returns only German web hosts. A service substring of `http` matches both
@@ -75,12 +76,36 @@ kmap --net-query --nq-kev --nq-count
 
 # High exploit-likelihood (EPSS ≥ 90%) web servers, as JSON
 kmap --net-query --nq-min-epss 0.9 --nq-device web --nq-format json
+
+# End-of-life software exposed to the internet
+kmap --net-query --nq-tag eol-product
+
+# Self-signed TLS services in Germany (shadow IT / dev boxes)
+kmap --net-query --nq-tag self-signed --nq-country DE
 ```
 
 > **EPSS** (0–1) is FIRST.org's predicted probability a CVE will be exploited
 > in the next 30 days; **KEV** is CISA's catalog of CVEs confirmed exploited in
 > the wild. Both are layered onto matched CVEs during enrichment and refreshed
 > with [`scripts/update_epss_kev.py`](../scripts/update_epss_kev.py).
+
+### Tags
+
+Every result line carries derived **tags** (Shodan's faceting model) computed on
+the fly from the stored columns — no re-scan needed:
+
+| Tag | Means |
+|-----|-------|
+| `self-signed` | TLS leaf cert did not chain-validate |
+| `cloud` | IP is in a known cloud-provider range |
+| `database` | service is a database engine |
+| `vuln` | at least one CVE matched |
+| `kev` | a matched CVE is in the CISA KEV catalog |
+| `ransomware` | a matched KEV CVE is tied to a ransomware campaign |
+| `eol-product` | detected product/version is past end-of-life |
+
+Text output appends them in `[brackets]`; JSON adds a `"tags":[...]` array.
+`--nq-tag <tag>` keeps only hosts carrying that tag.
 
 ## How the data gets there
 

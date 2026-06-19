@@ -324,6 +324,7 @@ class KmapOps {
   char *nq_format;          /* "text" (default) or "json" */
   bool nq_kev;              /* Only hosts with a CISA-KEV-flagged CVE */
   float nq_min_epss;        /* Filter by min EPSS probability 0..1 (-1 = unset) */
+  char *nq_tag;             /* Filter by derived tag (self-signed/cloud/kev/...) */
   /* --net-cluster options */
   bool net_cluster;         /* Enable relationship-cluster mode */
   char *nc_ip;              /* IP to find cohort for (dotted-quad) */
