@@ -82,6 +82,12 @@ int main(int argc, char **argv) {
     BannerClass r = clf(es, 9200);
     if (r.service != "elasticsearch") { printf("  FAIL es service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "8.12.0") { printf("  FAIL es version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* Jenkins advertises its version in the X-Jenkins header. */
+  { std::string j = "HTTP/1.1 403 Forbidden\r\nX-Jenkins: 2.401.3\r\n"
+      "X-Jenkins-Session: abc\r\nContent-Type: text/html\r\n\r\n";
+    BannerClass r = clf(j, 8080);
+    if (r.service != "jenkins") { printf("  FAIL jenkins service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "2.401.3") { printf("  FAIL jenkins version '%s'\n", r.version.c_str()); g_fail++; } }
   /* A normal HTTP server is NOT reclassified. */
   want("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<html>hi</html>", 80, "http", "plain http not es");
   want("-ERR unknown command\r\n", 6379, "redis", "redis");

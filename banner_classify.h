@@ -85,6 +85,18 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
         }
       }
     }
+    /* Jenkins advertises its version in the X-Jenkins response header. */
+    {
+      size_t jp = banner_lower.find("\nx-jenkins:");
+      if (jp != std::string::npos) {
+        result.service = "jenkins";
+        size_t vs = jp + 11;                       /* past "\nx-jenkins:" */
+        while (vs < banner.size() && banner[vs] == ' ') vs++;
+        size_t ve = banner.find_first_of("\r\n", vs);
+        if (ve == std::string::npos) ve = banner.size();
+        result.version = banner.substr(vs, ve - vs);
+      }
+    }
     return result;
   }
 

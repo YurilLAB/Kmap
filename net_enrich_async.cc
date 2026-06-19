@@ -329,7 +329,8 @@ static std::string a_normalize_product(const std::string &service,
   if (ver.find("samba")        != std::string::npos) return "samba";
   if (ver.find("elasticsearch")!= std::string::npos ||
       svc == "elasticsearch")  return "elasticsearch";
-  if (ver.find("jenkins")      != std::string::npos) return "jenkins";
+  if (ver.find("jenkins") != std::string::npos ||
+      svc == "jenkins")     return "jenkins";
   if (ver.find("php")          != std::string::npos) return "php";
   if (ver.find("wordpress")    != std::string::npos) return "wordpress";
 
