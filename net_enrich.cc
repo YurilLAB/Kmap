@@ -657,6 +657,10 @@ struct EnrichCve {
      attacker". */
   std::string cvss_vector;
   int         remote_unauthed = -1;
+  /* Exploit-triage signals (see cve_map.h). epss -1 = column absent in DB. */
+  float       epss = -1.0f;
+  bool        kev = false;
+  bool        kev_ransomware = false;
 };
 
 /* Normalize a service/version pair to a product name for DB lookup.
@@ -848,18 +852,29 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     if (probe) sqlite3_finalize(probe);
   }
 
-  const char *sql = has_excl
-    ? "SELECT cve_id, cvss_score, severity, description, version_min, "
-      "version_max, cvss_vector, remote_unauthed, version_min_exclusive, "
-      "version_max_exclusive FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-      "ORDER BY cvss_score DESC LIMIT 2000"
-    : "SELECT cve_id, cvss_score, severity, description, version_min, "
-      "version_max, cvss_vector, remote_unauthed "
-      "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-      "ORDER BY cvss_score DESC LIMIT 2000";
+  /* EPSS / CISA-KEV enrichment columns (scripts/update_epss_kev.py); absent in
+     older/external DBs.  Appended after the optional excl columns so offsets
+     stay deterministic. */
+  static int has_epss = -1;
+  if (has_epss < 0) {
+    sqlite3_stmt *probe = nullptr;
+    has_epss = (sqlite3_prepare_v2(cve_db,
+        "SELECT epss_score, kev, kev_ransomware FROM cves LIMIT 1",
+        -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
+    if (probe) sqlite3_finalize(probe);
+  }
+  const int epss_off = 8 + (has_excl ? 2 : 0);
+
+  std::string sql =
+      "SELECT cve_id, cvss_score, severity, description, version_min, "
+      "version_max, cvss_vector, remote_unauthed";
+  if (has_excl) sql += ", version_min_exclusive, version_max_exclusive";
+  if (has_epss) sql += ", epss_score, kev, kev_ransomware";
+  sql += " FROM cves WHERE product = ? AND cvss_score >= 0.0 "
+         "ORDER BY cvss_score DESC LIMIT 2000";
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  if (sqlite3_prepare_v2(cve_db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
     return results;
 
   sqlite3_bind_text(stmt, 1, product.c_str(), -1, SQLITE_TRANSIENT);
@@ -914,6 +929,12 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
     e.remote_unauthed = (sqlite3_column_type(stmt, 7) == SQLITE_NULL)
                           ? -1
                           : sqlite3_column_int(stmt, 7);
+    if (has_epss) {
+      e.epss = (sqlite3_column_type(stmt, epss_off) == SQLITE_NULL)
+                 ? -1.0f : static_cast<float>(sqlite3_column_double(stmt, epss_off));
+      e.kev            = sqlite3_column_int(stmt, epss_off + 1) != 0;
+      e.kev_ransomware = sqlite3_column_int(stmt, epss_off + 2) != 0;
+    }
     results.push_back(std::move(e));
     if (static_cast<int>(results.size()) >= KMAP_CVE_RESULT_CAP) break;
   }
@@ -945,6 +966,13 @@ static std::string cves_to_json(const std::vector<EnrichCve> &cves) {
       oss << ",\"vec\":\"" << json_escape(cves[i].cvss_vector) << "\"";
     if (cves[i].remote_unauthed >= 0)
       oss << ",\"remote\":" << cves[i].remote_unauthed;
+    if (cves[i].epss >= 0.0f) {
+      char epss_buf[16];
+      snprintf(epss_buf, sizeof(epss_buf), "%.4f", cves[i].epss);
+      oss << ",\"epss\":" << epss_buf;
+    }
+    if (cves[i].kev) oss << ",\"kev\":1";
+    if (cves[i].kev_ransomware) oss << ",\"ransomware\":1";
     oss << "}";
   }
   oss << "]";

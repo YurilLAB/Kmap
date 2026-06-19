@@ -28,6 +28,8 @@ bare `--net-query` when you pass any filter.
 | `--nq-service <name>`     | service name       | case-insensitive **substring** (`%name%`)                  |
 | `--nq-cve <id>`           | CVE id fragment    | substring match against the stored `cves` JSON             |
 | `--nq-min-cvss <0.0-10.0>`| minimum CVSS       | keeps rows whose highest CVE score ≥ the value             |
+| `--nq-kev`                | CISA KEV only      | keeps rows with a Known-Exploited (in-the-wild) CVE        |
+| `--nq-min-epss <0.0-1.0>` | minimum EPSS       | keeps rows whose highest EPSS exploitation probability ≥ the value |
 | `--nq-web-title <text>`   | page title         | case-insensitive substring                                 |
 | `--nq-web-server <text>`  | `Server:` header   | case-insensitive substring                                 |
 | `--nq-asn <number>`       | ASN                | exact                                                       |
@@ -67,7 +69,18 @@ kmap --net-query --nq-ip-range 203.0.113.0/16 --nq-web-server nginx
 
 # Hosts tagged with a specific CVE
 kmap --net-query --nq-cve CVE-2024-6387
+
+# Actively-exploited exposure: hosts with a CISA-KEV CVE (count only)
+kmap --net-query --nq-kev --nq-count
+
+# High exploit-likelihood (EPSS ≥ 90%) web servers, as JSON
+kmap --net-query --nq-min-epss 0.9 --nq-device web --nq-format json
 ```
+
+> **EPSS** (0–1) is FIRST.org's predicted probability a CVE will be exploited
+> in the next 30 days; **KEV** is CISA's catalog of CVEs confirmed exploited in
+> the wild. Both are layered onto matched CVEs during enrichment and refreshed
+> with [`scripts/update_epss_kev.py`](../scripts/update_epss_kev.py).
 
 ## How the data gets there
 

@@ -432,7 +432,7 @@ PORT    STATE SERVICE VERSION
 
 ### `--cve-map` — CVE Cross-Reference
 
-After service version detection, cross-references each identified product against the bundled `kmap-cve.db` database. Results are sorted by CVSS score descending and filtered by a minimum score threshold.
+After service version detection, cross-references each identified product against the bundled `kmap-cve.db` database. Each match is annotated with two exploit-triage signals — **EPSS** (FIRST.org's probability the CVE will be exploited in the next 30 days) and the **CISA KEV** flag (confirmed exploited in the wild, with a ransomware marker) — and results are ranked the way operators triage: **KEV first, then EPSS, then CVSS**, filtered by a minimum CVSS threshold.
 
 ```bash
 kmap --cve-map 10.0.0.1
@@ -448,23 +448,30 @@ kmap --cve-map --cve-min-score 4.0 10.0.0.1
 
 **Example output:**
 ```
-PORT   STATE SERVICE VERSION
-22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu
+PORT    STATE SERVICE VERSION
+443/tcp open  https   Apache httpd 2.4.49
   |_ CVE Map:
-  |  22/tcp ssh (OpenSSH 8.2p1):
-  |    CVE-2024-6387  CVSS:8.1  HIGH
-  |      regreSSHion: race condition in signal handler allows unauthenticated...
-  |    CVE-2023-38408  CVSS:9.8  CRITICAL
-  |      OpenSSH ssh-agent RCE via crafted PKCS#11 provider loading.
+  |  443/tcp http (Apache httpd 2.4.49):
+  |    CVE-2021-41773  CVSS:9.8  CRITICAL  EPSS:100.0%  [KEV+RANSOMWARE]
+  |      A flaw in path normalization in Apache HTTP Server 2.4.49 allows path...
+  |    CVE-2024-38475  CVSS:9.1  CRITICAL  EPSS:100.0%  [KEV]
+  |      Improper escaping of output in mod_rewrite allows...
+  |    CVE-2021-44790  CVSS:9.8  CRITICAL  EPSS:97.1%
+  |      A carefully crafted request body can cause a buffer overflow in mod_lua.
 ```
 
-CRITICAL CVEs are highlighted **red**, HIGH are **yellow** when `--color` is active.
+CRITICAL CVEs are highlighted **red**, HIGH are **yellow**, and the `[KEV]` /
+`[KEV+RANSOMWARE]` tag is always **red** when `--color` is active. `EPSS:` is the
+exploitation probability as a percentage.
 
 #### Updating the CVE Database
 
 ```bash
 # Re-download from NVD (requires internet access)
 python3 scripts/update_cves.py
+
+# Refresh EPSS scores + CISA KEV flags (run after update_cves.py; daily-fresh)
+python3 scripts/update_epss_kev.py
 
 # Insert additional curated CVEs
 python3 scripts/add_cves.py
@@ -779,6 +786,8 @@ to disable the governor (worker-pool sizing still applies).
 | `--nq-service <name>` | Filter by service name |
 | `--nq-cve <id>` | Filter by CVE ID |
 | `--nq-min-cvss <score>` | Filter by minimum CVSS score |
+| `--nq-kev` | Only hosts carrying a CISA Known-Exploited (KEV) CVE |
+| `--nq-min-epss <0..1>` | Filter by minimum EPSS exploitation probability |
 | `--nq-web-title <text>` | Filter by web page title |
 | `--nq-web-server <text>` | Filter by server header |
 | `--nq-ip-range <CIDR>` | Restrict search to IP range |

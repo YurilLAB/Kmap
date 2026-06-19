@@ -337,10 +337,25 @@ static std::vector<CveEntry> query_cves(
         -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
     if (probe) sqlite3_finalize(probe);
   }
+  /* Likewise detect the EPSS / CISA-KEV enrichment columns (added by
+     scripts/update_epss_kev.py).  Older/external DBs without them fall back to
+     CVSS-only triage. */
+  static int has_epss = -1;
+  if (has_epss < 0) {
+    sqlite3_stmt *probe = nullptr;
+    has_epss = (sqlite3_prepare_v2(db,
+        "SELECT epss_score, kev, kev_ransomware FROM cves LIMIT 1",
+        -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
+    if (probe) sqlite3_finalize(probe);
+  }
+  /* Optional columns are appended in a fixed order so the read offsets are
+     deterministic: [8,9] excl (if present), then the EPSS block. */
+  const int epss_off = 8 + (has_excl ? 2 : 0);
   const std::string cols = std::string(
       "SELECT cve_id, product, vendor, version_min, version_max, "
       "cvss_score, severity, description") +
-      (has_excl ? ", version_min_exclusive, version_max_exclusive " : " ");
+      (has_excl ? ", version_min_exclusive, version_max_exclusive" : "") +
+      (has_epss ? ", epss_score, kev, kev_ransomware " : " ");
 
   const std::string sql_exact_vendor = cols +
     "FROM cves WHERE product = ? AND (vendor LIKE ? OR vendor IS NULL) AND cvss_score >= ? "
@@ -398,6 +413,12 @@ static std::vector<CveEntry> query_cves(
     e.cvss_score  = (float)sqlite3_column_double(stmt, 5);
     e.severity    = col_str(6);
     e.description = col_str(7);
+    if (has_epss) {
+      e.epss = (sqlite3_column_type(stmt, epss_off) == SQLITE_NULL)
+                 ? -1.0f : (float)sqlite3_column_double(stmt, epss_off);
+      e.kev            = sqlite3_column_int(stmt, epss_off + 1) != 0;
+      e.kev_ransomware = sqlite3_column_int(stmt, epss_off + 2) != 0;
+    }
 
     /* Require at least one version bound.  A row with NEITHER bound has no
        version applicability and would match every version of the product
@@ -538,8 +559,12 @@ void run_cve_map(std::vector<Target*>& Targets, float min_score) {
         pr.cves.clear();
         for (auto &kv : seen)
           pr.cves.push_back(kv.second);
+        /* Triage order operators actually use: known-exploited (KEV) first,
+           then by EPSS exploitation-probability, then CVSS severity. */
         std::sort(pr.cves.begin(), pr.cves.end(),
                   [](const CveEntry &a, const CveEntry &b){
+                    if (a.kev != b.kev) return a.kev;
+                    if (a.epss != b.epss) return a.epss > b.epss;
                     return a.cvss_score > b.cvss_score;
                   });
 
@@ -576,11 +601,26 @@ void print_cve_map_output(const Target *t) {
                         + "  CVSS:" + score_buf
                         + "  " + cve.severity;
 
+      /* EPSS exploitation probability (0..1), shown as a percentage so a
+         0.99506 reads as "99.5%" -- the operator-facing form. */
+      if (cve.epss >= 0.0f) {
+        char epss_buf[16];
+        snprintf(epss_buf, sizeof(epss_buf), "  EPSS:%.1f%%", cve.epss * 100.0f);
+        entry += epss_buf;
+      }
+
       if (Color::enabled()) {
         if (cve.severity == "CRITICAL")
           entry = Color::red(entry);
         else if (cve.severity == "HIGH")
           entry = Color::yellow(entry);
+      }
+
+      /* KEV is the strongest signal -- always flag it (and ransomware use),
+         in red regardless of CVSS severity so it stands out. */
+      if (cve.kev) {
+        std::string tag = cve.kev_ransomware ? "  [KEV+RANSOMWARE]" : "  [KEV]";
+        entry += Color::enabled() ? Color::red(tag) : tag;
       }
 
       log_write(LOG_PLAIN, "%s\n", entry.c_str());
@@ -724,6 +764,12 @@ static bool ensure_schema(sqlite3 *db) {
   const char *migrations[] = {
     "ALTER TABLE cves ADD COLUMN cvss_vector TEXT",
     "ALTER TABLE cves ADD COLUMN remote_unauthed INTEGER",
+    /* EPSS / CISA-KEV exploit-triage columns (scripts/update_epss_kev.py). */
+    "ALTER TABLE cves ADD COLUMN epss_score REAL",
+    "ALTER TABLE cves ADD COLUMN epss_percentile REAL",
+    "ALTER TABLE cves ADD COLUMN kev INTEGER",
+    "ALTER TABLE cves ADD COLUMN kev_date_added TEXT",
+    "ALTER TABLE cves ADD COLUMN kev_ransomware INTEGER",
   };
   for (const char *m : migrations) {
     errmsg = nullptr;

@@ -300,6 +300,13 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.nq_min_cvss = static_cast<float>(
         parse_float_arg("nq-min-cvss", arg, 0.0, 10.0));
     return true;
+  } else if (strcmp(name, "nq-kev") == 0) {
+    o.net_query = true; o.nq_kev = true; return true;
+  } else if (strcmp(name, "nq-min-epss") == 0) {
+    o.net_query = true;
+    o.nq_min_epss = static_cast<float>(
+        parse_float_arg("nq-min-epss", arg, 0.0, 1.0));
+    return true;
   } else if (strcmp(name, "nq-web-title") == 0) {
     o.net_query = true; o.nq_web_title = strdup(arg); return true;
   } else if (strcmp(name, "nq-web-server") == 0) {
@@ -635,6 +642,8 @@ static void printusage() {
          "  --nq-service <name>: Filter query by service name\n"
          "  --nq-cve <id>: Filter query by CVE ID\n"
          "  --nq-min-cvss <score>: Filter query by minimum CVSS score\n"
+         "  --nq-kev: Only hosts with a CISA Known-Exploited (KEV) CVE\n"
+         "  --nq-min-epss <0..1>: Filter by minimum EPSS exploit probability\n"
          "  --nq-web-title <text>: Filter query by web page title\n"
          "  --nq-web-server <text>: Filter query by Server header\n"
          "  --nq-ip-range <cidr>: Restrict query to an IP range\n"
@@ -1019,6 +1028,8 @@ void parse_options(int argc, char **argv) {
     {"nq-service", required_argument, 0, 0},
     {"nq-cve", required_argument, 0, 0},
     {"nq-min-cvss", required_argument, 0, 0},
+    {"nq-kev", no_argument, 0, 0},
+    {"nq-min-epss", required_argument, 0, 0},
     {"nq-web-title", required_argument, 0, 0},
     {"nq-web-server", required_argument, 0, 0},
     {"nq-ip-range", required_argument, 0, 0},

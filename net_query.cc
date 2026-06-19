@@ -166,6 +166,35 @@ static float max_cvss_from_json(const std::string &cves_json) {
   return max_score;
 }
 
+/* Extract the maximum EPSS probability (0..1) from a cves JSON string.
+ * EPSS values render as `"epss":0.9951`. Returns -1.0f if none present. */
+static float max_epss_from_json(const std::string &cves_json) {
+  float max_epss = -1.0f;
+  size_t pos = 0;
+  while (true) {
+    pos = cves_json.find("\"epss\":", pos);
+    if (pos == std::string::npos) break;
+    pos += 7;
+    while (pos < cves_json.size() && cves_json[pos] == ' ') pos++;
+    size_t end = pos;
+    while (end < cves_json.size() &&
+           (isdigit(static_cast<unsigned char>(cves_json[end])) ||
+            cves_json[end] == '.'))
+      end++;
+    if (end > pos) {
+      float v = static_cast<float>(atof(cves_json.substr(pos, end - pos).c_str()));
+      if (v > max_epss) max_epss = v;
+    }
+    pos = end;
+  }
+  return max_epss;
+}
+
+/* True if any CVE in the array is flagged as CISA-KEV (`"kev":1`). */
+static bool json_has_kev(const std::string &cves_json) {
+  return cves_json.find("\"kev\":1") != std::string::npos;
+}
+
 /* Extract the first CVE summary for compact display.
  * Returns something like "CVE-2024-6387 (CVSS:8.1)". */
 static std::string first_cve_summary(const std::string &cves_json) {
@@ -221,7 +250,8 @@ static QueryFilter build_filter(int port, const char *service,
                                 const char *web_title,
                                 const char *web_server,
                                 int asn,
-                                const char *country) {
+                                const char *country,
+                                bool kev_only, float min_epss) {
   QueryFilter f;
   std::vector<std::string> conditions;
 
@@ -251,6 +281,16 @@ static QueryFilter build_filter(int port, const char *service,
   /* CVSS filtering is done in post-processing since the score is
    * embedded in the JSON cves column.  Pre-filter to rows with CVE data. */
   if (min_cvss > 0.0f) {
+    conditions.push_back(
+        "cves IS NOT NULL AND cves != '' AND cves != '[]'");
+  }
+
+  /* KEV / EPSS live in the same JSON cves column, so they too pre-filter to
+     rows that carry CVE data and post-filter precisely below. */
+  if (kev_only) {
+    conditions.push_back("cves LIKE '%\"kev\":1%'");
+  }
+  if (min_epss > 0.0f) {
     conditions.push_back(
         "cves IS NOT NULL AND cves != '' AND cves != '[]'");
   }
@@ -562,7 +602,9 @@ int run_net_query(const char *data_dir,
                   const char *device_class,
                   const char *output_file,
                   const char *format,
-                  bool count_only) {
+                  bool count_only,
+                  bool kev_only,
+                  float min_epss) {
   if (!data_dir) return 1;
 
   /* Validate port range if specified */
@@ -627,7 +669,7 @@ int run_net_query(const char *data_dir,
   /* Build the query filter */
   QueryFilter filter = build_filter(port, service, cve, min_cvss,
                                     web_title, web_server,
-                                    asn, country);
+                                    asn, country, kev_only, min_epss);
 
   /* Open output file if specified */
   FILE *out_fp = nullptr;
@@ -749,6 +791,12 @@ int run_net_query(const char *data_dir,
       if (min_cvss > 0.0f) {
         float max_score = max_cvss_from_json(row_cves);
         if (max_score < min_cvss) continue;
+      }
+
+      /* Post-process: CISA-KEV and EPSS filtering (both embedded in cves). */
+      if (kev_only && !json_has_kev(row_cves)) continue;
+      if (min_epss > 0.0f) {
+        if (max_epss_from_json(row_cves) < min_epss) continue;
       }
 
       /* Post-process: device-class filtering (no schema column, classify

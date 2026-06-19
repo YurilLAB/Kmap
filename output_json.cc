@@ -292,6 +292,13 @@ static nlohmann::json build_cves_json(const Target *t) {
                 e["cpe_product"] = cve.product;
             if (!cve.description.empty())
                 e["description"] = cve.description;
+            if (cve.epss >= 0.0f)
+                e["epss"] = static_cast<double>(cve.epss);
+            if (cve.kev) {
+                e["kev"] = true;
+                if (cve.kev_ransomware)
+                    e["kev_ransomware"] = true;
+            }
             arr.push_back(std::move(e));
         }
     }
@@ -820,7 +827,15 @@ static void write_txt_report(std::ofstream &f) {
                         snprintf(score, sizeof(score), "%.1f", cve.cvss_score);
                         f << "    " << cve.cve_id
                           << "  CVSS:" << score
-                          << "  " << cve.severity << "\n";
+                          << "  " << cve.severity;
+                        if (cve.epss >= 0.0f) {
+                            char eb[16];
+                            snprintf(eb, sizeof(eb), "  EPSS:%.1f%%", cve.epss * 100.0f);
+                            f << eb;
+                        }
+                        if (cve.kev)
+                            f << (cve.kev_ransomware ? "  [KEV+RANSOMWARE]" : "  [KEV]");
+                        f << "\n";
                         std::string desc = cve.description;
                         if (desc.size() > 72) desc = desc.substr(0, 69) + "...";
                         f << "      " << desc << "\n";

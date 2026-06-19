@@ -88,10 +88,13 @@ struct QueryFilter {
   struct BindVal { BindType type; std::string text_val; int int_val; };
   std::vector<BindVal> binds;
 };
+/* kev_only/min_epss default to off so the many pre-existing call sites below
+   stay terse; the new cases pass them explicitly. */
 static QueryFilter build_filter(int port, const char *service,
                                 const char *cve, float min_cvss,
                                 const char *web_title, const char *web_server,
-                                int asn, const char *country) {
+                                int asn, const char *country,
+                                bool kev_only = false, float min_epss = 0.0f) {
   QueryFilter f; std::vector<std::string> conditions;
   if (port > 0) { conditions.push_back("port = ?");
                   f.binds.push_back({QueryFilter::BINT, "", port}); }
@@ -100,6 +103,10 @@ static QueryFilter build_filter(int port, const char *service,
   if (cve && cve[0]) { conditions.push_back("cves LIKE ?");
     f.binds.push_back({QueryFilter::BTEXT, "%" + std::string(cve) + "%", 0}); }
   if (min_cvss > 0.0f)
+    conditions.push_back("cves IS NOT NULL AND cves != '' AND cves != '[]'");
+  if (kev_only)
+    conditions.push_back("cves LIKE '%\"kev\":1%'");
+  if (min_epss > 0.0f)
     conditions.push_back("cves IS NOT NULL AND cves != '' AND cves != '[]'");
   if (web_title && web_title[0]) { conditions.push_back("LOWER(web_title) LIKE ?");
     f.binds.push_back({QueryFilter::BTEXT, "%" + str_lower(web_title) + "%", 0}); }
@@ -132,6 +139,33 @@ static void bind_filter(sqlite3_stmt *stmt, const QueryFilter &f) {
     }
     idx++;
   }
+}
+/* max_epss_from_json / json_has_kev: VERBATIM from net_query.cc -- the
+   post-filter logic for --nq-min-epss / --nq-kev applied per row over the JSON
+   cves column. */
+static float max_epss_from_json(const std::string &cves_json) {
+  float max_epss = -1.0f;
+  size_t pos = 0;
+  while (true) {
+    pos = cves_json.find("\"epss\":", pos);
+    if (pos == std::string::npos) break;
+    pos += 7;
+    while (pos < cves_json.size() && cves_json[pos] == ' ') pos++;
+    size_t end = pos;
+    while (end < cves_json.size() &&
+           (isdigit(static_cast<unsigned char>(cves_json[end])) ||
+            cves_json[end] == '.'))
+      end++;
+    if (end > pos) {
+      float v = static_cast<float>(atof(cves_json.substr(pos, end - pos).c_str()));
+      if (v > max_epss) max_epss = v;
+    }
+    pos = end;
+  }
+  return max_epss;
+}
+static bool json_has_kev(const std::string &cves_json) {
+  return cves_json.find("\"kev\":1") != std::string::npos;
 }
 /* ===== end verbatim ===== */
 
@@ -172,7 +206,11 @@ int main() {
     "INSERT INTO hosts VALUES('1.1.1.1',22,'ssh','',NULL,NULL,0,'');"
     "INSERT INTO hosts VALUES('2.2.2.2',443,'https','','Login Page','nginx',13335,'US');"
     "INSERT INTO hosts VALUES('3.3.3.3',80,'http','',NULL,NULL,0,'DE');"
-    "INSERT INTO hosts VALUES('4.4.4.4',3306,'mysql','[{\"id\":\"CVE-2024-1\",\"cvss\":9.1}]',NULL,NULL,0,'');",
+    /* 4.4.4.4 carries KEV + EPSS in the exact shape net_enrich.cc::cves_to_json
+       emits, so the EPSS/KEV cases reuse it without changing any row counts. */
+    "INSERT INTO hosts VALUES('4.4.4.4',3306,'mysql',"
+    "'[{\"id\":\"CVE-2024-1\",\"cvss\":9.1,\"epss\":0.9999,\"kev\":1,\"ransomware\":1}]',"
+    "NULL,NULL,0,'');",
     nullptr, nullptr, nullptr);
 
   /* ---- correctness ---- */
@@ -191,6 +229,30 @@ int main() {
         "web_title LIKE %login% (case-insensitive)");
   CHECK(run_query(build_filter(0,0,0,1.0f,0,0,0,0)) == std::vector<std::string>{"4.4.4.4:3306"},
         "min_cvss>0 prefilters to rows with CVE data");
+
+  /* ---- EPSS / CISA-KEV (--nq-kev / --nq-min-epss) ---- */
+  /* KEV SQL pre-filter: only the row whose JSON carries "kev":1. */
+  CHECK(run_query(build_filter(0,0,0,0,0,0,0,0,/*kev_only=*/true)) ==
+            std::vector<std::string>{"4.4.4.4:3306"},
+        "kev_only -> only the KEV-flagged row");
+  /* A row with no cves at all (1.1.1.1) must never match the KEV pre-filter. */
+  CHECK(!has(run_query(build_filter(0,0,0,0,0,0,0,0,true)), "1.1.1.1:22"),
+        "kev_only excludes rows without CVE data");
+  /* EPSS post-filter math over the JSON array. */
+  CHECK(max_epss_from_json(
+          "[{\"id\":\"a\",\"cvss\":9.8,\"epss\":0.9999,\"kev\":1,\"ransomware\":1}]")
+          > 0.999f,
+        "max_epss_from_json reads the epss value");
+  CHECK(max_epss_from_json("[{\"id\":\"a\",\"cvss\":9.1}]") < 0.0f,
+        "max_epss_from_json -> -1 when no epss present");
+  { /* picks the maximum across multiple entries */
+    float m = max_epss_from_json(
+      "[{\"id\":\"a\",\"epss\":0.10},{\"id\":\"b\",\"epss\":0.87},{\"id\":\"c\",\"epss\":0.42}]");
+    CHECK(m > 0.86f && m < 0.88f, "max_epss_from_json picks the max of several"); }
+  CHECK(json_has_kev("[{\"id\":\"a\",\"kev\":1}]"), "json_has_kev true");
+  CHECK(!json_has_kev("[{\"id\":\"a\",\"cvss\":9.1}]"), "json_has_kev false");
+  /* "kev":0 (catalog-cleared) must not count as KEV. */
+  CHECK(!json_has_kev("[{\"id\":\"a\",\"kev\":0}]"), "json_has_kev ignores kev:0");
 
   /* ---- SQL injection: payloads must be literal, returning 0 rows ---- */
   CHECK(run_query(build_filter(0,"' OR '1'='1",0,0,0,0,0,0)).empty(),

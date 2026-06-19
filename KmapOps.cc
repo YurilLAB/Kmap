@@ -366,6 +366,8 @@ void KmapOps::Initialize() {
   nq_country       = nullptr;
   nq_device        = nullptr;
   nq_format        = nullptr;
+  nq_kev           = false;
+  nq_min_epss      = -1.0f;
   net_cluster      = false;
   nc_ip            = nullptr;
   nc_min_shared    = 1;

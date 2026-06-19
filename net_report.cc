@@ -287,6 +287,9 @@ static void write_host_section(FILE *fp, const std::string &ip,
         std::string severity = json_extract_string(obj, "severity");
         std::string desc     = json_extract_string(obj, "desc");
         std::string remote   = json_extract_number(obj, "remote");
+        std::string epss     = json_extract_number(obj, "epss");
+        std::string kev      = json_extract_number(obj, "kev");
+        std::string ransom   = json_extract_number(obj, "ransomware");
 
         if (cve_id.empty()) continue;
         summary.cves_found++;
@@ -298,11 +301,21 @@ static void write_host_section(FILE *fp, const std::string &ip,
         if (remote == "1")      conf_tag = "[REMOTE]";
         else if (remote == "0") conf_tag = "[needs-auth/other]";
 
-        fprintf(fp, "    %-18sCVSS:%-6s%-9s %s\n",
+        /* Exploit-triage tail: EPSS percentage + KEV / ransomware flags. */
+        std::string triage;
+        if (!epss.empty()) {
+          char b[24];
+          snprintf(b, sizeof(b), " EPSS:%.1f%%", atof(epss.c_str()) * 100.0);
+          triage += b;
+        }
+        if (kev == "1") triage += (ransom == "1") ? " [KEV+RANSOMWARE]" : " [KEV]";
+
+        fprintf(fp, "    %-18sCVSS:%-6s%-9s %s%s\n",
                 cve_id.c_str(),
                 cvss_str.empty() ? "N/A" : cvss_str.c_str(),
                 severity.c_str(),
-                conf_tag);
+                conf_tag,
+                triage.c_str());
 
         if (!desc.empty()) {
           if (desc.size() > 70) desc = desc.substr(0, 67) + "...";

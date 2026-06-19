@@ -25,6 +25,8 @@
  *   output_file — write results to file (NULL = stdout)
  *   format      — "text" (default human-readable) or "json"
  *   count_only  — if true, only print total count of matching rows
+ *   kev_only    — restrict to hosts with a CISA-KEV-flagged CVE
+ *   min_epss    — restrict to hosts whose max EPSS probability >= this (0..1)
  * Returns 0 on success, 1 on error. */
 int run_net_query(const char *data_dir,
                   int port,
@@ -39,6 +41,8 @@ int run_net_query(const char *data_dir,
                   const char *device_class,
                   const char *output_file,
                   const char *format,
-                  bool count_only);
+                  bool count_only,
+                  bool kev_only,
+                  float min_epss);
 
 #endif /* NET_QUERY_H */

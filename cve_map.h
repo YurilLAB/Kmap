@@ -20,6 +20,14 @@ struct CveEntry {
   std::string description;
   float cvss_score;
   std::string severity;
+  /* Exploit-triage signals (absent in older/external DBs -> defaults below).
+     epss: FIRST.org Exploit Prediction Scoring System probability (0..1) that
+     the CVE is exploited in the next 30 days; -1 = not present in the DB.
+     kev: listed in the CISA Known Exploited Vulnerabilities catalog.
+     kev_ransomware: KEV entry tied to a known ransomware campaign. */
+  float epss = -1.0f;
+  bool  kev = false;
+  bool  kev_ransomware = false;
 };
 
 struct PortCveResults {
