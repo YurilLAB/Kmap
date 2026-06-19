@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "../host_tags.h"
+#include "../net_hash_helpers.h"   /* derive_cpe -- cross-link CPE -> eol tag */
 
 static int g_fail = 0;
 
@@ -101,6 +102,33 @@ int main(int argc, char **argv) {
   expect(!eol("cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*"), "version ANY -> no EOL");
   expect(!eol(""), "empty cpe -> no EOL");
   expect(!eol("not-a-cpe"), "garbage cpe -> no EOL");
+
+  /* Cross-link derive_cpe (net_hash_helpers.cc, the real shipping CPE the
+     enrichment stamps onto a host) with the eol-product rules: for each EOL'd
+     product, the CPE Kmap actually generates must carry the product token the
+     EOL ruleset keys on -- otherwise eol-product silently never fires in prod.
+     normalize_product() emits these keys; derive_cpe maps them to CPE. */
+  struct { const char *key; const char *old_ver; const char *cur_ver; } eolc[] = {
+    {"http_server",   "2.2.34", "2.4.62"},
+    {"mysql",         "5.7.40", "8.4.0"},
+    {"postgresql",    "13.4",   "16.2"},
+    {"php",           "7.4.3",  "8.3.0"},
+    {"tomcat",        "8.5.90", "9.0.85"},
+    {"mongodb",       "5.0.3",  "7.0.5"},
+    {"elasticsearch", "7.17.0", "8.12.0"},
+  };
+  for (auto &e : eolc) {
+    std::string old_cpe = derive_cpe(e.key, e.old_ver);
+    std::string cur_cpe = derive_cpe(e.key, e.cur_ver);
+    HostTagInput a; a.cpe = old_cpe;
+    HostTagInput b; b.cpe = cur_cpe;
+    if (old_cpe.empty())
+      { printf("  FAIL derive_cpe('%s') returned empty\n", e.key); g_fail++; }
+    expect(has(derive_host_tags(a), "eol-product"),
+           (std::string("derive_cpe->eol-product fires for old ") + e.key).c_str());
+    expect(!has(derive_host_tags(b), "eol-product"),
+           (std::string("derive_cpe->no eol for current ") + e.key).c_str());
+  }
 
   /* Determinism: sorted + de-duplicated, and stable across calls. */
   { HostTagInput in; in.service = "mysql"; in.cloud_provider = "gcp";
