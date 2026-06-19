@@ -20,6 +20,7 @@
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
 #include "ssh_hassh.h"          /* ssh_hassh_server_from_buffer (ssh.hassh) */
+#include "banner_classify.h"    /* kmap_classify_banner -- shared classifier */
 #include "json_escape.h"      /* kmap_json_escape -- shared JSON escaper */
 #include "cloud_map.h"          /* lookup_cloud, cloud_ranges_load */
 #include "net_db.h"
@@ -482,173 +483,21 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
 
   buf[n] = '\0';
   std::string banner(buf, static_cast<size_t>(n));
-  std::string banner_lower = str_lower(banner);
 
-  /* Extract first line for version parsing */
-  std::string first_line = banner;
-  size_t nl = first_line.find('\n');
-  if (nl != std::string::npos) first_line = first_line.substr(0, nl);
-  /* Strip trailing CR */
-  while (!first_line.empty() &&
-         (first_line.back() == '\r' || first_line.back() == '\n'))
-    first_line.pop_back();
+  /* Service/version classification is shared with the async enrich path via
+     banner_classify.h (single source of truth -- they used to be duplicated
+     and had drifted). */
+  BannerClass bc = kmap_classify_banner(banner.data(),
+                                        static_cast<int>(banner.size()), port);
+  result.service       = bc.service;
+  result.version       = bc.version;
+  result.http_response = bc.http_response;
 
-  /* Check for HTTP response */
-  if (banner.size() >= 8 && banner.substr(0, 4) == "HTTP") {
-    result.service = "http";
-    result.http_response = banner; /* carry forward to avoid re-connecting */
-
-    /* Parse Server header for version */
-    size_t spos = banner_lower.find("\nserver:");
-    if (spos != std::string::npos) {
-      spos += 8; /* skip "\nserver:" */
-      while (spos < banner.size() && banner[spos] == ' ') spos++;
-      size_t epos = banner.find('\r', spos);
-      if (epos == std::string::npos) epos = banner.find('\n', spos);
-      if (epos == std::string::npos) epos = banner.size();
-      result.version = banner.substr(spos, epos - spos);
-    }
-
-    /* Detect HTTPS ports by common port numbers (enrichment connects
-       plain TCP -- we cannot do TLS here without OpenSSL overhead) */
-    if (port == 443 || port == 8443 || port == 4443)
-      result.service = "https";
-
-    return result;
-  }
-
-  /* Match against known banner patterns */
-  if (banner.size() >= 4 && banner.substr(0, 4) == "SSH-") {
-    result.service = "ssh";
-    /* "SSH-2.0-OpenSSH_8.2p1" -> version = "OpenSSH 8.2p1" */
-    size_t dash3 = banner.find('-', 4);
-    if (dash3 != std::string::npos && dash3 + 1 < first_line.size()) {
-      result.version = first_line.substr(dash3 + 1);
-      /* Replace underscores with spaces for readability */
-      std::replace(result.version.begin(), result.version.end(), '_', ' ');
-    }
-    /* HASSH server fingerprint from the KEXINIT that followed the id line
-       (banner holds the first ENRICH_BANNER_MAX bytes, ssh_more the drained
-       remainder).  Best-effort: "" when the packet never fully arrived. */
+  /* HASSH is layered on here (not in the shared classifier): it needs the
+     drained KEXINIT bytes (banner holds the first ENRICH_BANNER_MAX, ssh_more
+     the remainder). Best-effort -- "" when the packet never fully arrived. */
+  if (result.service == "ssh")
     result.hassh = ssh_hassh_server_from_buffer(banner + ssh_more);
-    return result;
-  }
-
-  /* VNC / RFB: the server speaks first with "RFB <major>.<minor>\n" (RFC 6143),
-     e.g. "RFB 003.008". Distinctive prefix, captured by the initial recv. */
-  if (banner.size() >= 8 && banner.compare(0, 4, "RFB ") == 0 &&
-      isdigit(static_cast<unsigned char>(banner[4]))) {
-    result.service = "vnc";
-    result.version = first_line;
-    return result;
-  }
-
-  /* Telnet: server opens with IAC (0xFF) option negotiation -- the second byte
-     is WILL/WONT/DO/DONT (0xFB-0xFE). Distinctive binary prefix. */
-  if (n >= 2 && static_cast<unsigned char>(buf[0]) == 0xFF &&
-      static_cast<unsigned char>(buf[1]) >= 0xFB &&
-      static_cast<unsigned char>(buf[1]) <= 0xFE) {
-    result.service = "telnet";
-    return result;
-  }
-
-  /* rsync daemon: greets with "@RSYNCD: <version>". */
-  if (banner.compare(0, 8, "@RSYNCD:") == 0) {
-    result.service = "rsync";
-    result.version = first_line;
-    return result;
-  }
-
-  if (banner.size() >= 4 &&
-      (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {
-    /* Could be FTP or SMTP.  Check for FTP-specific keywords. */
-    if (banner_lower.find("ftp") != std::string::npos) {
-      result.service = "ftp";
-    } else if (banner_lower.find("smtp") != std::string::npos ||
-               banner_lower.find("mail") != std::string::npos ||
-               banner_lower.find("esmtp") != std::string::npos) {
-      result.service = "smtp";
-    } else {
-      /* Ambiguous 220 -- guess based on port */
-      if (port == 21) result.service = "ftp";
-      else if (port == 25 || port == 587 || port == 465) result.service = "smtp";
-      else result.service = "ftp";  /* default */
-    }
-    result.version = first_line.substr(4);
-    return result;
-  }
-
-  if (banner.size() >= 4 && banner.substr(0, 4) == "* OK") {
-    result.service = "imap";
-    result.version = first_line.size() > 5 ? first_line.substr(5) : "";
-    return result;
-  }
-
-  if (banner.size() >= 3 && banner.substr(0, 3) == "+OK") {
-    result.service = "pop3";
-    result.version = first_line.size() > 4 ? first_line.substr(4) : "";
-    return result;
-  }
-
-  /* MySQL/MariaDB greeting: starts with a packet length + protocol version 0x0a */
-  if (n >= 5 && static_cast<unsigned char>(buf[4]) == 0x0a) {
-    result.service = "mysql";
-    /* Version string follows after byte 5 until null terminator */
-    const char *verp = buf + 5;
-    size_t vlen = strnlen(verp,
-                          static_cast<size_t>(n) > 5 ? static_cast<size_t>(n) - 5 : 0);
-    if (vlen > 0) result.version = std::string(verp, vlen);
-    /* MariaDB speaks the MySQL wire protocol, so the 0x0a handshake alone
-       cannot tell them apart. MariaDB advertises a legacy compatibility
-       greeting "5.5.5-<real-version>-MariaDB-...". Detect it and route to the
-       mariadb product with the REAL version, otherwise the host gets matched
-       against Oracle MySQL CVEs (false positive) and misses every MariaDB CVE
-       (false negative). */
-    if (str_lower(result.version).find("mariadb") != std::string::npos) {
-      result.service = "mariadb";
-      if (result.version.rfind("5.5.5-", 0) == 0)
-        result.version = result.version.substr(6);  /* drop bogus compat prefix */
-    }
-    return result;
-  }
-
-  /* Redis: responds with -ERR, +PONG, or $-1 etc. */
-  if (banner_lower.find("-err") == 0 || banner_lower.find("+pong") == 0 ||
-      banner_lower.find("$") == 0) {
-    result.service = "redis";
-    return result;
-  }
-
-  /* MongoDB: binary wire protocol -- check for valid OP_REPLY header */
-  if (n >= 16 && static_cast<unsigned char>(buf[12]) == 0x01) {
-    result.service = "mongodb";
-    return result;
-  }
-
-  /* PostgreSQL: 'R' AuthenticationRequest -- byte 'R', then a big-endian
-     Int32 length (message length incl. itself) and an Int32 auth code. Bound
-     the length to the real range (AuthenticationOk=8 .. SASL ~ tens of bytes)
-     so a bare 'R'+9 no longer matches any R-prefixed banner (e.g. malformed
-     "RFB..." that slipped past the VNC check). */
-  if (n >= 9 && buf[0] == 'R') {
-    uint32_t pg_len = (static_cast<uint32_t>(static_cast<unsigned char>(buf[1])) << 24) |
-                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[2])) << 16) |
-                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[3])) << 8)  |
-                       static_cast<uint32_t>(static_cast<unsigned char>(buf[4]));
-    if (pg_len >= 8 && pg_len <= 64) {
-      result.service = "postgresql";
-      return result;
-    }
-  }
-
-  /* Fallback: unknown service, store raw banner snippet as version */
-  if (!first_line.empty()) {
-    result.service = "unknown";
-    if (first_line.size() > 64)
-      result.version = first_line.substr(0, 64);
-    else
-      result.version = first_line;
-  }
 
   return result;
 }

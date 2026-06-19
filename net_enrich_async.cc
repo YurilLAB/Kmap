@@ -122,6 +122,7 @@
 #include "net_enrich_async.h"
 #include "net_enrich.h"   /* TlsCapture + EnrichMetrics decls */
 #include "json_escape.h"  /* kmap_json_escape -- shared JSON escaper */
+#include "banner_classify.h" /* shared kmap_classify_banner */
 #include "os_profile.h"
 #include "KmapOps.h"
 
@@ -220,152 +221,13 @@ static std::string a_str_lower(const std::string &s) {
  * port is used for ambiguous-220 disambiguation and HTTPS-port tagging.
  */
 static AsyncBannerResult classify_banner(const char *buf, int n, int port) {
+  /* Delegates to the shared classifier (banner_classify.h) so the async and
+     sync (net_enrich.cc::grab_banner) enrich paths can never diverge. */
+  BannerClass bc = kmap_classify_banner(buf, n, port);
   AsyncBannerResult result;
-  if (n <= 0 || !buf) return result;
-
-  std::string banner(buf, static_cast<size_t>(n));
-  std::string banner_lower = a_str_lower(banner);
-
-  /* Extract first line for version parsing */
-  std::string first_line = banner;
-  size_t nl = first_line.find('\n');
-  if (nl != std::string::npos) first_line = first_line.substr(0, nl);
-  while (!first_line.empty() &&
-         (first_line.back() == '\r' || first_line.back() == '\n'))
-    first_line.pop_back();
-
-  /* HTTP response */
-  if (banner.size() >= 8 && banner.substr(0, 4) == "HTTP") {
-    result.service = "http";
-    result.http_response = banner;
-    size_t spos = banner_lower.find("\nserver:");
-    if (spos != std::string::npos) {
-      spos += 8;
-      while (spos < banner.size() && banner[spos] == ' ') spos++;
-      size_t epos = banner.find('\r', spos);
-      if (epos == std::string::npos) epos = banner.find('\n', spos);
-      if (epos == std::string::npos) epos = banner.size();
-      result.version = banner.substr(spos, epos - spos);
-    }
-    if (port == 443 || port == 8443 || port == 4443)
-      result.service = "https";
-    return result;
-  }
-
-  /* SSH */
-  if (banner.size() >= 4 && banner.substr(0, 4) == "SSH-") {
-    result.service = "ssh";
-    size_t dash3 = banner.find('-', 4);
-    if (dash3 != std::string::npos && dash3 + 1 < first_line.size()) {
-      result.version = first_line.substr(dash3 + 1);
-      std::replace(result.version.begin(), result.version.end(), '_', ' ');
-    }
-    return result;
-  }
-
-  /* VNC / RFB: the server speaks first with "RFB <major>.<minor>\n" (RFC 6143),
-     e.g. "RFB 003.008". Distinctive prefix, no probe needed. */
-  if (banner.size() >= 8 && banner.compare(0, 4, "RFB ") == 0 &&
-      isdigit(static_cast<unsigned char>(banner[4]))) {
-    result.service = "vnc";
-    result.version = first_line;
-    return result;
-  }
-
-  /* Telnet: server opens with IAC (0xFF) option negotiation -- the second byte
-     is WILL/WONT/DO/DONT (0xFB-0xFE). Distinctive binary prefix. */
-  if (n >= 2 && static_cast<unsigned char>(buf[0]) == 0xFF &&
-      static_cast<unsigned char>(buf[1]) >= 0xFB &&
-      static_cast<unsigned char>(buf[1]) <= 0xFE) {
-    result.service = "telnet";
-    return result;
-  }
-
-  /* rsync daemon: greets with "@RSYNCD: <version>". */
-  if (banner.compare(0, 8, "@RSYNCD:") == 0) {
-    result.service = "rsync";
-    result.version = first_line;
-    return result;
-  }
-
-  /* FTP / SMTP 220 greeting */
-  if (banner.size() >= 4 &&
-      (banner.substr(0, 4) == "220 " || banner.substr(0, 4) == "220-")) {
-    if (banner_lower.find("ftp") != std::string::npos) {
-      result.service = "ftp";
-    } else if (banner_lower.find("smtp") != std::string::npos ||
-               banner_lower.find("mail") != std::string::npos ||
-               banner_lower.find("esmtp") != std::string::npos) {
-      result.service = "smtp";
-    } else {
-      if (port == 21) result.service = "ftp";
-      else if (port == 25 || port == 587 || port == 465) result.service = "smtp";
-      else result.service = "ftp";
-    }
-    result.version = first_line.substr(4);
-    return result;
-  }
-
-  /* IMAP */
-  if (banner.size() >= 4 && banner.substr(0, 4) == "* OK") {
-    result.service = "imap";
-    result.version = first_line.size() > 5 ? first_line.substr(5) : "";
-    return result;
-  }
-
-  /* POP3 */
-  if (banner.size() >= 3 && banner.substr(0, 3) == "+OK") {
-    result.service = "pop3";
-    result.version = first_line.size() > 4 ? first_line.substr(4) : "";
-    return result;
-  }
-
-  /* MySQL handshake: pkt-len + protocol version 0x0a at offset 4 */
-  if (n >= 5 && static_cast<unsigned char>(buf[4]) == 0x0a) {
-    result.service = "mysql";
-    const char *verp = buf + 5;
-    size_t vlen = strnlen(verp,
-                          static_cast<size_t>(n) > 5 ? static_cast<size_t>(n) - 5 : 0);
-    if (vlen > 0) result.version = std::string(verp, vlen);
-    return result;
-  }
-
-  /* Redis */
-  if (banner_lower.find("-err") == 0 || banner_lower.find("+pong") == 0 ||
-      banner_lower.find("$") == 0) {
-    result.service = "redis";
-    return result;
-  }
-
-  /* MongoDB wire protocol OP_REPLY */
-  if (n >= 16 && static_cast<unsigned char>(buf[12]) == 0x01) {
-    result.service = "mongodb";
-    return result;
-  }
-
-  /* PostgreSQL 'R' AuthenticationRequest -- 'R', big-endian Int32 length, Int32
-     auth code. Bound the length to the real range so a bare 'R'+9 no longer
-     matches any R-prefixed banner (kept in sync with net_enrich.cc). */
-  if (n >= 9 && buf[0] == 'R') {
-    uint32_t pg_len = (static_cast<uint32_t>(static_cast<unsigned char>(buf[1])) << 24) |
-                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[2])) << 16) |
-                      (static_cast<uint32_t>(static_cast<unsigned char>(buf[3])) << 8)  |
-                       static_cast<uint32_t>(static_cast<unsigned char>(buf[4]));
-    if (pg_len >= 8 && pg_len <= 64) {
-      result.service = "postgresql";
-      return result;
-    }
-  }
-
-  /* Unknown fallback */
-  if (!first_line.empty()) {
-    result.service = "unknown";
-    if (first_line.size() > 64)
-      result.version = first_line.substr(0, 64);
-    else
-      result.version = first_line;
-  }
-
+  result.service       = bc.service;
+  result.version       = bc.version;
+  result.http_response = bc.http_response;
   return result;
 }
 

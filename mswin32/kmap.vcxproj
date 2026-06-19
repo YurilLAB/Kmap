@@ -347,6 +347,7 @@
     <ClInclude Include="..\sha256.h" />
     <ClInclude Include="..\md5.h" />
     <ClInclude Include="..\json_escape.h" />
+    <ClInclude Include="..\banner_classify.h" />
     <ClInclude Include="..\ssh_hassh.h" />
     <ClInclude Include="..\host_tags.h" />
     <ClInclude Include="..\net_report.h" />
