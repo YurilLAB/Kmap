@@ -68,6 +68,23 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
     }
     if (port == 443 || port == 8443 || port == 4443)
       result.service = "https";
+    /* Elasticsearch serves its cluster info as the HTTP root JSON; the tagline
+       is unmistakable. Reclassify (with the real version) so CVE/EOL matching
+       uses the elasticsearch product instead of generic http. */
+    if (banner.find("You Know, for Search") != std::string::npos ||
+        (banner.find("\"cluster_name\"") != std::string::npos &&
+         banner.find("\"lucene_version\"") != std::string::npos)) {
+      result.service = "elasticsearch";
+      size_t vp = banner.find("\"number\"");          /* version.number */
+      if (vp != std::string::npos) {
+        vp = banner.find('"', vp + 8);                /* opening quote of value */
+        if (vp != std::string::npos) {
+          size_t ve = banner.find('"', vp + 1);
+          if (ve != std::string::npos)
+            result.version = banner.substr(vp + 1, ve - vp - 1);
+        }
+      }
+    }
     return result;
   }
 

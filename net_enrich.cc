@@ -450,6 +450,18 @@ static BannerResult grab_banner(const char *ip, int port, int timeout_ms) {
                                   os_profile_seed_from_text(ip)));
     if (enrich_fd_send(fd, http_probe.c_str(), http_probe.size())) {
       n = enrich_fd_recv(fd, buf, sizeof(buf) - 1, read_to);
+      /* The first recv often returns just the response headers; the body (which
+         carries product markers like the Elasticsearch tagline) can land in a
+         later segment. Top up the fixed buffer with a few short-timeout reads
+         so classification sees it. The short timeout (vs the full read_to) caps
+         the added latency: body segments on a live connection arrive within a
+         few ms, while a keep-alive server that already sent everything costs at
+         most one ~200ms wait rather than a full per-port timeout. */
+      while (n > 0 && n < static_cast<int>(sizeof(buf) - 1)) {
+        int m = enrich_fd_recv(fd, buf + n, sizeof(buf) - 1 - n, 200);
+        if (m <= 0) break;
+        n += m;
+      }
     }
   }
 
@@ -608,7 +620,8 @@ static std::string normalize_product(const std::string &service,
   if (ver.find("vsftpd") != std::string::npos) return "vsftpd";
   if (ver.find("proftpd") != std::string::npos) return "proftpd";
   if (ver.find("samba") != std::string::npos) return "samba";
-  if (ver.find("elasticsearch") != std::string::npos) return "elasticsearch";
+  if (ver.find("elasticsearch") != std::string::npos ||
+      svc == "elasticsearch") return "elasticsearch";
   if (ver.find("jenkins") != std::string::npos) return "jenkins";
   if (ver.find("php") != std::string::npos) return "php";
   if (ver.find("wordpress") != std::string::npos) return "wordpress";

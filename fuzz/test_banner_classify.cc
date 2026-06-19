@@ -74,6 +74,16 @@ int main(int argc, char **argv) {
     BannerClass r = clf(m, 3306);
     if (r.service != "mariadb") { printf("  FAIL mariadb service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "10.11.6-MariaDB-1") { printf("  FAIL mariadb version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* Elasticsearch root JSON (reclassified from http for CVE/EOL matching). */
+  { std::string es = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+      "{\"name\":\"n1\",\"cluster_name\":\"docker-cluster\","
+      "\"version\":{\"number\":\"8.12.0\",\"lucene_version\":\"9.9.1\"},"
+      "\"tagline\":\"You Know, for Search\"}";
+    BannerClass r = clf(es, 9200);
+    if (r.service != "elasticsearch") { printf("  FAIL es service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "8.12.0") { printf("  FAIL es version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* A normal HTTP server is NOT reclassified. */
+  want("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<html>hi</html>", 80, "http", "plain http not es");
   want("-ERR unknown command\r\n", 6379, "redis", "redis");
   /* PostgreSQL AuthOK (len 8) detected; out-of-range length rejected. */
   { std::string pg; pg += 'R'; pg += '\x00'; pg += '\x00'; pg += '\x00'; pg += '\x08';
