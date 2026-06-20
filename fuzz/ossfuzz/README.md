@@ -2,9 +2,9 @@
 
 libFuzzer entry points (`LLVMFuzzerTestOneInput`) for kmap's untrusted-input
 parsers, runnable by OSS-Fuzz, [ClusterFuzzLite][cfl], or any libFuzzer/AFL++
-engine. Each target is a single self-contained `.cc` that copies the shipping
-parser **verbatim** (kept byte-identical to the source it mirrors), so no
-kmap/sqlite linkage is needed and the build is trivial.
+engine. Each target is a single self-contained `.cc` that either copies the
+shipping parser **verbatim** or directly `#include`s the real dependency-light
+source/header, so no kmap/sqlite linkage is needed and the build is trivial.
 
 | Target | Mirrors | Surface |
 |--------|---------|---------|
@@ -12,6 +12,13 @@ kmap/sqlite linkage is needed and the build is trivial.
 | `fuzz_cidr.cc` | `fast_syn.cc` `parse_cidr` (+ `ip_to_u32`) | exclude-file CIDR/IP lines |
 | `fuzz_jsonescape.cc` | `net_enrich.cc` `json_escape` | RFC 8259 escaping of arbitrary banner bytes |
 | `fuzz_proto.cc` | `default_creds.cc` MySQL/PostgreSQL parses + `net_enrich.cc` banner classifier | binary protocol handshakes (pointer-math over hostile bytes; `scramble[20]`/`salt[4]` get ASan red-zones) |
+| `fuzz_hassh.cc` | `ssh_hassh.cc` (real, `#include`d) | SSH `SSH_MSG_KEXINIT` binary-packet parser → HASSH; length-field index math |
+| `fuzz_banner.cc` | `banner_classify.h` (real, `#include`d) | service/version classifier incl. the ES/Jenkins/SharePoint HTTP header/body scans |
+
+`fuzz_hassh` and `fuzz_banner` fuzz the **real shipping code** (the parsers are
+dependency-light), with in-target invariant checks (HASSH is always 32 hex
+chars; the classifier is deterministic and its service label is from a fixed
+vocabulary) so corruption is caught even without an out-of-bounds access.
 
 ## How it's built
 
