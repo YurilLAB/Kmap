@@ -57,7 +57,21 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
   if (banner.size() >= 8 && banner.substr(0, 4) == "HTTP") {
     result.service = "http";
     result.http_response = banner;
-    size_t spos = banner_lower.find("\nserver:");
+    /* Product signatures that key off RESPONSE HEADERS (Server, X-Jenkins,
+       MicrosoftSharePointTeamServices, X-Confluence-Request-Time) must be
+       matched ONLY in the header section -- a web app can put an arbitrary
+       "\nX-Jenkins: ..." line in its HTML body, and scanning the whole banner
+       would let that body content spoof a header and mint a bogus product +
+       CVE finding. Slice off the headers at the blank-line separator (include
+       it so the last header line's terminating CRLF stays in the slice). The
+       body-based signatures below (Elasticsearch JSON, Confluence version meta)
+       deliberately keep scanning the full banner. */
+    size_t sep = banner.find("\r\n\r\n");
+    size_t sep_len = 4;
+    if (sep == std::string::npos) { sep = banner.find("\n\n"); sep_len = 2; }
+    size_t hdr_end = (sep == std::string::npos) ? banner.size() : sep + sep_len;
+    std::string hdr_lower = banner_lower.substr(0, hdr_end);
+    size_t spos = hdr_lower.find("\nserver:");
     if (spos != std::string::npos) {
       spos += 8;
       while (spos < banner.size() && banner[spos] == ' ') spos++;
@@ -91,7 +105,7 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
     }
     /* Jenkins advertises its version in the X-Jenkins response header. */
     {
-      size_t jp = banner_lower.find("\nx-jenkins:");
+      size_t jp = hdr_lower.find("\nx-jenkins:");
       if (jp != std::string::npos) {
         result.service = "jenkins";
         size_t vs = jp + 11;                       /* past "\nx-jenkins:" */
@@ -104,7 +118,7 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
     /* SharePoint stamps its build in the MicrosoftSharePointTeamServices
        header (always in the headers, so the version is reliably captured). */
     {
-      size_t sp = banner_lower.find("\nmicrosoftsharepointteamservices:");
+      size_t sp = hdr_lower.find("\nmicrosoftsharepointteamservices:");
       if (sp != std::string::npos) {
         result.service = "sharepoint";
         size_t vs = sp + 33;   /* past "\nmicrosoftsharepointteamservices:" */
@@ -118,7 +132,7 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
        the version, when the page body is within the read window, is in the
        <meta name="ajs-version-number" content="X.Y.Z"> tag. Service-only (no
        CVE match) when the meta is past the buffer -- still a useful label. */
-    if (banner_lower.find("\nx-confluence-request-time:") != std::string::npos) {
+    if (hdr_lower.find("\nx-confluence-request-time:") != std::string::npos) {
       result.service = "confluence";
       size_t mp = banner.find("ajs-version-number");
       if (mp != std::string::npos) {

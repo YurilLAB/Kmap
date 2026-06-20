@@ -119,6 +119,23 @@ int main(int argc, char **argv) {
     BannerClass r = clf(es, 9200);
     if (r.service != "elasticsearch") { printf("  FAIL es-anchor service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "7.17.9") { printf("  FAIL es-anchor version '%s' want 7.17.9\n", r.version.c_str()); g_fail++; } }
+  /* Header-spoofing resistance: a fake product header injected into the HTML
+     BODY must NOT be honoured (these are response-header signatures). The host
+     stays plain http -- no bogus product label, no bogus CVE finding. */
+  { std::string spoof = "HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Type: text/html\r\n\r\n"
+      "<html><body>\nX-Jenkins: 99.99.99\n"
+      "\nMicrosoftSharePointTeamServices: 16.0.0.99999\n"
+      "\nX-Confluence-Request-Time: 1\n</body></html>";
+    BannerClass r = clf(spoof, 80);
+    if (r.service != "http") { printf("  FAIL body-spoof service '%s' want http\n", r.service.c_str()); g_fail++; }
+    if (r.version != "nginx") { printf("  FAIL body-spoof version '%s' want nginx\n", r.version.c_str()); g_fail++; } }
+  /* Real product header (in the header section) is still honoured even when the
+     body also contains a different, conflicting spoofed value. */
+  { std::string j = "HTTP/1.1 200 OK\r\nX-Jenkins: 2.426.1\r\nContent-Type: text/html\r\n\r\n"
+      "<html>\nX-Jenkins: 1.1.1\n</html>";
+    BannerClass r = clf(j, 8080);
+    if (r.service != "jenkins") { printf("  FAIL jenkins-real service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "2.426.1") { printf("  FAIL jenkins-real version '%s' want 2.426.1\n", r.version.c_str()); g_fail++; } }
   /* A normal HTTP server is NOT reclassified. */
   want("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<html>hi</html>", 80, "http", "plain http not es");
   want("-ERR unknown command\r\n", 6379, "redis", "redis");
