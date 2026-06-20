@@ -335,6 +335,8 @@ static std::string a_normalize_product(const std::string &service,
   if (ver.find("wordpress")    != std::string::npos) return "wordpress";
   if (svc == "sharepoint" || ver.find("sharepoint") != std::string::npos)
     return "sharepoint_server";
+  if (svc == "confluence" || ver.find("confluence") != std::string::npos)
+    return "confluence_data_center";
 
   return "";
 }

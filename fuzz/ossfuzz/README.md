@@ -13,7 +13,7 @@ source/header, so no kmap/sqlite linkage is needed and the build is trivial.
 | `fuzz_jsonescape.cc` | `net_enrich.cc` `json_escape` | RFC 8259 escaping of arbitrary banner bytes |
 | `fuzz_proto.cc` | `default_creds.cc` MySQL/PostgreSQL parses + `net_enrich.cc` banner classifier | binary protocol handshakes (pointer-math over hostile bytes; `scramble[20]`/`salt[4]` get ASan red-zones) |
 | `fuzz_hassh.cc` | `ssh_hassh.cc` (real, `#include`d) | SSH `SSH_MSG_KEXINIT` binary-packet parser → HASSH; length-field index math |
-| `fuzz_banner.cc` | `banner_classify.h` (real, `#include`d) | service/version classifier incl. the ES/Jenkins/SharePoint HTTP header/body scans |
+| `fuzz_banner.cc` | `banner_classify.h` (real, `#include`d) | service/version classifier incl. the ES/Jenkins/SharePoint/Confluence HTTP header/body scans |
 
 `fuzz_hassh` and `fuzz_banner` fuzz the **real shipping code** (the parsers are
 dependency-light), with in-target invariant checks (HASSH is always 32 hex

@@ -5,8 +5,9 @@
  * kmap_classify_banner runs over the raw first bytes a server sends (or its
  * reply to a probe): HTTP/SSH/VNC/telnet/rsync/220/IMAP/POP3 prefix checks,
  * MySQL/Mongo/PostgreSQL binary offsets, and -- the newest, index-heavy part --
- * HTTP header/body scans for Elasticsearch, Jenkins (X-Jenkins) and SharePoint
- * (MicrosoftSharePointTeamServices). All of it is substring + offset math over
+ * HTTP header/body scans for Elasticsearch, Jenkins (X-Jenkins), SharePoint
+ * (MicrosoftSharePointTeamServices) and Confluence (X-Confluence-Request-Time +
+ * ajs-version-number meta). All of it is substring + offset math over
  * attacker-controlled bytes, the over-read class libFuzzer+ASan targets.
  *
  * Includes the REAL shipping header so production code is fuzzed.
@@ -39,7 +40,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     static const char *known[] = {
       "http","https","ssh","vnc","telnet","rsync","ftp","smtp","imap","pop3",
       "mysql","mariadb","redis","mongodb","postgresql","elasticsearch",
-      "jenkins","sharepoint","unknown"};
+      "jenkins","sharepoint","confluence","unknown"};
     bool ok = false;
     for (const char *k : known) if (r.service == k) { ok = true; break; }
     if (!ok) __builtin_trap();

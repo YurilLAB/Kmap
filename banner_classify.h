@@ -75,7 +75,11 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
         (banner.find("\"cluster_name\"") != std::string::npos &&
          banner.find("\"lucene_version\"") != std::string::npos)) {
       result.service = "elasticsearch";
-      size_t vp = banner.find("\"number\"");          /* version.number */
+      /* Anchor to the "version" object so a stray "number" elsewhere in the
+         JSON can't be picked up; fall back to the first "number" if absent. */
+      size_t anchor = banner.find("\"version\"");
+      size_t vp = banner.find("\"number\"",
+                              anchor == std::string::npos ? 0 : anchor);
       if (vp != std::string::npos) {
         vp = banner.find('"', vp + 8);                /* opening quote of value */
         if (vp != std::string::npos) {
@@ -108,6 +112,23 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
         size_t ve = banner.find_first_of("\r\n", vs);
         if (ve == std::string::npos) ve = banner.size();
         result.version = banner.substr(vs, ve - vs);
+      }
+    }
+    /* Atlassian Confluence: the X-Confluence-Request-Time header identifies it;
+       the version, when the page body is within the read window, is in the
+       <meta name="ajs-version-number" content="X.Y.Z"> tag. Service-only (no
+       CVE match) when the meta is past the buffer -- still a useful label. */
+    if (banner_lower.find("\nx-confluence-request-time:") != std::string::npos) {
+      result.service = "confluence";
+      size_t mp = banner.find("ajs-version-number");
+      if (mp != std::string::npos) {
+        size_t cp = banner.find("content=\"", mp);
+        if (cp != std::string::npos) {
+          cp += 9;                                    /* past content=" */
+          size_t ce = banner.find('"', cp);
+          if (ce != std::string::npos)
+            result.version = banner.substr(cp, ce - cp);
+        }
       }
     }
     return result;

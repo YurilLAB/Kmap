@@ -94,6 +94,31 @@ int main(int argc, char **argv) {
     BannerClass r = clf(sp, 443);
     if (r.service != "sharepoint") { printf("  FAIL sharepoint service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "16.0.0.10337") { printf("  FAIL sharepoint version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* Confluence identified by the X-Confluence-Request-Time header; version from
+     the ajs-version-number meta when the body is in the read window. */
+  { std::string cf = "HTTP/1.1 200 OK\r\nX-Confluence-Request-Time: 1718000000\r\n"
+      "Content-Type: text/html\r\n\r\n"
+      "<html><head><meta name=\"ajs-version-number\" content=\"8.5.4\">"
+      "</head></html>";
+    BannerClass r = clf(cf, 8090);
+    if (r.service != "confluence") { printf("  FAIL confluence service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "8.5.4") { printf("  FAIL confluence version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* Confluence header present but the version meta is past the read window:
+     service is still labelled, version is empty (documented behaviour). */
+  { std::string cf = "HTTP/1.1 200 OK\r\nX-Confluence-Request-Time: 1718000000\r\n"
+      "Content-Type: text/html\r\n\r\n<html><body>no meta here</body></html>";
+    BannerClass r = clf(cf, 8090);
+    if (r.service != "confluence") { printf("  FAIL confluence-nometa service '%s'\n", r.service.c_str()); g_fail++; }
+    if (!r.version.empty()) { printf("  FAIL confluence-nometa version '%s' want empty\n", r.version.c_str()); g_fail++; } }
+  /* ES version parse is anchored on the "version" object: a stray "number" key
+     earlier in the JSON must not be mistaken for the product version. */
+  { std::string es = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+      "{\"name\":\"n1\",\"number\":\"999\",\"cluster_name\":\"c\","
+      "\"version\":{\"number\":\"7.17.9\",\"lucene_version\":\"8.11.1\"},"
+      "\"tagline\":\"You Know, for Search\"}";
+    BannerClass r = clf(es, 9200);
+    if (r.service != "elasticsearch") { printf("  FAIL es-anchor service '%s'\n", r.service.c_str()); g_fail++; }
+    if (r.version != "7.17.9") { printf("  FAIL es-anchor version '%s' want 7.17.9\n", r.version.c_str()); g_fail++; } }
   /* A normal HTTP server is NOT reclassified. */
   want("HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n<html>hi</html>", 80, "http", "plain http not es");
   want("-ERR unknown command\r\n", 6379, "redis", "redis");
