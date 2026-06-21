@@ -508,7 +508,16 @@ configfiles-update: config.guess config.sub nping/config.guess nping/config.sub 
 lua-format:
 	./docs/style/lua-format -i scripts/*.nse
 
-makefile.dep:
+# Regenerate the dependency file whenever any source OR header changes.
+# Without the prerequisites this rule only ran when makefile.dep was absent,
+# so a header-only single-source file (banner_classify.h, json_escape.h,
+# host_tags.h, ...) added to a .cc's includes after the file was first
+# generated was NOT tracked -- editing it then failed to rebuild the dependent
+# .o on an incremental build, silently shipping stale objects locally. The
+# wildcard captures the top-level headers (where the single-source headers
+# live); GNU make re-reads the regenerated include and restarts automatically.
+# (Clean builds / CI were always correct -- makefile.dep is generated fresh.)
+makefile.dep: $(SRCS) $(wildcard *.h)
 	$(CXX) -MM $(CPPFLAGS) $(SRCS) > $@
 -include makefile.dep
 
