@@ -262,6 +262,7 @@
     <ClCompile Include="..\net_fp_helpers.cc" />
     <ClCompile Include="..\net_hash_helpers.cc" />
     <ClCompile Include="..\ssh_hassh.cc" />
+    <ClCompile Include="..\jarm.cc" />
     <ClCompile Include="..\host_tags.cc" />
     <ClCompile Include="..\net_report.cc" />
     <ClCompile Include="..\net_query.cc" />
@@ -349,6 +350,7 @@
     <ClInclude Include="..\json_escape.h" />
     <ClInclude Include="..\banner_classify.h" />
     <ClInclude Include="..\ssh_hassh.h" />
+    <ClInclude Include="..\jarm.h" />
     <ClInclude Include="..\host_tags.h" />
     <ClInclude Include="..\net_report.h" />
     <ClInclude Include="..\net_query.h" />

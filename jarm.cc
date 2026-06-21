@@ -13,9 +13,12 @@
 #endif
 
 #include "jarm.h"
+#include "sha256.h"             /* vendored SHA-256 -- portable, no OpenSSL dep */
 
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>              /* rand */
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -33,8 +36,6 @@
 #include <errno.h>
 #include <sys/select.h>
 #endif
-
-#include <openssl/sha.h>
 
 /* --------------------------------------------------------------------------
  * Probe table -- the ten JARM specs (mirrors jarm.py main()'s queue).
@@ -419,11 +420,8 @@ std::string jarm_hash(const std::string &jarm_raw) {
     alpns_ext += comp[2];
     alpns_ext += comp[3];
   }
-  unsigned char digest[SHA256_DIGEST_LENGTH];
-  SHA256(reinterpret_cast<const unsigned char *>(alpns_ext.data()),
-         alpns_ext.size(), digest);
-  std::string sh(reinterpret_cast<char *>(digest), SHA256_DIGEST_LENGTH);
-  fuzzy += to_hex(sh).substr(0, 32);
+  /* JARM appends the first 32 hex chars of SHA-256(alpns+extensions). */
+  fuzzy += sha256_hex(alpns_ext).substr(0, 32);
   return fuzzy;
 }
 

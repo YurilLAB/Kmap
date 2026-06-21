@@ -125,7 +125,7 @@ jobs:
           # never fault under ASan/UBSan). End-to-end hash equivalence with
           # jarm.py is verified separately against a live openssl s_server.
           echo "::group::test_jarm"
-          g++ $CXXFLAGS fuzz/test_jarm.cc jarm.cc -lcrypto -o /tmp/fz/test_jarm
+          g++ $CXXFLAGS fuzz/test_jarm.cc jarm.cc -o /tmp/fz/test_jarm
           /tmp/fz/test_jarm 1
           /tmp/fz/test_jarm 1337
           echo "::endgroup::"

@@ -103,7 +103,7 @@ jobs:
             return 0;
           }
           CC
-          g++ -O2 -std=gnu++17 -I. /tmp/jarm_main.cc jarm.cc -lcrypto -o /tmp/kjarm
+          g++ -O2 -std=gnu++17 -I. /tmp/jarm_main.cc jarm.cc -o /tmp/kjarm
 
       - name: Fingerprint a real openssl s_server (deterministic, well-formed)
         run: |
