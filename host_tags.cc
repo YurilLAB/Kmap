@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstdlib>
 
 /* ---------------------------------------------------------------------------
@@ -29,7 +30,14 @@ static std::string ht_lower(const std::string &s) {
 
 /* Numeric component-wise version compare: returns true if a < b.  Missing
  * trailing components count as 0 ("2.4" == "2.4.0").  Non-numeric segments
- * stop the parse (so "2.4.49 (Ubuntu)" reads as 2.4.49). */
+ * stop the parse (so "2.4.49 (Ubuntu)" reads as 2.4.49).
+ *
+ * The per-component accumulate saturates at INT_MAX instead of multiplying
+ * blindly: a malicious banner version like "Apache/99999999999999999999.0"
+ * reaches here via derive_cpe -> the EOL check, and `val * 10` would be signed
+ * integer overflow (UB, confirmed under UBSan). Saturating is also the correct
+ * EOL semantic -- an absurdly large component is "very new", so the version is
+ * not flagged as below any sane EOL cutoff. */
 static std::vector<int> ht_ver_parts(const std::string &v) {
   std::vector<int> out;
   size_t i = 0, n = v.size();
@@ -37,7 +45,9 @@ static std::vector<int> ht_ver_parts(const std::string &v) {
     if (!isdigit(static_cast<unsigned char>(v[i]))) break;
     int val = 0;
     while (i < n && isdigit(static_cast<unsigned char>(v[i]))) {
-      val = val * 10 + (v[i] - '0');
+      int d = v[i] - '0';
+      if (val > (INT_MAX - d) / 10) val = INT_MAX;   /* clamp, never overflow */
+      else val = val * 10 + d;
       i++;
     }
     out.push_back(val);

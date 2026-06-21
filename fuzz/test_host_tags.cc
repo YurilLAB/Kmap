@@ -119,6 +119,15 @@ int main(int argc, char **argv) {
   expect(!eol("cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*"), "version ANY -> no EOL");
   expect(!eol(""), "empty cpe -> no EOL");
   expect(!eol("not-a-cpe"), "garbage cpe -> no EOL");
+  /* Overflow guard: a malicious banner version "Apache/99999999999999999999.0"
+     reaches the EOL version parse via derive_cpe; before the saturating fix the
+     accumulate `val*10` was signed-overflow UB (confirmed under UBSan). The
+     huge component must saturate (not wrap) and is correctly NOT below the 2.4
+     cutoff, so it is not flagged EOL. */
+  expect(!eol("cpe:2.3:a:apache:http_server:99999999999999999999.0:*:*:*:*:*:*:*"),
+         "huge version component does not overflow / not EOL");
+  expect( eol("cpe:2.3:a:apache:http_server:1.99999999999999999999:*:*:*:*:*:*:*"),
+         "huge minor with major 1 (<2.4) still EOL, no overflow");
 
   /* Cross-link derive_cpe (net_hash_helpers.cc, the real shipping CPE the
      enrichment stamps onto a host) with the eol-product rules: for each EOL'd
