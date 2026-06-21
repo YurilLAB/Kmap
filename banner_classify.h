@@ -84,10 +84,17 @@ static inline BannerClass kmap_classify_banner(const char *buf, int n, int port)
       result.service = "https";
     /* Elasticsearch serves its cluster info as the HTTP root JSON; the tagline
        is unmistakable. Reclassify (with the real version) so CVE/EOL matching
-       uses the elasticsearch product instead of generic http. */
+       uses the elasticsearch product instead of generic http.
+       Since 8.x security is on by default, GET / returns 401 with no cluster
+       JSON -- but Elasticsearch >=7.14 stamps an "X-elastic-product:
+       Elasticsearch" header on EVERY response (including auth failures) as a
+       product identifier, so the header (matched in the header section only)
+       catches secured instances the body scan would miss. Version then stays
+       empty (service-only label, no CVE guess) until creds reveal the body. */
     if (banner.find("You Know, for Search") != std::string::npos ||
         (banner.find("\"cluster_name\"") != std::string::npos &&
-         banner.find("\"lucene_version\"") != std::string::npos)) {
+         banner.find("\"lucene_version\"") != std::string::npos) ||
+        hdr_lower.find("\nx-elastic-product:") != std::string::npos) {
       result.service = "elasticsearch";
       /* Anchor to the "version" object so a stray "number" elsewhere in the
          JSON can't be picked up; fall back to the first "number" if absent. */

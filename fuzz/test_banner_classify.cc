@@ -82,6 +82,21 @@ int main(int argc, char **argv) {
     BannerClass r = clf(es, 9200);
     if (r.service != "elasticsearch") { printf("  FAIL es service '%s'\n", r.service.c_str()); g_fail++; }
     if (r.version != "8.12.0") { printf("  FAIL es version '%s'\n", r.version.c_str()); g_fail++; } }
+  /* Secured ES 8.x: GET / -> 401, no cluster JSON, but the X-elastic-product
+     header (>=7.14) still identifies it. Service-only label, version empty. */
+  { std::string es = "HTTP/1.1 401 Unauthorized\r\n"
+      "WWW-Authenticate: Basic realm=\"security\"\r\n"
+      "X-elastic-product: Elasticsearch\r\nContent-Type: application/json\r\n\r\n"
+      "{\"error\":{\"type\":\"security_exception\"},\"status\":401}";
+    BannerClass r = clf(es, 9200);
+    if (r.service != "elasticsearch") { printf("  FAIL es-401 service '%s'\n", r.service.c_str()); g_fail++; }
+    if (!r.version.empty()) { printf("  FAIL es-401 version '%s' want empty\n", r.version.c_str()); g_fail++; } }
+  /* The X-elastic-product header is a response header: a body containing the
+     same line must NOT trigger ES detection (header-section match only). */
+  { std::string spoof = "HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Type: text/html\r\n\r\n"
+      "<html>\nX-elastic-product: Elasticsearch\n</html>";
+    BannerClass r = clf(spoof, 80);
+    if (r.service != "http") { printf("  FAIL es-body-spoof service '%s' want http\n", r.service.c_str()); g_fail++; } }
   /* Jenkins advertises its version in the X-Jenkins header. */
   { std::string j = "HTTP/1.1 403 Forbidden\r\nX-Jenkins: 2.401.3\r\n"
       "X-Jenkins-Session: abc\r\nContent-Type: text/html\r\n\r\n";
