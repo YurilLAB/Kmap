@@ -1,0 +1,68 @@
+name: CodeQL
+
+# GitHub's semantic security analysis for the C/C++ sources. CodeQL models data
+# flow across the whole program, so it catches taint-style and memory-safety bug
+# classes (tainted-buffer reads, integer overflow into allocation, use-after-
+# free, command/format-string injection) that complement the fuzzers (runtime,
+# input-driven) and the Clang Static Analyzer (intraprocedural). Results appear
+# in the repo's Security > Code scanning tab; the run fails on a query error.
+#
+# Free for this repository (public). Uses the broader security-and-quality query
+# suite, built with the project's real ./configure && make so CodeQL sees the
+# exact translation units that ship.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "**/*.cc"
+      - "**/*.c"
+      - "**/*.h"
+      - ".github/workflows/codeql.yml"
+  pull_request:
+    paths:
+      - "**/*.cc"
+      - "**/*.c"
+      - "**/*.h"
+  schedule:
+    # Weekly full re-scan (Mondays 07:23 UTC) so newly-published CodeQL queries
+    # run against master even when the code has not changed.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze C/C++
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      security-events: write   # upload SARIF to code scanning
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libpcap-dev libnet-dev libpcre2-dev
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-and-quality
+
+      - name: Build
+        run: |
+          ./configure
+          make
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:c-cpp"

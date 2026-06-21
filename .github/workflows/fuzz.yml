@@ -43,6 +43,24 @@ jobs:
       - name: Compiler version
         run: g++ --version
 
+      - name: Harness coverage guard (every fuzz/*.cc must be run)
+        run: |
+          set -euo pipefail
+          # Fail CI if a harness was added under fuzz/ but never wired into this
+          # workflow -- otherwise new parser tests silently never run and a green
+          # "fuzz" check would overstate coverage. ossfuzz/ targets run in the
+          # ClusterFuzzLite workflows, so they are intentionally excluded here.
+          missing=0
+          for f in fuzz/*.cc; do
+            b=$(basename "$f" .cc)
+            if ! grep -q "\b$b\b" .github/workflows/fuzz.yml; then
+              echo "::error file=$f::harness '$b' is not run by fuzz.yml"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || { echo "Wire the harness(es) above into fuzz.yml."; exit 1; }
+          echo "All fuzz/*.cc harnesses are wired into CI."
+
       - name: Build + run harnesses (ASan + UBSan, abort on any finding)
         run: |
           set -euo pipefail
@@ -52,8 +70,9 @@ jobs:
           # Each harness either runs an oracle (nonzero exit on mismatch) or
           # drives a parser over millions of inputs (ASan aborts on a fault).
           # -pthread is harmless for the non-threaded harnesses and required
-          # by test_lowwater (real worker-pool crash-snapshot stress).
-          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater test_sha256 test_watchlist_diff test_ratelimit test_csum_patch test_header_extract test_checkpoint test_excludes test_throughput test_asn_prefix test_banner_classify test_banner_mutate fuzz_text fuzz_query; do
+          # by test_lowwater (real worker-pool crash-snapshot stress) and
+          # test_linger (SO_LINGER live socket proof).
+          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater test_sha256 test_watchlist_diff test_ratelimit test_csum_patch test_header_extract test_checkpoint test_excludes test_throughput test_asn_prefix test_banner_classify test_banner_mutate test_linger fuzz_text fuzz_query; do
             echo "::group::$h"
             g++ $CXXFLAGS -pthread "fuzz/$h.cc" -o "/tmp/fz/$h"
             # two seeds widen input coverage between runs
@@ -71,6 +90,13 @@ jobs:
             "/tmp/fz/$h"
             echo "::endgroup::"
           done
+
+          # CPU governor control-law harness links the real cpu_meter.cc
+          # (kmap_cpu_governor_throttle). Convergence oracle, not a fuzzer.
+          echo "::group::test_governor"
+          g++ $CXXFLAGS -pthread fuzz/test_governor.cc cpu_meter.cc -o /tmp/fz/test_governor
+          /tmp/fz/test_governor
+          echo "::endgroup::"
 
           # HASSH SSH fingerprint: links the REAL ssh_hassh.cc (and md5.h via
           # include) so a drift in the shipping KEXINIT parser / MD5 is caught.
@@ -159,6 +185,8 @@ jobs:
             -lpthread -ldl -o /tmp/fz/test_netquery && /tmp/fz/test_netquery
           g++ $CXXFLAGS -I. fuzz/test_cve_limit.cc /tmp/fz/sqlite3.o \
             -lpthread -ldl -o /tmp/fz/test_cve_limit && /tmp/fz/test_cve_limit
+          g++ $CXXFLAGS -I. fuzz/test_asn_update.cc net_db.cc /tmp/fz/sqlite3.o \
+            -lpthread -ldl -o /tmp/fz/test_asn_update && /tmp/fz/test_asn_update
           echo "::endgroup::"
 
           # LIVE test linking the real os_profile.cc -- pins the HTTP probe

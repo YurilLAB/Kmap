@@ -1,0 +1,125 @@
+name: kmap unit tests + hardening
+
+# The build.yml workflow proves kmap *compiles* on many platforms and that a
+# bare `-sV` runs; the fuzz.yml workflow sanitizes the parsers. Neither ran the
+# project's own unit suite (`make check-kmap` -- 292 assertions across the
+# kmap_dns / expr_match / os_profile / net_db diff+fingerprint+topo tests), so a
+# green CI did NOT actually mean the unit tests passed. This workflow closes
+# that gap and adds two security-posture gates: the shipped binary must keep its
+# exploit-mitigation hardening, and the JARM TLS fingerprint must still match a
+# live server end-to-end.
+
+on:
+  push:
+    paths:
+      - ".github/workflows/tests.yml"
+      - "**/*.cc"
+      - "**/*.h"
+      - "**/*.c"
+      - "Makefile.in"
+      - "configure"
+      - "tests/**"
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: build + make check-kmap + hardening
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libpcap-dev libnet-dev libpcre2-dev
+
+      - name: Configure + build
+        run: |
+          ./configure
+          make
+          test -x ./kmap || { echo "::error::kmap binary was not built"; exit 1; }
+
+      - name: Unit suite (make check-kmap)
+        run: |
+          set -e
+          # Runs every tests/*_test binary; each prints a pass/fail line and
+          # exits non-zero on the first failed assertion.
+          make check-kmap
+
+      - name: Runtime smoke (-sV under a real listener)
+        run: |
+          set -e
+          ./kmap --version
+          python3 -m http.server 8088 --bind 127.0.0.1 >/dev/null 2>&1 &
+          srv=$!; sleep 1
+          rc=0; ./kmap -sV -p 8088 127.0.0.1 || rc=$?
+          kill "$srv" 2>/dev/null || true
+          [ "$rc" -eq 0 ] || { echo "::error::kmap -sV exited $rc"; exit "$rc"; }
+
+      - name: Binary hardening (exploit-mitigation regressions fail CI)
+        run: |
+          set -e
+          fail=0
+          # NX: the stack must not be executable (GNU_STACK without 'E').
+          if readelf -lW kmap | grep -q 'GNU_STACK.*RWE'; then
+            echo "::error::executable stack (NX disabled)"; fail=1; fi
+          # Full RELRO: GNU_RELRO segment + BIND_NOW.
+          readelf -lW kmap | grep -q GNU_RELRO || { echo "::error::no RELRO"; fail=1; }
+          readelf -dW kmap | grep -q BIND_NOW  || { echo "::error::no BIND_NOW (partial RELRO)"; fail=1; }
+          # PIE: position-independent executable (ASLR for the image).
+          readelf -hW kmap | grep -qE 'Type:[[:space:]]+DYN' || { echo "::error::not PIE"; fail=1; }
+          # Stack-smashing protector.
+          readelf -sW kmap | grep -q __stack_chk_fail || { echo "::error::no stack canary"; fail=1; }
+          # _FORTIFY_SOURCE fortified libc wrappers present.
+          readelf -sW kmap | grep -qE '__(memcpy|sprintf|snprintf|strcpy|printf)_chk' \
+            || { echo "::error::no _FORTIFY_SOURCE (_chk wrappers absent)"; fail=1; }
+          [ "$fail" -eq 0 ] && echo "hardening OK: NX, full RELRO, PIE, canary, FORTIFY"
+          exit "$fail"
+
+  jarm-e2e:
+    name: JARM matches a live TLS server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build a JARM driver
+        run: |
+          cat > /tmp/jarm_main.cc <<'CC'
+          #include <cstdio>
+          #include <cstdlib>
+          #include "jarm.h"
+          int main(int argc, char **argv) {
+            if (argc < 3) return 2;
+            std::string j = jarm_fingerprint(argv[1], atoi(argv[2]), 3000);
+            printf("%s\n", j.empty() ? "<none>" : j.c_str());
+            return 0;
+          }
+          CC
+          g++ -O2 -std=gnu++17 -I. /tmp/jarm_main.cc jarm.cc -lcrypto -o /tmp/kjarm
+
+      - name: Fingerprint a real openssl s_server (deterministic, well-formed)
+        run: |
+          set -e
+          openssl req -x509 -newkey rsa:2048 -keyout /tmp/k.pem -out /tmp/c.pem \
+            -days 1 -nodes -subj "/CN=localhost" >/dev/null 2>&1
+          openssl s_server -accept 8443 -cert /tmp/c.pem -key /tmp/k.pem -www -quiet \
+            >/tmp/ss.log 2>&1 &
+          sp=$!; sleep 2
+          A=$(/tmp/kjarm 127.0.0.1 8443)
+          B=$(/tmp/kjarm 127.0.0.1 8443)
+          kill $sp 2>/dev/null || true
+          echo "JARM run1=$A run2=$B"
+          # A live TLS server must yield a 62-hex JARM, identical across runs and
+          # not the all-zero "nothing answered" sentinel.
+          echo "$A" | grep -qE '^[0-9a-f]{62}$' || { echo "::error::JARM not 62 hex chars"; exit 1; }
+          [ "$A" = "$B" ] || { echo "::error::JARM non-deterministic ($A != $B)"; exit 1; }
+          [ "$A" != "$(printf '0%.0s' $(seq 62))" ] || { echo "::error::JARM is all-zero on a live server"; exit 1; }
+          echo "JARM e2e OK: $A"

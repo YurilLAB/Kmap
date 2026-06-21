@@ -1,0 +1,69 @@
+name: static analysis (clang-analyzer)
+
+# Deep dataflow static analysis (the Clang Static Analyzer, via clang-tidy) over
+# the source files kmap actively maintains -- the net-scan / enrichment /
+# fingerprint / parser code. The analyzer finds bug classes the fuzzers and unit
+# tests can miss on un-exercised paths: null-pointer dereferences, use-after-
+# free, uninitialized reads, leaks, division-by-zero, dead stores. The gate is
+# clean today, so any new finding is a real regression introduced by the change.
+#
+# Scope is intentionally the maintained TUs, NOT the inherited upstream nmap core
+# (osscan/scan_engine/...), so legacy findings there do not mask new ones in the
+# code this project owns. Checks are limited to clang-analyzer-* (high signal);
+# style lints are excluded to keep the gate trustworthy rather than noisy.
+
+on:
+  push:
+    paths:
+      - ".github/workflows/static-analysis.yml"
+      - "**/*.cc"
+      - "**/*.h"
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clang-analyzer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang clang-tidy libpcap-dev libnet-dev libpcre2-dev
+
+      - name: Configure (generate config headers the TUs include)
+        run: ./configure
+
+      - name: Clang Static Analyzer over maintained TUs
+        run: |
+          set -euo pipefail
+          INC="-I. -I./liblinear -I./liblua -I./libdnet-stripped/include \
+               -I./libssh2/include -I./libpcap -I./nbase -I./nsock/include \
+               -Ithird-party -DHAVE_CONFIG_H -DKMAP_PLATFORM=\"x86_64\""
+          # The net-scan / enrichment / fingerprint code this project maintains.
+          FILES="net_enrich.cc net_enrich_async.cc net_db.cc net_query.cc \
+                 net_scan.cc cve_map.cc host_tags.cc jarm.cc ssh_hassh.cc \
+                 net_hash_helpers.cc cloud_map.cc asn_lookup.cc fast_syn.cc \
+                 web_recon.cc default_creds.cc entity_graph.cc tracemap.cc \
+                 os_profile.cc net_report.cc net_fp_helpers.cc"
+          rc=0
+          for f in $FILES; do
+            echo "::group::$f"
+            out=$(clang-tidy --quiet --checks='-*,clang-analyzer-*' "$f" \
+                    -- $INC -std=gnu++17 2>/dev/null || true)
+            if echo "$out" | grep -qE "warning:|error:"; then
+              echo "$out" | grep -E "warning:|error:"
+              echo "::error file=$f::clang-analyzer finding(s) in $f"
+              rc=1
+            fi
+            echo "::endgroup::"
+          done
+          [ "$rc" -eq 0 ] && echo "clang-analyzer: no findings in maintained TUs"
+          exit "$rc"
