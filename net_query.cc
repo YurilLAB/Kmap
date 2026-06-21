@@ -480,7 +480,9 @@ static std::string format_result_json(const std::string &ip, int port,
    * output parseable. */
   if (!cves_json.empty() && cves_json != "[]") {
     if (!first) oss << ',';
-    first = false;
+    /* cves is the last emitted field, so `first` is intentionally not updated
+       here (a trailing `first = false` would be a dead store). Keep this block
+       last, or restore the assignment if another field is appended after it. */
     if (cves_json[0] == '[')
       oss << "\"cves\":" << cves_json;
     else

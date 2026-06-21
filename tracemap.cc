@@ -267,8 +267,12 @@ static TraceResult trace_one_target(const char *target_ip, int max_hops,
     std::set<std::string> probe_ips; /* track unique IPs for load balancer detection */
 
     for (int probe = 0; probe < PROBES_PER_HOP; probe++) {
-      /* Build ICMP echo request */
-      struct icmp icmp_pkt{};
+      /* Build ICMP echo request. memset the whole struct (not just {}-init) so
+         the checksum over every byte -- including the icmp_hun/icmp_dun union
+         padding -- reads defined memory; this also satisfies the static
+         analyzer, which does not model the union's zero-initialization. */
+      struct icmp icmp_pkt;
+      std::memset(&icmp_pkt, 0, sizeof(icmp_pkt));
       icmp_pkt.icmp_type = ICMP_ECHO;
       icmp_pkt.icmp_code = 0;
       icmp_pkt.icmp_id = htons(ident);
