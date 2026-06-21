@@ -37,6 +37,11 @@ struct TlsCapture {
  *   hassh        -- HASSH SSH-server fingerprint (Shodan ssh.hasshserver),
  *                   MD5 of the SSH_MSG_KEXINIT algorithm name-lists; survives
  *                   banner spoofing and clusters identical SSH builds.
+ *   jarm         -- JARM active TLS-server fingerprint (Shodan ssl.jarm), the
+ *                   62-char hash of ten crafted ClientHello probes; clusters
+ *                   hosts running an indistinguishable TLS stack. Captured on
+ *                   HTTPS-looking ports only (ten extra connects), so it is
+ *                   gated on the fingerprint-capture path like favicon/body.
  * Only populated when enrich_single_host is given a non-null out_fp (the
  * net-scan path); the bounded watchlist path leaves it null and pays no
  * extra probe cost. */
@@ -44,6 +49,7 @@ struct HostFingerprints {
   std::string favicon_mmh3;
   std::string body_sha256;
   std::string hassh;
+  std::string jarm;
 };
 
 /* Run the full enrichment pipeline across all shard databases.

@@ -20,6 +20,7 @@
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
 #include "ssh_hassh.h"          /* ssh_hassh_server_from_buffer (ssh.hassh) */
+#include "jarm.h"               /* jarm_fingerprint (ssl.jarm) */
 #include "banner_classify.h"    /* kmap_classify_banner -- shared classifier */
 #include "json_escape.h"      /* kmap_json_escape -- shared JSON escaper */
 #include "cloud_map.h"          /* lookup_cloud, cloud_ranges_load */
@@ -1531,6 +1532,16 @@ int enrich_single_host(const char *ip,
         int tls_timeout = timeout_ms < rem ? timeout_ms : rem;
         tls_capture_cert(ip, ports[i], tls_timeout, (*out_tls)[i]);
       }
+
+      /* Step 5: JARM active TLS fingerprint (Shodan ssl.jarm) on HTTPS ports.
+         Ten extra connects, so gated on the fingerprint-capture path (out_fp)
+         exactly like favicon/body. Each probe is capped at the per-port
+         timeout; jarm_fingerprint() returns "" if nothing answered. */
+      rem = budget_remaining();
+      if (out_fp && rem > 0 && is_https_port(ports[i], br.service)) {
+        int jarm_to = timeout_ms < rem ? timeout_ms : rem;
+        (*out_fp)[i].jarm = jarm_fingerprint(ip, ports[i], jarm_to);
+      }
     }
   };
 
@@ -2167,6 +2178,11 @@ int run_enrichment(const char *data_dir, int batch_size) {
               net_db_insert_fingerprint(db, ip_u32, r.ports[j],
                                         "hassh",
                                         fp.hassh.c_str(), fp_ts);
+            }
+            if (!fp.jarm.empty()) {
+              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
+                                        "jarm",
+                                        fp.jarm.c_str(), fp_ts);
             }
           }
         }
