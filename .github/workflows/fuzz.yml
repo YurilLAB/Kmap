@@ -92,6 +92,18 @@ jobs:
           /tmp/fz/test_host_tags 1337
           echo "::endgroup::"
 
+          # JARM TLS fingerprint: links the REAL jarm.cc. Proves the ten
+          # ClientHello probes are byte-for-byte identical to Salesforce's
+          # reference jarm.py (fuzz/jarm_vectors.h, dumped from the reference)
+          # and fuzzes the ServerHello parser over random/truncated bytes (must
+          # never fault under ASan/UBSan). End-to-end hash equivalence with
+          # jarm.py is verified separately against a live openssl s_server.
+          echo "::group::test_jarm"
+          g++ $CXXFLAGS fuzz/test_jarm.cc jarm.cc -lcrypto -o /tmp/fz/test_jarm
+          /tmp/fz/test_jarm 1
+          /tmp/fz/test_jarm 1337
+          echo "::endgroup::"
+
           # CVE version-comparison audit: KATs (numeric ordering, exclusive-bound
           # "patched not flagged") + proves cve_map.cc and net_enrich.cc's two
           # independent comparators agree over a 1M-pair fuzz + crash fuzz.
