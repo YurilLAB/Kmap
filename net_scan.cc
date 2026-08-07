@@ -578,12 +578,26 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     connect(fd, reinterpret_cast<struct sockaddr *>(&sa), sizeof(sa));
     int out = 0;
 #ifdef WIN32
-    /* Windows fd_set is a counted SOCKET-handle array -- value-safe. */
+    /* Windows fd_set is a counted SOCKET-handle array -- value-safe.
+
+       exceptfds is REQUIRED here, unlike POSIX. Winsock signals a FAILED
+       non-blocking connect (RST / connection refused) only through the
+       exception set; the socket never becomes writable. POSIX differs -- there
+       a failed connect makes the fd writable and SO_ERROR carries the reason,
+       which is why the poll(POLLOUT) branch below needs no equivalent.
+       Passing nullptr for exceptfds therefore made every RST-closed port look
+       like a timeout on Windows: select returned 0 and the probe reported "no
+       response" instead of "closed". That is not cosmetic -- a closed port is
+       what marks a host alive and disables the leading-timeout bail, so a host
+       that refuses every probe was written off as dead and the rest of its
+       ports were skipped. The SO_ERROR check below already distinguishes the
+       two cases once select reports readiness. */
     fd_set wset; FD_ZERO(&wset); FD_SET(fd, &wset);
+    fd_set eset; FD_ZERO(&eset); FD_SET(fd, &eset);
     struct timeval tv;
     tv.tv_sec  = probe_timeout_ms / 1000;
     tv.tv_usec = (probe_timeout_ms % 1000) * 1000;
-    int sel = select(0, nullptr, &wset, nullptr, &tv);
+    int sel = select(0, nullptr, &wset, &eset, &tv);
 #else
     /* poll(), NOT select(): a POSIX fd_set is a bitmask indexed by fd VALUE
        and capped at FD_SETSIZE (1024). Watchlist discovery runs up to
@@ -1123,11 +1137,27 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   mkdir(wl_dir.c_str(), 0755);
 #endif
 
-  /* Get current state -- only rows whose last_seen advanced during this
-   * scan, since we no longer DELETE before scanning.  Anything with an
-   * older last_seen represents a host/port that was open historically
-   * but did not respond this run; the diff loop below uses absence from
-   * `current` to flag those as [CLOSED]. */
+  /* Get current state -- the ports this run's discovery actually found open.
+   *
+   * The membership test is the in-memory `opens` set, NOT a last_seen window.
+   * last_seen cannot answer "did this port respond THIS run": enrichment
+   * stamps last_seen=now on every row it touches (net_db_update_enrichment),
+   * and the watchlist enriches every historical port of a live host, because
+   * net_db_get_host(ip) returns the host's whole port list rather than just
+   * the ports that answered. So a "last_seen >= scan_start_ts" current set
+   * re-admitted ports that had gone silent, and [CLOSED] could only ever fire
+   * when a host went ENTIRELY dark -- one port closing on a host that still
+   * has another port open, the single most likely thing a watchlist exists to
+   * catch, was invisible.
+   *
+   * The DB is still the source of the enriched columns ([CHANGED] compares
+   * service/version), so the query is unchanged apart from being filtered
+   * through the discovery set. */
+  std::set<uint64_t> discovered_now;
+  for (const auto &t : opens)
+    discovered_now.insert((static_cast<uint64_t>(t.first) << 16) |
+                          static_cast<uint64_t>(t.second & 0xFFFF));
+
   std::vector<NetHost> current;
   {
     sqlite3_stmt *stmt = nullptr;
@@ -1145,6 +1175,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         };
         h.ip = col(0);
         h.port = sqlite3_column_int(stmt, 1);
+        uint64_t key = (static_cast<uint64_t>(ip_to_u32(h.ip.c_str())) << 16) |
+                       static_cast<uint64_t>(h.port & 0xFFFF);
+        if (discovered_now.find(key) == discovered_now.end()) continue;
         h.proto = col(2);
         h.service = col(3);
         h.version = col(4);
@@ -1179,6 +1212,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     fprintf(diff_fp, "================================================================================\n");
     fprintf(diff_fp, "                    WATCHLIST DIFF -- %s\n", datebuf);
     fprintf(diff_fp, "================================================================================\n");
+    if (g_scan_interrupted.load())
+      fprintf(diff_fp,
+              "  *** PARTIAL RUN -- interrupted before all targets were probed.\n"
+              "  *** Closure detection is disabled for this report (see below).\n");
     fprintf(diff_fp, "  Targets scanned: %d\n", (int)targets.size());
 
     /* Build lookup maps. Keep the prior service/version per key so a port
@@ -1230,14 +1267,32 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       }
     }
 
-    /* Closed ports */
-    for (const auto &pe : prev_state) {
-      std::string key = pe.ip + ":" + std::to_string(pe.port);
-      if (curr_keys.find(key) == curr_keys.end()) {
-        fprintf(diff_fp, "\n  [CLOSED] %s:%d\n", pe.ip.c_str(), pe.port);
-        if (!pe.service.empty())
-          fprintf(diff_fp, "    Was: %s %s\n", pe.service.c_str(), pe.version.c_str());
-        changes++;
+    /* Closed ports.
+     *
+     * Suppressed entirely on an interrupted run. [CLOSED] is inferred from
+     * ABSENCE -- a previously-open port that is not in this run's discovery
+     * set. That inference is only sound if the run actually probed everything:
+     * after Ctrl+C most of the watchlist was never reached, so every unprobed
+     * port would be reported as having gone dark, burying any real change
+     * under a flood of false closures. [NEW PORT] and [CHANGED] above are
+     * positive observations and stay valid on a partial run, so they are still
+     * emitted. (The scan_meta boundary is likewise not advanced when
+     * interrupted, so the next full run still diffs against the last complete
+     * one and will report anything that genuinely closed in the meantime.) */
+    if (g_scan_interrupted.load()) {
+      fprintf(diff_fp,
+              "\n  [CLOSED] detection skipped -- scan was interrupted, so ports\n"
+              "  that were simply never probed cannot be distinguished from ports\n"
+              "  that went dark. Re-run to completion for closure detection.\n");
+    } else {
+      for (const auto &pe : prev_state) {
+        std::string key = pe.ip + ":" + std::to_string(pe.port);
+        if (curr_keys.find(key) == curr_keys.end()) {
+          fprintf(diff_fp, "\n  [CLOSED] %s:%d\n", pe.ip.c_str(), pe.port);
+          if (!pe.service.empty())
+            fprintf(diff_fp, "    Was: %s %s\n", pe.service.c_str(), pe.version.c_str());
+          changes++;
+        }
       }
     }
 
