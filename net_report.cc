@@ -248,7 +248,9 @@ static void write_host_section(FILE *fp, const std::string &ip,
               p.cloud_region.empty() ? "" : " / ", p.cloud_region.c_str());
 
     if (!p.cves.empty() && p.cves != "[]") has_cves = true;
-    if (!p.web_title.empty() || !p.web_server.empty()) has_web = true;
+    if (!p.web_title.empty() || !p.web_server.empty() ||
+        (!p.web_paths.empty() && p.web_paths != "[]"))
+      has_web = true;
   }
 
   /* CVE MAP section */

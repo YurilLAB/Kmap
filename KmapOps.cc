@@ -164,6 +164,26 @@ KmapOps::~KmapOps() {
   if (tm_output) { free(tm_output); tm_output = NULL; }
   if (tm_format) { free(tm_format); tm_format = NULL; }
   if (spoof_os) { free(spoof_os); spoof_os = NULL; }
+  /* Remaining YurilLAB option strings strdup'd in kmap.cc's parse_kmap_option.
+     Freed here for parity with the fields above; without these 16 the option
+     strings leaked for the process lifetime (harmless at exit, but they made
+     the destructor an unreliable model of ownership and tripped leak
+     checkers). */
+  if (creds_file) { free(creds_file); creds_file = NULL; }
+  if (web_paths_file) { free(web_paths_file); web_paths_file = NULL; }
+  if (import_cves_file) { free(import_cves_file); import_cves_file = NULL; }
+  if (import_cves_db) { free(import_cves_db); import_cves_db = NULL; }
+  if (nc_ip) { free(nc_ip); nc_ip = NULL; }
+  if (nc_output) { free(nc_output); nc_output = NULL; }
+  if (nc_format) { free(nc_format); nc_format = NULL; }
+  if (eg_seed) { free(eg_seed); eg_seed = NULL; }
+  if (eg_output) { free(eg_output); eg_output = NULL; }
+  if (eg_format) { free(eg_format); eg_format = NULL; }
+  if (search_query) { free(search_query); search_query = NULL; }
+  if (search_output) { free(search_output); search_output = NULL; }
+  if (search_format) { free(search_format); search_format = NULL; }
+  if (topo_export_file) { free(topo_export_file); topo_export_file = NULL; }
+  if (topo_format) { free(topo_format); topo_format = NULL; }
 
 #ifndef NOLUA
   /* NOTE: do *not* close_nse() here. This destructor runs for the global

@@ -107,6 +107,7 @@
 
 #include <fcntl.h>
 #include <climits>
+#include <cerrno>   /* errno / ERANGE for the strtol/strtoll range checks */
 
 #ifdef HAVE_PWD_H
 #include <pwd.h>
@@ -168,9 +169,17 @@ static void display_kmap_version();
 static int parse_int_arg(const char *name, const char *arg, int lo, int hi) {
   if (!arg || !*arg) fatal("--%s requires a numeric argument", name);
   char *end = nullptr;
+  errno = 0;
   long v = strtol(arg, &end, 10);
   if (end == arg || *end != '\0')
     fatal("--%s: '%s' is not a valid integer", name, arg);
+  /* strtol saturates to LONG_MIN/LONG_MAX and sets ERANGE on overflow. On
+     LLP64 Windows long is 32-bit, so a value like 99999999999999 saturates to
+     LONG_MAX and, without this check, passed the [lo,hi] test whenever hi was
+     INT_MAX (e.g. --nq-asn) -- a garbage 4-byte ASN was silently accepted and
+     matched nothing. Treat saturation as out of range. */
+  if (errno == ERANGE)
+    fatal("--%s: value '%s' is out of range [%d..%d]", name, arg, lo, hi);
   if (v < lo || v > hi)
     fatal("--%s: value %ld out of range [%d..%d]", name, v, lo, hi);
   return (int)v;
@@ -269,7 +278,16 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.net_rate = parse_int_arg("rate", arg, 0, 1000000000);
     return true;
   } else if (strcmp(name, "net-max-ips") == 0) {
-    long long v = strtoll(arg, nullptr, 10);
+    char *end = nullptr;
+    errno = 0;
+    long long v = strtoll(arg, &end, 10);
+    /* Validate the whole token: without checking end, "1e6" parsed as 1 and
+       silently capped a mass sweep at a single IP, and trailing garbage like
+       "100abc" became 100. ERANGE catches an overflowing magnitude. */
+    if (end == arg || *end != '\0')
+      fatal("--net-max-ips: '%s' is not a valid integer", arg);
+    if (errno == ERANGE)
+      fatal("--net-max-ips: value '%s' is out of range", arg);
     if (v < 1) fatal("--net-max-ips must be >= 1");
     o.net_max_ips = static_cast<uint64_t>(v);
     o.net_scan = true;

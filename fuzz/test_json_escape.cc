@@ -130,6 +130,29 @@ int main(int argc, char **argv) {
     OK(valid_utf8(e), "single-byte valid UTF-8");
   }
 
+  /* ---- kmap_json_repair_utf8: structure-preserving UTF-8 guarantee ----
+     Used by net_query to emit the pre-serialised `cves` JSON array verbatim
+     while still guaranteeing the enclosing document is valid UTF-8. Unlike
+     kmap_json_escape it must NOT touch ASCII structural bytes, but must still
+     turn any invalid high-byte sequence into U+FFFD. */
+  OK(kmap_json_repair_utf8("[{\"id\":\"CVE-2024-1\"}]") == "[{\"id\":\"CVE-2024-1\"}]",
+     "repair: well-formed JSON array untouched");
+  OK(kmap_json_repair_utf8("\xC3\xA9") == "\xC3\xA9", "repair: valid 2-byte passthrough");
+  OK(kmap_json_repair_utf8("a\xFF""b") == std::string("a")+FFFD+"b",
+     "repair: lone 0xFF -> U+FFFD, ASCII kept");
+  OK(kmap_json_repair_utf8("x\xE2\x82") == std::string("x")+FFFD+FFFD,
+     "repair: truncated 3-byte at EOF -> U+FFFD");
+  OK(kmap_json_repair_utf8("\"a\\b\"") == "\"a\\b\"",
+     "repair: quotes and backslash NOT escaped (structure preserved)");
+  { /* the exact defect: a cves array with a dangling continuation byte must
+       come out valid UTF-8 without its structure being altered. */
+    std::string bad = "[{\"desc\":\"x\xC2\"}]";
+    std::string rep = kmap_json_repair_utf8(bad);
+    OK(valid_utf8(rep), "repair: dangling 0xC2 in array -> valid UTF-8");
+    OK(rep == std::string("[{\"desc\":\"x") + FFFD + "\"}]",
+       "repair: only the bad byte changed");
+  }
+
   /* ---- fuzz: arbitrary byte strings -> always valid JSON body AND UTF-8 ---- */
   const int N = 3000000;
   for (int n = 0; n < N; n++) {
@@ -139,6 +162,10 @@ int main(int argc, char **argv) {
     std::string e = kmap_json_escape(in);
     if (!valid_json_string_body(e)) { failed++; if (failed<=6) printf("  FAIL fuzz json-body n=%d\n", n); }
     else if (!valid_utf8(e))        { failed++; if (failed<=6) printf("  FAIL fuzz utf8 n=%d\n", n); }
+    else passed++;
+    /* the repair helper must ALWAYS yield valid UTF-8 too, for any input */
+    std::string r = kmap_json_repair_utf8(in);
+    if (!valid_utf8(r)) { failed++; if (failed<=6) printf("  FAIL fuzz repair-utf8 n=%d\n", n); }
     else passed++;
   }
 

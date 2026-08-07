@@ -484,7 +484,13 @@ static std::string format_result_json(const std::string &ip, int port,
        here (a trailing `first = false` would be a dead store). Keep this block
        last, or restore the assignment if another field is appended after it. */
     if (cves_json[0] == '[')
-      oss << "\"cves\":" << cves_json;
+      /* Emitted verbatim as a nested array, but still run through a UTF-8
+         repair so one CVE description with a truncated multi-byte sequence
+         (or a column written by an older tool that predates the escaper's
+         UTF-8 validation) cannot make the whole --nq-format json document
+         unparseable. Structure is preserved -- only invalid high bytes become
+         U+FFFD -- so a well-formed column is byte-identical to before. */
+      oss << "\"cves\":" << kmap_json_repair_utf8(cves_json);
     else
       oss << "\"cves\":\"" << json_escape(cves_json) << '"';
   }
@@ -700,6 +706,12 @@ int run_net_query(const char *data_dir,
       log_write(LOG_PLAIN, "%s", s);
   };
 
+  /* When the JSON document is on stdout (json format, no --nq-output), every
+     diagnostic must avoid stdout or it corrupts the document.  Route warnings
+     and the summary to stderr in that case; otherwise stdout is fine. */
+  const bool json_on_stdout = emit_json && !out_fp;
+  const int diag_dest = json_on_stdout ? LOG_STDERR : LOG_STDOUT;
+
   if (emit_json && !count_only) emit_raw("[");
   bool json_first = true;
 
@@ -713,7 +725,7 @@ int run_net_query(const char *data_dir,
 
     sqlite3 *db = net_db_open(db_path);
     if (!db) {
-      log_write(LOG_STDOUT,
+      log_write(diag_dest,
         "net-query: WARNING: cannot open %s -- skipping.\n",
         db_path.c_str());
       continue;
@@ -723,7 +735,7 @@ int run_net_query(const char *data_dir,
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr)
         != SQLITE_OK) {
-      log_write(LOG_STDOUT,
+      log_write(diag_dest,
         "net-query: WARNING: query failed on %s: %s\n",
         db_path.c_str(), sqlite3_errmsg(db));
       net_db_close(db);
@@ -858,8 +870,15 @@ int run_net_query(const char *data_dir,
     emit_raw("No matching results found.\n");
   }
 
-  /* Summary to log (stderr-side LOG_STDOUT — does not pollute JSON on stdout) */
-  log_write(LOG_STDOUT,
+  /* Human-readable summary. When the JSON document itself is going to stdout
+     (--nq-format json with no --nq-output), this diagnostic line MUST go to
+     stderr or it is appended after the closing ']' and corrupts the document
+     for any consumer that pipes it into a JSON parser. LOG_STDOUT is stdout
+     (not stderr, despite a prior comment here that claimed otherwise), so the
+     stdout-JSON case is routed to LOG_STDERR. In every other case -- text
+     output, or JSON written to a file via out_fp -- stdout is not carrying the
+     data and the summary belongs there as before. */
+  log_write(diag_dest,
     "net-query: %s result(s) from %d shard(s)\n",
     format_count(total_count).c_str(), shards_searched);
 
