@@ -602,9 +602,40 @@ static std::string base64_encode(const std::string &input) {
   return out;
 }
 
+/* Format an address for the HTTP Host header. tcp_connect accepts IPv6
+ * literals (inet_pton AF_INET6), and RFC 7230 5.4 requires an IPv6 literal in
+ * a Host header to be bracketed. A bare "Host: ::1" is a malformed header that
+ * many servers reject with 400 -- so HTTP credential probing silently never
+ * fired against any IPv6 target. A ':' unambiguously marks IPv6 here (IPv4
+ * dotted-quads and the numeric targets this tool probes never contain one). */
+static std::string cred_host_header(const char *ip) {
+  if (ip && strchr(ip, ':') != nullptr)
+    return std::string("[") + ip + "]";
+  return std::string(ip ? ip : "");
+}
+
+/* First status code on an HTTP status line ("HTTP/1.1 200 OK" -> 200), or 0 if
+ * the buffer does not begin with a well-formed status line. Used instead of
+ * substring-scanning for " 401 ": a body or header value can contain "401",
+ * and "not 401 and not 403 == success" also counted 429 rate-limits, 500
+ * errors, 302 redirects and truncated replies as credential hits. */
+static int cred_http_status(const char *buf, int n) {
+  if (n < 12 || strncmp(buf, "HTTP/", 5) != 0) return 0;
+  const char *sp = static_cast<const char *>(memchr(buf, ' ', static_cast<size_t>(n)));
+  if (!sp) return 0;
+  const char *p = sp + 1;
+  const char *end = buf + n;
+  while (p < end && *p == ' ') p++;
+  if (p + 2 >= end) return 0;
+  if (p[0] < '0' || p[0] > '9' || p[1] < '0' || p[1] > '9' ||
+      p[2] < '0' || p[2] > '9')
+    return 0;
+  return (p[0] - '0') * 100 + (p[1] - '0') * 10 + (p[2] - '0');
+}
+
 /* HTTP Basic Auth probe.
  * Step 1: GET / without credentials -- must return 401 (auth required).
- * Step 2: GET / with Authorization header -- success if response is not 401.
+ * Step 2: GET / with Authorization header -- success only on a 2xx response.
  * This two-step approach avoids false positives on servers that don't use
  * Basic Auth at all (which would otherwise look like successful empty creds). */
 static bool probe_http_basic(const char *ip, uint16_t port,
@@ -614,15 +645,16 @@ static bool probe_http_basic(const char *ip, uint16_t port,
   cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
   if (fd == CRED_INVALID_FD) return false;
 
+  std::string host_hdr = cred_host_header(ip);
   std::string bare_req =
-    std::string("GET / HTTP/1.0\r\nHost: ") + ip +
+    std::string("GET / HTTP/1.0\r\nHost: ") + host_hdr +
     "\r\nConnection: close\r\n\r\n";
   if (!fd_send(fd, bare_req.c_str(), bare_req.size())) { close_fd(fd); return false; }
   char buf[512]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
 
-  if (n <= 0 || strstr(buf, " 401 ") == nullptr)
+  if (n <= 0 || cred_http_status(buf, n) != 401)
     return false;  /* Not a Basic-Auth–protected endpoint */
 
   /* Step 2: try with credentials */
@@ -631,7 +663,7 @@ static bool probe_http_basic(const char *ip, uint16_t port,
 
   std::string encoded = base64_encode(user + ":" + pass);
   std::string auth_req =
-    std::string("GET / HTTP/1.0\r\nHost: ") + ip +
+    std::string("GET / HTTP/1.0\r\nHost: ") + host_hdr +
     "\r\nAuthorization: Basic " + encoded +
     "\r\nConnection: close\r\n\r\n";
 
@@ -640,10 +672,13 @@ static bool probe_http_basic(const char *ip, uint16_t port,
   n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
 
-  return (n > 0 &&
-          strstr(buf, "HTTP/") != nullptr &&
-          strstr(buf, " 401 ") == nullptr &&
-          strstr(buf, " 403 ") == nullptr);
+  /* Success is a 2xx ONLY. The prior test -- "has HTTP/, not 401, not 403" --
+     accepted anything else the server might say when the credentials did NOT
+     work: a 429 rate-limit, a 500 from a login handler, a 302 to a login page,
+     or a truncated read all read as a credential hit. A genuine Basic-Auth
+     success returns the protected resource with a 2xx. */
+  int status = cred_http_status(buf, n);
+  return (status >= 200 && status < 300);
 }
 
 /* -----------------------------------------------------------------------
@@ -1048,31 +1083,75 @@ static bool probe_mongodb(const char *ip, uint16_t port,
   cred_fd_t fd = tcp_connect(ip, port, timeout_ms);
   if (fd == CRED_INVALID_FD) return false;
 
-  // Minimal MongoDB wire protocol: OP_QUERY for isMaster
-  static const uint8_t ismaster_msg[] = {
-    0x3A,0x00,0x00,0x00, // total length = 58
+  /* Probe with a command that actually REQUIRES authentication.
+   *
+   * This used to send isMaster and report a hit on any well-formed OP_REPLY.
+   * isMaster/hello is exempt from authentication by design -- it is the
+   * handshake every driver issues before authenticating -- so every reachable
+   * mongod answered it and every reachable mongod was reported as allowing
+   * unauthenticated access, including fully secured ones. For a tool whose
+   * output is "these hosts accept default credentials", that is the worst
+   * possible failure direction.
+   *
+   * listDatabases is authorization-gated: on a secured server it returns
+   * ok:0 with codeName "Unauthorized", on an open one it returns the database
+   * list. Sent as OP_MSG (opCode 2013), which is the modern command path --
+   * MongoDB 5.1+ refuses arbitrary commands over OP_QUERY, so the old opcode
+   * would fail against any current server anyway.
+   *
+   * A hit requires POSITIVE evidence (the "databases" reply field). Anything
+   * else -- an error, an unparsable reply, a short read, a server that speaks
+   * neither dialect -- reports no hit. A missed detection is recoverable; a
+   * fabricated one is not. */
+  static const uint8_t listdbs_msg[] = {
+    0x3C,0x00,0x00,0x00, // messageLength = 60
     0x01,0x00,0x00,0x00, // requestID
     0x00,0x00,0x00,0x00, // responseTo
-    0xd4,0x07,0x00,0x00, // opCode = OP_QUERY (2004)
-    0x00,0x00,0x00,0x00, // flags
-    0x61,0x64,0x6d,0x69,0x6e,0x2e,0x24,0x63,0x6d,0x64,0x00, // "admin.$cmd\0"
-    0x00,0x00,0x00,0x00, // numberToSkip
-    0x01,0x00,0x00,0x00, // numberToReturn
-    // BSON: {isMaster: 1}
-    0x13,0x00,0x00,0x00,0x10,0x69,0x73,0x4d,0x61,0x73,0x74,
-    0x65,0x72,0x00,0x01,0x00,0x00,0x00,0x00
+    0xDD,0x07,0x00,0x00, // opCode = OP_MSG (2013)
+    0x00,0x00,0x00,0x00, // flagBits
+    0x00,                // section kind 0: body
+    // BSON {listDatabases: 1, $db: "admin"} -- 39 bytes
+    0x27,0x00,0x00,0x00,
+    0x10,'l','i','s','t','D','a','t','a','b','a','s','e','s',0x00,
+    0x01,0x00,0x00,0x00,
+    0x02,'$','d','b',0x00,
+    0x06,0x00,0x00,0x00,'a','d','m','i','n',0x00,
+    0x00
   };
 
-  if (!fd_send(fd, reinterpret_cast<const char *>(ismaster_msg), sizeof(ismaster_msg))) {
+  if (!fd_send(fd, reinterpret_cast<const char *>(listdbs_msg), sizeof(listdbs_msg))) {
     close_fd(fd); return false;
   }
-  char buf[256]{};
+  /* Large enough to hold the reply preamble plus the first fields; the
+     "databases" key and any authorization error both appear near the front. */
+  char buf[1024]{};
   int n = fd_recv(fd, buf, sizeof(buf) - 1, timeout_ms);
   close_fd(fd);
 
-  // Any valid OP_REPLY (opCode 1) means server responded -- unauthenticated access
-  return (n > 16 && static_cast<uint8_t>(buf[12]) == 0x01 &&
-                    static_cast<uint8_t>(buf[13]) == 0x00);
+  if (n <= 16) return false;
+  /* Must be an OP_MSG reply (2013) -- a server that answered something else
+     did not run the command. */
+  if (static_cast<uint8_t>(buf[12]) != 0xDD ||
+      static_cast<uint8_t>(buf[13]) != 0x07)
+    return false;
+
+  /* Raw byte search: BSON keys are NUL-terminated C strings inside binary
+     data, so a plain strstr would stop at the first embedded NUL. */
+  auto contains = [&](const char *needle) -> bool {
+    size_t nl = strlen(needle);
+    if (nl == 0 || static_cast<size_t>(n) < nl) return false;
+    for (size_t i = 0; i + nl <= static_cast<size_t>(n); i++)
+      if (memcmp(buf + i, needle, nl) == 0) return true;
+    return false;
+  };
+
+  /* Explicit refusal wins outright. */
+  if (contains("Unauthorized") || contains("not authorized") ||
+      contains("requires authentication") || contains("AuthenticationFailed"))
+    return false;
+
+  /* Positive evidence only: the reply carried the database list. */
+  return contains("databases");
 }
 
 /* SSH via libssh2 */
