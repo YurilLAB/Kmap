@@ -312,6 +312,66 @@ int main(int argc, char **argv) {
     }
   }
 
+  /* --- 6. clean-completion checkpoint: next_index must equal what was swept ---
+     Both engines persist a resume point after a clean (non-interrupted) run.
+     They used to special-case it and write IP_SPACE ("the whole internet is
+     done") for cases they had actually only partially covered: the raw engine
+     did so for a --net-max-ips sample of the full space, the connect fallback
+     for a bounded CIDR with no max_ips.  Because .net-scan-checkpoint is one
+     file per data-dir with no range tag, that poisoned every later
+     --net-resume: avail = (next_index < space) ? space - next_index : 0
+     evaluates to 0, so the run swept ZERO indices and re-saved the same value,
+     permanently.  The correct value in all four combinations is simply the
+     exclusive end of what the run swept -- which is exactly scan_end. */
+  g_fn = "clean_checkpoint";
+  {
+    struct CK { uint64_t tc, max_ips; const char *what; };
+    static const CK kCk[] = {
+      { 0,   100000, "full space, --net-max-ips sample" },
+      { 0,   0,      "full space, no cap" },
+      { 256, 0,      "bounded /24, no cap" },
+      { 256, 100,    "bounded /24, capped sample" },
+    };
+    for (const CK &c : kCk) {
+      uint64_t space = (c.tc > 0) ? c.tc : IP_SPACE;
+      uint64_t next  = 0;
+      /* Walk three consecutive resumes; a correct checkpoint must advance
+         until the space is exhausted and must never claim more than it swept. */
+      for (int round = 0; round < 3; round++) {
+        uint64_t se = compute_scan_end(c.tc, c.max_ips, next);
+        uint64_t swept = (se > next) ? se - next : 0;
+        uint64_t saved = se;   /* the fixed clean-completion value */
+        if (saved > space) {
+          fprintf(stderr,"\n*** checkpoint %llu > space %llu (%s)\n",
+                  (unsigned long long)saved,(unsigned long long)space,c.what);
+          _exit(89);
+        }
+        if (saved < next) {
+          fprintf(stderr,"\n*** checkpoint rewound %llu < %llu (%s)\n",
+                  (unsigned long long)saved,(unsigned long long)next,c.what);
+          _exit(88);
+        }
+        /* The defect signature: a run that swept a bounded slice must not
+           record the whole space as covered. */
+        if (swept > 0 && swept < space && saved == IP_SPACE) {
+          fprintf(stderr,"\n*** checkpoint claims full coverage after sweeping "
+                  "only %llu of %llu (%s)\n",
+                  (unsigned long long)swept,(unsigned long long)space,c.what);
+          _exit(87);
+        }
+        /* Progress: while the space is not exhausted, a capped run must move. */
+        if (c.max_ips > 0 && next < space && swept == 0) {
+          fprintf(stderr,"\n*** capped resume made no progress at %llu (%s)\n",
+                  (unsigned long long)next,c.what);
+          _exit(86);
+        }
+        next = saved;
+      }
+    }
+    fprintf(stderr,"clean-checkpoint invariants: %zu cases x3 resumes OK\n",
+            sizeof(kCk)/sizeof(kCk[0]));
+  }
+
   fprintf(stderr,"\nCORE fuzz OK (seed=%s)\n", argc>1?argv[1]:"default");
   return 0;
 }

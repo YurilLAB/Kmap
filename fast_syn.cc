@@ -29,6 +29,7 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -827,10 +828,50 @@ static inline void syn_template_patch(const SynTemplate &t, uint8_t *out,
 
 /* RX state shared with the pcap_dispatch callback (one RX thread, so the only
    lock is opens_mu guarding the open buffer against the spill writer). */
+/* Bounded SYN-ACK retransmit dedup.
+ *
+ * This set only has to answer "have I seen this (ip,port) *recently*", because
+ * the sole thing it protects against is a host retransmitting its SYN-ACK --
+ * which happens within ~10 s of the first one.  The old std::set retained one
+ * node per distinct open for the ENTIRE sweep, so on an internet-scale run it
+ * grew without bound in the RX thread and could outweigh the whole rest of the
+ * engine, defeating the explicit KMAP_RAWSYN_MAX_OPENS cap that bounds the
+ * adjacent open-record buffer (this is a 32-bit binary; that is address space
+ * it cannot spare).
+ *
+ * Two generations rotated on a wall clock give a hard bound with no behavioural
+ * change: a key inserted within the last RAWSYN_DEDUP_WINDOW_US is guaranteed
+ * still present (6x margin over the retransmit window), so a retransmit can
+ * never be mistaken for a new open.  That matters beyond memory -- a false
+ * "new open" re-anchors drain_anchor_us below, and letting retransmits do that
+ * is exactly the ~14 s drain hang the RX loop's comment warns about.  Capacity
+ * eviction was rejected for that reason: it can drop a two-second-old key. */
+static const int64_t RAWSYN_DEDUP_WINDOW_US = 60 * 1000000LL;
+
+struct RecentOpenSet {
+  std::unordered_set<uint64_t> cur, prev;
+  int64_t rotate_at_us = 0;
+
+  /* True when `key` is newly seen (i.e. a genuine new open). */
+  bool insert_new(uint64_t key, int64_t now_us) {
+    if (rotate_at_us == 0)
+      rotate_at_us = now_us + RAWSYN_DEDUP_WINDOW_US;
+    if (now_us >= rotate_at_us) {
+      prev.swap(cur);        /* drop the older generation, keep the newer */
+      cur.clear();
+      rotate_at_us = now_us + RAWSYN_DEDUP_WINDOW_US;
+    }
+    if (cur.find(key) != cur.end() || prev.find(key) != prev.end())
+      return false;
+    cur.insert(key);
+    return true;
+  }
+};
+
 struct RawRxCtx {
   int l2off;
   uint64_t secret;
-  std::set<uint64_t> *seen;
+  RecentOpenSet *seen;
   std::vector<OpenRec> *rx_opens;
   std::mutex *opens_mu;
   std::atomic<uint64_t> *opens;
@@ -864,8 +905,9 @@ static void raw_rx_cb(u_char *user, const struct pcap_pkthdr *h, const u_char *b
                   ((uint32_t)t[10] << 8) | (uint32_t)t[11];
   if (rack - 1 != raw_syn_cookie(rip, rport, c->secret)) return;  /* not ours */
   uint64_t key = ((uint64_t)rip << 16) | (uint64_t)rport;
-  if (!c->seen->insert(key).second) return;  /* retransmit -- already handled */
-  *c->drain_anchor_us = now_usec();          /* NEW open extends the drain */
+  int64_t now_us = now_usec();
+  if (!c->seen->insert_new(key, now_us)) return;  /* retransmit -- handled */
+  *c->drain_anchor_us = now_us;                   /* NEW open extends the drain */
   if (c->manual_rst) {
     struct in_addr rvictim;
     rvictim.s_addr = htonl(rip);
@@ -1028,9 +1070,10 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
 
   /* ---- 4. RX thread: validate SYN-ACK cookies, buffer opens ---- */
   std::thread rx([&]() {
-    /* `seen` dedups SYN-ACK retransmits; one entry per OPEN port (scales with
-       results, not probes). Single RX thread -> no lock on it. */
-    std::set<uint64_t> seen;
+    /* `seen` dedups SYN-ACK retransmits over a rolling recency window, so it
+       is bounded by the opens found in that window rather than by the whole
+       sweep. Single RX thread -> no lock on it. */
+    RecentOpenSet seen;
     const int64_t drain_us = (int64_t)drain_ms * 1000;
     int64_t drain_anchor_us = now_usec();  /* last NEW open, or TX-completion */
     bool tx_anchored = false;
@@ -1270,7 +1313,16 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     }
     cp.next_index = lo;
   } else {
-    cp.next_index = (target_count > 0) ? scan_end : IP_SPACE;
+    /* scan_end is the exclusive end of what this run actually swept, which is
+       the correct resume point in every case: a bounded CIDR ends at
+       target_count, a full sweep ends at IP_SPACE, and a --net-max-ips sample
+       ends at start_index+take.  Writing IP_SPACE unconditionally for the
+       no-target case ignored max_ips and claimed the whole 2^32 permutation
+       space had been covered after a 100k-IP sample, so the next --net-resume
+       computed avail=0 and swept ZERO indices -- permanently, since the
+       poisoned value is re-saved every run.  (The connect path below documents
+       the same intent for its own sample case.) */
+    cp.next_index = scan_end;
   }
   cp.packets_sent = sent.load();
   cp.hosts_found = opens.load();
@@ -2029,11 +2081,14 @@ int fast_syn_scan(const char *data_dir,
     if (db) net_db_commit(db);
   }
 
-  /* Save final checkpoint -- use actual loop position so a follow-up
-   * resume picks up where this run stopped.  For max_ips=0 (full
-   * sweep) and a clean completion we save IP_SPACE so resume becomes
-   * a no-op; for max_ips>0 we save the actual end-of-sample idx so
-   * subsequent runs can keep walking the permutation past this slice. */
+  /* Save final checkpoint -- use actual loop position so a follow-up resume
+   * picks up where this run stopped.  idx is already clamped to scan_end
+   * above, so it is the right value for every clean-completion case: a full
+   * sweep ends at IP_SPACE (resume stays a no-op, as before), a --net-max-ips
+   * sample ends at the end of its slice, and a bounded CIDR ends at
+   * target_count.  The old code special-cased only max_ips and wrote
+   * IP_SPACE for a bounded target, which poisoned the shared per-data-dir
+   * checkpoint into claiming the entire IPv4 space had been swept. */
   if (scan_interrupted) {
     /* Exact in-flight low-water-mark, computed after the pool has joined:
        workers that abandoned a claimed-but-unfinished index on interrupt
@@ -2045,10 +2100,8 @@ int fast_syn_scan(const char *data_dir,
        (and every worker_inflight slot is INFLIGHT_NONE, so this would equal
        idx anyway). */
     cp.next_index = compute_low_water();
-  } else if (max_ips > 0) {
-    cp.next_index = idx;  /* end of this sample; next run starts here */
   } else {
-    cp.next_index = IP_SPACE;
+    cp.next_index = idx;  /* end of what this run swept; next run starts here */
   }
   cp.last_save = time(nullptr);
   save_checkpoint(data_dir, cp);
