@@ -214,6 +214,10 @@ void net_event_log(const char *severity, const char *fmt, ...) {
   va_end(ap);
 }
 
+bool net_scan_interrupted() {
+  return g_scan_interrupted.load(std::memory_order_relaxed) != 0;
+}
+
 /* -----------------------------------------------------------------------
  * Watchlist scanning
  *

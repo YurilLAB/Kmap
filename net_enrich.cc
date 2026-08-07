@@ -289,6 +289,20 @@ static int enrich_fd_recv(kmap_fd_t fd, char *buf, size_t len, int timeout_ms) {
    the recv wait at KMAP_ENRICH_READ_TIMEOUT_MS (default ENRICH_READ_TIMEOUT),
    never exceeding the caller's remaining budget.  Thread-safe one-time init via
    a C++11 magic static. */
+/* Cumulative wall-clock ceiling for one response-read loop, as a multiple of
+   the per-recv timeout.  The per-recv timeout alone does NOT bound the loop: a
+   host that dribbles one byte just before each timeout expires resets the wait
+   every round, so the loop runs until the byte cap is reached -- up to 65536
+   rounds for the HTTP read and 262144 for the favicon read, i.e. many hours on
+   a single worker thread.  A legitimate response finishes in a handful of
+   rounds that each return immediately, so it never approaches this ceiling
+   (a 64 KB body arrives in ~16 fast 4 KB chunks); 8 full timeout windows is
+   ample headroom for a genuinely slow link while capping a drip tarpit at
+   ~16 s with the default 2 s read timeout.  Deliberately a TIME bound rather
+   than a round count: counting rounds would truncate a large but fast
+   response. */
+#define ENRICH_READ_TOTAL_ROUNDS 8
+
 static int enrich_read_timeout(int connect_timeout_ms) {
   static const int cap = [](){
     int v = ENRICH_READ_TIMEOUT;
@@ -997,7 +1011,10 @@ static std::string probe_favicon_mmh3(const char *ip, int port, int timeout_ms) 
   std::string response;
   response.reserve(4096);
   char chunk[4096];
+  const auto read_deadline = std::chrono::steady_clock::now() +
+      std::chrono::milliseconds(read_to * ENRICH_READ_TOTAL_ROUNDS);
   while (response.size() < 262144) {
+    if (std::chrono::steady_clock::now() >= read_deadline) break;
     if (enrich_wait_fd(fd, /*want_write=*/false, read_to) <= 0) break;
 #ifdef WIN32
     int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
@@ -1052,7 +1069,10 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
     /* Read response (up to 64K) */
     response.reserve(4096);
     char chunk[4096];
+    const auto read_deadline = std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(read_to * ENRICH_READ_TOTAL_ROUNDS);
     while (response.size() < 65536) {
+      if (std::chrono::steady_clock::now() >= read_deadline) break;
       if (enrich_wait_fd(fd, /*want_write=*/false, read_to) <= 0)
         break;
 #ifdef WIN32
@@ -1752,6 +1772,12 @@ int run_enrichment(const char *data_dir, int batch_size) {
     CloudInfo cloud_info{};
     int rc = 0;
     bool empty_host = false;
+    /* Set when a worker declined this entry because the operator interrupted
+       the scan.  Distinct from rc: rc defaults to 0 (success), so without this
+       flag an unprocessed entry would look like a clean enrichment with no
+       data and Stage C would mark the host enriched, dropping it out of the
+       re-enrich queue with nothing collected. */
+    bool skipped = false;
   };
 
   /* Worker / retry counts read once, applied globally. */
@@ -1814,7 +1840,19 @@ int run_enrichment(const char *data_dir, int batch_size) {
    * across worker threads, so this stage stays serial.  Cheap: one
    * SELECT per host, indexed lookup. */
   std::vector<EnrichResult> results;
-  results.reserve(unenriched_total);
+  /* Reserve for what THIS pass can actually collect, not for the whole
+     unenriched population.  The loop below pulls at most batch_size IPs per
+     shard (net_db_get_unenriched's LIMIT), so the pass can never exceed
+     batch_size * NET_SHARD_COUNT entries -- the drain loop in net_scan.cc
+     calls run_enrichment repeatedly to work through the rest.  Reserving
+     unenriched_total instead sized one contiguous allocation off the entire
+     store, which on a large sweep is a multi-hundred-megabyte up-front
+     request in a 32-bit process for a vector that will only ever hold a few
+     thousand elements.  The int64_t cast keeps the product out of int
+     arithmetic. */
+  results.reserve(static_cast<size_t>(std::min<int64_t>(
+      unenriched_total,
+      static_cast<int64_t>(batch_size) * NET_SHARD_COUNT)));
   time_t enrich_start_time = time(nullptr);
   for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
     if (!shard_dbs[shard]) continue;
@@ -1991,6 +2029,17 @@ int run_enrichment(const char *data_dir, int batch_size) {
       EnrichResult &r = results[i];
       if (r.empty_host) continue;
 
+      /* Stop taking NEW hosts once the operator has hit Ctrl+C. The pass used
+         to run to completion regardless -- with a large batch and a 15 s
+         per-host budget that is minutes of unstoppable work after the
+         interrupt, and the orchestrator's own interrupt checks only get a look
+         in between passes. Drain the remaining indices marking them skipped
+         (rather than returning) so no entry is left in the default
+         rc==0/not-skipped state that Stage C would write back as a successful
+         empty enrichment. Hosts already in flight finish normally, so the DB
+         stays consistent at a host boundary. */
+      if (net_scan_interrupted()) { r.skipped = true; continue; }
+
       int attempt = 0;
       while (true) {
         r.rc = enrich_single_host(r.ip.c_str(), r.ports, r.protos,
@@ -2094,6 +2143,9 @@ int run_enrichment(const char *data_dir, int batch_size) {
     for (auto &r : results) {
       if (r.shard_idx != shard) continue;
       if (r.empty_host) continue;
+      /* Never enriched (scan interrupted before a worker took it) -- leave the
+         row untouched so it stays in the unenriched queue for the next run. */
+      if (r.skipped) continue;
       if (r.rc != 0) {
         if (o.verbose) {
           log_write(LOG_STDOUT,

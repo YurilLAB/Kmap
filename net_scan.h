@@ -54,4 +54,12 @@ void net_event_log(const char *severity, const char *fmt, ...)
 #endif
     ;
 
+/* True once Ctrl+C (SIGINT / console CTRL event) has been observed by the
+   net-scan orchestrator's handler.  Exposed so long-running phases in other
+   translation units -- notably the enrichment worker pool in net_enrich.cc --
+   can stop taking new work promptly instead of running the entire pass to
+   completion after the operator has asked to stop.  Cheap relaxed atomic
+   read; safe to call from worker threads. */
+bool net_scan_interrupted();
+
 #endif /* NET_SCAN_H */
