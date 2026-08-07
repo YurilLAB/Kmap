@@ -248,31 +248,64 @@ struct AsyncEnrichCve {
   int         remote_unauthed = -1;
 };
 
+/* One dot-separated version component: the leading integer plus the textual
+   remainder ("8a" -> {8,"a"}, "2p1" -> {2,"p1"}). Keeping the suffix makes
+   1.3.8a and 1.3.8b compare UNEQUAL; collapsing a whole letter-suffixed
+   release family to one integer vector made a patched host compare EQUAL to
+   the CVE's inclusive upper bound and get flagged for the very CVE that
+   release fixed. Keep in sync with net_enrich.cc / cve_map.cc. */
+struct AVerPart {
+  int         num = 0;
+  std::string suf;
+};
+
+/* 1.3.8rc1 < 1.3.8 < 1.3.8a < 1.3.8b -- pre-release markers sort BEFORE the
+   bare release, patch-level suffixes AFTER, lexicographic within a bucket
+   (correct for OpenSSL "z" < "za" < "zn" and OpenSSH "p1" < "p2"). */
+static int a_ver_suffix_rank(const std::string &s) {
+  if (s.empty()) return 0;
+  static const char *const kPre[] = { "alpha", "beta", "rc", "dev",
+                                      "pre", "snapshot" };
+  std::string l = a_str_lower(s);
+  for (const char *p : kPre)
+    if (l.compare(0, strlen(p), p) == 0) return -1;
+  return 1;
+}
+
+static int a_ver_part_cmp(const AVerPart &a, const AVerPart &b) {
+  if (a.num != b.num) return (a.num < b.num) ? -1 : 1;
+  int ra = a_ver_suffix_rank(a.suf), rb = a_ver_suffix_rank(b.suf);
+  if (ra != rb) return (ra < rb) ? -1 : 1;
+  if (a.suf == b.suf) return 0;
+  return (a.suf < b.suf) ? -1 : 1;
+}
+
 static int a_ver_cmp(const std::string &a, const std::string &b) {
-  auto parse = [](const std::string &s) -> std::vector<int> {
-    std::vector<int> parts;
+  auto parse = [](const std::string &s) -> std::vector<AVerPart> {
+    std::vector<AVerPart> parts;
     std::istringstream ss(s);
     std::string tok;
     while (std::getline(ss, tok, '.')) {
+      size_t i = 0;
       std::string digits;
-      for (char c : tok) {
-        if (isdigit(static_cast<unsigned char>(c))) digits += c;
-        else break;
-      }
-      if (!digits.empty()) {
-        try { parts.push_back(std::stoi(digits)); }
-        catch (...) {}
-      }
+      while (i < tok.size() && isdigit(static_cast<unsigned char>(tok[i])))
+        digits += tok[i++];
+      if (digits.empty()) continue;
+      AVerPart vp;
+      try { vp.num = std::stoi(digits); }
+      catch (...) { continue; }
+      vp.suf = tok.substr(i);
+      parts.push_back(vp);
     }
     return parts;
   };
   auto va = parse(a), vb = parse(b);
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
-    int ai = (i < va.size()) ? va[i] : 0;
-    int bi = (i < vb.size()) ? vb[i] : 0;
-    if (ai < bi) return -1;
-    if (ai > bi) return  1;
+    AVerPart pa = (i < va.size()) ? va[i] : AVerPart();
+    AVerPart pb = (i < vb.size()) ? vb[i] : AVerPart();
+    int c = a_ver_part_cmp(pa, pb);
+    if (c != 0) return c;
   }
   return 0;
 }
@@ -315,9 +348,15 @@ static std::string a_normalize_product(const std::string &service,
   if (ver.find("lighttpd")     != std::string::npos) return "lighttpd";
   if (ver.find("iis")          != std::string::npos) return "iis";
   if (ver.find("tomcat")       != std::string::npos) return "tomcat";
+  /* MariaDB before MySQL (keep in sync with normalize_product in
+     net_enrich.cc): a MariaDB banner contains "mariadb" but its service name
+     is "mysql", so testing MySQL first short-circuits on svc and the MariaDB
+     branch becomes unreachable -- Oracle MySQL CVEs get attributed to MariaDB
+     hosts and every product='mariadb' row goes unmatched. */
+  if (ver.find("mariadb")      != std::string::npos || svc == "mariadb")
+    return "mariadb";
   if (ver.find("mysql")        != std::string::npos || svc == "mysql")
     return "mysql";
-  if (ver.find("mariadb")      != std::string::npos) return "mariadb";
   if (ver.find("postgresql")   != std::string::npos || svc == "postgresql")
     return "postgresql";
   if (ver.find("redis")        != std::string::npos || svc == "redis")
@@ -346,9 +385,13 @@ static std::string a_extract_version_number(const std::string &s) {
   while (i < s.size()) {
     if (isdigit(static_cast<unsigned char>(s[i]))) {
       size_t start = i;
+      /* Consume the whole alphanumeric run (not just 'p') so the release
+         suffix survives to a_ver_cmp -- truncating "1.1.1w" to "1.1.1" made a
+         patched OpenSSL compare EQUAL to the inclusive CVE bound it had
+         already fixed. Keep in sync with extract_version_number in
+         net_enrich.cc. */
       while (i < s.size() &&
-             (isdigit(static_cast<unsigned char>(s[i])) ||
-              s[i] == '.' || s[i] == 'p'))
+             (isalnum(static_cast<unsigned char>(s[i])) || s[i] == '.'))
         i++;
       std::string candidate = s.substr(start, i - start);
       if (candidate.find('.') != std::string::npos)
@@ -381,11 +424,32 @@ static std::vector<AsyncEnrichCve> a_lookup_cves(sqlite3 *cve_db,
      synchronous path does (the async copy previously used LIMIT 100 here and
      under-reported CVEs for products with many high-severity entries). */
   const int KMAP_CVE_RESULT_CAP = 100;
-  const char *sql =
-    "SELECT cve_id, cvss_score, severity, description, "
-    "version_min, version_max, cvss_vector, remote_unauthed "
-    "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
-    "ORDER BY cvss_score DESC LIMIT 2000";
+
+  /* Detect once whether the DB carries the version-exclusivity columns (keep
+     in sync with lookup_cves in net_enrich.cc). They let the matcher honour
+     NVD's versionEndExcluding ("fixed in X" => affected < X) with a strict
+     comparison instead of <=, which otherwise flags the patched version
+     itself. Older or externally-supplied DBs without the columns fall back to
+     inclusive bounds. */
+  static int has_excl = -1;
+  if (has_excl < 0) {
+    sqlite3_stmt *probe = nullptr;
+    has_excl = (sqlite3_prepare_v2(cve_db,
+        "SELECT version_min_exclusive, version_max_exclusive FROM cves LIMIT 1",
+        -1, &probe, nullptr) == SQLITE_OK) ? 1 : 0;
+    if (probe) sqlite3_finalize(probe);
+  }
+
+  const char *sql = has_excl
+    ? "SELECT cve_id, cvss_score, severity, description, "
+      "version_min, version_max, cvss_vector, remote_unauthed, "
+      "version_min_exclusive, version_max_exclusive "
+      "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
+      "ORDER BY cvss_score DESC LIMIT 2000"
+    : "SELECT cve_id, cvss_score, severity, description, "
+      "version_min, version_max, cvss_vector, remote_unauthed "
+      "FROM cves WHERE product = ? AND cvss_score >= 0.0 "
+      "ORDER BY cvss_score DESC LIMIT 2000";
 
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(cve_db, sql, -1, &stmt, nullptr) != SQLITE_OK)
@@ -399,8 +463,31 @@ static std::vector<AsyncEnrichCve> a_lookup_cves(sqlite3 *cve_db,
     };
     std::string vmin = col_str(4);
     std::string vmax = col_str(5);
-    if (!vmin.empty() && a_ver_cmp(det_ver, vmin) < 0) continue;
-    if (!vmax.empty() && a_ver_cmp(det_ver, vmax) > 0) continue;
+    int vmin_excl = has_excl ? sqlite3_column_int(stmt, 8) : 0;
+    int vmax_excl = has_excl ? sqlite3_column_int(stmt, 9) : 0;
+
+    /* Require at least one version bound to assert a match (keep in sync with
+       lookup_cves in net_enrich.cc). A row with NEITHER version_min NOR
+       version_max carries no version applicability, so it matches EVERY
+       version of the product -- a guaranteed false-positive class produced by
+       the NVD importer's description-keyword fallback and by product-name
+       collisions (CVE-2025-1974 "IngressNightmare" is an ingress-nginx
+       Controller RCE, not the nginx web server, yet keyword-matches
+       product=nginx). Without a range we cannot say a host is vulnerable. */
+    if (vmin.empty() && vmax.empty()) continue;
+
+    /* Inclusive/exclusive bounds. An exclusive upper bound (NVD
+       versionEndExcluding = the FIXED version) means affected < vmax, so the
+       fixed version must NOT match; inclusive means <= vmax. Symmetric for
+       the lower bound. det_ver is non-empty (early-returned above). */
+    if (!vmin.empty()) {
+      int cmp = a_ver_cmp(det_ver, vmin);
+      if (cmp < 0 || (vmin_excl && cmp == 0)) continue;
+    }
+    if (!vmax.empty()) {
+      int cmp = a_ver_cmp(det_ver, vmax);
+      if (cmp > 0 || (vmax_excl && cmp == 0)) continue;
+    }
 
     AsyncEnrichCve e;
     e.id          = col_str(0);

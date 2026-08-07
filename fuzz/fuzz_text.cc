@@ -12,6 +12,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
@@ -33,14 +34,37 @@ static std::string str_lower(const std::string &s) {
   return r;
 }
 
-/* ---- cve_map.cc: parse_ver / ver_cmp / extract_ver (verbatim) ---- */
-static std::vector<int> parse_ver(const std::string &ver) {
-  std::vector<int> parts;
+/* ---- cve_map.cc: VerPart / ver_suffix_rank / ver_part_cmp / parse_ver /
+       ver_cmp / extract_ver (verbatim) ---- */
+struct VerPart { int num = 0; std::string suf; };
+static int ver_suffix_rank(const std::string &s) {
+  if (s.empty()) return 0;
+  static const char *const kPre[] = { "alpha", "beta", "rc", "dev",
+                                      "pre", "snapshot" };
+  std::string l = str_lower(s);
+  for (const char *p : kPre)
+    if (l.compare(0, strlen(p), p) == 0) return -1;
+  return 1;
+}
+static int ver_part_cmp(const VerPart &a, const VerPart &b) {
+  if (a.num != b.num) return (a.num < b.num) ? -1 : 1;
+  int ra = ver_suffix_rank(a.suf), rb = ver_suffix_rank(b.suf);
+  if (ra != rb) return (ra < rb) ? -1 : 1;
+  if (a.suf == b.suf) return 0;
+  return (a.suf < b.suf) ? -1 : 1;
+}
+static std::vector<VerPart> parse_ver(const std::string &ver) {
+  std::vector<VerPart> parts;
   auto tokens = str_split(ver, '.');
   for (auto &t : tokens) {
+    size_t i = 0;
     std::string digits;
-    for (char c : t) { if (isdigit((unsigned char)c)) digits += c; else break; }
-    if (!digits.empty()) { try { parts.push_back(std::stoi(digits)); } catch (...) {} }
+    while (i < t.size() && isdigit((unsigned char)t[i])) digits += t[i++];
+    if (digits.empty()) continue;
+    VerPart vp;
+    try { vp.num = std::stoi(digits); } catch (...) { continue; }
+    vp.suf = t.substr(i);
+    parts.push_back(vp);
   }
   return parts;
 }
@@ -48,9 +72,10 @@ static int ver_cmp(const std::string &a, const std::string &b) {
   auto va = parse_ver(a); auto vb = parse_ver(b);
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
-    int ai = (i < va.size()) ? va[i] : 0;
-    int bi = (i < vb.size()) ? vb[i] : 0;
-    if (ai < bi) return -1; if (ai > bi) return 1;
+    VerPart pa = (i < va.size()) ? va[i] : VerPart();
+    VerPart pb = (i < vb.size()) ? vb[i] : VerPart();
+    int c = ver_part_cmp(pa, pb);
+    if (c != 0) return c;
   }
   return 0;
 }
@@ -59,7 +84,7 @@ static std::string extract_ver(const std::string &s) {
   while (i < s.size()) {
     if (isdigit((unsigned char)s[i])) {
       size_t start = i;
-      while (i < s.size() && (isdigit((unsigned char)s[i]) || s[i] == '.' || s[i] == 'p')) i++;
+      while (i < s.size() && (isalnum((unsigned char)s[i]) || s[i] == '.')) i++;
       std::string candidate = s.substr(start, i - start);
       if (candidate.find('.') != std::string::npos) return candidate;
     } else i++;
@@ -69,21 +94,28 @@ static std::string extract_ver(const std::string &s) {
 
 /* ---- net_enrich.cc: parse_ver_enrich / ver_cmp_parsed / extract_status /
        extract_header_val / extract_html_title (verbatim) ---- */
-static std::vector<int> parse_ver_enrich(const std::string &s) {
-  std::vector<int> parts; std::istringstream ss(s); std::string tok;
+static std::vector<VerPart> parse_ver_enrich(const std::string &s) {
+  std::vector<VerPart> parts; std::istringstream ss(s); std::string tok;
   while (std::getline(ss, tok, '.')) {
+    size_t i = 0;
     std::string digits;
-    for (char c : tok) { if (isdigit((unsigned char)c)) digits += c; else break; }
-    if (!digits.empty()) { try { parts.push_back(std::stoi(digits)); } catch (...) {} }
+    while (i < tok.size() && isdigit((unsigned char)tok[i])) digits += tok[i++];
+    if (digits.empty()) continue;
+    VerPart vp;
+    try { vp.num = std::stoi(digits); } catch (...) { continue; }
+    vp.suf = tok.substr(i);
+    parts.push_back(vp);
   }
   return parts;
 }
-static int ver_cmp_parsed(const std::vector<int> &va, const std::vector<int> &vb) {
+static int ver_cmp_parsed(const std::vector<VerPart> &va,
+                          const std::vector<VerPart> &vb) {
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
-    int ai = (i < va.size()) ? va[i] : 0;
-    int bi = (i < vb.size()) ? vb[i] : 0;
-    if (ai < bi) return -1; if (ai > bi) return 1;
+    VerPart pa = (i < va.size()) ? va[i] : VerPart();
+    VerPart pb = (i < vb.size()) ? vb[i] : VerPart();
+    int c = ver_part_cmp(pa, pb);
+    if (c != 0) return c;
   }
   return 0;
 }
@@ -256,6 +288,90 @@ int main(int argc, char **argv) {
     }
     if ((g_iter & 0xFFFFF) == 0) { fprintf(stderr, "\r iter=%lld", g_iter); fflush(stderr); }
   }
+
+  /* ------------------------------------------------------------------
+     Deterministic regression pins for the SUFFIX-AWARE comparator.
+
+     The comparator used to keep only the leading digit run of each dotted
+     token, so every member of a letter-suffixed release family collapsed to
+     one integer vector: parse_ver("1.1.1w") == parse_ver("1.1.1k"). Since
+     all 42 alpha-suffixed bounds in kmap-cve.db are INCLUSIVE, the matcher's
+     "skip only if cmp > 0" test then reported the CVE against the very
+     release that fixed it (OpenSSL 1.1.1w flagged for CVE-2021-3450, bound
+     1.1.1k; ProFTPD 1.3.8b flagged for CVE-2023-51713, bound 1.3.8a).
+     These cases pin both directions: patched hosts must compare GREATER
+     than the bound, and still-vulnerable hosts must stay LESS-or-equal.
+     ------------------------------------------------------------------ */
+  {
+    struct VC { const char *a, *b; int want; const char *why; };
+    static const VC kCases[] = {
+      /* patched release must sort ABOVE the CVE's inclusive upper bound */
+      { "1.3.8b",    "1.3.8a",    1, "ProFTPD CVE-2023-51713 bound" },
+      { "1.3.7d",    "1.3.7c",    1, "ProFTPD CVE-2021-46854 bound" },
+      { "1.1.1w",    "1.1.1k",    1, "OpenSSL CVE-2021-3450 bound" },
+      { "1.1.1w",    "1.1.1t",    1, "OpenSSL CVE-2022-4450 bound" },
+      { "1.0.2zn",   "1.0.2zd",   1, "OpenSSL CVE-2022-0778 bound" },
+      { "1.0.2zn",   "1.0.2zh",   1, "OpenSSL CVE-2023-0464 bound" },
+      { "16.12.10b", "16.12.10a", 1, "IOS-XE CVE-2023-20198 bound" },
+      /* genuinely affected releases must NOT be excluded (no new FNs) */
+      { "1.1.1i",    "1.1.1k",   -1, "affected, below bound" },
+      { "1.0.2zb",   "1.0.2zd",  -1, "affected, below bound" },
+      { "1.3.8",     "1.3.8a",   -1, "bare release precedes its patch letter" },
+      /* OpenSSL a..z,za..zz ordering */
+      { "1.0.2z",    "1.0.2za",  -1, "z precedes za" },
+      { "1.0.2za",   "1.0.2zn",  -1, "za precedes zn" },
+      /* OpenSSH portable patch level */
+      { "7.4",       "7.4p1",    -1, "bare release precedes pN" },
+      { "7.4p1",     "7.4p2",    -1, "p1 precedes p2" },
+      { "9.8p1",     "9.7",       1, "numeric wins over suffix" },
+      /* pre-release markers sort BEFORE the bare release (semver) */
+      { "1.3.8rc1",  "1.3.8",    -1, "rc precedes release" },
+      { "2.4.41beta","2.4.41",   -1, "beta precedes release" },
+      /* unchanged legacy behaviour */
+      { "1.3",       "1.3.0",     0, "missing component == 0" },
+      { "1.1.1w",    "1.1.1w",    0, "identity" },
+      { "1.3.8",     "1.3.9",    -1, "plain numeric ordering" },
+    };
+    int bad = 0;
+    for (const VC &c : kCases) {
+      int got = ver_cmp(c.a, c.b);
+      if (got != c.want) {
+        fprintf(stderr, "\n*** ver_cmp(\"%s\",\"%s\") = %d, want %d  (%s)\n",
+                c.a, c.b, got, c.want, c.why);
+        bad++;
+      }
+      /* the net_enrich copy must agree with the cve_map copy -- the two
+         matchers are required to tag the exact same CVEs */
+      int got_e = ver_cmp_parsed(parse_ver_enrich(c.a), parse_ver_enrich(c.b));
+      if (got_e != c.want) {
+        fprintf(stderr, "\n*** ver_cmp_parsed(\"%s\",\"%s\") = %d, want %d  (%s)\n",
+                c.a, c.b, got_e, c.want, c.why);
+        bad++;
+      }
+    }
+    /* extract_ver must not amputate the suffix before the comparator sees it */
+    struct EV { const char *in, *want; };
+    static const EV kEv[] = {
+      { "ProFTPD 1.3.8b Server", "1.3.8b" },
+      { "OpenSSH 8.2p1 Ubuntu 4", "8.2p1" },
+      { "nginx/1.18.0",          "1.18.0" },
+      { "1.0.2k-fips",           "1.0.2k" },
+      { "Apache/2.4.41 (Ubuntu)", "2.4.41" },
+    };
+    for (const EV &e : kEv) {
+      std::string got = extract_ver(e.in);
+      if (got != e.want) {
+        fprintf(stderr, "\n*** extract_ver(\"%s\") = \"%s\", want \"%s\"\n",
+                e.in, got.c_str(), e.want);
+        bad++;
+      }
+    }
+    if (bad) { fprintf(stderr, "\n*** %d version-comparator regression(s)\n", bad); _exit(97); }
+    fprintf(stderr, "version-comparator regressions: %d checks OK\n",
+            (int)(sizeof(kCases)/sizeof(kCases[0])) * 2 +
+            (int)(sizeof(kEv)/sizeof(kEv[0])));
+  }
+
   fprintf(stderr, "\nTEXT fuzz OK: %lld iterations, no faults (seed=%s)\n",
           N, argc > 1 ? argv[1] : "default");
   return 0;

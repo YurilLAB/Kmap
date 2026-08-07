@@ -62,20 +62,62 @@ static std::vector<std::string> str_split(const std::string &s, char delim) {
  * Version comparison helpers
  * ----------------------------------------------------------------------- */
 
-/* Parse "2.4.49p1" → {2, 4, 49} (stops at first non-digit/non-dot) */
-static std::vector<int> parse_ver(const std::string &ver) {
-  std::vector<int> parts;
+/* One dot-separated version component: the leading integer plus the textual
+   remainder.  "1" -> {1,""}, "8a" -> {8,"a"}, "2p1" -> {2,"p1"}.
+
+   Keeping the suffix is what makes 1.3.8a and 1.3.8b compare UNEQUAL.  When
+   every member of a letter-suffixed release family collapsed to the same
+   integer vector, a patched host compared EQUAL to the CVE's inclusive upper
+   bound and the CVE was reported against the very release that fixed it
+   (e.g. OpenSSL 1.1.1w matched CVE-2021-3450 whose bound is 1.1.1k, and
+   ProFTPD 1.3.8b matched CVE-2023-51713 whose bound is 1.3.8a).  All 42
+   alpha-suffixed bounds in the shipped kmap-cve.db are inclusive, so the
+   comparator is the only thing standing between them and a false positive. */
+struct VerPart {
+  int         num = 0;
+  std::string suf;
+};
+
+/* Order a component suffix relative to the bare release:
+     1.3.8rc1  <  1.3.8  <  1.3.8a  <  1.3.8b
+   Pre-release markers sort BEFORE (semver convention); everything else is a
+   patch-level suffix and sorts AFTER.  Within a bucket the tie-break is
+   lexicographic, which is exactly right for OpenSSL's a..z,za..zz scheme
+   ("z" < "za" < "zn") and for OpenSSH's portable "pN" ("p1" < "p2"). */
+static int ver_suffix_rank(const std::string &s) {
+  if (s.empty()) return 0;
+  static const char *const kPre[] = { "alpha", "beta", "rc", "dev",
+                                      "pre", "snapshot" };
+  std::string l = str_lower(s);
+  for (const char *p : kPre)
+    if (l.compare(0, strlen(p), p) == 0) return -1;
+  return 1;
+}
+
+static int ver_part_cmp(const VerPart &a, const VerPart &b) {
+  if (a.num != b.num) return (a.num < b.num) ? -1 : 1;
+  int ra = ver_suffix_rank(a.suf), rb = ver_suffix_rank(b.suf);
+  if (ra != rb) return (ra < rb) ? -1 : 1;
+  if (a.suf == b.suf) return 0;
+  return (a.suf < b.suf) ? -1 : 1;
+}
+
+/* Parse "1.0.2zn" -> {{1,""},{0,""},{2,"zn"}}.  A token with no leading digit
+   is skipped, matching the previous behaviour; an out-of-range integer is
+   likewise skipped (stoi throws). */
+static std::vector<VerPart> parse_ver(const std::string &ver) {
+  std::vector<VerPart> parts;
   auto tokens = str_split(ver, '.');
   for (auto &t : tokens) {
+    size_t i = 0;
     std::string digits;
-    for (char c : t) {
-      if (isdigit((unsigned char)c)) digits += c;
-      else break;
-    }
-    if (!digits.empty()) {
-      try { parts.push_back(std::stoi(digits)); }
-      catch (...) {}
-    }
+    while (i < t.size() && isdigit((unsigned char)t[i])) digits += t[i++];
+    if (digits.empty()) continue;
+    VerPart vp;
+    try { vp.num = std::stoi(digits); }
+    catch (...) { continue; }
+    vp.suf = t.substr(i);
+    parts.push_back(vp);
   }
   return parts;
 }
@@ -86,26 +128,48 @@ static int ver_cmp(const std::string &a, const std::string &b) {
   auto vb = parse_ver(b);
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
-    int ai = (i < va.size()) ? va[i] : 0;
-    int bi = (i < vb.size()) ? vb[i] : 0;
-    if (ai < bi) return -1;
-    if (ai > bi) return  1;
+    VerPart pa = (i < va.size()) ? va[i] : VerPart();
+    VerPart pb = (i < vb.size()) ? vb[i] : VerPart();
+    int c = ver_part_cmp(pa, pb);
+    if (c != 0) return c;
   }
   return 0;
 }
 
-/* Extract the first dotted version run from a product string, keeping an
-   OpenSSH-style "p" patch suffix, e.g. "OpenSSH 8.2p1 Ubuntu 4" → "8.2p1"
-   and "Apache/2.4.49 (Ubuntu)" → "2.4.49". Returns "" when no dotted run is
-   present. The result is only ever re-parsed by ver_cmp (which drops the
-   "p" suffix to the base components), so the retained "p" never affects a
-   comparison; it is kept so the string stays faithful to the banner. */
+/* MariaDB advertises itself as "5.5.5-10.3.34-MariaDB-..." -- the leading
+   "5.5.5-" is a replication-compat prefix for old MySQL clients, not the
+   server version.  Left in place, extract_ver stops at the '-' and yields
+   "5.5.5", so a MariaDB 10.3 host was version-compared as though it were
+   MySQL 5.5.5 and matched every Oracle MySQL row bounded at 5.7.x/8.x.
+
+   The strip is gated on the resolved product being MariaDB, because real
+   MySQL decorates its version the same way ("5.5.5-log") and an unconditional
+   strip would blank out a genuine MySQL 5.5.5 host's version.  (The wire
+   version alone cannot be used as the gate: the nmap probe captures only
+   "5.5.5-10.3.34" -- the literal "-MariaDB" falls outside the capture group
+   and lands in sd.product instead.) */
+static std::string strip_mariadb_compat_prefix(const std::string &v,
+                                               const std::string &product) {
+  if (product == "mariadb" && v.compare(0, 6, "5.5.5-") == 0)
+    return v.substr(6);
+  return v;
+}
+
+/* Extract the first dotted version number from a product string
+   e.g. "OpenSSH 8.2p1 Ubuntu 4" → "8.2p1", "ProFTPD 1.3.8b Server" → "1.3.8b".
+
+   Alphabetic characters are consumed as part of the run (not just 'p') so the
+   release suffix survives to the comparator; truncating "1.1.1w" to "1.1.1"
+   made a patched OpenSSL compare equal to the CVE bound it had already fixed.
+   The run still stops at whitespace and punctuation other than '.', so the
+   trailing words of a banner ("... Ubuntu 4", "1.0.2k-fips") are not absorbed.
+   Returns "" when no dotted run is present. */
 static std::string extract_ver(const std::string &s) {
   size_t i = 0;
   while (i < s.size()) {
     if (isdigit((unsigned char)s[i])) {
       size_t start = i;
-      while (i < s.size() && (isdigit((unsigned char)s[i]) || s[i] == '.' || s[i] == 'p'))
+      while (i < s.size() && (isalnum((unsigned char)s[i]) || s[i] == '.'))
         i++;
       std::string candidate = s.substr(start, i - start);
       if (candidate.find('.') != std::string::npos)
@@ -172,13 +236,19 @@ static std::vector<ProductQuery> normalize_service(
       (prod.find("microsoft") != std::string::npos && (svc == "http" || svc == "https")))
     return {{"iis", "microsoft", true}};
 
+  /* MariaDB -- MUST be tested before MySQL.  Every MariaDB fingerprint in
+     kmap-service-probes sits on a "match mysql" line (there is no nmap
+     service literally named "mariadb"), so svc is always "mysql" and the
+     MySQL branch below would short-circuit on the service name before the
+     product string was ever consulted.  That mis-attributed Oracle MySQL
+     CVEs to MariaDB hosts and left all 43 product='mariadb' rows in
+     kmap-cve.db permanently unreachable. */
+  if (prod.find("mariadb") != std::string::npos || svc == "mariadb")
+    return {{"mariadb", "", true}};
+
   /* MySQL */
   if (prod.find("mysql") != std::string::npos || svc == "mysql")
     return {{"mysql", "", true}};
-
-  /* MariaDB */
-  if (prod.find("mariadb") != std::string::npos || svc == "mariadb")
-    return {{"mariadb", "", true}};
 
   /* PostgreSQL */
   if (prod.find("postgresql") != std::string::npos ||
@@ -327,7 +397,9 @@ static std::vector<CveEntry> query_cves(
      "Apache". Without a detected version we have no way to assess
      applicability, so the conservative answer is "no matches" rather
      than "match everything". */
-  if (extract_ver(detected_ver).empty()) return results;
+  const std::string norm_ver =
+      strip_mariadb_compat_prefix(detected_ver, pq.product_pattern);
+  if (extract_ver(norm_ver).empty()) return results;
 
   /* Detect once whether the DB carries the version-exclusivity columns so we
      honour NVD versionEndExcluding ("fixed in X" => affected < X) with a
@@ -440,7 +512,7 @@ static std::vector<CveEntry> query_cves(
        means affected < vmax, so the patched version must not match (<= would
        be an off-by-one FP); inclusive means <= vmax. Symmetric for vmin. */
     {
-      std::string dver = extract_ver(detected_ver);
+      std::string dver = extract_ver(norm_ver);
       if (dver.empty()) continue;
       int vmin_excl = has_excl ? sqlite3_column_int(stmt, 8) : 0;
       int vmax_excl = has_excl ? sqlite3_column_int(stmt, 9) : 0;

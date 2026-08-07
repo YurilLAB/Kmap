@@ -350,41 +350,83 @@ static std::string str_lower(const std::string &s) {
   return r;
 }
 
-/* Parse "2.4.49p1" -> {2, 4, 49} (component-wise, stops at first non-digit
-   within each dotted token). */
-static std::vector<int> parse_ver_enrich(const std::string &s) {
-  std::vector<int> parts;
+/* One dot-separated version component: the leading integer plus the textual
+   remainder.  "1" -> {1,""}, "8a" -> {8,"a"}, "2p1" -> {2,"p1"}.
+
+   Keeping the suffix is what makes 1.3.8a and 1.3.8b compare UNEQUAL.  When
+   every member of a letter-suffixed release family collapsed to the same
+   integer vector, a patched host compared EQUAL to the CVE's inclusive upper
+   bound and the CVE was reported against the release that fixed it (OpenSSL
+   1.1.1w matched CVE-2021-3450 whose bound is 1.1.1k; ProFTPD 1.3.8b matched
+   CVE-2023-51713 whose bound is 1.3.8a).  Every alpha-suffixed bound in the
+   shipped kmap-cve.db is inclusive, so the comparator is the only thing
+   standing between them and a false positive.
+   Keep in sync with cve_map.cc and net_enrich_async.cc. */
+struct VerPartEnrich {
+  int         num = 0;
+  std::string suf;
+};
+
+/* Order a component suffix relative to the bare release:
+     1.3.8rc1  <  1.3.8  <  1.3.8a  <  1.3.8b
+   Pre-release markers sort BEFORE (semver convention); everything else is a
+   patch-level suffix and sorts AFTER.  Within a bucket the tie-break is
+   lexicographic, which is right for OpenSSL's a..z,za..zz scheme
+   ("z" < "za" < "zn") and for OpenSSH's portable "pN" ("p1" < "p2"). */
+static int ver_suffix_rank_enrich(const std::string &s) {
+  if (s.empty()) return 0;
+  static const char *const kPre[] = { "alpha", "beta", "rc", "dev",
+                                      "pre", "snapshot" };
+  std::string l = str_lower(s);
+  for (const char *p : kPre)
+    if (l.compare(0, strlen(p), p) == 0) return -1;
+  return 1;
+}
+
+static int ver_part_cmp_enrich(const VerPartEnrich &a, const VerPartEnrich &b) {
+  if (a.num != b.num) return (a.num < b.num) ? -1 : 1;
+  int ra = ver_suffix_rank_enrich(a.suf), rb = ver_suffix_rank_enrich(b.suf);
+  if (ra != rb) return (ra < rb) ? -1 : 1;
+  if (a.suf == b.suf) return 0;
+  return (a.suf < b.suf) ? -1 : 1;
+}
+
+/* Parse "1.0.2zn" -> {{1,""},{0,""},{2,"zn"}}.  A token with no leading digit
+   is skipped, matching the previous behaviour; an out-of-range integer is
+   likewise skipped (stoi throws). */
+static std::vector<VerPartEnrich> parse_ver_enrich(const std::string &s) {
+  std::vector<VerPartEnrich> parts;
   std::istringstream ss(s);
   std::string tok;
   while (std::getline(ss, tok, '.')) {
+    size_t i = 0;
     std::string digits;
-    for (char c : tok) {
-      if (isdigit(static_cast<unsigned char>(c))) digits += c;
-      else break;
-    }
-    if (!digits.empty()) {
-      try { parts.push_back(std::stoi(digits)); }
-      catch (...) {}
-    }
+    while (i < tok.size() && isdigit(static_cast<unsigned char>(tok[i])))
+      digits += tok[i++];
+    if (digits.empty()) continue;
+    VerPartEnrich vp;
+    try { vp.num = std::stoi(digits); }
+    catch (...) { continue; }
+    vp.suf = tok.substr(i);
+    parts.push_back(vp);
   }
   return parts;
 }
 
 /* Compare two already-parsed version vectors -- returns -1/0/1. */
-static int ver_cmp_parsed(const std::vector<int> &va,
-                          const std::vector<int> &vb) {
+static int ver_cmp_parsed(const std::vector<VerPartEnrich> &va,
+                          const std::vector<VerPartEnrich> &vb) {
   size_t n = std::max(va.size(), vb.size());
   for (size_t i = 0; i < n; i++) {
-    int ai = (i < va.size()) ? va[i] : 0;
-    int bi = (i < vb.size()) ? vb[i] : 0;
-    if (ai < bi) return -1;
-    if (ai > bi) return  1;
+    VerPartEnrich pa = (i < va.size()) ? va[i] : VerPartEnrich();
+    VerPartEnrich pb = (i < vb.size()) ? vb[i] : VerPartEnrich();
+    int c = ver_part_cmp_enrich(pa, pb);
+    if (c != 0) return c;
   }
   return 0;
 }
 
-/* Numeric version comparison -- returns -1/0/1 for a<b, a==b, a>b.
-   Parses "2.4.49p1" -> {2, 4, 49} and compares component-by-component. */
+/* Numeric version comparison -- returns -1/0/1 for a<b, a==b, a>b. */
 static int ver_cmp_enrich(const std::string &a, const std::string &b) {
   return ver_cmp_parsed(parse_ver_enrich(a), parse_ver_enrich(b));
 }
@@ -653,9 +695,13 @@ static std::string extract_version_number(const std::string &s) {
   while (i < s.size()) {
     if (isdigit(static_cast<unsigned char>(s[i]))) {
       size_t start = i;
+      /* Consume the whole alphanumeric run (not just 'p') so the release
+         suffix survives to ver_cmp_enrich -- truncating "1.1.1w" to "1.1.1"
+         made a patched OpenSSL compare EQUAL to the inclusive CVE bound it
+         had already fixed. Still stops at whitespace and at punctuation other
+         than '.', so trailing banner words are not absorbed. */
       while (i < s.size() &&
-             (isdigit(static_cast<unsigned char>(s[i])) ||
-              s[i] == '.' || s[i] == 'p'))
+             (isalnum(static_cast<unsigned char>(s[i])) || s[i] == '.'))
         i++;
       std::string candidate = s.substr(start, i - start);
       if (candidate.find('.') != std::string::npos)
@@ -764,7 +810,7 @@ static std::vector<EnrichCve> lookup_cves(sqlite3 *cve_db,
 
   /* det_ver is constant for this lookup, so parse it once instead of
      re-parsing it inside ver_cmp_enrich for every candidate row. */
-  const std::vector<int> det_parts = parse_ver_enrich(det_ver);
+  const std::vector<VerPartEnrich> det_parts = parse_ver_enrich(det_ver);
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     auto col_str = [&](int c) -> std::string {
