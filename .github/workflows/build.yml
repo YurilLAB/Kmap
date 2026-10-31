@@ -284,6 +284,10 @@ jobs:
         if: startsWith(matrix.name,'windows')
         run: python tests/resume_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume
 
+      - name: Windows resume and structured output contracts
+        if: startsWith(matrix.name,'windows')
+        run: python tests/resume_output_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume-output
+
       - name: Preserve build and runtime diagnostics
         if: always()
         uses: actions/upload-artifact@v4

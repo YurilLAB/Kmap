@@ -78,6 +78,9 @@ jobs:
       - name: Ordinary resume contracts (owned loopback and preserved invalid logs)
         run: python3 tests/resume_contracts.py ./kmap --artifacts test-results/resume
 
+      - name: Resume and structured output contracts (preserve saved results)
+        run: python3 tests/resume_output_contracts.py ./kmap --artifacts test-results/resume-output
+
       - name: Binary hardening (exploit-mitigation regressions fail CI)
         run: |
           set -euo pipefail

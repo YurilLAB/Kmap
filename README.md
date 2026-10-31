@@ -752,6 +752,12 @@ to disable the governor (worker-pool sizing still applies).
 | `--report <file>` | Generate scan report (`.txt` or `.md` format) |
 | `--color=auto\|always\|never` | Terminal color (default: auto) |
 
+JSON (`-oJ`) and styled reports (`--report`) are completed-run snapshots. They
+cannot be combined with `--append-output`, and a log recorded with these options
+cannot be resumed with `--resume`. Kmap rejects these combinations before opening
+output files, preserving existing results. Use normal (`-oN`) or grepable (`-oG`)
+logs for resumable scans; fresh JSON and styled report generation remains supported.
+
 ### CVE Database Management
 
 | Option | Description |

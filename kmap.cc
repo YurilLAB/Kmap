@@ -2020,6 +2020,12 @@ void  apply_delayed_options() {
     o.pingtype = PINGTYPE_NONE;
 
   validate_scan_lists(ports, o);
+  // JSON and reports are finalized from in-memory records. They cannot
+  // restore earlier hosts on resume or safely append to an existing file.
+  // Reject before any output file opens, including the legacy log files.
+  if (o.append_output && (delayed_options.jsonfilename || o.report_file))
+    fatal("--append-output and --resume are not supported with -oJ or --report; "
+          "refusing to overwrite JSON/report history. Use a fresh scan with new output paths.");
   o.ValidateOptions();
 
   // print ip options
