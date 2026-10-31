@@ -124,8 +124,10 @@ def main():
         ("kev-tag", ["--nq-tag", "KeV"], [1, 3, 4, 6, 9, 17]),
         ("ransomware", ["--nq-tag", "ransomware"], [1, 3, 4, 6, 9, 17]),
         ("id", ["--nq-cve", "cVe-2000-0001"], [1, 3, 4, 6, 17]),
-        ("id-no-prefix", ["--nq-cve", "CVE-2000-000"], []),
+        ("id-fragment-prefix", ["--nq-cve", "CVE-2000-000"], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 19]),
+        ("id-fragment-interior", ["--nq-cve", "2000-0001"], [1, 3, 4, 6, 17]),
         ("id-no-like-wildcard", ["--nq-cve", "CVE-%"], []),
+        ("id-no-like-underscore", ["--nq-cve", "CVE-2000-000_"], []),
         ("asn-large", ["--nq-asn", "4000000000"], [15]),
         ("asn-max", ["--nq-asn", "4294967295"], [18]),
         ("non-cve-tags", ["--nq-tag", "cloud"], [20]),
@@ -134,6 +136,23 @@ def main():
         case(name, lambda n=name, o=options, ids=numbers: subset(n, o, ids))
     case("filtered-count", lambda: require(query("filtered-count", ["--nq-cve", "CVE-2000-0001", "--nq-count"])
                                            == {"count": 5}, "filtered count differs"))
+    for name, options, count in [
+        ("count-ordinary", [], 20),
+        ("count-device", ["--nq-device", "web"], 19),
+        ("count-device-database", ["--nq-device", "db"], 1),
+        ("count-device-no-match", ["--nq-device", "ftp"], 0),
+        ("count-sql", ["--nq-asn", "4294967295", "--nq-country", "us"], 1),
+        ("count-cidr-device", ["--nq-ip-range", "192.0.2.16/28", "--nq-device", "web"], 4),
+        ("count-cve-fragment", ["--nq-cve", "2000-0001"], 5),
+        ("count-score", ["--nq-min-cvss", "8"], 5),
+        ("count-epss", ["--nq-min-epss", "0.5"], 5),
+        ("count-kev", ["--nq-kev"], 6),
+        ("count-tag", ["--nq-tag", "ransomware"], 6),
+        ("count-combined", ["--nq-min-cvss", "8", "--nq-min-epss", "0.5", "--nq-kev", "--nq-tag", "ransomware"], 5),
+        ("count-device-cve", ["--nq-device", "db", "--nq-cve", "2000-0001"], 0),
+    ]:
+        case(name, lambda n=name, o=options, c=count: require(
+            query(n, [*o, "--nq-count"]) == {"count": c}, n + ": count differs from fixture oracle"))
 
     # Explicit JSON format; query(text=True) avoids trying to parse stdout diagnostics.
     def export_json():

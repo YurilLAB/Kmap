@@ -593,6 +593,8 @@ int run_net_query(const char *data_dir,
     device_filter = str_lower(device_class);
   }
   const std::string cve_filter = cve ? str_lower(cve) : "";
+  const bool count_without_metadata = count_only && cve_filter.empty() &&
+      !(min_cvss > 0.0f) && !(min_epss > 0.0f) && !kev_only && tag_filter.empty();
 
   /* Parse IP range if provided */
   CidrRange cidr{};
@@ -759,10 +761,20 @@ int run_net_query(const char *data_dir,
         if (!ip_in_cidr(ip_num, cidr)) continue;
       }
 
+      /* SQL and CIDR predicates already ran. Plain counts only need the
+       * optional device classifier, never CVE parsing, tags or row output. */
+      if (count_without_metadata) {
+        if (device_filter.empty() || classify_device(row_svc, row_port) == device_filter)
+          total_count++;
+        continue;
+      }
+
       /* Parse once for CVE membership, bounded scores, tags and output. */
       const CveMetadata cves = parse_cves(row_cves);
-      if (!cve_filter.empty() &&
-          std::find(cves.ids.begin(), cves.ids.end(), cve_filter) == cves.ids.end())
+      /* The CLI accepts a literal ID fragment. Match decoded ID fields only;
+       * descriptions, JSON formatting and SQL wildcard syntax are irrelevant. */
+      if (!cve_filter.empty() && std::none_of(cves.ids.begin(), cves.ids.end(),
+          [&](const std::string &id) { return id.find(cve_filter) != std::string::npos; }))
         continue;
       if (min_cvss > 0.0f && cves.max_cvss < min_cvss) continue;
       if (kev_only && !cves.kev) continue;

@@ -5,9 +5,9 @@ SQLite store. `--net-query` searches that store after the fact — no re-scan
 needed — so you can slice a large sweep by port, service, CVE, ASN, country,
 web fingerprint, or device class.
 
-All filters below are documented from the source and exercised by a live test
-(`fuzz/test_netquery.cc`); the behavior notes (case-insensitivity, substring
-matching, AND-combining, injection-safety) are verified, not assumed.
+The offline actual-CLI suites [`tests/query_smoke.py`](../tests/query_smoke.py)
+and [`tests/query_filters.py`](../tests/query_filters.py) check query output,
+errors, stored CVE metadata, filter combinations and numeric argument bounds.
 
 ## Basic use
 
@@ -26,7 +26,7 @@ bare `--net-query` when you pass any filter.
 |---------------------------|--------------------|------------------------------------------------------------|
 | `--nq-port <1-65535>`     | port number        | exact                                                       |
 | `--nq-service <name>`     | service name       | case-insensitive **substring** (`%name%`)                  |
-| `--nq-cve <id>`           | CVE id fragment    | substring match against the stored `cves` JSON             |
+| `--nq-cve <id>`           | CVE id fragment    | case-insensitive literal substring of a CVE object's `id` field |
 | `--nq-min-cvss <0.0-10.0>`| minimum CVSS       | keeps rows whose highest CVE score ≥ the value             |
 | `--nq-kev`                | CISA KEV only      | keeps rows with a Known-Exploited (in-the-wild) CVE        |
 | `--nq-min-epss <0.0-1.0>` | minimum EPSS       | keeps rows whose highest EPSS exploitation probability ≥ the value |
@@ -42,10 +42,10 @@ bare `--net-query` when you pass any filter.
 returns only German web hosts. A service substring of `http` matches both
 `http` and `https` (it's a `%http%` `LIKE`).
 
-Filter values are passed to SQLite as **bound parameters**, never concatenated
-into the query — so a value like `' OR '1'='1` is treated as a literal search
-string (and simply matches nothing), not as SQL. This is covered by the live
-injection test.
+SQL filter values use **bound parameters**, never SQL concatenation. CVE
+fragments are compared against parsed `id` fields: `2000-0001` matches
+`CVE-2000-0001`, including JSON-escaped IDs, but a mention in a description does
+not match. `%` and `_` are ordinary characters in CVE fragments, not wildcards.
 
 ## Output
 

@@ -14,7 +14,7 @@
  *   data_dir    — directory containing shard_NNN.db files
  *   port        — filter by port number (0 = no filter)
  *   service     — filter by service name substring (NULL = no filter)
- *   cve         - filter by exact CVE ID, case-insensitive (NULL = no filter)
+ *   cve         - literal CVE ID fragment, case-insensitive (NULL = no filter)
  *   min_cvss    — filter by minimum CVSS score (0.0 = no filter)
  *   web_title   — filter by web page title substring (NULL = no filter)
  *   web_server  — filter by server header substring (NULL = no filter)
