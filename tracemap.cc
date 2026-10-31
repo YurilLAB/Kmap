@@ -1166,6 +1166,11 @@ int run_tracemap(const char *targets, const char *output_file,
         if (nodes >= 0 && edges >= 0)
           log_write(LOG_STDOUT, "  Cumulative: %lld nodes, %lld edges\n",
                     static_cast<long long>(nodes), static_cast<long long>(edges));
+        else {
+          persistence_failed = true;
+          log_write(LOG_STDERR, "tracemap: ERROR: graph was persisted, but cumulative counts could not be read from %s\n",
+                    topo_path);
+        }
       }
       net_db_close(topo_db);
     } else {

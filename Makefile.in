@@ -477,6 +477,7 @@ check-zekmap:
 
 check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_lifecycle_test tests/persistence_boundary_test
 	@set -e; for test in $^; do ./$$test; done
+	$(PYTHON) tests/checkpoint_recovery.py ./tests/checkpoint_persistence_test
 
 check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZEKMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-kmap
 

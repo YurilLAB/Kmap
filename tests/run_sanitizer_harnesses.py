@@ -29,6 +29,7 @@ class Harness:
     sqlite: bool = False
     coverage: str = "copied model/parser; not production linkage"
     headers: tuple = ()  # Explicit production headers included by new regressions.
+    postchecks: tuple = ()  # Mandatory Python drivers using the built unit executable.
 
 
 SEEDED = (("1",), ("1337",))
@@ -88,7 +89,8 @@ HARNESSES = {
                                       headers=("topology_assemble.h", "topology_store.h", "tracemap.h", "net_db.h")),
     "checkpoint_persistence_test": Harness("tests/checkpoint_persistence_test.cc",
                                           coverage="production checkpoint parsing/atomic file replacement; owned local fixtures",
-                                          headers=("scan_checkpoint.h",)),
+                                          headers=("scan_checkpoint.h",),
+                                          postchecks=("tests/checkpoint_recovery.py",)),
     "scheduler_progress_test": Harness("tests/scheduler_progress_test.cc",
                                       coverage="production work ownership/checkpoint helper; bounded offline threads",
                                       headers=("work_progress.h",)),
@@ -116,7 +118,7 @@ def validate_manifest(root):
     for name, harness in HARNESSES.items():
         if not harness.runs:
             raise ValueError(f"{name} has no scheduled executions")
-        for source in (harness.source, *harness.links, *harness.headers):
+        for source in (harness.source, *harness.links, *harness.headers, *harness.postchecks):
             if not (root / source).is_file():
                 raise ValueError(f"{name} source is missing: {source}")
 
@@ -233,7 +235,8 @@ def main():
     cc = shlex.split(os.environ.get("CC", "cc"))
     cxx = shlex.split(os.environ.get("CXX", "g++"))
     sources = {source for name in selected
-               for source in (HARNESSES[name].source, *HARNESSES[name].links, *HARNESSES[name].headers)}
+               for source in (HARNESSES[name].source, *HARNESSES[name].links,
+                              *HARNESSES[name].headers, *HARNESSES[name].postchecks)}
     if any(HARNESSES[name].sqlite for name in selected):
         sources.add("sqlite/sqlite3.c")
     metadata = {"selected_harnesses": {name: asdict(HARNESSES[name]) for name in selected},
@@ -263,6 +266,8 @@ def main():
                 runner.skip("build-" + name, "compiler/SQLite prerequisite failed")
                 for index in range(len(harness.runs)):
                     runner.skip(f"{name}-run-{index + 1}", "build prerequisite failed")
+                for index in range(len(harness.postchecks)):
+                    runner.skip(f"{name}-postcheck-{index + 1}", "build prerequisite failed")
                 continue
             binary = binaries / name
             command = [*cxx, *flags, "-std=gnu++17", "-pthread", "-I" + str(root),
@@ -277,6 +282,15 @@ def main():
                     runner.run(f"{name}-run-{index}", [binary, *arguments], args.run_timeout)
                 else:
                     runner.skip(f"{name}-run-{index}", "harness build failed")
+            for index, driver in enumerate(harness.postchecks, 1):
+                label = f"{name}-postcheck-{index}"
+                if built:
+                    runner.run(label, [sys.executable, root / driver, binary,
+                        "--artifacts", runner.output / label / "recovery",
+                        "--total-timeout", str(min(90, max(0.1, args.run_timeout - 5)))],
+                        args.run_timeout)
+                else:
+                    runner.skip(label, "harness build failed")
         completed = True
     finally:
         passed = runner.finish(completed)

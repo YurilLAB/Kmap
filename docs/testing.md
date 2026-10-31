@@ -34,6 +34,23 @@ unfinished-transaction rollback and reopen behavior. These tests use inert jobs
 and generated files; they do not establish whole-scanner cancellation latency,
 cross-database atomicity or disk power-loss durability.
 
+`make check-kmap` also runs `tests/checkpoint_recovery.py` against the built
+checkpoint unit executable. Six children exit abruptly with the expected code
+73 during partial write, flush, close and replacement stages, including a
+first-ever checkpoint. The parent checks the surviving main/temporary files
+and launches a fresh process to verify every recovered field. Each child has
+a 10-second timeout and the suite a 90-second budget. Logs and fixtures remain
+under a unique `test-results/checkpoint-recovery/` directory, including failures
+and visible snapshot copies of checkpoint dotfiles for CI artifact upload.
+This is process-crash recovery testing, not power-loss or disk-cache testing.
+The sanitizer manifest runs the same mandatory parent driver with its
+instrumented checkpoint unit executable. To run it separately:
+
+```sh
+python3 tests/checkpoint_recovery.py ./tests/checkpoint_persistence_test \
+  --artifacts test-results/checkpoint-recovery-manual
+```
+
 For the native Windows build, see [windows-build.md](windows-build.md). The two
 Python smoke scripts accept `mswin32/Release/kmap.exe` as their binary argument.
 Run `python tests/windows_build_test.py` to test setup failure propagation with

@@ -1467,6 +1467,30 @@ int fast_syn_scan(const char *data_dir,
     return status;
   };
 
+  // Read every count before printing a completion banner. A summary query
+  // failure is still an error, even when discovery data committed successfully.
+  auto report_summary = [&]() {
+    int64_t counts[NET_SHARD_COUNT] = {};
+    for (int i = 0; i < NET_SHARD_COUNT; ++i) {
+      if (!shards[i]) continue;
+      counts[i] = net_db_count(shards[i]);
+      if (counts[i] < 0) {
+        log_write(LOG_STDERR, "net-scan: ERROR: could not read final count for shard_%03d.db: %s\n",
+                  i, sqlite3_errmsg(shards[i]));
+        return false;
+      }
+    }
+    log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
+              scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
+    log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
+    log_write(LOG_STDOUT, "  Open ports:     %llu\n", (unsigned long long)cp.hosts_found);
+    for (int i = 0; i < NET_SHARD_COUNT; ++i) {
+      if (counts[i] > 0)
+        log_write(LOG_STDOUT, "  shard_%03d.db:   %lld entries\n", i, (long long)counts[i]);
+    }
+    return true;
+  };
+
   try {
 
   /* Seed for IP permutation -- stored in checkpoint so resume uses
@@ -1565,18 +1589,7 @@ int fast_syn_scan(const char *data_dir,
       candidate.last_save = time(nullptr);
       if (!persist_discovery(shards, persistence, false, data_dir, cp, &candidate))
         return finish(1);
-      log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
-                scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
-      log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
-      log_write(LOG_STDOUT, "  Open ports:     %llu\n", (unsigned long long)cp.hosts_found);
-      for (int i = 0; i < NET_SHARD_COUNT; i++) {
-        if (shards[i]) {
-          int64_t cnt = net_db_count(shards[i]);
-          if (cnt > 0)
-            log_write(LOG_STDOUT, "  shard_%03d.db:   %lld entries\n", i, (long long)cnt);
-        }
-      }
-      return finish(0);
+      return finish(report_summary() ? 0 : 1);
     }
   }
 
@@ -2098,22 +2111,7 @@ int fast_syn_scan(const char *data_dir,
   if (!persist_discovery(shards, persistence, false, data_dir, cp, &candidate))
     return finish(1);
 
-  log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
-            scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
-  log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
-  log_write(LOG_STDOUT, "  Open ports:     %llu\n", (unsigned long long)cp.hosts_found);
-
-  /* Print per-shard counts */
-  for (int i = 0; i < NET_SHARD_COUNT; i++) {
-    if (shards[i]) {
-      int64_t cnt = net_db_count(shards[i]);
-      if (cnt > 0) {
-        log_write(LOG_STDOUT, "  shard_%03d.db:   %lld entries\n", i, (long long)cnt);
-      }
-    }
-  }
-
-  return finish(0);
+  return finish(report_summary() ? 0 : 1);
   } catch (const std::exception &error) {
     fprintf(stderr, "net-scan: ERROR: discovery setup/finalization failed: %s\n", error.what());
     return finish(1);
