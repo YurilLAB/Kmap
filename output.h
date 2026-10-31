@@ -235,7 +235,7 @@ void print_xml_hosts();
 
 /* Prints the statistics and other information that goes at the very end
    of an Kmap run */
-void printfinaloutput();
+bool printfinaloutput();
 
 /* Prints the names of data files that were loaded and the paths at which they
    were found. */

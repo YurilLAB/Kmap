@@ -27,6 +27,7 @@ on:
       - "**/*.awk"
       - "**/*.sh"
       - "**/*.toml"
+      - "libpcre/src/*.sym"
     branches:
       - master
   pull_request:
@@ -120,6 +121,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check bundled exports and VM failure reporting
+        if: matrix.name == 'ubuntu-latest-clang'
+        run: python3 tests/check_build_config.py
+
       - name: Build Linux
         if: startsWith(matrix.name,'ubuntu')
         env:
@@ -159,65 +164,94 @@ jobs:
           make install DESTDIR=/tmp
           tree /tmp/usr
 
-      - name: Build FreeBSD
+      - name: Start FreeBSD VM
         if: startsWith(matrix.name,'freebsd')
         uses: vmactions/freebsd-vm@v1
         with:
           release: "15.0"
-          usesh: true
-          prepare: |
-            # OS has libpcap already installed (and adding puts a second in /usr/local)
-            pkg install -y gcc llvm autotools tree pkgconf libnet pcre2 gmake dbus
-          run: |
-            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
-            gmake
-            gmake install DESTDIR=/tmp
-            tree /tmp/usr
+          sync: rsync
+          custom-shell-name: kmap-vm
 
-      - name: Build OpenBSD
+      - name: Start OpenBSD VM
         if: startsWith(matrix.name,'openbsd')
         uses: vmactions/openbsd-vm@v1
         with:
-          usesh: true
-          prepare: |
-            export PKG_PATH=https://cdn.openbsd.org/pub/OpenBSD/$(uname -r)/packages/$(uname -m)/
-            pkg_add -I -U autoconf%2.72 automake%1.17 gcc%11 llvm%19 tree pkgconf libnet%1.1 pcre2 gmake dbus
-          run: |
-            export AUTOCONF_VERSION=2.72
-            export AUTOMAKE_VERSION=1.17
-            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
-            gmake
-            gmake install DESTDIR=/tmp
-            tree /tmp/usr
+          # Keep the advertised 7.x target; an omitted release selected 8.0.
+          release: "7.9"
+          sync: rsync
+          custom-shell-name: kmap-vm
 
-      - name: Build NetBSD
+      - name: Start NetBSD VM
         if: startsWith(matrix.name,'netbsd')
         uses: vmactions/netbsd-vm@v1
         with:
-          usesh: true
-          prepare: |
-            export PATH=/usr/sbin:/usr/pkg/sbin:/usr/pkg/bin:$PATH
-            export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r | cut -d_ -f1)/All"
-            pkg_add -u gcc13 clang autoconf automake pkgconf libpcap libnet gmake dbus
-          run: |
-            export PATH=/usr/sbin:/usr/pkg/sbin:/usr/pkg/bin:$PATH
-            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
-            gmake
-            gmake install DESTDIR=/tmp
-            tree /tmp/usr
+          release: "10.2"
+          sync: rsync
+          custom-shell-name: kmap-vm
 
-      - name: Build Solaris
+      - name: Start Solaris VM
         if: startsWith(matrix.name,'solaris')
         uses: vmactions/solaris-vm@v1
         with:
-          usesh: true
-          prepare: |
-            pkg install gcc-c clang autoconf automake pcre2 libpcap libnet developer/build/gnu-make
-          run: |
-            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
-            gmake
-            gmake install DESTDIR=/tmp
-            tree /tmp/usr
+          release: "11.4"
+          sync: rsync
+          custom-shell-name: kmap-vm
+
+      # The action's prepare/run inputs exit before copyback on a failure.
+      # Its rsync custom-shell wrapper copies files back even when the command
+      # fails, then returns that failure. Keep setup/build outside those inputs
+      # so config.log and the complete failing command log reach the artifact.
+      - name: Build Unix VM
+        if: startsWith(matrix.name,'freebsd') || startsWith(matrix.name,'openbsd') || startsWith(matrix.name,'netbsd') || startsWith(matrix.name,'solaris')
+        shell: kmap-vm {0}
+        run: |
+          set -eu
+          mkdir -p test-results
+          record() {
+            log=$1
+            shift
+            if "$@" >"test-results/$log.log" 2>&1; then
+              cat "test-results/$log.log"
+            else
+              rc=$?
+              cat "test-results/$log.log"
+              return "$rc"
+            fi
+          }
+          case '${{ matrix.name }}' in
+            freebsd-*)
+              # The base OS already supplies libpcap.
+              record prepare pkg install -y gcc llvm autotools tree pkgconf libnet pcre2 gmake dbus
+              ;;
+            openbsd-*)
+              export PKG_PATH=https://cdn.openbsd.org/pub/OpenBSD/$(uname -r)/packages/$(uname -m)/
+              # 7.9 ships GCC 15 and pkg-config in base. C++ is a separate
+              # package; requesting removed gcc%11/pkgconf names fails setup.
+              record prepare pkg_add -I -U autoconf%2.72 automake%1.17 gcc g++ llvm%19 tree libnet%1.1 pcre2 gmake dbus
+              export AUTOCONF_VERSION=2.72 AUTOMAKE_VERSION=1.17
+              ;;
+            netbsd-*)
+              export PATH=/usr/sbin:/usr/pkg/sbin:/usr/pkg/bin:$PATH
+              # Retain the VM's verified package-mirror configuration.
+              # D-Bus is not a Kmap build dependency: bundled libpcap already
+              # uses --disable-dbus. Installing it required absent X11 sets.
+              record prepare pkg_add -u gcc13 clang autoconf automake pkgconf libpcap libnet gmake tree
+              export PATH=/usr/pkg/gcc13/bin:$PATH
+              ;;
+            solaris-*)
+              record prepare pkg install gcc-c clang autoconf automake pcre2 libpcap libnet developer/build/gnu-make
+              ;;
+            *) exit 1 ;;
+          esac
+          export CC=${{ matrix.cc }} CXX=${{ matrix.cxx }}
+          record cc-version "$CC" --version
+          record cxx-version "$CXX" --version
+          record configure ./configure
+          record build gmake
+          test -x ./kmap
+          record install gmake install DESTDIR=/tmp
+          # Solaris does not install the optional tree utility above.
+          record installed-files find /tmp/usr -type f
 
       - name: Windows build-script regression fixtures (offline)
         if: startsWith(matrix.name,'windows')
@@ -245,6 +279,10 @@ jobs:
         run: |
           cd mswin32
           Build.bat
+
+      - name: Windows resume contracts (owned loopback)
+        if: startsWith(matrix.name,'windows')
+        run: python tests/resume_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume
 
       - name: Preserve build and runtime diagnostics
         if: always()

@@ -46,3 +46,9 @@ NON-AUTOTOOLS-BUILDS
 o Made relevant changes to Makefile.am, configure.ac, and CMakeLists.txt to
   accommodate our smaller, non-JIT build and to disable Unicode support by
   default.
+
+o Removed the absent JIT entry points from the shared-library export maps.
+  The maps retain every implemented public function and make unlisted symbols
+  local, including compiler-added Solaris startup symbols. This keeps strict
+  linkers from rejecting nonexistent exports or unversioned implementation
+  symbols; it does not enable or disable any matching feature.

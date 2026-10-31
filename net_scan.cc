@@ -13,6 +13,7 @@
 #include "net_db.h"
 #include "json_escape.h"
 #include "joined_workers.h"
+#include "watchlist_state.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
 #include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
@@ -401,27 +402,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     return 1;
   };
 
-  /* Per-watchlist-DB metadata. Remembers the previous scan's start timestamp
-     so the diff below can scope "previously open" to the PRIOR run rather than
-     the entire cumulative history -- otherwise a port that opened once and
-     closed permanently is re-reported [CLOSED] on every subsequent run forever.
-     A separate table is safe to add to an existing DB: CREATE TABLE IF NOT
-     EXISTS materializes a whole new table (unlike ADD COLUMN it needs no
-     migration-list entry). Read here, rewritten at the end of a completed run. */
-  if (sqlite3_exec(wl_db,
-    "CREATE TABLE IF NOT EXISTS scan_meta (key TEXT PRIMARY KEY, value INTEGER)",
-    nullptr, nullptr, nullptr) != SQLITE_OK) return abort_watchlist();
-  int64_t prev_scan_ts = 0;
-  {
-    sqlite3_stmt *st = nullptr;
-    if (sqlite3_prepare_v2(wl_db,
-          "SELECT value FROM scan_meta WHERE key='last_scan_ts'",
-          -1, &st, nullptr) != SQLITE_OK) return abort_watchlist();
-    int step = sqlite3_step(st);
-    if (step == SQLITE_ROW) prev_scan_ts = sqlite3_column_int64(st, 0);
-    sqlite3_finalize(st);
-    if (step != SQLITE_ROW && step != SQLITE_DONE) return abort_watchlist();
-  }
+  /* Membership belongs to the last completed discovery, not to enrichment's
+     last_seen timestamps. The ready marker distinguishes an empty completed
+     set from an older database that has never stored a membership snapshot. */
+  NetWatchlistState previous;
+  if (!net_watchlist_state_open(wl_db, previous)) return abort_watchlist();
+  const int64_t prev_scan_ts = previous.previous_scan_time;
 
   /* Load previous state for diff */
   struct PrevEntry {
@@ -435,20 +421,21 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::vector<PrevEntry> prev_state;
   {
     sqlite3_stmt *stmt = nullptr;
-    /* Scope to the previous run's open set when we know when that was: a port
-       that went dark BEFORE the previous run is already-reported history and
-       must not resurface as [CLOSED] every run. Since nothing but a watchlist
-       run writes this DB, every row open as of the prior run has
-       last_seen >= prev_scan_ts, and earlier closures have less. On the first
-       run under this scheme (prev_scan_ts == 0) fall back to all rows. */
-    const char *prev_sql = (prev_scan_ts > 0)
-      ? "SELECT ip, port, service, version, cves, web_title FROM hosts "
-        "WHERE last_seen >= ?"
-      : "SELECT ip, port, service, version, cves, web_title FROM hosts";
+    /* Older databases retain the historical timestamp fallback until their
+       first successful run records an explicit set. Same-second scans then
+       compare correctly, as do historical rows touched by enrichment. */
+    const char *prev_sql = previous.has_snapshot
+      ? (previous.has_attributes
+         ? "SELECT ip,port,service,version,cves,web_title FROM watchlist_baseline"
+         : "SELECT h.ip,h.port,h.service,h.version,h.cves,h.web_title FROM hosts h "
+           "JOIN watchlist_open w ON w.ip=h.ip AND w.port=h.port")
+      : (prev_scan_ts > 0
+         ? "SELECT ip,port,service,version,cves,web_title FROM hosts WHERE last_seen >= ?"
+         : "SELECT ip,port,service,version,cves,web_title FROM hosts");
     if (sqlite3_prepare_v2(wl_db, prev_sql, -1, &stmt, nullptr) != SQLITE_OK)
       return abort_watchlist();
     if (stmt) {
-      if (prev_scan_ts > 0 && sqlite3_bind_int64(stmt, 1, prev_scan_ts) != SQLITE_OK) {
+      if (!previous.has_snapshot && prev_scan_ts > 0 && sqlite3_bind_int64(stmt, 1, prev_scan_ts) != SQLITE_OK) {
         sqlite3_finalize(stmt);
         return abort_watchlist();
       }
@@ -703,6 +690,10 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       return abort_watchlist();
   }
   if (net_db_commit(wl_db) != 0) return abort_watchlist();
+  std::set<uint64_t> discovered_now;
+  for (const auto &entry : opens)
+    discovered_now.insert((static_cast<uint64_t>(entry.first) << 16) |
+                          static_cast<uint64_t>(entry.second & 0xFFFF));
   int found = static_cast<int>(opens.size());
   t_discovery_end = std::chrono::steady_clock::now();
 
@@ -824,6 +815,12 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       HostResult hr;
       hr.ip = ip_str;
       auto host_ports = net_db_get_host(wl_db, ip_str.c_str());
+      host_ports.erase(std::remove_if(host_ports.begin(), host_ports.end(),
+          [&](const NetHost &host) {
+            const uint64_t key = (static_cast<uint64_t>(ip_to_u32(host.ip.c_str())) << 16) |
+                                  static_cast<uint64_t>(host.port & 0xFFFF);
+            return discovered_now.find(key) == discovered_now.end();
+          }), host_ports.end());
       if (host_ports.empty()) {
         hr.empty_host = true;
         results.push_back(std::move(hr));
@@ -1204,11 +1201,6 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    * The DB is still the source of the enriched columns ([CHANGED] compares
    * service/version), so the query is unchanged apart from being filtered
    * through the discovery set. */
-  std::set<uint64_t> discovered_now;
-  for (const auto &t : opens)
-    discovered_now.insert((static_cast<uint64_t>(t.first) << 16) |
-                          static_cast<uint64_t>(t.second & 0xFFFF));
-
   std::vector<NetHost> current;
   {
     sqlite3_stmt *stmt = nullptr;
@@ -1261,8 +1253,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::string diff_path = wl_dir + "/diff_" + datebuf + ".txt";
   FILE *diff_fp = fopen(diff_path.c_str(), "w");
   if (!diff_fp) {
-    scan_log("WARN", "cannot create diff report %s (errno=%d), skipping",
+    scan_log("ERROR", "cannot create diff report %s (errno=%d)",
              diff_path.c_str(), errno);
+    return abort_watchlist();
   }
   if (diff_fp) {
     fprintf(diff_fp, "================================================================================\n");
@@ -1354,25 +1347,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
     fprintf(diff_fp, "\n  Changes detected: %d\n", changes);
     fprintf(diff_fp, "================================================================================\n");
-    fclose(diff_fp);
+    bool saved = ferror(diff_fp) == 0;
+    if (fflush(diff_fp) != 0) saved = false;
+    if (fclose(diff_fp) != 0) saved = false;
+    if (!saved) {
+      scan_log("ERROR", "cannot finish diff report %s", diff_path.c_str());
+      return abort_watchlist();
+    }
 
     log_write(LOG_STDOUT, "  Diff report: %s (%d changes)\n", diff_path.c_str(), changes);
-  }
-
-  /* Advance the diff boundary to this run's start so the NEXT run compares
-     against what THIS run found open. Only on a completed run -- an
-     interrupted run saw a partial set, and advancing would make the next run
-     misreport the unreached ports as [CLOSED]; leaving the boundary at the
-     last full run keeps the next diff correct. */
-  if (!g_scan_interrupted.load()) {
-    sqlite3_stmt *st = nullptr;
-    if (sqlite3_prepare_v2(wl_db,
-          "INSERT OR REPLACE INTO scan_meta(key,value) VALUES('last_scan_ts',?)",
-          -1, &st, nullptr) != SQLITE_OK) return abort_watchlist();
-    int status = sqlite3_bind_int64(st, 1, scan_start_ts);
-    if (status == SQLITE_OK) status = sqlite3_step(st);
-    sqlite3_finalize(st);
-    if (status != SQLITE_DONE) return abort_watchlist();
   }
 
   /* Write full report.
@@ -1392,8 +1375,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::string full_path = wl_dir + "/full_" + datebuf + ".txt";
   FILE *full_fp = fopen(full_path.c_str(), "w");
   if (!full_fp) {
-    scan_log("WARN", "cannot create full report %s (errno=%d), skipping",
+    scan_log("ERROR", "cannot create full report %s (errno=%d)",
              full_path.c_str(), errno);
+    return abort_watchlist();
   }
   if (full_fp) {
     fprintf(full_fp, "================================================================================\n");
@@ -1433,7 +1417,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
       for (const auto &r : rows) {
         /* Only include ports that responded in this scan. */
-        if (r.last_seen < scan_start_ts) continue;
+        const uint64_t key = (static_cast<uint64_t>(ip_to_u32(r.ip.c_str())) << 16) |
+                              static_cast<uint64_t>(r.port & 0xFFFF);
+        if (discovered_now.find(key) == discovered_now.end()) continue;
 
         fprintf(full_fp, "  %d/%s  %s",
                 r.port, r.proto.c_str(),
@@ -1519,10 +1505,21 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       }
     }
     fprintf(full_fp, "\n================================================================================\n");
-    fclose(full_fp);
+    bool saved = ferror(full_fp) == 0;
+    if (fflush(full_fp) != 0) saved = false;
+    if (fclose(full_fp) != 0) saved = false;
+    if (!saved) {
+      scan_log("ERROR", "cannot finish full report %s", full_path.c_str());
+      return abort_watchlist();
+    }
 
     log_write(LOG_STDOUT, "  Full report: %s\n", full_path.c_str());
   }
+
+  /* Do not advance after interruption or an incomplete report. Historical
+     host rows remain intact; only the last successful open set is replaced. */
+  if (!g_scan_interrupted.load() && !net_watchlist_state_save(wl_db, opens, scan_start_ts))
+    return abort_watchlist();
 
   net_db_close(wl_db);
 
@@ -1625,21 +1622,26 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 /* Sum the eligible-for-enrichment host count across every shard on disk.
  * Mirrors the predicate run_enrichment uses (enriched=0 OR re-seen, and
  * not inside the error cool-down), so this is the authoritative "is there
- * more enrichment work?" signal that drives the drain loop below.  Opens
- * each shard read-only, counts, closes -- cheap relative to a batch of
- * network enrichment, and avoids holding 32 handles open between passes. */
+ * more enrichment work?" signal that drives the drain loop below. Opens
+ * each shard with the schema-aware helper, counts, and closes. An unreadable
+ * shard or failed count is unknown work (-1), never an empty backlog. */
 static int64_t net_count_unenriched_all(const char *data_dir) {
   int64_t total = 0;
   for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
     std::string p = net_shard_path(data_dir, shard);
     FILE *test = fopen(p.c_str(), "r");
-    if (!test) continue;           /* shard never created -- nothing here */
-    fclose(test);
+    if (!test) {
+      if (errno == ENOENT) continue; /* shard never created -- nothing here */
+      scan_log("ERROR", "cannot inspect enrichment shard %s", p.c_str());
+      return -1;
+    }
+    if (fclose(test) != 0) return -1;
     sqlite3 *db = net_db_open(p);
-    if (!db) continue;
+    if (!db) return -1;
     int64_t c = net_db_count_unenriched(db);
-    if (c > 0) total += c;
     net_db_close(db);
+    if (c < 0) return -1;
+    total += c;
   }
   return total;
 }
@@ -1872,7 +1874,7 @@ int run_net_scan() {
     for (;;) {
       int prc = run_enrichment(data_dir, 1000);
       if (prc != 0) {
-        rc = prc;
+        if (rc == 0) rc = prc;
         fprintf(stderr,
           "net-scan: enrichment pass %d had errors (continuing)\n", pass + 1);
         /* Non-fatal -- keep draining / fall through to report. */
@@ -1887,7 +1889,13 @@ int run_net_scan() {
       }
 
       int64_t remaining = net_count_unenriched_all(data_dir);
-      if (remaining <= 0) break;            /* fully drained */
+      if (remaining < 0) {
+        scan_log("ERROR", "cannot determine remaining enrichment work");
+        fprintf(stderr, "net-scan: cannot determine remaining enrichment work\n");
+        if (rc == 0) rc = 1;
+        break;
+      }
+      if (remaining == 0) break;            /* fully drained */
 
       if (prev_remaining >= 0 && remaining >= prev_remaining) {
         /* The pool did not shrink -- nothing this pass could mark. Bail
@@ -1897,6 +1905,7 @@ int run_net_scan() {
           "net-scan: WARNING: enrichment made no progress with %lld host(s) "
           "still eligible after pass %d; re-run with --enrich-only to retry\n",
           (long long)remaining, pass);
+        if (rc == 0) rc = 1;
         break;
       }
       prev_remaining = remaining;
@@ -1905,14 +1914,16 @@ int run_net_scan() {
         (long long)remaining, pass + 1);
     }
     ns_enr_end = std::chrono::steady_clock::now();
-    scan_log("INFO", "enrichment phase complete (%lds, %d pass%s)",
-             (long)(time(nullptr) - enr_t0), pass, pass == 1 ? "" : "es");
+    scan_log(rc ? "ERROR" : "INFO", "enrichment phase %s (%lds, %d pass%s)",
+             rc ? "failed" : "complete", (long)(time(nullptr) - enr_t0),
+             pass, pass == 1 ? "" : "es");
 
     if (o.net_enrich_only) {
       scan_log("INFO", "net-scan finished: enrich-only (%lds total)%s",
                (long)(time(nullptr) - ns_start),
                g_scan_interrupted.load() ? " [interrupted]" : "");
       scan_log_close();
+      if (rc != 0) return rc;
       return g_scan_interrupted.load() ? 130 : 0;
     }
   }
@@ -1921,9 +1932,10 @@ int run_net_scan() {
   if (!o.net_discover_only && !o.net_enrich_only) {
     log_write(LOG_STDOUT, "\nnet-scan: Generating findings reports\n");
     time_t rep_t0 = time(nullptr);
-    rc = generate_findings(data_dir, findings_dir);
-    if (rc != 0) {
-      scan_log("ERROR", "report generation had errors (rc=%d)", rc);
+    int report_rc = generate_findings(data_dir, findings_dir);
+    if (report_rc != 0) {
+      if (rc == 0) rc = report_rc;
+      scan_log("ERROR", "report generation had errors (rc=%d)", report_rc);
       fprintf(stderr, "net-scan: report generation had errors\n");
     } else {
       scan_log("INFO", "report phase complete (%lds)",
@@ -1948,7 +1960,8 @@ int run_net_scan() {
     double disc_rate = disc_s  > 0.001 ? ips_scanned   / disc_s  : 0.0;
     double enr_rate  = enr_s   > 0.001 ? em.hosts_done / enr_s   : 0.0;
     double pipe_rate = total_s > 0.001 ? em.hosts_done / total_s : 0.0;
-    const char *state = g_scan_interrupted.load() ? "INTERRUPTED" : "COMPLETE";
+    const char *state = rc != 0 ? "FAILED"
+                       : g_scan_interrupted.load() ? "INTERRUPTED" : "COMPLETE";
 
     log_write(LOG_STDOUT,
       "\n================================================================================\n");
@@ -1980,7 +1993,7 @@ int run_net_scan() {
       "net-scan %s: %llu hosts pipelined in %.1fs total "
       "(discovery=%.1fs %.0f IPs/sec, enrich=%.1fs %.1f hosts/sec; "
       "%.2f hosts/sec overall)",
-      g_scan_interrupted.load() ? "interrupted" : "complete",
+      rc != 0 ? "failed" : g_scan_interrupted.load() ? "interrupted" : "complete",
       (unsigned long long)em.hosts_done, total_s,
       disc_s, disc_rate, enr_s, enr_rate, pipe_rate);
   }

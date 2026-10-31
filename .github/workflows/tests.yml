@@ -64,6 +64,20 @@ jobs:
       - name: Offline query filter contracts (stored metadata and argument validation)
         run: python3 tests/query_filters.py ./kmap --artifacts test-results/query-filters
 
+      - name: Ordinary output contracts (owned loopback and write failures)
+        run: python3 tests/output_contracts.py ./kmap --artifacts test-results/output-contracts
+
+      - name: Offline phase error and findings contracts
+        run: python3 tests/net_pipeline_errors.py ./kmap --artifacts test-results/pipeline-errors
+
+      - name: Watchlist collection and persistence contracts (owned loopback)
+        run: |
+          python3 tests/watchlist_contracts.py ./kmap --artifacts test-results/watchlist
+          python3 tests/watchlist_contracts.py ./kmap --rapid --artifacts test-results/watchlist-rapid
+
+      - name: Ordinary resume contracts (owned loopback and preserved invalid logs)
+        run: python3 tests/resume_contracts.py ./kmap --artifacts test-results/resume
+
       - name: Binary hardening (exploit-mitigation regressions fail CI)
         run: |
           set -euo pipefail

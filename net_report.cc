@@ -26,7 +26,9 @@
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
+#include <cerrno>
 #include <sstream>
+#include <sys/stat.h>
 
 #ifdef WIN32
 #include <direct.h>
@@ -573,7 +575,25 @@ static void write_file_summary(FILE *fp, const FileSummary &summary) {
 int generate_findings(const char *data_dir, const char *findings_dir) {
   if (!data_dir || !findings_dir) return 1;
 
-  report_mkdir(findings_dir);
+  if (report_mkdir(findings_dir) != 0 && errno != EEXIST) {
+    log_write(LOG_STDOUT, "net-scan: ERROR: cannot create findings directory %s\n",
+              findings_dir);
+    return 1;
+  }
+#ifdef WIN32
+  struct _stat directory_info{};
+  bool is_directory = _stat(findings_dir, &directory_info) == 0 &&
+                      (directory_info.st_mode & _S_IFMT) == _S_IFDIR;
+#else
+  struct stat directory_info{};
+  bool is_directory = stat(findings_dir, &directory_info) == 0 &&
+                      S_ISDIR(directory_info.st_mode);
+#endif
+  if (!is_directory) {
+    log_write(LOG_STDOUT, "net-scan: ERROR: findings path is not a directory: %s\n",
+              findings_dir);
+    return 1;
+  }
 
   /* Shards are partitioned by the top 5 bits of the IP (see
      net_shard_index in net_db.cc), so iterating shards 0..31 in order
@@ -595,6 +615,13 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
   };
 
   sqlite3 *shard_dbs[NET_SHARD_COUNT] = {};
+  struct CloseShards {
+    sqlite3 **handles;
+    ~CloseShards() {
+      for (int i = 0; i < NET_SHARD_COUNT; ++i)
+        if (handles[i]) net_db_close(handles[i]);
+    }
+  } close_shards{shard_dbs};
   int64_t total_hosts = 0;
 
   log_write(LOG_STDOUT,
@@ -604,15 +631,19 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     std::string db_path = net_shard_path(data_dir, shard);
 
     FILE *test = fopen(db_path.c_str(), "r");
-    if (!test) continue;
-    fclose(test);
+    if (!test) {
+      if (errno == ENOENT) continue;
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot read shard %s\n", db_path.c_str());
+      return 1;
+    }
+    if (fclose(test) != 0) return 1;
 
     sqlite3 *db = net_db_open(db_path);
     if (!db) {
       log_write(LOG_STDOUT,
-        "net-scan: WARNING: cannot open %s -- skipping.\n",
+        "net-scan: ERROR: cannot open %s; report is incomplete.\n",
         db_path.c_str());
-      continue;
+      return 1;
     }
     shard_dbs[shard] = db;
 
@@ -622,18 +653,25 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     sqlite3_stmt *cnt = nullptr;
     if (sqlite3_prepare_v2(db,
           "SELECT COUNT(DISTINCT ip) FROM hosts",
-          -1, &cnt, nullptr) == SQLITE_OK) {
-      if (sqlite3_step(cnt) == SQLITE_ROW)
-        total_hosts += sqlite3_column_int64(cnt, 0);
-      sqlite3_finalize(cnt);
+          -1, &cnt, nullptr) != SQLITE_OK) {
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot count %s: %s\n",
+                db_path.c_str(), sqlite3_errmsg(db));
+      return 1;
+    }
+    int count_status = sqlite3_step(cnt);
+    if (count_status == SQLITE_ROW)
+      total_hosts += sqlite3_column_int64(cnt, 0);
+    int count_finalized = sqlite3_finalize(cnt);
+    if (count_status != SQLITE_ROW || count_finalized != SQLITE_OK) {
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot count %s: %s\n",
+                db_path.c_str(), sqlite3_errmsg(db));
+      return 1;
     }
   }
 
   if (total_hosts == 0) {
     log_write(LOG_STDOUT,
       "net-scan: no hosts found in shard databases.\n");
-    for (int i = 0; i < NET_SHARD_COUNT; i++)
-      if (shard_dbs[i]) net_db_close(shard_dbs[i]);
     return 0;
   }
 
@@ -646,8 +684,8 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
   int64_t emitted_total = 0;
   int64_t file_count = 0;
 
-  auto flush_batch = [&]() {
-    if (batch.empty()) return;
+  auto flush_batch = [&]() -> bool {
+    if (batch.empty()) return true;
     int64_t batch_start = emitted_total + 1;
     int64_t batch_count = static_cast<int64_t>(batch.size());
     int64_t batch_end = emitted_total + batch_count;
@@ -663,10 +701,7 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     if (!fp) {
       log_write(LOG_STDOUT,
         "net-scan: ERROR: cannot create %s\n", filename);
-      emitted_total = batch_end;
-      file_count++;
-      batch.clear();
-      return;
+      return false;
     }
 
     write_file_header(fp,
@@ -679,11 +714,24 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
       sqlite3 *db = shard_dbs[entry.shard_idx];
       std::vector<NetHost> ports;
       if (db) ports = net_db_get_host(db, entry.ip.c_str());
+      int read_status = db ? sqlite3_errcode(db) : SQLITE_MISUSE;
+      if (ports.empty() || (read_status != SQLITE_OK && read_status != SQLITE_DONE)) {
+        log_write(LOG_STDOUT, "net-scan: ERROR: cannot read report host %s%s%s\n",
+                  entry.ip.c_str(), db ? ": " : "", db ? sqlite3_errmsg(db) : "");
+        fclose(fp);
+        return false;
+      }
       write_host_section(fp, entry.ip, ports, summary);
     }
 
     write_file_summary(fp, summary);
-    fclose(fp);
+    bool written = ferror(fp) == 0;
+    if (fflush(fp) != 0) written = false;
+    if (fclose(fp) != 0) written = false;
+    if (!written) {
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot finish report %s\n", filename);
+      return false;
+    }
 
     double pct = 100.0 * static_cast<double>(batch_end) /
                  static_cast<double>(total_hosts);
@@ -697,6 +745,7 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     emitted_total = batch_end;
     file_count++;
     batch.clear();
+    return true;
   };
 
   for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
@@ -707,17 +756,26 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db,
           "SELECT DISTINCT ip FROM hosts",
-          -1, &stmt, nullptr) == SQLITE_OK) {
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const unsigned char *txt = sqlite3_column_text(stmt, 0);
-        if (txt) {
-          shard_ips.push_back({
-            std::string(reinterpret_cast<const char *>(txt)),
-            shard
-          });
-        }
+          -1, &stmt, nullptr) != SQLITE_OK) {
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot list hosts in shard %d: %s\n",
+                shard, sqlite3_errmsg(db));
+      return 1;
+    }
+    int read_status;
+    while ((read_status = sqlite3_step(stmt)) == SQLITE_ROW) {
+      const unsigned char *txt = sqlite3_column_text(stmt, 0);
+      if (txt) {
+        shard_ips.push_back({
+          std::string(reinterpret_cast<const char *>(txt)),
+          shard
+        });
       }
-      sqlite3_finalize(stmt);
+    }
+    int read_finalized = sqlite3_finalize(stmt);
+    if (read_status != SQLITE_DONE || read_finalized != SQLITE_OK) {
+      log_write(LOG_STDOUT, "net-scan: ERROR: cannot finish reading shard %d: %s\n",
+                shard, sqlite3_errmsg(db));
+      return 1;
     }
     if (shard_ips.empty()) continue;
 
@@ -734,17 +792,19 @@ int generate_findings(const char *data_dir, const char *findings_dir) {
 
     for (size_t idx : order) {
       batch.push_back(std::move(shard_ips[idx]));
-      if (static_cast<int64_t>(batch.size()) >= HOSTS_PER_FILE)
-        flush_batch();
+      if (static_cast<int64_t>(batch.size()) >= HOSTS_PER_FILE && !flush_batch())
+        return 1;
     }
     /* shard_ips + keys + order go out of scope here -- memory released
        before opening the next shard. */
   }
 
-  flush_batch();
-
-  for (int i = 0; i < NET_SHARD_COUNT; i++) {
-    if (shard_dbs[i]) net_db_close(shard_dbs[i]);
+  if (!flush_batch()) return 1;
+  if (emitted_total != total_hosts) {
+    log_write(LOG_STDOUT,
+      "net-scan: ERROR: report host count changed (%lld expected, %lld written).\n",
+      (long long)total_hosts, (long long)emitted_total);
+    return 1;
   }
 
   log_write(LOG_STDOUT,

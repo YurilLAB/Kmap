@@ -90,7 +90,7 @@ void json_write_stats(int up, int down, int total, float elapsed);
 
 /* Write the accumulated JSON document to the file chosen in
    json_initialize() and release all associated resources. */
-void json_finalize();
+bool json_finalize();
 
 /* -----------------------------------------------------------------------
  * Scan report output (--report)
@@ -109,6 +109,6 @@ void report_write_host(const Target *t);
 void report_write_stats(int up, int down, int total, float elapsed);
 
 /* Flush and close the report file. */
-void report_finalize();
+bool report_finalize();
 
 #endif /* OUTPUT_JSON_H */

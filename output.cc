@@ -2493,7 +2493,7 @@ void print_xml_hosts() {
 
 /* Prints the statistics and other information that goes at the very end
    of an Kmap run */
-void printfinaloutput() {
+bool printfinaloutput() {
   time_t timep;
   char mytime[128];
   int err = 0;
@@ -2539,9 +2539,33 @@ void printfinaloutput() {
     log_write(LOG_STDOUT | LOG_SKID, "           %s\n",
               getFinalPacketStats(statbuf, sizeof(statbuf)));
 
+  bool output_saved = true;
+  if (o.json_output_file) {
+    json_write_stats(static_cast<int>(o.numhosts_up),
+                     static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                     static_cast<int>(o.numhosts_scanned),
+                     o.TimeSinceStart(&tv));
+    output_saved = json_finalize() && output_saved;
+  }
+  if (o.yuril_export_dir) {
+    yuril_export_write_stats(static_cast<int>(o.numhosts_up),
+                             static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                             static_cast<int>(o.numhosts_scanned),
+                             o.TimeSinceStart(&tv));
+    yuril_export_finalize();
+  }
+  if (o.report_file) {
+    report_write_stats(static_cast<int>(o.numhosts_up),
+                       static_cast<int>(o.numhosts_scanned - o.numhosts_up),
+                       static_cast<int>(o.numhosts_scanned),
+                       o.TimeSinceStart(&tv));
+    output_saved = report_finalize() && output_saved;
+  }
+
   xml_start_tag("runstats");
   print_xml_finished_open(timep, &tv);
-  xml_attribute("exit", "success");
+  xml_attribute("exit", output_saved ? "success" : "error");
+  if (!output_saved) xml_attribute("errormsg", "Requested output could not be saved");
   xml_close_empty_tag();
   print_xml_hosts();
   xml_newline();
@@ -2570,29 +2594,8 @@ void printfinaloutput() {
   xml_end_tag(); /* kmaprun */
   xml_newline();
 
-  if (o.json_output_file) {
-    json_write_stats(static_cast<int>(o.numhosts_up),
-                     static_cast<int>(o.numhosts_scanned - o.numhosts_up),
-                     static_cast<int>(o.numhosts_scanned),
-                     o.TimeSinceStart(&tv));
-    json_finalize();
-  }
-  if (o.yuril_export_dir) {
-    yuril_export_write_stats(static_cast<int>(o.numhosts_up),
-                             static_cast<int>(o.numhosts_scanned - o.numhosts_up),
-                             static_cast<int>(o.numhosts_scanned),
-                             o.TimeSinceStart(&tv));
-    yuril_export_finalize();
-  }
-  if (o.report_file) {
-    report_write_stats(static_cast<int>(o.numhosts_up),
-                       static_cast<int>(o.numhosts_scanned - o.numhosts_up),
-                       static_cast<int>(o.numhosts_scanned),
-                       o.TimeSinceStart(&tv));
-    report_finalize();
-  }
-
   log_flush_all();
+  return output_saved;
 }
 
 /* A record consisting of a data file name ("kmap-services", "kmap-os-db",

@@ -2058,6 +2058,8 @@ void  apply_delayed_options() {
   if (o.yuril_export_dir) {
     yuril_export_initialize(o.yuril_export_dir);
   }
+  if (o.report_file)
+    report_initialize(o.report_file);
 
   if (o.verbose > 1)
     o.reason = true;
@@ -2682,6 +2684,12 @@ int kmap_main(int argc, char *argv[]) {
   HostGroupState hstate(o.ping_group_sz, o.randomize_hosts,
       o.generate_random_ips, o.max_ips_to_scan, argc, (const char **) argv);
 
+  auto write_additional_host_outputs = [](const Target *host) {
+    if (o.json_output_file) json_write_host(host);
+    if (o.yuril_export_dir) yuril_export_write_host(host);
+    if (o.report_file) report_write_host(host);
+  };
+
   do {
     ideal_scan_group_sz = determineScanGroupSize(o.numhosts_scanned, &ports);
 
@@ -2709,6 +2717,7 @@ int kmap_main(int argc, char *argv[]) {
           printtimes(currenths);
           xml_end_tag();
           xml_newline();
+          write_additional_host_outputs(currenths);
           log_flush_all();
         }
         delete currenths;
@@ -2733,6 +2742,7 @@ int kmap_main(int argc, char *argv[]) {
           write_host_header(currenths);
           xml_end_tag();
           xml_newline();
+          write_additional_host_outputs(currenths);
         }
         delete currenths;
         o.numhosts_scanned++;
@@ -2877,8 +2887,6 @@ int kmap_main(int argc, char *argv[]) {
       run_screenshot_capture(Targets, o.screenshot_dir);
     if (o.cve_map)
       run_cve_map(Targets, o.cve_min_score);
-    if (o.report_file)
-      report_initialize(o.report_file);
 
     for (targetno = 0; targetno < Targets.size(); targetno++) {
       currenths = Targets[targetno];
@@ -2897,6 +2905,7 @@ int kmap_main(int argc, char *argv[]) {
                   currenths->NameIP(hostname, sizeof(hostname)));
         log_write(LOG_MACHINE, "Host: %s (%s)\tStatus: Timeout\n",
                   currenths->targetipstr(), currenths->HostName());
+        write_additional_host_outputs(currenths);
       } else {
         /* --open means don't show any hosts without open ports. */
         if (o.openOnly() && !currenths->ports.hasOpenPorts())
@@ -2923,12 +2932,7 @@ int kmap_main(int argc, char *argv[]) {
         log_write(LOG_PLAIN | LOG_MACHINE, "\n");
         xml_end_tag(); /* host */
         xml_newline();
-        if (o.json_output_file)
-          json_write_host(currenths);
-        if (o.yuril_export_dir)
-          yuril_export_write_host(currenths);
-        if (o.report_file)
-          report_write_host(currenths);
+        write_additional_host_outputs(currenths);
       }
     }
     log_flush_all();
@@ -2963,7 +2967,7 @@ int kmap_main(int argc, char *argv[]) {
 
   printdatafilepaths();
 
-  printfinaloutput();
+  const bool output_saved = printfinaloutput();
 
   free_scan_lists(&ports);
 
@@ -2972,7 +2976,7 @@ int kmap_main(int argc, char *argv[]) {
   if (o.release_memory) {
     kmap_free_mem();
   }
-  return 0;
+  return output_saved ? 0 : 1;
 }
 
 /* Reads in a (normal or machine format) Kmap log file and gathers enough
@@ -2989,10 +2993,11 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
   struct sockaddr_storage *lastip = &o.resume_ip;
   int af = AF_INET; // default without -6 is ipv4
   size_t sslen;
-  char *p, *q, *found, *lastipstr; /* I love C! */
-  /* We mmap it read/write since we will change the last char to a newline if it is not already */
-  filestr = mmapfile(fname, &filelen, O_RDWR);
-  if (!filestr) {
+  char *p, *q, *found;
+  // Parse a private copy: a malformed log must never be damaged by temporary
+  // delimiters or by fatal() exiting before those delimiters are restored.
+  char *mapped = mmapfile(fname, &filelen, O_RDONLY);
+  if (!mapped) {
     pfatal("Could not mmap() %s file", fname);
   }
 
@@ -3000,9 +3005,22 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     fatal("Output file %s is too short -- no use resuming", fname);
   }
 
-  /* For now we terminate it with a NUL, but we will terminate the file with
-     a '\n' later */
-  filestr[filelen - 1] = '\0';
+  if (static_cast<u64>(filelen) >= static_cast<u64>(SIZE_MAX))
+    fatal("Output file %s is too large to resume", fname);
+  std::vector<char> contents(static_cast<size_t>(filelen) + 1);
+  memcpy(&contents[0], mapped, static_cast<size_t>(filelen));
+#ifdef WIN32
+  win32_munmap(mapped, 0);
+#else
+  if (munmap(mapped, filelen) != 0)
+    gh_perror("%s: error in munmap(%p, %ld)", __func__, mapped, filelen);
+#endif
+  filestr = &contents[0];
+  if (memchr(filestr, '\0', static_cast<size_t>(filelen)) != NULL)
+    fatal("Output file %s contains a NUL byte -- cannot safely resume", fname);
+  if (filestr[filelen - 1] != '\n')
+    fatal("Output file %s ends with an incomplete line -- cannot safely resume", fname);
+  filestr[filelen] = '\0';
 
   /* First goal is to find the kmap args */
   if ((p = strstr(filestr, " as: ")))
@@ -3098,11 +3116,11 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     found = NULL;
     while ((q = strstr(q, "\n<address addr=\""))) {
       q += 16;
-      found = strchr(q, '"');
-      if (!found)
+      char *address_end = strchr(q, '"');
+      if (!address_end)
         fatal("Unable to parse supposed log file %s.  Sorry", fname);
-      if ((af == AF_INET && !strncmp("\" addrtype=\"ipv4\"", found, 17))
-        || (af == AF_INET6 && !strncmp("\" addrtype=\"ipv6\"", found, 17))) {
+      if ((af == AF_INET && !strncmp("\" addrtype=\"ipv4\"", address_end, 17))
+        || (af == AF_INET6 && !strncmp("\" addrtype=\"ipv6\"", address_end, 17))) {
         found = q;
       }
     }
@@ -3129,35 +3147,28 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
         q = strchr(found, '\n');
         if (!q)
           fatal("Unable to parse supposed log file %s.  Sorry", fname);
-        *q = '\0';
-        p = strchr(found, '(');
-        if (!p) { /* No DNS reverse lookup, found should already contain IP */
-          lastipstr = strdup(found);
-        } else { /* DNS reverse lookup, IP is between parentheses */
-          *q = '\n';
-          q--;
-          *q = '\0';
-          lastipstr = strdup(p + 1);
+        // Normal logs may use either LF or CRLF. Strip only the line ending,
+        // then extract the optional hostname's parenthesized numeric address.
+        char *line_end = q;
+        if (line_end > found && line_end[-1] == '\r')
+          --line_end;
+        p = static_cast<char *>(memchr(found, '(', line_end - found));
+        std::string last_ip;
+        if (!p) {
+          last_ip.assign(found, line_end - found);
+        } else {
+          if (line_end <= p + 1 || line_end[-1] != ')')
+            fatal("Unable to parse supposed log file %s: missing address parenthesis", fname);
+          last_ip.assign(p + 1, line_end - p - 2);
         }
-        *q = p ? ')' : '\n'; /* recover changed chars */
-        if (resolve_numeric(lastipstr, 0, lastip, &sslen, af) != 0)
-          fatal("Unable to parse ip (%s) in supposed log file %s.  Sorry", lastipstr, fname);
-        free(lastipstr);
+        if (resolve_numeric(last_ip.c_str(), 0, lastip, &sslen, af) != 0)
+          fatal("Unable to parse ip (%s) in supposed log file %s.  Sorry", last_ip.c_str(), fname);
       } else {
         error("Warning: You asked for --resume but it doesn't look like any hosts in the log file were successfully scanned.  Starting from the beginning.");
         lastip->ss_family = AF_UNSPEC;
       }
     }
   }
-
-  /* Ensure the log file ends with a newline */
-  filestr[filelen - 1] = '\n';
-#ifdef WIN32
-  win32_munmap(filestr, static_cast<int>(filelen));
-#else
-  if (munmap(filestr, filelen) != 0)
-    gh_perror("%s: error in munmap(%p, %ld)", __func__, filestr, filelen);
-#endif
 
   return 0;
 }

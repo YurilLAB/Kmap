@@ -68,6 +68,9 @@
 #include "KmapOps.h"
 #include "utils.h"
 #include "kmap_error.h"
+#ifdef WIN32
+#include "winfix.h"
+#endif
 
 #ifdef MTRACE
 #include "mcheck.h"
@@ -160,6 +163,11 @@ int main(int argc, char *argv[]) {
   if (argc == 3 && strcmp("--resume", argv[1]) == 0) {
     /* OK, they want to resume an aborted scan given the log file specified.
        Lets gather our state from the log file */
+#ifdef WIN32
+    // Numeric getaddrinfo in resume parsing still requires Winsock startup.
+    // Full win_init must remain after option parsing (notably --unprivileged).
+    win_pre_init();
+#endif
     if (gather_logfile_resumption_state(argv[2], &myargc, &myargv) == -1) {
       fatal("Cannot resume from (supposed) log file %s", argv[2]);
     }

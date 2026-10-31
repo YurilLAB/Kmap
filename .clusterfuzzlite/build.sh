@@ -2,7 +2,7 @@
 #
 # OSS-Fuzz / ClusterFuzzLite build script.
 #
-# Compiles each libFuzzer target in fuzz/ossfuzz/ with the toolchain the
+# Compiles the dependency-light targets listed below with the toolchain the
 # fuzzing infra provides via the environment:
 #   $CXX                 clang++ from the oss-fuzz base-builder image
 #   $CXXFLAGS            includes -fsanitize=fuzzer-no-link plus the chosen
@@ -17,6 +17,8 @@
 # kmap/sqlite linkage is needed and the build stays trivial. The same sources
 # build locally with fuzz/ossfuzz/standalone_main.cc under plain g++ for
 # verification without clang.
+# The storage target fuzz_enrichment_store needs instrumented SQLite and
+# production database linkage; .github/workflows/fuzz.yml builds and runs it.
 
 TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape fuzz_proto fuzz_hassh fuzz_banner"
 

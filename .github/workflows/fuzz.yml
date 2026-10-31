@@ -61,6 +61,46 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
+  enrichment-libfuzzer:
+    name: Offline enrichment storage libFuzzer + ASan + UBSan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build storage handoff and instrument bundled SQLite
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/storage
+          clang++ --version | tee test-results/storage/compiler.txt
+          clang -O1 -g -fsanitize=fuzzer-no-link,address,undefined \
+            -fno-sanitize-recover=all -fno-omit-frame-pointer \
+            -DSQLITE_THREADSAFE=0 -DSQLITE_ENABLE_FTS5 \
+            -c sqlite/sqlite3.c -o test-results/storage/sqlite3.o \
+            2>&1 | tee test-results/storage/sqlite-build.log
+          clang++ -O1 -g -std=c++17 -pthread -I. -Inbase \
+            -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all \
+            -fno-omit-frame-pointer fuzz/ossfuzz/fuzz_enrichment_store.cc \
+            net_db.cc net_fp_helpers.cc test-results/storage/sqlite3.o -ldl \
+            -o test-results/storage/fuzzer \
+            2>&1 | tee test-results/storage/fuzzer-build.log
+      - name: Bounded offline transaction fuzzing with fixed seeds
+        run: |
+          python3 tests/run_offline_fuzz.py --binary test-results/storage/fuzzer --corpus fuzz/corpus/enrichment-store --output test-results/storage/seed-1 --seconds 30 --seed 1
+          python3 tests/run_offline_fuzz.py --binary test-results/storage/fuzzer --corpus fuzz/corpus/enrichment-store --output test-results/storage/seed-1337 --seconds 30 --seed 1337
+      - name: Preserve storage corpus, failures and statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrichment-libfuzzer-results
+          path: |
+            test-results/storage/seed-*/
+            test-results/storage/*.txt
+            test-results/storage/*.log
+          retention-days: 14
+
   json-libfuzzer:
     name: Real JSON serializer libFuzzer + ASan + UBSan
     runs-on: ubuntu-24.04

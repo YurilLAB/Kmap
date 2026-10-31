@@ -106,6 +106,13 @@ HARNESSES = {
     "persistence_boundary_test": Harness("tests/persistence_boundary_test.cc",
                                         coverage="production commit/checkpoint ordering + joined workers; owned fixtures",
                                         headers=("persistence_boundary.h", "scan_checkpoint.h", "joined_workers.h")),
+    "enrichment_store_test": Harness("tests/enrichment_store_test.cc",
+                                     ("net_db.cc", "net_fp_helpers.cc"), sqlite=True,
+                                     coverage="production enrichment storage handoff; inert records and real SQLite, no network",
+                                     headers=("enrichment_store.h", "net_db.h", "net_enrich.h", "net_fp_helpers.h")),
+    "watchlist_state_test": Harness("tests/watchlist_state_test.cc", ("net_db.cc",), sqlite=True,
+                                    coverage="production completed-watchlist membership; offline SQLite failure/recovery fixtures",
+                                    headers=("watchlist_state.h", "net_db.h")),
 }
 
 

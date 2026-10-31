@@ -25,12 +25,6 @@ PCRE2_10.47 {
     pcre2_get_ovector_count_16;
     pcre2_get_ovector_pointer_16;
     pcre2_get_startchar_16;
-    pcre2_jit_compile_16;
-    pcre2_jit_free_unused_memory_16;
-    pcre2_jit_match_16;
-    pcre2_jit_stack_assign_16;
-    pcre2_jit_stack_create_16;
-    pcre2_jit_stack_free_16;
     pcre2_maketables_16;
     pcre2_maketables_free_16;
     pcre2_match_16;
@@ -81,8 +75,7 @@ PCRE2_10.47 {
     pcre2_substring_nametable_scan_16;
     pcre2_substring_number_from_name_16;
   local:
-    _fini;
-    _init;
+    *;
 };
 
 # PCRE2_10.48 {} PCRE2_10.47;

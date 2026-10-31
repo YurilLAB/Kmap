@@ -16,6 +16,7 @@
 #endif
 
 #include "net_enrich.h"
+#include "enrichment_store.h"
 #include "net_fp_helpers.h"
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
 #include "sha256.h"             /* sha256_hex for http_body_sha256 */
@@ -1757,28 +1758,6 @@ int run_enrichment(const char *data_dir, int batch_size) {
    * net_db_get_host) and Stage C (per-host UPDATEs) still touch
    * the right shard handle via the shard_idx tracked on every
    * result entry. */
-  struct EnrichResult {
-    int shard_idx = -1;
-    std::string ip;
-    std::vector<int> ports;
-    std::vector<std::string> protos;
-    std::vector<std::string> services, versions, cves_json;
-    std::vector<std::string> web_titles, web_servers, web_headers, web_paths;
-    std::vector<std::string> powered_by, x_generator, redirects;
-    std::vector<TlsCapture> tls_caps;
-    std::vector<HostFingerprints> host_fps;
-    std::string hostname;
-    AsnInfo asn_info{};
-    CloudInfo cloud_info{};
-    int rc = 0;
-    bool empty_host = false;
-    /* Set when a worker declined this entry because the operator interrupted
-       the scan.  Distinct from rc: rc defaults to 0 (success), so without this
-       flag an unprocessed entry would look like a clean enrichment with no
-       data and Stage C would mark the host enriched, dropping it out of the
-       re-enrich queue with nothing collected. */
-    bool skipped = false;
-  };
 
   /* Worker / retry counts read once, applied globally. */
   int enrich_worker_count = 40;
@@ -1817,8 +1796,17 @@ int run_enrichment(const char *data_dir, int batch_size) {
       errors++;
       continue;
     }
-    total_hosts_all  += net_db_count(shard_dbs[shard]);
-    unenriched_total += net_db_count_unenriched(shard_dbs[shard]);
+    int64_t shard_total = 0, shard_pending = 0;
+    if (!net_enrichment_counts(shard_dbs[shard], shard_total, shard_pending)) {
+      log_write(LOG_STDOUT,
+        "net-scan: ERROR: cannot count hosts in %s -- skipping.\n", p.c_str());
+      ++errors;
+      net_db_close(shard_dbs[shard]);
+      shard_dbs[shard] = nullptr;
+      continue;
+    }
+    total_hosts_all += shard_total;
+    unenriched_total += shard_pending;
   }
 
   if (unenriched_total <= 0) {
@@ -1839,7 +1827,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
    * use the shared per-shard sqlite handles which we don't share
    * across worker threads, so this stage stays serial.  Cheap: one
    * SELECT per host, indexed lookup. */
-  std::vector<EnrichResult> results;
+  std::vector<NetEnrichResult> results;
   /* Reserve for what THIS pass can actually collect, not for the whole
      unenriched population.  The loop below pulls at most batch_size IPs per
      shard (net_db_get_unenriched's LIMIT), so the pass can never exceed
@@ -1859,7 +1847,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
     std::vector<std::string> batch_ips =
         net_db_get_unenriched(shard_dbs[shard], batch_size);
     for (const std::string &ip : batch_ips) {
-      EnrichResult r;
+      NetEnrichResult r;
       r.shard_idx = shard;
       r.ip = ip;
       std::vector<NetHost> host_ports =
@@ -2026,7 +2014,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
     while (true) {
       size_t i = next_idx.fetch_add(1, std::memory_order_relaxed);
       if (i >= results.size()) return;
-      EnrichResult &r = results[i];
+      NetEnrichResult &r = results[i];
       if (r.empty_host) continue;
 
       /* Stop taking NEW hosts once the operator has hit Ctrl+C. The pass used
@@ -2127,168 +2115,16 @@ int run_enrichment(const char *data_dir, int batch_size) {
   /* Stage C: serial DB writes, grouped by shard so each shard's
    * UPDATEs land inside one transaction.  Iterate shards outer-most;
    * for each shard, iterate results that belong to it. */
-  int64_t processed = 0;
-  for (int shard = 0; shard < NET_SHARD_COUNT; shard++) {
-    sqlite3 *db = shard_dbs[shard];
-    if (!db) continue;
-    /* Skip the transaction-begin entirely when this shard has no
-     * results, to avoid pointless write-locks. */
-    bool any_for_this_shard = false;
-    for (const auto &r : results) {
-      if (r.shard_idx == shard) { any_for_this_shard = true; break; }
-    }
-    if (!any_for_this_shard) continue;
-
-    net_db_begin(db);
-    for (auto &r : results) {
-      if (r.shard_idx != shard) continue;
-      if (r.empty_host) continue;
-      /* Never enriched (scan interrupted before a worker took it) -- leave the
-         row untouched so it stays in the unenriched queue for the next run. */
-      if (r.skipped) continue;
-      if (r.rc != 0) {
-        if (o.verbose) {
-          log_write(LOG_STDOUT,
-            "  WARNING: enrichment failed for %s after retries, "
-            "will retry later\n", r.ip.c_str());
-        }
-        char err_buf[64];
-        snprintf(err_buf, sizeof(err_buf),
-                 "enrich_single_host rc=%d", r.rc);
-        for (size_t j = 0; j < r.ports.size(); j++) {
-          net_db_record_enrichment_error(db, r.ip.c_str(),
-                                         r.ports[j], err_buf);
-        }
-        continue;
-      }
-
-      if (!r.hostname.empty())
-        net_db_set_hostname(db, r.ip.c_str(), r.hostname.c_str());
-
-      for (size_t j = 0; j < r.ports.size(); j++) {
-        std::string enr_cpe = net_enrich_cpe_for(
-          j < r.services.size() ? r.services[j] : std::string(),
-          j < r.versions.size() ? r.versions[j] : std::string());
-        net_db_update_enrichment(
-          db, r.ip.c_str(), r.ports[j],
-          j < r.services.size()    ? r.services[j].c_str()    : "",
-          j < r.versions.size()    ? r.versions[j].c_str()    : "",
-          j < r.cves_json.size()   ? r.cves_json[j].c_str()   : "",
-          j < r.web_titles.size()  ? r.web_titles[j].c_str()  : "",
-          j < r.web_servers.size() ? r.web_servers[j].c_str() : "",
-          j < r.web_headers.size() ? r.web_headers[j].c_str() : "",
-          j < r.web_paths.size()   ? r.web_paths[j].c_str()   : "",
-          j < r.powered_by.size()  ? r.powered_by[j].c_str()  : nullptr,
-          j < r.x_generator.size() ? r.x_generator[j].c_str() : nullptr,
-          j < r.redirects.size()   ? r.redirects[j].c_str()   : nullptr,
-          nullptr,                                  /* robots_disallowed_json */
-          enr_cpe.empty() ? nullptr : enr_cpe.c_str());
-
-        if (j < r.tls_caps.size()) {
-          const TlsCapture &tc = r.tls_caps[j];
-          bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
-                          !tc.sha256.empty()     || !tc.protocol.empty();
-          if (have_tls) {
-            net_db_update_tls(
-              db, r.ip.c_str(), r.ports[j],
-              tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
-              tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
-              tc.san_json.empty()   ? nullptr : tc.san_json.c_str(),
-              tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
-              tc.self_signed,
-              tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
-              tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
-          }
-        }
-      }
-
-      if (r.asn_info.asn > 0) {
-        net_db_update_asn(db, r.ip.c_str(), r.asn_info.asn,
-                          r.asn_info.as_name.c_str(),
-                          r.asn_info.country.c_str(),
-                          r.asn_info.bgp_prefix.c_str(),
-                          r.asn_info.registry.c_str(),
-                          r.asn_info.region.c_str());
-      }
-      /* Cloud match is independent of ASN -- a host can be in a cloud range
-         with no ASN result, so this is NOT gated on asn > 0. */
-      if (!r.cloud_info.provider.empty()) {
-        net_db_update_cloud(db, r.ip.c_str(),
-                            r.cloud_info.provider.c_str(),
-                            r.cloud_info.region.empty()  ? nullptr : r.cloud_info.region.c_str(),
-                            r.cloud_info.service.empty() ? nullptr : r.cloud_info.service.c_str());
-      }
-
-      uint32_t ip_u32 = ip_to_u32(r.ip.c_str());
-      if (ip_u32 != 0) {
-        int64_t fp_ts = static_cast<int64_t>(time(nullptr));
-        if (!r.hostname.empty()) {
-          net_db_insert_fingerprint(db, ip_u32, 0, "hostname",
-                                    r.hostname.c_str(), fp_ts);
-        }
-        for (size_t j = 0; j < r.ports.size(); j++) {
-          if (j < r.tls_caps.size()) {
-            const TlsCapture &tc = r.tls_caps[j];
-            if (!tc.sha256.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "tls_sha256",
-                                        tc.sha256.c_str(), fp_ts);
-            }
-            if (!tc.subject_cn.empty() && !fp_looks_like_ip(tc.subject_cn)) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "tls_subject_cn",
-                                        tc.subject_cn.c_str(), fp_ts);
-            }
-            if (!tc.san_json.empty()) {
-              std::vector<std::string> sans =
-                  fp_parse_san_json(tc.san_json);
-              for (const std::string &san : sans) {
-                if (san.empty() || fp_looks_like_ip(san)) continue;
-                net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                          "tls_san",
-                                          san.c_str(), fp_ts);
-              }
-            }
-          }
-          if (j < r.redirects.size() && !r.redirects[j].empty()) {
-            std::string rh = fp_extract_redirect_host(r.redirects[j]);
-            if (!rh.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "redirect_host",
-                                        rh.c_str(), fp_ts);
-            }
-          }
-          /* Active fingerprints (ASCII-safe values: a decimal mmh3 and a hex
-             SHA-256 -- no JSON/control-char escaping needed). */
-          if (j < r.host_fps.size()) {
-            const HostFingerprints &fp = r.host_fps[j];
-            if (!fp.favicon_mmh3.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "favicon_mmh3",
-                                        fp.favicon_mmh3.c_str(), fp_ts);
-            }
-            if (!fp.body_sha256.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "http_body_sha256",
-                                        fp.body_sha256.c_str(), fp_ts);
-            }
-            if (!fp.hassh.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "hassh",
-                                        fp.hassh.c_str(), fp_ts);
-            }
-            if (!fp.jarm.empty()) {
-              net_db_insert_fingerprint(db, ip_u32, r.ports[j],
-                                        "jarm",
-                                        fp.jarm.c_str(), fp_ts);
-            }
-          }
-        }
-      }
-      processed++;
-    }
-    net_db_commit(db);
+  if (o.verbose) for (const auto &r : results) {
+    if (!r.empty_host && !r.skipped && r.rc != 0)
+      log_write(LOG_STDOUT,
+        "  WARNING: enrichment failed for %s after retries, will retry later\n",
+        r.ip.c_str());
   }
+  const NetEnrichStoreStatus stored = net_store_enrichment_results(
+      shard_dbs, results, net_enrich_cpe_for);
+  const int64_t processed = stored.written;
+  errors += stored.failed_shards;
 
   /* Close every shard handle. */
   for (auto *db : shard_dbs) if (db) net_db_close(db);
@@ -2298,7 +2134,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
     format_count(processed).c_str());
   net_event_log("INFO", "enrichment pass: %lld host(s) written%s",
                 (long long)processed,
-                errors > 0 ? " (with shard open errors)" : "");
+                errors > 0 ? " (with shard storage errors)" : "");
   {
     EnrichMetrics m = enrich_get_metrics();
     if (m.hosts_done > 0) {
@@ -2312,7 +2148,7 @@ int run_enrichment(const char *data_dir, int batch_size) {
   }
   if (errors > 0) {
     log_write(LOG_STDOUT,
-      "net-scan: %d shard open error(s) during enrichment.\n", errors);
+      "net-scan: %d shard storage error(s) during enrichment.\n", errors);
   }
 
   /* Release the shared CVE DB handle now that every shard's worker

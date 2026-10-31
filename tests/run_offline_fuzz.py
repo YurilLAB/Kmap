@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded offline libFuzzer JSON serializer run with replayable evidence."""
+"""Bounded offline libFuzzer run with a frozen seed corpus and replayable evidence."""
 import argparse
 import hashlib
 import json
@@ -17,6 +17,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--corpus", type=Path,
+                        default=Path(__file__).resolve().parents[1] / "fuzz/corpus/jsonescape")
     args = parser.parse_args()
     if not 1 <= args.seconds <= 600 or not 1 <= args.seed <= 2147483647:
         parser.error("seconds must be 1..600; seed must be 1..2147483647")
@@ -28,19 +30,20 @@ def main():
     artifacts = output / "artifacts"
     corpus.mkdir()
     artifacts.mkdir()
-    seeds = Path(__file__).resolve().parents[1] / "fuzz/corpus/jsonescape"
+    seeds = args.corpus.resolve(strict=True)
     seed_hashes = {}
     for path in sorted(seeds.iterdir()):
         if path.is_file():
             shutil.copyfile(path, corpus / path.name)
             seed_hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
     if not seed_hashes:
-        raise RuntimeError("JSON fuzz corpus is empty")
+        raise RuntimeError("Fuzz seed corpus is empty")
     command = [str(binary), str(corpus), f"-seed={args.seed}",
                f"-max_total_time={args.seconds}", "-timeout=5",
                "-rss_limit_mb=512", "-max_len=4096", "-print_final_stats=1",
                f"-artifact_prefix={artifacts}{os.sep}"]
     result = {"command": command, "seed": args.seed, "budget_seconds": args.seconds,
+              "seed_corpus": str(seeds),
               "max_input_bytes": 4096, "initial_corpus_sha256": seed_hashes,
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
     started = time.monotonic()

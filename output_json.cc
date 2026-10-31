@@ -76,6 +76,7 @@
 #include "third-party/nlohmann/json.hpp"
 
 #include "kmap.h"
+#include "KmapOps.h"
 #include "Target.h"
 #include "portlist.h"
 #include "portreasons.h"
@@ -95,6 +96,7 @@
 #include <string>
 #include <cstdio>
 #include <cctype>
+#include <memory>
 
 /* -----------------------------------------------------------------------
  * Module-level state
@@ -102,6 +104,7 @@
 
 static nlohmann::json g_doc;        // The single JSON document built during a scan
 static std::string   g_filename;    // Where to write it at finalize time
+extern KmapOps o;
 
 /* -----------------------------------------------------------------------
  * Public API implementation
@@ -440,10 +443,12 @@ nlohmann::json build_host_json(const Target *t) {
     /* status */
     {
         nlohmann::json status;
-        status["state"]  = (t->flags & HOST_UP) ? "up" : "down";
+        status["state"]  = o.listscan ? "unknown" : ((t->flags & HOST_UP) ? "up" : "down");
         status["reason"] = std::string(reason_str(t->reason.reason_id, SINGULAR));
         host["status"] = std::move(status);
     }
+    if (t->timedOut(nullptr))
+        host["timedout"] = true;
 
     /* addresses (IP + MAC + vendor) */
     {
@@ -536,17 +541,18 @@ void json_write_stats(int up, int down, int total, float elapsed) {
     g_doc["stats"]["elapsed"]     = static_cast<double>(elapsed);
 }
 
-void json_finalize() {
+bool json_finalize() {
     if (g_filename.empty())
-        return;
+        return true;
 
+    bool saved = true;
     std::ofstream ofs(g_filename);
     if (!ofs.is_open()) {
-        /* Non-fatal: just report and move on so the rest of the scan output
-           is not disrupted. */
         fprintf(stderr, "KMAP WARNING: Could not open JSON output file %s for writing.\n",
                 g_filename.c_str());
-        return;
+        g_doc = nlohmann::json{};
+        g_filename.clear();
+        return false;
     }
 
     try {
@@ -560,23 +566,23 @@ void json_finalize() {
         ofs << g_doc.dump(2, ' ', false,
                           nlohmann::json::error_handler_t::replace) << "\n";
     } catch (...) {
+        saved = false;
         fprintf(stderr, "KMAP WARNING: Failed to write JSON output to %s (serialization error).\n",
                 g_filename.c_str());
     }
+    ofs.flush();
+    /* Closing can report a buffered-write failure too. Parentheses avoid
+       nbase_winunix.h's close(x) macro on Windows. */
+    (ofs.close)();
     if (ofs.fail()) {
+        saved = false;
         fprintf(stderr, "KMAP WARNING: Write error on JSON output file %s (disk full?).\n",
                 g_filename.c_str());
     }
-    /* Parenthesize the member name so the preprocessor sees ')' next
-     * after 'close' and skips expanding nbase_winunix.h's
-     * #define close(x) closesocket(x). Without this, MSVC mangles
-     * ofs.close() into ofs.closesocket() and fails to find the
-     * member. */
-    (ofs.close)();
-
     /* Release memory. */
     g_doc  = nlohmann::json{};
     g_filename.clear();
+    return saved;
 }
 
 /* =======================================================================
@@ -612,10 +618,10 @@ struct RptHost {
     std::string hostname;
     std::string status;
     std::vector<RptPort> ports;
-    /* Feature data pointers — may be null */
-    const void *cred_data;
-    const void *web_data;
-    const void *cve_data;
+    /* Targets are destroyed before the report is finalized. Own snapshots. */
+    std::unique_ptr<TargetCredData> cred_data;
+    std::unique_ptr<TargetWebData> web_data;
+    std::unique_ptr<TargetCveData> cve_data;
 };
 static std::vector<RptHost> rpt_hosts;
 static int rpt_up = 0, rpt_down = 0, rpt_total = 0;
@@ -658,7 +664,8 @@ void report_write_host(const Target *t) {
     h.ip = t->targetipstr();
     if (t->HostName() && *t->HostName())
         h.hostname = t->HostName();
-    h.status = (t->flags & HOST_UP) ? "up" : "down";
+    h.status = t->timedOut(nullptr) ? "timeout" :
+        (o.listscan ? "unknown" : ((t->flags & HOST_UP) ? "up" : "down"));
 
     /* Collect ports */
     const PortList &plist = t->ports;
@@ -682,10 +689,13 @@ void report_write_host(const Target *t) {
         h.ports.push_back(rp);
     }
 
-    /* Grab feature data pointers */
-    h.cred_data = t->attribute.get("kmap_default_creds");
-    h.web_data  = t->attribute.get("kmap_web_recon");
-    h.cve_data  = t->attribute.get("kmap_cve_map");
+    /* Copy while the Target still owns these records. */
+    if (const auto *data = static_cast<const TargetCredData *>(t->attribute.get("kmap_default_creds")))
+        h.cred_data = std::make_unique<TargetCredData>(*data);
+    if (const auto *data = static_cast<const TargetWebData *>(t->attribute.get("kmap_web_recon")))
+        h.web_data = std::make_unique<TargetWebData>(*data);
+    if (const auto *data = static_cast<const TargetCveData *>(t->attribute.get("kmap_cve_map")))
+        h.cve_data = std::make_unique<TargetCveData>(*data);
 
     rpt_hosts.push_back(std::move(h));
 }
@@ -750,7 +760,7 @@ static void write_txt_report(std::ofstream &f) {
         /* Default credentials */
         if (h.cred_data) {
             const auto *cd = static_cast<const std::vector<PortCredResults>*>(
-                &(static_cast<const TargetCredData *>(h.cred_data)->results));
+                &(h.cred_data.get()->results));
             if (cd && !cd->empty()) {
                 f << "  DEFAULT CREDENTIALS\n";
                 f << "  " << thin << "\n";
@@ -772,7 +782,7 @@ static void write_txt_report(std::ofstream &f) {
 
         /* Web recon */
         if (h.web_data) {
-            const auto *wd = &(static_cast<const TargetWebData *>(h.web_data)->results);
+            const auto *wd = &(h.web_data.get()->results);
             if (wd && !wd->empty()) {
                 f << "  WEB RECON\n";
                 f << "  " << thin << "\n";
@@ -812,7 +822,7 @@ static void write_txt_report(std::ofstream &f) {
 
         /* CVE map */
         if (h.cve_data) {
-            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            const auto *cvd = &(h.cve_data.get()->port_results);
             if (cvd && !cvd->empty()) {
                 f << "  CVE MAP\n";
                 f << "  " << thin << "\n";
@@ -858,11 +868,11 @@ static void write_txt_report(std::ofstream &f) {
     for (const auto &h : rpt_hosts) {
         total_ports += static_cast<int>(h.ports.size());
         if (h.cred_data) {
-            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            const auto *cd = &(h.cred_data.get()->results);
             if (cd) for (const auto &pcr : *cd) total_creds += static_cast<int>(pcr.hits.size());
         }
         if (h.cve_data) {
-            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            const auto *cvd = &(h.cve_data.get()->port_results);
             if (cvd) for (const auto &pr : *cvd) total_cves += static_cast<int>(pr.cves.size());
         }
     }
@@ -909,7 +919,7 @@ static void write_md_report(std::ofstream &f) {
 
         /* Default credentials */
         if (h.cred_data) {
-            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            const auto *cd = &(h.cred_data.get()->results);
             if (cd && !cd->empty()) {
                 f << "### Default Credentials Found\n\n";
                 f << "| Port | Service | Username | Password | Status |\n";
@@ -932,7 +942,7 @@ static void write_md_report(std::ofstream &f) {
 
         /* Web recon */
         if (h.web_data) {
-            const auto *wd = &(static_cast<const TargetWebData *>(h.web_data)->results);
+            const auto *wd = &(h.web_data.get()->results);
             if (wd && !wd->empty()) {
                 f << "### Web Recon\n\n";
                 for (const auto &r : *wd) {
@@ -972,7 +982,7 @@ static void write_md_report(std::ofstream &f) {
 
         /* CVE map */
         if (h.cve_data) {
-            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            const auto *cvd = &(h.cve_data.get()->port_results);
             if (cvd && !cvd->empty()) {
                 f << "### CVE Map\n\n";
                 for (const auto &pr : *cvd) {
@@ -1006,11 +1016,11 @@ static void write_md_report(std::ofstream &f) {
     for (const auto &h : rpt_hosts) {
         total_ports += static_cast<int>(h.ports.size());
         if (h.cred_data) {
-            const auto *cd = &(static_cast<const TargetCredData *>(h.cred_data)->results);
+            const auto *cd = &(h.cred_data.get()->results);
             if (cd) for (const auto &pcr : *cd) total_creds += static_cast<int>(pcr.hits.size());
         }
         if (h.cve_data) {
-            const auto *cvd = &(static_cast<const TargetCveData *>(h.cve_data)->port_results);
+            const auto *cvd = &(h.cve_data.get()->port_results);
             if (cvd) for (const auto &pr : *cvd) total_cves += static_cast<int>(pr.cves.size());
         }
     }
@@ -1029,9 +1039,9 @@ static void write_md_report(std::ofstream &f) {
     f << "*Generated by [Kmap](https://github.com/YurilLAB/Kmap)*\n";
 }
 
-void report_finalize() {
+bool report_finalize() {
     if (rpt_filename.empty())
-        return;
+        return true;
 
     std::ofstream ofs(rpt_filename);
     if (!ofs.is_open()) {
@@ -1041,7 +1051,7 @@ void report_finalize() {
            is not disrupted. */
         rpt_hosts.clear();
         rpt_filename.clear();
-        return;
+        return false;
     }
 
     if (rpt_markdown)
@@ -1049,15 +1059,18 @@ void report_finalize() {
     else
         write_txt_report(ofs);
 
-    if (ofs.fail()) {
+    ofs.flush();
+    /* Check the close as well as insertion/flush: buffered errors matter. */
+    (ofs.close)();
+    const bool saved = !ofs.fail();
+    if (!saved) {
         fprintf(stderr, "KMAP WARNING: Write error on report file %s (disk full?).\n",
                 rpt_filename.c_str());
     }
-    /* See parenthesize-to-suppress-macro note above. */
-    (ofs.close)();
-
-    log_write(LOG_STDOUT, "Report written to %s\n", rpt_filename.c_str());
+    if (saved)
+        log_write(LOG_STDOUT, "Report written to %s\n", rpt_filename.c_str());
 
     rpt_hosts.clear();
     rpt_filename.clear();
+    return saved;
 }

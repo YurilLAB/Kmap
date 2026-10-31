@@ -87,12 +87,16 @@ static void win_cleanup(void);
    WSAStartup() as some of the option parsing code does DNS
    resolution */
 void win_pre_init() {
+	static bool initialized = false;
 	WORD werd;
 	WSADATA data;
+	if (initialized)
+		return;
 
 	werd = MAKEWORD( 2, 2 );
 	if( (WSAStartup(werd, &data)) !=0 )
 		fatal("failed to start winsock.\n");
+	initialized = true;
 	atexit(win_cleanup);
 }
 
