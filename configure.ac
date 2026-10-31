@@ -65,6 +65,41 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
 CXXFLAGS="$CXXFLAGS -std=c++17"
+
+dnl Kmap uses std::thread even when optional dependencies do not need pthreads.
+dnl Test the actual C++ link requirement, including cross-compilation. Keep the
+dnl selected driver flag in LIBS too: the final link does not use CXXFLAGS.
+AC_LANG_PUSH([C++])
+AC_MSG_CHECKING([for C++ thread support])
+kmap_saved_CXXFLAGS="$CXXFLAGS"
+kmap_saved_LIBS="$LIBS"
+kmap_threads_found=no
+for kmap_thread_option in -pthread none -mt -lpthread; do
+  CXXFLAGS="$kmap_saved_CXXFLAGS"
+  LIBS="$kmap_saved_LIBS"
+  case "$kmap_thread_option" in
+    -pthread | -mt)
+      CXXFLAGS="$CXXFLAGS $kmap_thread_option"
+      LIBS="$LIBS $kmap_thread_option"
+      ;;
+    -lpthread)
+      CXXFLAGS="$CXXFLAGS -D_REENTRANT"
+      LIBS="$LIBS -lpthread"
+      ;;
+  esac
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <thread>]],
+    [[std::thread worker([] {}); worker.join();]])],
+    [kmap_threads_found=yes; break], [])
+done
+if test "$kmap_threads_found" = no; then
+  CXXFLAGS="$kmap_saved_CXXFLAGS"
+  LIBS="$kmap_saved_LIBS"
+  AC_MSG_RESULT([no])
+  AC_MSG_ERROR([C++ threads are required; check CXXFLAGS, LDFLAGS and LIBS])
+fi
+AC_MSG_RESULT([$kmap_thread_option])
+AC_LANG_POP([C++])
+
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_AWK
