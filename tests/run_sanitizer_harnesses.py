@@ -28,6 +28,7 @@ class Harness:
     runs: tuple = ((),)
     sqlite: bool = False
     coverage: str = "copied model/parser; not production linkage"
+    headers: tuple = ()  # Explicit production headers included by new regressions.
 
 
 SEEDED = (("1",), ("1337",))
@@ -83,7 +84,26 @@ HARNESSES = {
                                       coverage="production graph JSON emitter; strict independent UTF-8 oracle"),
     "topology_assemble_test": Harness("tests/topology_assemble_test.cc",
                                       ("net_db.cc",), sqlite=True,
-                                      coverage="production topology assembly header + storage; recorded traces only"),
+                                      coverage="production topology assembly/persistence + storage; recorded traces only",
+                                      headers=("topology_assemble.h", "topology_store.h", "tracemap.h", "net_db.h")),
+    "checkpoint_persistence_test": Harness("tests/checkpoint_persistence_test.cc",
+                                          coverage="production checkpoint parsing/atomic file replacement; owned local fixtures",
+                                          headers=("scan_checkpoint.h",)),
+    "scheduler_progress_test": Harness("tests/scheduler_progress_test.cc",
+                                      coverage="production work ownership/checkpoint helper; bounded offline threads",
+                                      headers=("work_progress.h",)),
+    "joined_workers_test": Harness("tests/joined_workers_test.cc",
+                                   coverage="production worker exception/join helper; inert jobs and injected startup failure",
+                                   headers=("joined_workers.h",)),
+    "net_db_failure_test": Harness("tests/net_db_failure_test.cc", ("net_db.cc",), sqlite=True,
+                                   coverage="production storage errors/atomic bulk rollback + real SQLite",
+                                   headers=("net_db.h",)),
+    "net_db_lifecycle_test": Harness("tests/net_db_lifecycle_test.cc", ("entity_graph.cc", "net_db.cc"),
+                                     sqlite=True, coverage="production storage/graph lifecycle and recovery + real SQLite",
+                                     headers=("net_db.h", "entity_graph.h", "json_escape.h", "third-party/nlohmann/json.hpp")),
+    "persistence_boundary_test": Harness("tests/persistence_boundary_test.cc",
+                                        coverage="production commit/checkpoint ordering + joined workers; owned fixtures",
+                                        headers=("persistence_boundary.h", "scan_checkpoint.h", "joined_workers.h")),
 }
 
 
@@ -96,7 +116,7 @@ def validate_manifest(root):
     for name, harness in HARNESSES.items():
         if not harness.runs:
             raise ValueError(f"{name} has no scheduled executions")
-        for source in (harness.source, *harness.links):
+        for source in (harness.source, *harness.links, *harness.headers):
             if not (root / source).is_file():
                 raise ValueError(f"{name} source is missing: {source}")
 
@@ -213,7 +233,7 @@ def main():
     cc = shlex.split(os.environ.get("CC", "cc"))
     cxx = shlex.split(os.environ.get("CXX", "g++"))
     sources = {source for name in selected
-               for source in (HARNESSES[name].source, *HARNESSES[name].links)}
+               for source in (HARNESSES[name].source, *HARNESSES[name].links, *HARNESSES[name].headers)}
     if any(HARNESSES[name].sqlite for name in selected):
         sources.add("sqlite/sqlite3.c")
     metadata = {"selected_harnesses": {name: asdict(HARNESSES[name]) for name in selected},

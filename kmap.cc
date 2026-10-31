@@ -107,6 +107,7 @@
 
 #include <fcntl.h>
 #include <climits>
+#include <cmath>
 #include <cerrno>   /* errno / ERANGE for the strtol/strtoll range checks */
 
 #ifdef HAVE_PWD_H
@@ -176,13 +177,25 @@ static int parse_int_arg(const char *name, const char *arg, int lo, int hi) {
   /* strtol saturates to LONG_MIN/LONG_MAX and sets ERANGE on overflow. On
      LLP64 Windows long is 32-bit, so a value like 99999999999999 saturates to
      LONG_MAX and, without this check, passed the [lo,hi] test whenever hi was
-     INT_MAX (e.g. --nq-asn) -- a garbage 4-byte ASN was silently accepted and
-     matched nothing. Treat saturation as out of range. */
+     INT_MAX. Treat saturation as out of range. */
   if (errno == ERANGE)
     fatal("--%s: value '%s' is out of range [%d..%d]", name, arg, lo, hi);
   if (v < lo || v > hi)
     fatal("--%s: value %ld out of range [%d..%d]", name, v, lo, hi);
   return (int)v;
+}
+
+/* ASNs cover the unsigned 32-bit range, including values above INT_MAX. */
+static int64_t parse_asn_arg(const char *arg) {
+  if (!arg || !*arg) fatal("--nq-asn requires a numeric argument");
+  for (const char *p = arg; *p; ++p)
+    if (*p < '0' || *p > '9') fatal("--nq-asn: '%s' is not a valid integer", arg);
+  char *end = nullptr;
+  errno = 0;
+  const unsigned long long value = strtoull(arg, &end, 10);
+  if (errno == ERANGE || *end || value < 1 || value > UINT32_MAX)
+    fatal("--nq-asn: value '%s' out of range [1..4294967295]", arg);
+  return static_cast<int64_t>(value);
 }
 
 /* Parse a float argument with bounds. Aborts on invalid input. */
@@ -193,7 +206,7 @@ static double parse_float_arg(const char *name, const char *arg,
   double v = strtod(arg, &end);
   if (end == arg || *end != '\0')
     fatal("--%s: '%s' is not a valid number", name, arg);
-  if (v < lo || v > hi)
+  if (!std::isfinite(v) || v < lo || v > hi)
     fatal("--%s: value %g out of range [%g..%g]", name, v, lo, hi);
   return v;
 }
@@ -337,7 +350,7 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.net_query = true; o.nq_count = true; return true;
   } else if (strcmp(name, "nq-asn") == 0) {
     o.net_query = true;
-    o.nq_asn = parse_int_arg("nq-asn", arg, 1, INT_MAX);
+    o.nq_asn = parse_asn_arg(arg);
     return true;
   } else if (strcmp(name, "nq-country") == 0) {
     o.net_query = true; o.nq_country = strdup(arg); return true;

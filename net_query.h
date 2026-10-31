@@ -8,12 +8,13 @@
 
 #ifndef NET_QUERY_H
 #define NET_QUERY_H
+#include <cstdint>
 
 /* Run a query across net-scan shard databases.
  *   data_dir    — directory containing shard_NNN.db files
  *   port        — filter by port number (0 = no filter)
  *   service     — filter by service name substring (NULL = no filter)
- *   cve         — filter by CVE ID substring (NULL = no filter)
+ *   cve         - filter by exact CVE ID, case-insensitive (NULL = no filter)
  *   min_cvss    — filter by minimum CVSS score (0.0 = no filter)
  *   web_title   — filter by web page title substring (NULL = no filter)
  *   web_server  — filter by server header substring (NULL = no filter)
@@ -38,7 +39,7 @@ int run_net_query(const char *data_dir,
                   const char *web_title,
                   const char *web_server,
                   const char *ip_range,
-                  int asn,
+                  int64_t asn,
                   const char *country,
                   const char *device_class,
                   const char *output_file,

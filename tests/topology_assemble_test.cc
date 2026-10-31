@@ -1,6 +1,7 @@
 /* Actual shipping topology assembler, exercised only with recorded fixtures.
  * No traceroute, DNS, sockets or external programs are involved. */
 #include "../topology_assemble.h"
+#include "../topology_store.h"
 #include "../net_db.h"
 #include <array>
 #include <cstdio>
@@ -8,6 +9,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <random>
+#include <cstring>
 
 static int failures = 0;
 #define CHECK(expr) do { if (!(expr)) { \
@@ -34,21 +36,10 @@ static const TopoEdge &edge(const Topology &t) {
 }
 
 static void persist(sqlite3 *db, const Topology &topology) {
-  for (const auto &n : topology.nodes) {
-    NetTopoNode value{};
-    value.ip_u32 = ip_to_u32(n.ip.c_str());
-    value.path_count = n.path_count; value.avg_rtt_ms = n.avg_rtt_ms;
-    value.rtt_sample_count = n.rtt_sample_count; value.last_seen = 1;
-    CHECK(net_db_upsert_topo_node(db, value) == 0);
-  }
-  for (const auto &e : topology.edges) {
-    NetTopoEdge value{};
-    value.from_u32 = ip_to_u32(e.from_ip.c_str());
-    value.to_u32 = ip_to_u32(e.to_ip.c_str());
-    value.path_count = e.path_count; value.avg_latency_ms = e.avg_latency_ms;
-    value.latency_sample_count = e.latency_sample_count; value.last_seen = 1;
-    CHECK(net_db_upsert_topo_edge(db, value) == 0);
-  }
+  int nodes = 0, edges = 0;
+  CHECK(persist_topology(db, topology, 1, nodes, edges));
+  CHECK(nodes == static_cast<int>(topology.nodes.size()));
+  CHECK(edges == static_cast<int>(topology.edges.size()));
 }
 
 static void check_store(sqlite3 *db, const Topology &expected) {
@@ -116,13 +107,51 @@ static void legacy_migration() {
                               near(edges[0].avg_latency_ms, 20));
     CHECK(sqlite3_close(db) == SQLITE_OK);
   }
+  if (failures) {
+    std::fprintf(stderr, "retained migration fixtures: %s\n", directory.string().c_str());
+    return;
+  }
   std::error_code error;
   for (const char *name : {"legacy.db", "legacy.db-wal", "legacy.db-shm", "legacy.db-journal"})
     std::filesystem::remove(directory / name, error);
   std::filesystem::remove(directory, error);
 }
 
+static int deny_commit(void *, int action, const char *operation,
+                       const char *, const char *, const char *) {
+  return action == SQLITE_TRANSACTION && operation &&
+         std::strcmp(operation, "COMMIT") == 0 ? SQLITE_DENY : SQLITE_OK;
+}
+
+static void persistence_failures() {
+  sqlite3 *db = net_db_open(":memory:");
+  CHECK(db != nullptr);
+  if (!db) return;
+  const auto graph = build_topology({trace(10, 20)}, SOURCE);
+  const char *reject_edge = "CREATE TRIGGER reject_edge BEFORE INSERT ON topo_edges "
+                            "BEGIN SELECT RAISE(ABORT,'fixture rejected edge'); END";
+  CHECK(sqlite3_exec(db, reject_edge, nullptr, nullptr, nullptr) == SQLITE_OK);
+  int nodes = -1, edges = -1;
+  CHECK(!persist_topology(db, graph, 1, nodes, edges));
+  CHECK(nodes == 0 && edges == 0);
+  CHECK(net_db_count_topo_nodes(db) == 0 && net_db_count_topo_edges(db) == 0);
+  CHECK(sqlite3_get_autocommit(db) != 0);
+  CHECK(sqlite3_exec(db, "DROP TRIGGER reject_edge", nullptr, nullptr, nullptr) == SQLITE_OK);
+
+  CHECK(sqlite3_set_authorizer(db, deny_commit, nullptr) == SQLITE_OK);
+  CHECK(!persist_topology(db, graph, 1, nodes, edges));
+  CHECK(nodes == 0 && edges == 0);
+  CHECK(sqlite3_get_autocommit(db) != 0);
+  CHECK(sqlite3_set_authorizer(db, nullptr, nullptr) == SQLITE_OK);
+  CHECK(net_db_count_topo_nodes(db) == 0 && net_db_count_topo_edges(db) == 0);
+  persist(db, graph);
+  check_store(db, graph);
+  CHECK(sqlite3_next_stmt(db, nullptr) == nullptr);
+  CHECK(sqlite3_close(db) == SQLITE_OK);
+}
+
 int main() {
+  persistence_failures();
   legacy_migration();
   auto first = trace(10, 20), second = trace(30, 40);
   auto forward = build_topology({first, second}, SOURCE);

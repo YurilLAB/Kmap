@@ -12,6 +12,7 @@
 #include "net_scan.h"
 #include "net_db.h"
 #include "json_escape.h"
+#include "joined_workers.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
 #include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
@@ -382,6 +383,24 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     return 1;
   }
 
+  // Called only before workers start or after all workers have joined.
+  // A failed write/commit must not be turned into a successful scan report.
+  auto abort_watchlist = [&](sqlite3 *extra_db = nullptr) -> int {
+    scan_log("ERROR", "watchlist failed; rolling back pending writes (earlier committed discovery may remain)");
+    if (sqlite3_errcode(wl_db) != SQLITE_OK)
+      scan_log("ERROR", "SQLite: %s", sqlite3_errmsg(wl_db));
+    net_db_rollback(wl_db);
+    if (extra_db) sqlite3_close(extra_db);
+    net_db_close(wl_db);
+#ifndef WIN32
+    sigaction(SIGINT, &sa_old, nullptr);
+#else
+    SetConsoleCtrlHandler(watchlist_ctrl_handler, FALSE);
+#endif
+    scan_log_close();
+    return 1;
+  };
+
   /* Per-watchlist-DB metadata. Remembers the previous scan's start timestamp
      so the diff below can scope "previously open" to the PRIOR run rather than
      the entire cumulative history -- otherwise a port that opened once and
@@ -389,19 +408,19 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
      A separate table is safe to add to an existing DB: CREATE TABLE IF NOT
      EXISTS materializes a whole new table (unlike ADD COLUMN it needs no
      migration-list entry). Read here, rewritten at the end of a completed run. */
-  sqlite3_exec(wl_db,
+  if (sqlite3_exec(wl_db,
     "CREATE TABLE IF NOT EXISTS scan_meta (key TEXT PRIMARY KEY, value INTEGER)",
-    nullptr, nullptr, nullptr);
+    nullptr, nullptr, nullptr) != SQLITE_OK) return abort_watchlist();
   int64_t prev_scan_ts = 0;
   {
     sqlite3_stmt *st = nullptr;
     if (sqlite3_prepare_v2(wl_db,
           "SELECT value FROM scan_meta WHERE key='last_scan_ts'",
-          -1, &st, nullptr) == SQLITE_OK) {
-      if (sqlite3_step(st) == SQLITE_ROW)
-        prev_scan_ts = sqlite3_column_int64(st, 0);
-      sqlite3_finalize(st);
-    }
+          -1, &st, nullptr) != SQLITE_OK) return abort_watchlist();
+    int step = sqlite3_step(st);
+    if (step == SQLITE_ROW) prev_scan_ts = sqlite3_column_int64(st, 0);
+    sqlite3_finalize(st);
+    if (step != SQLITE_ROW && step != SQLITE_DONE) return abort_watchlist();
   }
 
   /* Load previous state for diff */
@@ -426,10 +445,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       ? "SELECT ip, port, service, version, cves, web_title FROM hosts "
         "WHERE last_seen >= ?"
       : "SELECT ip, port, service, version, cves, web_title FROM hosts";
-    sqlite3_prepare_v2(wl_db, prev_sql, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(wl_db, prev_sql, -1, &stmt, nullptr) != SQLITE_OK)
+      return abort_watchlist();
     if (stmt) {
-      if (prev_scan_ts > 0) sqlite3_bind_int64(stmt, 1, prev_scan_ts);
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
+      if (prev_scan_ts > 0 && sqlite3_bind_int64(stmt, 1, prev_scan_ts) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return abort_watchlist();
+      }
+      int step;
+      while ((step = sqlite3_step(stmt)) == SQLITE_ROW) {
         PrevEntry pe;
         auto col = [&](int c) -> std::string {
           const unsigned char *p = sqlite3_column_text(stmt, c);
@@ -444,6 +468,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         prev_state.push_back(pe);
       }
       sqlite3_finalize(stmt);
+      if (step != SQLITE_DONE) return abort_watchlist();
     }
   }
 
@@ -662,17 +687,22 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
             (int)targets.size(), (int)ports.size(), worker_count,
             probe_timeout_ms, bail_after_timeouts);
 
-  std::vector<std::thread> pool;
-  pool.reserve(worker_count);
-  for (int i = 0; i < worker_count; i++) pool.emplace_back(worker);
-  for (auto &th : pool) th.join();
+  auto discovery_workers = kmap_run_joined_workers(
+      static_cast<size_t>(worker_count), [&](size_t) { worker(); },
+      [&]() noexcept { g_scan_interrupted.store(1); });
+  if (discovery_workers.error) {
+    scan_log("ERROR", "watchlist discovery worker failed; all started workers joined");
+    return abort_watchlist();
+  }
 
   /* Serial insert phase -- SQLite serializes writes via the wl_db
    * handle anyway, so concurrent inserts would just contend. */
-  net_db_begin(wl_db);
-  for (const auto &t : opens)
-    net_db_insert_host(wl_db, t.first, t.second, "tcp", now_ts);
-  net_db_commit(wl_db);
+  if (net_db_begin(wl_db) != 0) return abort_watchlist();
+  for (const auto &t : opens) {
+    if (net_db_insert_host(wl_db, t.first, t.second, "tcp", now_ts) < 0)
+      return abort_watchlist();
+  }
+  if (net_db_commit(wl_db) != 0) return abort_watchlist();
   int found = static_cast<int>(opens.size());
   t_discovery_end = std::chrono::steady_clock::now();
 
@@ -984,19 +1014,20 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         }
         if (wl_asn_workers > wl_asn_hosts) wl_asn_workers = wl_asn_hosts;
         std::atomic<size_t> wl_asn_next{0};
-        std::vector<std::thread> wl_asn_pool;
-        wl_asn_pool.reserve(wl_asn_workers);
-        for (int w = 0; w < wl_asn_workers; w++) {
-          wl_asn_pool.emplace_back([&]() {
+        auto asn_workers = kmap_run_joined_workers(
+          static_cast<size_t>(wl_asn_workers), [&](size_t) {
             for (;;) {
+              if (g_scan_interrupted.load()) return;
               size_t i = wl_asn_next.fetch_add(1, std::memory_order_relaxed);
               if (i >= results.size()) return;
               if (results[i].empty_host) continue;
               results[i].asn_info = lookup_asn(results[i].ip.c_str(), 2000);
             }
-          });
+          }, [&]() noexcept { g_scan_interrupted.store(1); });
+        if (asn_workers.error) {
+          scan_log("ERROR", "watchlist ASN worker failed; all started workers joined");
+          return abort_watchlist(cve_db);
         }
-        for (auto &t : wl_asn_pool) t.join();
       }
     }
 
@@ -1015,11 +1046,13 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     enrich_reset_metrics();
     kmap_cpu_governor_init(kmap_perf_cpu_target_cores());
     {
-      std::vector<std::thread> epool;
-      epool.reserve(enrich_worker_count);
-      for (int i = 0; i < enrich_worker_count; i++)
-        epool.emplace_back(enrich_worker);
-      for (auto &th : epool) th.join();
+      auto enrichment_workers = kmap_run_joined_workers(
+          static_cast<size_t>(enrich_worker_count), [&](size_t) { enrich_worker(); },
+          [&]() noexcept { g_scan_interrupted.store(1); });
+      if (enrichment_workers.error) {
+        scan_log("ERROR", "watchlist enrichment worker failed; all started workers joined");
+        return abort_watchlist(cve_db);
+      }
     }
     {
       EnrichMetrics m = enrich_get_metrics();
@@ -1044,8 +1077,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
      * state, never a half-finished mid-scan view. */
     int enriched_count = 0;
     int enrich_errors = 0;
-    net_db_begin(wl_db);
+    bool persisted = net_db_begin(wl_db) == 0;
     for (const auto &hr : results) {
+      if (!persisted) break;
       if (hr.empty_host) continue;
       if (hr.erc != 0) {
         scan_log("WARN", "enrichment failed for %s (rc=%d), will retry after cooldown",
@@ -1053,8 +1087,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         char err_buf[64];
         snprintf(err_buf, sizeof(err_buf), "enrich_single_host rc=%d", hr.erc);
         for (size_t i = 0; i < hr.port_nums.size(); i++) {
-          net_db_record_enrichment_error(wl_db, hr.ip.c_str(), hr.port_nums[i],
-                                         err_buf);
+          if (net_db_record_enrichment_error(wl_db, hr.ip.c_str(), hr.port_nums[i],
+                                             err_buf) != 0) {
+            persisted = false;
+            break;
+          }
         }
         enrich_errors++;
         continue;
@@ -1063,7 +1100,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         std::string wl_cpe = net_enrich_cpe_for(
           i < hr.services.size() ? hr.services[i] : std::string(),
           i < hr.versions.size() ? hr.versions[i] : std::string());
-        net_db_update_enrichment(wl_db, hr.ip.c_str(), hr.port_nums[i],
+        if (net_db_update_enrichment(wl_db, hr.ip.c_str(), hr.port_nums[i],
           i < hr.services.size()    ? hr.services[i].c_str()    : "",
           i < hr.versions.size()    ? hr.versions[i].c_str()    : "",
           i < hr.cves_out.size()    ? hr.cves_out[i].c_str()    : "",
@@ -1075,14 +1112,17 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           i < hr.x_generator.size() ? hr.x_generator[i].c_str() : nullptr,
           i < hr.redirects.size()   ? hr.redirects[i].c_str()   : nullptr,
           nullptr,                                  /* robots_disallowed_json */
-          wl_cpe.empty() ? nullptr : wl_cpe.c_str());
+          wl_cpe.empty() ? nullptr : wl_cpe.c_str()) != 0) {
+          persisted = false;
+          break;
+        }
 
         if (i < hr.tls_caps.size()) {
           const TlsCapture &tc = hr.tls_caps[i];
           bool have_tls = !tc.subject_cn.empty() || !tc.issuer.empty() ||
                           !tc.sha256.empty()     || !tc.protocol.empty();
           if (have_tls) {
-            net_db_update_tls(
+            if (net_db_update_tls(
               wl_db, hr.ip.c_str(), hr.port_nums[i],
               tc.subject_cn.empty() ? nullptr : tc.subject_cn.c_str(),
               tc.issuer.empty()     ? nullptr : tc.issuer.c_str(),
@@ -1090,28 +1130,39 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
               tc.not_after.empty()  ? nullptr : tc.not_after.c_str(),
               tc.self_signed,
               tc.protocol.empty()   ? nullptr : tc.protocol.c_str(),
-              tc.sha256.empty()     ? nullptr : tc.sha256.c_str());
+              tc.sha256.empty()     ? nullptr : tc.sha256.c_str()) != 0) {
+              persisted = false;
+              break;
+            }
           }
         }
       }
+      if (!persisted) break;
       if (hr.asn_info.asn > 0) {
-        net_db_update_asn(wl_db, hr.ip.c_str(), hr.asn_info.asn,
+        if (net_db_update_asn(wl_db, hr.ip.c_str(), hr.asn_info.asn,
                           hr.asn_info.as_name.c_str(),
                           hr.asn_info.country.c_str(),
                           hr.asn_info.bgp_prefix.c_str(),
                           hr.asn_info.registry.c_str(),
-                          hr.asn_info.region.c_str());
+                          hr.asn_info.region.c_str()) != 0) {
+          persisted = false;
+          break;
+        }
       }
       /* Cloud match is independent of ASN (not gated on asn > 0). */
       if (!hr.cloud_info.provider.empty()) {
-        net_db_update_cloud(wl_db, hr.ip.c_str(),
+        if (net_db_update_cloud(wl_db, hr.ip.c_str(),
                             hr.cloud_info.provider.c_str(),
                             hr.cloud_info.region.empty()  ? nullptr : hr.cloud_info.region.c_str(),
-                            hr.cloud_info.service.empty() ? nullptr : hr.cloud_info.service.c_str());
+                            hr.cloud_info.service.empty() ? nullptr : hr.cloud_info.service.c_str()) != 0) {
+          persisted = false;
+          break;
+        }
       }
       enriched_count++;
     }
-    net_db_commit(wl_db);
+    if (!persisted || net_db_commit(wl_db) != 0)
+      return abort_watchlist(cve_db);
     if (g_scan_interrupted.load()) {
       scan_log("INFO", "enrichment interrupted after %d hosts", enriched_count);
     }
@@ -1161,13 +1212,17 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   std::vector<NetHost> current;
   {
     sqlite3_stmt *stmt = nullptr;
-    sqlite3_prepare_v2(wl_db,
+    if (sqlite3_prepare_v2(wl_db,
       "SELECT ip, port, proto, service, version, cves, web_title "
       "FROM hosts WHERE last_seen >= ?",
-      -1, &stmt, nullptr);
+      -1, &stmt, nullptr) != SQLITE_OK) return abort_watchlist();
     if (stmt) {
-      sqlite3_bind_int64(stmt, 1, scan_start_ts);
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
+      if (sqlite3_bind_int64(stmt, 1, scan_start_ts) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return abort_watchlist();
+      }
+      int step;
+      while ((step = sqlite3_step(stmt)) == SQLITE_ROW) {
         NetHost h;
         auto col = [&](int c) -> std::string {
           const unsigned char *p = sqlite3_column_text(stmt, c);
@@ -1186,6 +1241,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         current.push_back(h);
       }
       sqlite3_finalize(stmt);
+      if (step != SQLITE_DONE) return abort_watchlist();
     }
   }
 
@@ -1312,11 +1368,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     sqlite3_stmt *st = nullptr;
     if (sqlite3_prepare_v2(wl_db,
           "INSERT OR REPLACE INTO scan_meta(key,value) VALUES('last_scan_ts',?)",
-          -1, &st, nullptr) == SQLITE_OK) {
-      sqlite3_bind_int64(st, 1, scan_start_ts);
-      sqlite3_step(st);
-      sqlite3_finalize(st);
-    }
+          -1, &st, nullptr) != SQLITE_OK) return abort_watchlist();
+    int status = sqlite3_bind_int64(st, 1, scan_start_ts);
+    if (status == SQLITE_OK) status = sqlite3_step(st);
+    sqlite3_finalize(st);
+    if (status != SQLITE_DONE) return abort_watchlist();
   }
 
   /* Write full report.

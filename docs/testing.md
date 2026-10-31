@@ -16,12 +16,23 @@ python3 tests/check_test_gate.py
 make check-kmap
 python3 tests/runtime_smoke.py ./kmap --artifacts test-results/runtime
 python3 tests/query_smoke.py ./kmap --artifacts test-results/query
+python3 tests/query_filters.py ./kmap --artifacts test-results/query-filters
 ```
 
 `make check-kmap` builds the application and its libraries first and stops when
 any test fails. It includes storage migration rollback, missing latency batches,
 64-bit topology counters and strict graph JSON. It is a smaller, reviewed suite
 than the inherited `make check`.
+
+The critical-state regressions also exercise the actual checkpoint, work-ownership,
+worker-joining and persistence-ordering helpers. They pause a claimed job before
+publication, inject thread-launch/worker failures, reject checkpoint write and
+replacement stages, and verify that failed commits cannot advance progress.
+Storage tests use real SQLite locks, read-only files, interrupted writes and
+page limits. A 100-cycle test checks statements, repeated open/query/export/close,
+unfinished-transaction rollback and reopen behavior. These tests use inert jobs
+and generated files; they do not establish whole-scanner cancellation latency,
+cross-database atomicity or disk power-loss durability.
 
 For the native Windows build, see [windows-build.md](windows-build.md). The two
 Python smoke scripts accept `mswin32/Release/kmap.exe` as their binary argument.
@@ -33,6 +44,28 @@ open HTTP port, a reserved non-listening port, repeated scans, malformed CLI
 input, and cleanup. POSIX also checks interruption after a real local connection;
 Windows reports that interruption case as skipped. The query driver uses inert
 documentation-range addresses stored in SQLite; it never scans those addresses.
+
+## Query accuracy and local performance
+
+`query_filters.py` validates stored CVE identifiers, structured numeric metadata,
+JSON formatting variants, malformed input and argument bounds against the actual
+CLI. It is a mandatory CI step. All fixtures are offline SQLite records.
+
+For descriptive performance measurements, use a fresh artifact directory:
+
+```sh
+python3 tests/query_performance.py prepare ./kmap --artifacts test-results/query-perf
+python3 tests/query_performance.py contracts ./kmap --artifacts test-results/query-perf
+python3 tests/query_performance.py benchmark ./kmap --artifacts test-results/query-perf
+```
+
+The driver checks result parity before accepting timings for deterministic
+1,000/10,000/50,000-row fixtures. It records warmups, repeated wall/CPU timings,
+and owned-child resource measurements where supported. Compare saved baseline
+and candidate runs with the same driver, fixture parameters and machine under
+quiet conditions. Raw records are retained; timing is not a CI threshold and
+does not measure network scanning throughput. Different platforms, disk caches
+and concurrent workloads can change these results.
 
 ## Sanitizer harnesses
 

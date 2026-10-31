@@ -10,6 +10,9 @@
 #endif
 
 #include "fast_syn.h"
+#include "work_progress.h"
+#include "joined_workers.h"
+#include "persistence_boundary.h"
 #include "net_db.h"
 #include "kmap.h"
 #include "tcpip.h"
@@ -18,6 +21,7 @@
 #include "sys_resources.h"
 #include "output.h"
 #include "os_profile.h"
+#include "scan_checkpoint.h"
 
 #include <pcap.h>
 
@@ -268,75 +272,7 @@ static uint32_t permute_ip(uint64_t index, uint64_t seed) {
  * Checkpoint / resume
  * ----------------------------------------------------------------------- */
 
-struct ScanCheckpoint {
-  uint64_t next_index;     /* next IP index to scan */
-  uint64_t packets_sent;
-  uint64_t hosts_found;
-  uint64_t seed;           /* permutation seed -- must match on resume */
-  time_t   last_save;
-};
-
-static std::string checkpoint_path(const char *data_dir) {
-  return std::string(data_dir) + "/.net-scan-checkpoint";
-}
-
-static bool save_checkpoint(const char *data_dir, const ScanCheckpoint &cp) {
-  std::string path = checkpoint_path(data_dir);
-  std::string tmp_path = path + ".tmp";
-  FILE *f = fopen(tmp_path.c_str(), "w");
-  if (!f) return false;
-  int n = fprintf(f, "%llu\n%llu\n%llu\n%llu\n%lld\n",
-                  (unsigned long long)cp.next_index,
-                  (unsigned long long)cp.packets_sent,
-                  (unsigned long long)cp.hosts_found,
-                  (unsigned long long)cp.seed,
-                  (long long)cp.last_save);
-  if (n < 0 || fflush(f) != 0) {
-    fclose(f);
-    remove(tmp_path.c_str());
-    return false;
-  }
-  if (fclose(f) != 0) {
-    remove(tmp_path.c_str());
-    return false;
-  }
-  /* Atomic replace. On Windows rename() fails if the destination exists,
-   * so remove the old checkpoint first. A crash between remove() and
-   * rename() still leaves the .tmp file, which we can fall back to on load. */
-#ifdef WIN32
-  remove(path.c_str());
-#endif
-  if (rename(tmp_path.c_str(), path.c_str()) != 0) {
-    remove(tmp_path.c_str());
-    return false;
-  }
-  return true;
-}
-
-static bool load_checkpoint(const char *data_dir, ScanCheckpoint &cp) {
-  std::string path = checkpoint_path(data_dir);
-  FILE *f = fopen(path.c_str(), "r");
-  /* If the atomic rename didn't complete, the last successful write may
-   * still be in the .tmp file. Fall back to it. */
-  if (!f) {
-    std::string tmp_path = path + ".tmp";
-    f = fopen(tmp_path.c_str(), "r");
-    if (!f) return false;
-  }
-  unsigned long long ni, ps, hf, sd;
-  long long ls;
-  if (fscanf(f, "%llu\n%llu\n%llu\n%llu\n%lld", &ni, &ps, &hf, &sd, &ls) != 5) {
-    fclose(f);
-    return false;
-  }
-  cp.next_index = ni;
-  cp.packets_sent = ps;
-  cp.hosts_found = hf;
-  cp.seed = sd;
-  cp.last_save = static_cast<time_t>(ls);
-  fclose(f);
-  return true;
-}
+/* Persistence lives in scan_checkpoint.h so offline tests use the same code. */
 
 /* -----------------------------------------------------------------------
  * Rate limiter -- token bucket
@@ -396,17 +332,21 @@ static void rate_init(RateLimiter &rl, int pps) {
   rl.last_refill = now_usec();
 }
 
+/* Read by token waits as well as the probe loops. */
+static volatile int scan_interrupted = 0;
+
 /* Acquire one token from the shared bucket.  Caller passes the mutex
  * protecting the bucket; we hold it only across the refill+decrement
  * arithmetic, NOT across the sleep, so 50 parallel workers do not
  * serialize on the lock while one is sleeping for 1 ms waiting for
  * more tokens.  That serialization was the real cause of the
  * net-scan run measuring only ~14 pps despite a 5000 pps target. */
-static void rate_wait(RateLimiter &rl, std::mutex &mu) {
+static void rate_wait(RateLimiter &rl, std::mutex &mu,
+                      const KmapPersistenceState &persistence) {
   /* unlimited is set once in rate_init() before any worker starts and never
    * mutated, so this lock-free read is safe. */
   if (rl.unlimited) return;
-  while (true) {
+  while (!scan_interrupted && !persistence.failed()) {
     bool got_token = false;
     {
       std::lock_guard<std::mutex> lk(mu);
@@ -434,8 +374,6 @@ static void rate_wait(RateLimiter &rl, std::mutex &mu) {
 /* -----------------------------------------------------------------------
  * Global scan interrupt flag
  * ----------------------------------------------------------------------- */
-
-static volatile int scan_interrupted = 0;
 
 #ifndef WIN32
 static void sigint_handler(int /*sig*/) {
@@ -491,6 +429,34 @@ static void close_all_shards(std::vector<sqlite3 *> &shards) {
     if (db) net_db_close(db);
   }
   shards.clear();
+}
+
+static void discovery_storage_error(KmapPersistenceState &state, const char *operation) {
+  if (state.fail())
+    fprintf(stderr, "net-scan: ERROR: %s failed; stopping without advancing the checkpoint.\n",
+            operation);
+}
+
+static void rollback_all_shards(std::vector<sqlite3 *> &shards) {
+  for (auto *db : shards) if (db) net_db_rollback(db);
+}
+
+/* Caller excludes concurrent writers until this boundary finishes. cp changes
+ * only after the complete candidate checkpoint was successfully saved. */
+static bool persist_discovery(std::vector<sqlite3 *> &shards,
+                              KmapPersistenceState &state, bool reopen,
+                              const char *data_dir, ScanCheckpoint &cp,
+                              const ScanCheckpoint *candidate) {
+  bool ok = kmap_persistence_boundary(state, shards.size(), reopen,
+      [&](size_t i) { return shards[i] && net_db_commit(shards[i]) == 0; },
+      [&](size_t i) { return shards[i] && net_db_begin(shards[i]) == 0; },
+      [&]() { return !candidate || save_checkpoint(data_dir, *candidate); });
+  if (!ok) {
+    fprintf(stderr, "net-scan: ERROR: persistence boundary failed; keeping the last checkpoint.\n");
+    return false;
+  }
+  if (candidate) cp = *candidate;
+  return true;
 }
 
 /* -----------------------------------------------------------------------
@@ -671,11 +637,11 @@ struct OpenRec { uint32_t ip; uint16_t port; int64_t ts; };
    caller already opened on each shard -- see net_db_begin at the top of
    fast_syn_scan).  Swaps the buffer out under the lock so the RX thread can keep
    appending while the (single) writer thread does the sqlite work lock-free. */
-static void flush_opens(std::vector<sqlite3 *> &shards,
+static bool flush_opens(std::vector<sqlite3 *> &shards,
                         std::vector<OpenRec> &rx_opens, std::mutex &opens_mu) {
   std::vector<OpenRec> batch;
   { std::lock_guard<std::mutex> lk(opens_mu); batch.swap(rx_opens); }
-  if (batch.empty()) return;
+  if (batch.empty()) return true;
   /* Group opens by shard, then bulk-insert each shard with ONE prepared
      statement reused across its rows.  Per-row net_db_insert_host re-compiled
      the UPSERT every call (~1.3 ms/row), which made flushing a dense /20's 8192
@@ -683,21 +649,24 @@ static void flush_opens(std::vector<sqlite3 *> &shards,
   std::vector<std::vector<NetDbOpen>> by_shard(shards.size());
   for (const auto &r : batch) {
     int s = net_shard_index(r.ip);
-    if (s >= 0 && s < (int)shards.size() && shards[s])
-      by_shard[s].push_back({r.ip, (int)r.port, r.ts});
+    if (s < 0 || s >= (int)shards.size() || !shards[s]) return false;
+    by_shard[s].push_back({r.ip, (int)r.port, r.ts});
   }
   for (size_t s = 0; s < shards.size(); s++)
-    if (shards[s] && !by_shard[s].empty())
-      net_db_insert_opens_bulk(shards[s], by_shard[s].data(), by_shard[s].size());
+    if (!by_shard[s].empty() &&
+        net_db_insert_opens_bulk(shards[s], by_shard[s].data(), by_shard[s].size()) < 0)
+      return false;
+  return true;
 }
 
 /* Batched, lock-free token-bucket wait for the single TX thread: acquire n
    tokens at once (one check per flushed batch instead of one per packet).
    Returns immediately when unlimited (the default).  No mutex -- only the TX
    thread touches the bucket. */
-static void rate_wait_batch(RateLimiter &rl, int n) {
+static void rate_wait_batch(RateLimiter &rl, int n,
+                            const KmapPersistenceState &persistence) {
   if (rl.unlimited) return;
-  while (!scan_interrupted) {
+  while (!scan_interrupted && !persistence.failed()) {
     int64_t now = now_usec();
     double elapsed = (double)(now - rl.last_refill);
     rl.tokens += elapsed * rl.refill_rate;
@@ -931,7 +900,26 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
                               const std::vector<ExcludeRange> &excludes,
                               uint32_t target_base, uint64_t target_count,
                               ScanCheckpoint &cp, uint64_t scan_end,
-                              uint64_t seed, const char *data_dir) {
+                              uint64_t seed, const char *data_dir,
+                              KmapPersistenceState &persistence) {
+  // Own every handle acquired below, including exceptions before threads start
+  // or after they join. The worker helpers never unwind with a live worker.
+  struct HandleOwner {
+    bool cached = false;
+    pcap_t *capture = nullptr;
+    netutil_eth_t *reset = nullptr;
+    std::vector<netutil_eth_t *> extra;
+    void close_extra() {
+      for (auto *handle : extra) netutil_eth_close(handle);
+      extra.clear();
+    }
+    ~HandleOwner() {
+      close_extra();
+      if (reset) netutil_eth_close(reset);
+      if (capture) pcap_close(capture);
+      if (cached) eth_close_cached();
+    }
+  } handles;
   /* ---- 1. Route to the internet: device, source IP, next-hop (gateway) ---- */
   struct sockaddr_storage dstss;
   memset(&dstss, 0, sizeof(dstss));
@@ -958,6 +946,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     log_write(LOG_STDOUT, "  raw: could not open the ethernet device; using connect() mode\n");
     return -1;
   }
+  handles.cached = true;
   struct eth_nfo eth;
   memset(&eth, 0, sizeof(eth));
   memcpy(eth.srcmac, rnfo.ii.mac, 6);
@@ -973,10 +962,10 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   pcap_t *pd = my_pcap_open_live_buffered(rnfo.ii.devfullname, 100, 0, 100,
                                           32 * 1024 * 1024);
   if (!pd) {
-    eth_close_cached();
     log_write(LOG_STDOUT, "  raw: could not open pcap for receive; using connect() mode\n");
     return -1;
   }
+  handles.capture = pd;
   /* Single source port keeps the filter tight; the cookie validates the rest. */
   uint16_t src_port = static_cast<uint16_t>(40000 + (seed & 0x3FFF));
   char myip[INET_ADDRSTRLEN];
@@ -1010,6 +999,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   std::vector<OpenRec> rx_opens;
   rx_opens.reserve(8192);
   std::mutex opens_mu;
+  std::mutex persistence_mu;
   /* The kernel auto-RSTs an unsolicited SYN-ACK arriving on our unbound source
      port (RFC 793), so the half-open connection is torn down for free and an
      explicit RST per open is redundant -- masscan/zmap omit it in stateless
@@ -1029,6 +1019,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   struct eth_nfo rst_eth = eth;
   if (manual_rst) {
     rst_handle = netutil_eth_open(rnfo.ii.devfullname);
+    handles.reset = rst_handle;
     if (rst_handle) {
       rst_eth.ethsd = rst_handle;
     } else {
@@ -1069,7 +1060,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   int l2off = (rx_dl == DLT_NULL) ? 4 : (rx_dl == DLT_RAW) ? 0 : 14;
 
   /* ---- 4. RX thread: validate SYN-ACK cookies, buffer opens ---- */
-  std::thread rx([&]() {
+  auto rx_worker = [&](size_t) {
     /* `seen` dedups SYN-ACK retransmits over a rolling recency window, so it
        is bounded by the opens found in that window rather than by the whole
        sweep. Single RX thread -> no lock on it. */
@@ -1080,7 +1071,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     RawRxCtx ctx{ l2off, secret, &seen, &rx_opens, &opens_mu, &opens,
                   &drain_anchor_us, manual_rst, manual_rst ? &rst_eth : &eth,
                   src_in, src_port, o.ttl ? o.ttl : 64, o.verbose != 0 };
-    while (!scan_interrupted) {
+    while (!scan_interrupted && !persistence.failed()) {
       /* pcap_dispatch processes a whole kernel-read batch per call (callback per
          packet), so the per-packet kernel round-trip that capped pcap_next_ex /
          readip_pcap at ~1.5k pkt/s on Npcap is amortised across the batch.  We do
@@ -1097,7 +1088,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
         if (now_usec() - drain_anchor_us >= drain_us) break;  /* drain_ms since last NEW open */
       }
     }
-  });
+  };
 
   /* ---- 5. TX: blast SYNs across the permuted space ----
      One or more TX threads (KMAP_RAWSYN_TX_THREADS, default 1).  A single Npcap
@@ -1130,19 +1121,18 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   /* One send handle per TX thread.  Thread 0 reuses the cached handle; extra
      threads open their own (a single handle is not safe for concurrent send). */
   std::vector<netutil_eth_t *> txh(tx_threads, nullptr);
-  std::vector<bool> txh_owned(tx_threads, false);
+  handles.extra.reserve(static_cast<size_t>(tx_threads - 1));
   txh[0] = ethsd;
   for (int t = 1; t < tx_threads; t++) {
     txh[t] = netutil_eth_open(rnfo.ii.devfullname);
     if (!txh[t]) {  /* couldn't open an extra handle -> degrade to one thread */
-      for (int u = 1; u < t; u++) if (txh_owned[u]) netutil_eth_close(txh[u]);
+      handles.close_extra();
       tx_threads = 1;
       txh.resize(1);
-      txh_owned.resize(1);
       log_write(LOG_STDOUT, "  raw: extra TX handle open failed; using 1 TX thread\n");
       break;
     }
-    txh_owned[t] = true;
+    handles.extra.push_back(txh[t]);
   }
 
   log_write(LOG_STDOUT, "  TX mode: %s, batch=%d, tx-threads=%d\n",
@@ -1170,9 +1160,12 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
 #ifdef WIN32
     pcap_t *pt = tpl_ok ? (pcap_t *)netutil_eth_pcap_handle(h) : nullptr;
     pcap_send_queue *sq = nullptr;
+    std::unique_ptr<pcap_send_queue, decltype(&pcap_sendqueue_destroy)>
+        owned_sq(nullptr, &pcap_sendqueue_destroy);
     if (tpl_ok && pt) {
       unsigned slot = (unsigned)(sizeof(struct pcap_pkthdr) + 54);
       sq = pcap_sendqueue_alloc((unsigned)batch * slot + 128);
+      owned_sq.reset(sq);
     }
 #else
     std::vector<uint8_t> pbuf;
@@ -1185,8 +1178,9 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
 
     /* Flush the accumulated batch (templated path), pacing first. */
     auto flush_tx = [&]() {
-      if (!inbatch) return;
-      rate_wait_batch(rl, (int)inbatch);
+      if (!inbatch || persistence.failed()) return;
+      rate_wait_batch(rl, (int)inbatch, persistence);
+      if (persistence.failed()) return;
 #ifdef WIN32
       if (sq) { pcap_sendqueue_transmit(pt, sq, 0); sq->len = 0; }
 #else
@@ -1197,7 +1191,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
     };
 
     for (uint64_t idx = start_index + (uint64_t)t;
-         idx < scan_end && !scan_interrupted;
+         idx < scan_end && !scan_interrupted && !persistence.failed();
          idx += (uint64_t)tx_threads) {
       uint32_t ip = (target_count > 0)
                       ? static_cast<uint32_t>(target_base + idx)
@@ -1207,7 +1201,7 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
       struct in_addr victim;
       victim.s_addr = htonl(ip);
       for (size_t pi = 0; pi < ports.size(); pi++) {
-        if (scan_interrupted) break;
+        if (scan_interrupted || persistence.failed()) break;
         uint32_t cookie = raw_syn_cookie(ip, (uint16_t)ports[pi], secret);
         if (tpl_ok) {
           syn_template_patch(tpl, fbuf, ip, (uint16_t)ports[pi], cookie);
@@ -1229,7 +1223,8 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
         } else {
           struct eth_nfo eth_h = eth;
           eth_h.ethsd = h;
-          rate_wait_batch(rl, 1);
+          rate_wait_batch(rl, 1, persistence);
+          if (persistence.failed()) break;
           send_tcp_raw(-1, &eth_h, &src_in, &victim, o.ttl ? o.ttl : 64, true,
                        nullptr, 0, src_port, (u16)ports[pi],
                        cookie, 0, 0, TH_SYN, 1024, 0, nullptr, 0, nullptr, 0);
@@ -1254,65 +1249,77 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
           size_t cur;
           { std::lock_guard<std::mutex> lk(opens_mu); cur = rx_opens.size(); }
           if (cur >= max_opens) {
-            flush_opens(shards, rx_opens, opens_mu);
-            for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
+            std::lock_guard<std::mutex> boundary_lock(persistence_mu);
+            if (persistence.failed()) break;
+            if (!flush_opens(shards, rx_opens, opens_mu))
+              discovery_storage_error(persistence, "buffered result write");
+            if (persistence.failed() ||
+                !persist_discovery(shards, persistence, true, data_dir, cp, nullptr)) break;
           }
         }
         if (nowt - last_ckpt >= 60) {
+          std::lock_guard<std::mutex> boundary_lock(persistence_mu);
+          if (persistence.failed()) break;
           /* Persist buffered opens into the open shard transactions at the same
              60 s cadence the per-open path used, then checkpoint at the lowest
              index any thread has not yet passed. */
-          flush_opens(shards, rx_opens, opens_mu);
-          for (auto *db : shards) if (db) { net_db_commit(db); net_db_begin(db); }
+          if (!flush_opens(shards, rx_opens, opens_mu)) {
+            discovery_storage_error(persistence, "buffered result write");
+            break;
+          }
           uint64_t lo = scan_end;
           for (int u = 0; u < tx_threads; u++) {
             uint64_t v = tx_cur[u].load(std::memory_order_relaxed);
             if (v < lo) lo = v;
           }
-          cp.next_index = lo;
-          cp.packets_sent = sent.load();
-          cp.hosts_found = opens.load();
-          cp.last_save = nowt;
-          save_checkpoint(data_dir, cp);
+          ScanCheckpoint candidate = cp;
+          candidate.next_index = lo;
+          candidate.packets_sent = sent.load();
+          candidate.hosts_found = opens.load();
+          candidate.last_save = nowt;
+          if (!persist_discovery(shards, persistence, true, data_dir, cp, &candidate)) break;
           last_ckpt = nowt;
         }
       }
     }
     flush_tx();
-#ifdef WIN32
-    if (sq) pcap_sendqueue_destroy(sq);
-#endif
   };
 
-  if (tx_threads == 1) {
-    tx_worker(0, true);
-  } else {
-    std::vector<std::thread> workers;
-    for (int t = 1; t < tx_threads; t++)
-      workers.emplace_back([&, t]() { tx_worker(t, false); });
-    tx_worker(0, true);              /* leader runs inline */
-    for (auto &w : workers) w.join();
-  }
-
-  tx_done.store(true, std::memory_order_release);
-  rx.join();
+  // All handles are ready before RX starts. Nested groups keep the leader on
+  // this thread and join every TX worker before announcing TX completion.
+  auto stop = [&]() noexcept {
+    std::lock_guard<std::mutex> boundary_lock(persistence_mu);
+    persistence.fail();
+  };
+  auto raw_result = kmap_run_joined_workers_with_monitor(1, rx_worker, stop, [&]() {
+    auto tx_result = kmap_run_joined_workers_with_monitor(
+        static_cast<size_t>(tx_threads - 1),
+        [&](size_t t) { tx_worker(static_cast<int>(t + 1), false); }, stop,
+        [&]() { tx_worker(0, true); });
+    if (tx_result.error)
+      fprintf(stderr, "net-scan: ERROR: raw worker startup/execution failed.\n");
+    tx_done.store(true, std::memory_order_release);
+  });
+  if (raw_result.error)
+    fprintf(stderr, "net-scan: ERROR: raw receive/coordinator startup/execution failed.\n");
 
   /* RX has joined: drain the remaining buffered opens into the (still-open)
      shard transactions.  The caller commits them (see the fast_syn_scan tail),
      then enrichment / CVE / report run unchanged over the same shard DBs. */
-  flush_opens(shards, rx_opens, opens_mu);
+  if (!persistence.failed() && !flush_opens(shards, rx_opens, opens_mu))
+    discovery_storage_error(persistence, "final buffered result write");
 
   /* Resume point: the lowest index any thread had not yet passed.  Everything
      below it was sent; a few duplicates above it on resume are harmless (SYNs
      are idempotent and opens dedup). */
-  if (scan_interrupted) {
+  if (!persistence.failed() && scan_interrupted) {
     uint64_t lo = scan_end;
     for (int t = 0; t < tx_threads; t++) {
       uint64_t v = tx_cur[t].load(std::memory_order_relaxed);
       if (v < lo) lo = v;
     }
     cp.next_index = lo;
-  } else {
+  } else if (!persistence.failed()) {
     /* scan_end is the exclusive end of what this run actually swept, which is
        the correct resume point in every case: a bounded CIDR ends at
        target_count, a full sweep ends at IP_SPACE, and a --net-max-ips sample
@@ -1327,13 +1334,8 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   cp.packets_sent = sent.load();
   cp.hosts_found = opens.load();
 
-  for (int t = 0; t < tx_threads; t++)
-    if (txh_owned[t]) netutil_eth_close(txh[t]);
-  if (rst_handle) netutil_eth_close(rst_handle);  /* RX-only manual-RST handle */
-
-  pcap_close(pd);
-  eth_close_cached();
-  return 0;
+  // Positive errors are terminal. Only negative setup results permit fallback.
+  return persistence.failed() ? 1 : 0;
 }
 
 int fast_syn_scan(const char *data_dir,
@@ -1374,10 +1376,13 @@ int fast_syn_scan(const char *data_dir,
   auto shards = open_all_shards(data_dir);
   int shards_ok = 0;
   for (auto *db : shards) if (db) shards_ok++;
-  if (shards_ok == 0) {
-    fprintf(stderr, "net-scan: failed to open any shard databases\n");
+  if (shards_ok != NET_SHARD_COUNT) {
+    fprintf(stderr, "net-scan: failed to open all shard databases (%d/%d); refusing to discard results.\n",
+            shards_ok, NET_SHARD_COUNT);
+    close_all_shards(shards);
     return 1;
   }
+  KmapPersistenceState persistence;
 
   /* Load checkpoint if resuming */
   ScanCheckpoint cp{};
@@ -1389,7 +1394,8 @@ int fast_syn_scan(const char *data_dir,
 
   bool resumed = false;
   if (resume) {
-    if (load_checkpoint(data_dir, cp)) {
+    const auto checkpoint_status = load_checkpoint_status(data_dir, cp);
+    if (checkpoint_status == CheckpointLoadStatus::Loaded) {
       /* A checkpoint that indicates progress but lacks a seed cannot
        * be resumed safely -- without the original permutation seed the
        * scanner would walk a different IP order, leaving some IPs
@@ -1416,8 +1422,12 @@ int fast_syn_scan(const char *data_dir,
                 (unsigned long long)cp.packets_sent,
                 (unsigned long long)cp.hosts_found);
       resumed = true;
-    } else {
+    } else if (checkpoint_status == CheckpointLoadStatus::Missing) {
       log_write(LOG_STDOUT, "net-scan: No checkpoint found, starting fresh\n");
+    } else {
+      fprintf(stderr, "net-scan: ERROR: checkpoint exists or cannot be read, but no valid record is recoverable; refusing to restart over it.\n");
+      close_all_shards(shards);
+      return 1;
     }
   }
 
@@ -1443,6 +1453,22 @@ int fast_syn_scan(const char *data_dir,
 #endif
   scan_interrupted = 0;
 
+  // Used only before workers start or after every worker has joined. A failed
+  // run never commits pending work during cleanup or writes a new checkpoint.
+  auto finish = [&](int status) {
+    if (status != 0) rollback_all_shards(shards);
+#ifndef WIN32
+    sigaction(SIGINT, &sa_old, nullptr);
+#else
+    SetConsoleCtrlHandler(win_console_ctrl_handler, FALSE);
+    timeEndPeriod(1);
+#endif
+    close_all_shards(shards);
+    return status;
+  };
+
+  try {
+
   /* Seed for IP permutation -- stored in checkpoint so resume uses
      the same permutation order as the original scan. */
   uint64_t seed;
@@ -1465,7 +1491,10 @@ int fast_syn_scan(const char *data_dir,
 
   /* Begin transactions on all shards for batch insert performance */
   for (auto *db : shards) {
-    if (db) net_db_begin(db);
+    if (net_db_begin(db) != 0) {
+      discovery_storage_error(persistence, "initial transaction begin");
+      return finish(1);
+    }
   }
 
   /* Discovery timestamp stamped on every inserted host. Refreshed on the
@@ -1527,13 +1556,15 @@ int fast_syn_scan(const char *data_dir,
   if (use_raw) {
     int rrc = run_raw_syn_engine(shards, ports, rate_pps, excludes,
                                  target_base, target_count, cp, scan_end,
-                                 seed, data_dir);
+                                 seed, data_dir, persistence);
+    if (rrc > 0) return finish(1); // Runtime failure is never a setup fallback.
     if (rrc == 0) {
       /* Mirror the connect path's tail: commit, final checkpoint, summary,
          restore the signal handler, close the shards, return. */
-      for (auto *db : shards) if (db) net_db_commit(db);
-      cp.last_save = time(nullptr);
-      save_checkpoint(data_dir, cp);
+      ScanCheckpoint candidate = cp;
+      candidate.last_save = time(nullptr);
+      if (!persist_discovery(shards, persistence, false, data_dir, cp, &candidate))
+        return finish(1);
       log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
                 scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
       log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
@@ -1545,14 +1576,7 @@ int fast_syn_scan(const char *data_dir,
             log_write(LOG_STDOUT, "  shard_%03d.db:   %lld entries\n", i, (long long)cnt);
         }
       }
-#ifndef WIN32
-      sigaction(SIGINT, &sa_old, nullptr);
-#else
-      SetConsoleCtrlHandler(win_console_ctrl_handler, FALSE);
-      timeEndPeriod(1);
-#endif
-      close_all_shards(shards);
-      return 0;
+      return finish(0);
     }
   }
 
@@ -1692,59 +1716,16 @@ int fast_syn_scan(const char *data_dir,
 #endif
   if (total_workers < 1) total_workers = 1;
 
-  /* Per-worker in-flight index tracking for an EXACT resume low-water-mark.
-     Each worker publishes the index it is currently probing; INFLIGHT_NONE
-     means it holds nothing (idle between claims, or exited). The checkpoint's
-     resume position is min(probe_idx, every worker's in-flight index) -- i.e.
-     the lowest index claimed but not yet fully probed+inserted.
-
-     This replaces the old "cur_idx - total_workers" rewind heuristic, which
-     under-rewound whenever a worker stalled on a slow LIVE host (bail
-     disabled -> every port probed at up to probe_timeout_ms) while the rest
-     of the pool raced thousands of indices ahead -- they share one global
-     rate limiter, not a per-worker budget, so probe_idx can outrun a stalled
-     worker by far more than total_workers. A crash-resume then skipped the
-     stalled host. Re-covering the exact in-flight window on resume is
-     harmless: the permutation seed is preserved (same indices -> same IPs)
-     and host inserts are idempotent UPSERTs. */
-  static const uint64_t INFLIGHT_NONE = UINT64_MAX;
-  std::vector<std::atomic<uint64_t>> worker_inflight(total_workers);
-  for (long wi = 0; wi < total_workers; wi++)
-    worker_inflight[wi].store(INFLIGHT_NONE, std::memory_order_relaxed);
-
-  auto compute_low_water = [&]() -> uint64_t {
-    uint64_t p  = probe_idx.load(std::memory_order_acquire);
-    uint64_t lw = p;
-    /* (a) Slow PROCESSING workers: each publishes its index before probing,
-       so the exact minimum of the published in-flight set covers a worker
-       stalled on a slow live host -- the case the old heuristic missed. */
-    for (long w = 0; w < total_workers; w++) {
-      uint64_t v = worker_inflight[w].load(std::memory_order_acquire);
-      if (v != INFLIGHT_NONE && v < lw) lw = v;
-    }
-    /* (b) The fetch_add(claim) -> store(publish) gap: an index claimed but
-       not yet published is invisible to (a). That gap is non-blocking (two
-       atomics + a permute), so such indices are always within total_workers
-       of probe_idx. Floor by (probe_idx - total_workers) to cover them.
-       Combined, every claimed-but-unfinished index is >= the saved position,
-       so resume never skips one; the extra overlap is harmless (seed
-       preserved, inserts idempotent). */
-    uint64_t floor = (p > (uint64_t)total_workers)
-                       ? p - (uint64_t)total_workers : 0;
-    if (floor < lw) lw = floor;
-    return lw;
-  };
+  /* Claim reservations are visible before the counter advances. A worker
+     preempted before publication cannot be skipped by a live checkpoint. */
+  KmapWorkProgress work_progress(probe_idx, cp.next_index, scan_end,
+                                 static_cast<size_t>(total_workers));
+  auto compute_low_water = [&]() { return work_progress.low_water(); };
 
   auto worker = [&](long w) {
-    while (!scan_interrupted) {
-      uint64_t my_idx = probe_idx.fetch_add(1, std::memory_order_relaxed);
-      if (my_idx >= scan_end) {
-        worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
-        return;
-      }
-      /* Publish the claim BEFORE any probing so a checkpoint racing this
-         worker always sees the index as in-flight and never skips it. */
-      worker_inflight[w].store(my_idx, std::memory_order_release);
+    while (!scan_interrupted && !persistence.failed()) {
+      uint64_t my_idx;
+      if (!work_progress.claim(static_cast<size_t>(w), my_idx)) return;
       /* Bounded scan: walk the target range sequentially (base + offset).
          Full sweep: the multiplicative-inverse permutation over 2^32. */
       uint32_t ip = (target_count > 0)
@@ -1752,7 +1733,7 @@ int fast_syn_scan(const char *data_dir,
                       : permute_ip(my_idx, seed);
 
       if (is_excluded(ip, excludes)) {
-        worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
+        work_progress.complete(static_cast<size_t>(w));
         continue;
       }
 
@@ -1767,9 +1748,10 @@ int fast_syn_scan(const char *data_dir,
       bool any_response   = false;
 
       for (size_t i = 0; i < ports.size(); i++) {
-        if (scan_interrupted) return;
+        if (scan_interrupted || persistence.failed()) return;
 
-        rate_wait(rl, rate_mu);
+        rate_wait(rl, rate_mu, persistence);
+        if (scan_interrupted || persistence.failed()) return;
 
         int port = ports[i];
         ProbeResult pr = connect_probe(ip, port, probe_timeout_ms);
@@ -1789,10 +1771,14 @@ int fast_syn_scan(const char *data_dir,
             hosts_found_atomic.fetch_add(1, std::memory_order_relaxed);
             int shard_idx = net_shard_index(ip);
             sqlite3 *db = shards[shard_idx];
-            if (db) {
+            {
               std::lock_guard<std::mutex> lk(db_mu);
-              net_db_insert_host(db, ip, port, "tcp",
-                                 now_ts.load(std::memory_order_relaxed));
+              if (persistence.failed()) return;
+              if (!db || net_db_insert_host(db, ip, port, "tcp",
+                                 now_ts.load(std::memory_order_relaxed)) < 0) {
+                discovery_storage_error(persistence, "discovered result write");
+                return; // Keep this work item pending; no new checkpoint.
+              }
             }
             if (o.verbose) {
               std::string ip_str = u32_to_ip(ip);
@@ -1806,7 +1792,7 @@ int fast_syn_scan(const char *data_dir,
          in-flight set so the resume low-water-mark can advance past it.
          The scan_interrupted return inside the port loop deliberately does
          NOT reach here, so an abandoned index stays published for re-cover. */
-      worker_inflight[w].store(INFLIGHT_NONE, std::memory_order_release);
+      work_progress.complete(static_cast<size_t>(w));
     }
   };
 
@@ -1895,10 +1881,6 @@ int fast_syn_scan(const char *data_dir,
   /* Prime so the first emit shows accurate CPU% rather than zero. */
   ProcMetrics last_metrics = gather_metrics();
 
-  std::vector<std::thread> pool;
-  pool.reserve(total_workers);
-  for (long i = 0; i < total_workers; i++) pool.emplace_back(worker, i);
-
   /* Monitor loop on the main thread: emit per-10s status, save a
    * checkpoint per 60s, and trigger periodic per-shard transaction
    * rollovers so a long sweep does not pile everything into one
@@ -1927,7 +1909,8 @@ int fast_syn_scan(const char *data_dir,
    * - cur_idx), which renders the progress line as "0/29 IPs (0.0%)"
    * partway through a 150-IP scan instead of "121/150 (80.7%)". */
   uint64_t scan_start_idx = cp.next_index;
-  while (!scan_interrupted) {
+  auto monitor = [&]() {
+  while (!scan_interrupted && !persistence.failed()) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     uint64_t cur_idx  = probe_idx.load();
     uint64_t done     = probes_done.load();
@@ -2025,8 +2008,9 @@ int fast_syn_scan(const char *data_dir,
       /* Advance the host-insert timestamp so rows discovered in this window
          are stamped with the current time, not the scan-start time. */
       now_ts.store(static_cast<int64_t>(now_time), std::memory_order_relaxed);
-      cp.packets_sent = done;
-      cp.hosts_found  = found;
+      ScanCheckpoint candidate = cp;
+      candidate.packets_sent = done;
+      candidate.hosts_found  = found;
       /* Save the EXACT in-flight low-water-mark (see worker_inflight): the
          lowest index any worker is still probing, or probe_idx if every
          worker is idle. A crash right after this checkpoint resumes here and
@@ -2035,21 +2019,32 @@ int fast_syn_scan(const char *data_dir,
          stalled while the pool raced ahead) and no needless rescan past it.
          cur_idx itself is untouched, so the live progress display is
          unaffected. */
-      cp.next_index   = compute_low_water();
-      cp.last_save    = now_time;
+      candidate.next_index = compute_low_water();
+      candidate.last_save = now_time;
       {
         std::lock_guard<std::mutex> lk(db_mu);
-        for (auto *db : shards) {
-          if (db) { net_db_commit(db); net_db_begin(db); }
-        }
+        // Hold the writer lock through save: a failed worker must not slip
+        // between a successful COMMIT and publication of this checkpoint.
+        if (!persist_discovery(shards, persistence, true, data_dir, cp, &candidate))
+          break;
       }
-      save_checkpoint(data_dir, cp);
       last_checkpoint = now_time;
     }
   }
+  };
 
-  /* All probes claimed (or interrupted): drain the worker pool. */
-  for (auto &th : pool) th.join();
+  // Startup, worker and monitor exceptions request a cooperative stop and join
+  // every started worker before database rollback/close can run.
+  auto workers = kmap_run_joined_workers_with_monitor(
+      static_cast<size_t>(total_workers),
+      [&](size_t w) { worker(static_cast<long>(w)); },
+      [&]() noexcept {
+        std::lock_guard<std::mutex> boundary_lock(db_mu);
+        persistence.fail();
+      }, monitor);
+  if (workers.error)
+    fprintf(stderr, "net-scan: ERROR: discovery worker/coordinator startup/execution failed.\n");
+  if (persistence.failed()) return finish(1);
 
   /* Final discovery metrics -- always emitted regardless of how long
    * the scan ran so short bounded-sample scans (--net-max-ips) still
@@ -2076,11 +2071,6 @@ int fast_syn_scan(const char *data_dir,
   if (idx > scan_end) idx = scan_end;
   (void)batch_inserts;  /* kept for ABI -- replaced by 60s commit cycle */
 
-  /* Final commit */
-  for (auto *db : shards) {
-    if (db) net_db_commit(db);
-  }
-
   /* Save final checkpoint -- use actual loop position so a follow-up resume
    * picks up where this run stopped.  idx is already clamped to scan_end
    * above, so it is the right value for every clean-completion case: a full
@@ -2104,7 +2094,9 @@ int fast_syn_scan(const char *data_dir,
     cp.next_index = idx;  /* end of what this run swept; next run starts here */
   }
   cp.last_save = time(nullptr);
-  save_checkpoint(data_dir, cp);
+  ScanCheckpoint candidate = cp;
+  if (!persist_discovery(shards, persistence, false, data_dir, cp, &candidate))
+    return finish(1);
 
   log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
             scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
@@ -2121,18 +2113,12 @@ int fast_syn_scan(const char *data_dir,
     }
   }
 
-  /* Restore signal handler */
-#ifndef WIN32
-  sigaction(SIGINT, &sa_old, nullptr);
-#else
-  /* Pass our actual handler pointer (not nullptr) so the Ctrl+C
-   * handler we installed is removed; SetConsoleCtrlHandler(NULL, FALSE)
-   * only restores default Ctrl+C behavior, it does not unregister
-   * an installed handler. Then drop the elevated timer resolution. */
-  SetConsoleCtrlHandler(win_console_ctrl_handler, FALSE);
-  timeEndPeriod(1);
-#endif
-
-  close_all_shards(shards);
-  return 0;
+  return finish(0);
+  } catch (const std::exception &error) {
+    fprintf(stderr, "net-scan: ERROR: discovery setup/finalization failed: %s\n", error.what());
+    return finish(1);
+  } catch (...) {
+    fprintf(stderr, "net-scan: ERROR: discovery setup/finalization failed.\n");
+    return finish(1);
+  }
 }

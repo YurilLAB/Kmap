@@ -118,7 +118,11 @@ struct NetDbOpen { uint32_t ip; int port; int64_t ts; };
    per row.  This is the fast post-discovery flush path: on a dense range the
    per-row prepare_v2 dominated (~1.3 ms/row -> ~10 s for a /20).  Caller should
    have an open transaction (net_db_begin) so there is no per-row fsync.
-   Returns the number of rows written, or -1 on prepare failure. */
+   Returns the number of rows written, or -1 on ANY failure. A savepoint makes
+   each batch atomic, including inside a caller-owned transaction. FULL or
+   INTERRUPT may roll back that outer transaction too; stop and report failure
+   rather than assuming earlier batches remain pending. An empty batch returns
+   0. Success inside an outer transaction is pending until commit succeeds. */
 int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n);
 
 /* Update a host with enrichment data.  Sets enriched=1 and clears any
@@ -222,7 +226,7 @@ struct NetSearchHit {
 std::vector<NetSearchHit> net_db_search_fts(sqlite3 *db, const char *query,
                                             int limit, std::string *err);
 
-/* Count total rows in the hosts table. */
+/* Count total rows in the hosts table; -1 on prepare or execution failure. */
 int64_t net_db_count(sqlite3 *db);
 
 /* Count rows currently eligible for enrichment.  Mirrors the filter used by
@@ -236,10 +240,15 @@ int64_t net_db_count_unenriched(sqlite3 *db,
  * Batch operations (for performance during scanning)
  * ----------------------------------------------------------------------- */
 
-/* Begin/commit a transaction.  Call begin before a batch of inserts,
-   commit after.  Safe to call even if no transaction is active. */
-void net_db_begin(sqlite3 *db);
-void net_db_commit(sqlite3 *db);
+/* Return 0 on success, -1 on failure. Begin requires no active transaction;
+   commit requires an active one. A failed commit may leave it active (BUSY),
+   so retry commit or roll back; do not start another transaction blindly.
+   Rollback is also successful when SQLite already rolled back automatically.
+   Null handles return -1. Callers must check status before reporting success
+   or advancing a persistence checkpoint. */
+int net_db_begin(sqlite3 *db);
+int net_db_commit(sqlite3 *db);
+int net_db_rollback(sqlite3 *db);
 
 /* -----------------------------------------------------------------------
  * IP conversion helpers

@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <set>
 #include <cmath>
+#include <climits>
 
 #ifdef WIN32
 #include <windows.h>
@@ -442,7 +443,8 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
 }
 
 int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n) {
-  if (!db || !recs || n == 0) return 0;
+  if (n == 0) return 0;
+  if (!db || !recs || n > static_cast<size_t>(INT_MAX)) return -1;
 
   /* Same UPSERT as net_db_insert_host, but the statement is compiled ONCE and
      reused (reset+bind+step) for all n rows.  net_db_insert_host re-ran
@@ -459,30 +461,45 @@ int net_db_insert_opens_bulk(sqlite3 *db, const NetDbOpen *recs, size_t n) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  int written = 0, failed = 0;
+  // SAVEPOINT also works inside a caller's transaction. On any failed row,
+  // undo this batch rather than leaving an unreported partial write. FULL or
+  // INTERRUPT may roll back the entire outer transaction; never continue with
+  // later rows in autocommit mode after that happens.
+  int rc = sqlite3_exec(db, "SAVEPOINT kmap_bulk_opens", nullptr, nullptr, nullptr);
+  if (rc != SQLITE_OK) { sqlite3_finalize(stmt); return -1; }
+  int written = 0;
   for (size_t i = 0; i < n; i++) {
     std::string ip_str = u32_to_ip(recs[i].ip);
-    sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 2, recs[i].port);
-    sqlite3_bind_int64(stmt, 3, recs[i].ts);
-    sqlite3_bind_int64(stmt, 4, recs[i].ts);
-    if (sqlite3_step_retry(stmt) == SQLITE_DONE) {
-      if (sqlite3_changes(db) > 0) written++;
-    } else {
-      /* Step did not complete even after the BUSY retries -- the discovered
-         open is about to be lost (the caller already swapped the batch out).
-         With busy_timeout set this is now rare, but never drop it silently. */
-      failed++;
-    }
-    sqlite3_reset(stmt);
-    sqlite3_clear_bindings(stmt);
+    rc = sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 2, recs[i].port);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 3, recs[i].ts);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 4, recs[i].ts);
+    if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
+    if (rc != SQLITE_DONE) break;
+    if (sqlite3_changes(db) > 0) ++written;
+    rc = sqlite3_reset(stmt);
+    if (rc == SQLITE_OK) rc = sqlite3_clear_bindings(stmt);
+    if (rc != SQLITE_OK) break;
   }
+  std::string error = rc == SQLITE_OK ? "" : sqlite3_errmsg(db);
   sqlite3_finalize(stmt);
-  if (failed > 0)
-    fprintf(stderr,
-      "net-scan: WARNING: %u of %u discovered open(s) could not be written to "
-      "shard (db busy/locked) and were dropped this flush.\n",
-      (unsigned)failed, (unsigned)n);
+  if (rc == SQLITE_OK) {
+    rc = sqlite3_exec(db, "RELEASE kmap_bulk_opens", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) error = sqlite3_errmsg(db);
+  }
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "net-scan: bulk storage failed (SQLite %d): %s\n", rc, error.c_str());
+    if (!sqlite3_get_autocommit(db)) {
+      int undo = sqlite3_exec(db, "ROLLBACK TO kmap_bulk_opens", nullptr, nullptr, nullptr);
+      if (undo == SQLITE_OK)
+        undo = sqlite3_exec(db, "RELEASE kmap_bulk_opens", nullptr, nullptr, nullptr);
+      if (undo != SQLITE_OK) {
+        // If savepoint cleanup fails, do not leave partial data pending.
+        net_db_rollback(db);
+      }
+    }
+    return -1;
+  }
   return written;
 }
 
@@ -1013,7 +1030,7 @@ int64_t net_db_count(sqlite3 *db) {
   sqlite3_stmt *stmt = nullptr;
   if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM hosts", -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
-  int64_t count = 0;
+  int64_t count = -1;
   if (sqlite3_step(stmt) == SQLITE_ROW)
     count = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
@@ -1037,7 +1054,7 @@ int64_t net_db_count_unenriched(sqlite3 *db, int64_t retry_after_seconds) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
   sqlite3_bind_int64(stmt, 1, retry_after_seconds);
-  int64_t count = 0;
+  int64_t count = -1;
   if (sqlite3_step(stmt) == SQLITE_ROW)
     count = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
@@ -1048,8 +1065,8 @@ int64_t net_db_count_unenriched(sqlite3 *db, int64_t retry_after_seconds) {
  * Batch operations
  * ----------------------------------------------------------------------- */
 
-void net_db_begin(sqlite3 *db) {
-  if (!db) return;
+int net_db_begin(sqlite3 *db) {
+  if (!db) return -1;
   char *errmsg = nullptr;
   int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &errmsg);
   if (rc != SQLITE_OK) {
@@ -1061,23 +1078,32 @@ void net_db_begin(sqlite3 *db) {
             errmsg ? errmsg : sqlite3_errmsg(db));
   }
   if (errmsg) sqlite3_free(errmsg);
+  return rc == SQLITE_OK ? 0 : -1;
 }
 
-void net_db_commit(sqlite3 *db) {
-  if (!db) return;
+int net_db_commit(sqlite3 *db) {
+  if (!db) return -1;
   char *errmsg = nullptr;
   int rc = sqlite3_exec(db, "COMMIT", nullptr, nullptr, &errmsg);
   if (rc != SQLITE_OK) {
-    /* A failed COMMIT means the batch of discovered hosts / enrichment for
-       this window did NOT reach disk -- a real data-loss event, never to be
-       swallowed silently. Warn even when errmsg is null (fall back to
-       sqlite3_errmsg). The caller's next BEGIN re-opens a transaction so the
-       scan continues, but the operator is now told a window was lost. */
+    /* BUSY leaves the transaction active: callers may retry COMMIT after
+       the reader releases its lock, or explicitly roll back. Other errors
+       may already have rolled back the transaction. Never report success. */
     fprintf(stderr, "net-scan: WARNING: COMMIT failed (scan data for this "
             "window may be lost): %s\n",
             errmsg ? errmsg : sqlite3_errmsg(db));
   }
   if (errmsg) sqlite3_free(errmsg);
+  return rc == SQLITE_OK ? 0 : -1;
+}
+
+int net_db_rollback(sqlite3 *db) {
+  if (!db) return -1;
+  if (sqlite3_get_autocommit(db)) return 0;
+  int rc = sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
+  if (rc != SQLITE_OK)
+    fprintf(stderr, "net-scan: ROLLBACK failed: %s\n", sqlite3_errmsg(db));
+  return rc == SQLITE_OK ? 0 : -1;
 }
 
 /* -----------------------------------------------------------------------
@@ -1505,7 +1531,7 @@ int64_t net_db_count_topo_nodes(sqlite3 *db) {
   if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM topo_nodes",
                          -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
-  int64_t c = 0;
+  int64_t c = -1;
   if (sqlite3_step(stmt) == SQLITE_ROW) c = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
   return c;
@@ -1517,7 +1543,7 @@ int64_t net_db_count_topo_edges(sqlite3 *db) {
   if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM topo_edges",
                          -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
-  int64_t c = 0;
+  int64_t c = -1;
   if (sqlite3_step(stmt) == SQLITE_ROW) c = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
   return c;

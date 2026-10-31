@@ -1,7 +1,9 @@
 /*
- * test_lowwater.cc -- proves the EXACT resume low-water-mark in fast_syn.cc
- * never lets a crash-resume skip a claimed-but-unfinished IP index, and that
- * the OLD "cur_idx - total_workers" heuristic could.
+ * test_lowwater.cc -- legacy copied low-water model and randomized states.
+ * This preserves the inherited comparison with the older rewind heuristic;
+ * it does NOT prove the current production scheduler's checkpoint safety.
+ * tests/scheduler_progress_test.cc exercises the shipping work_progress.h
+ * helper with a paused unpublished claim and a snapshot BEFORE thread join.
  *
  * Background
  * ----------
@@ -14,16 +16,16 @@
  * position <= every claimed-but-unfinished index or a crash loses those hosts.
  *
  * The old heuristic saved cur_idx - total_workers, which under-rewinds when a
- * worker lags by more than total_workers. The fix tracks each worker's
- * in-flight index and saves min(exact_inflight_min, cur_idx - total_workers):
+ * worker lags by more than total_workers. This copied intermediate model
+ * tracks in-flight indices and saves min(published_min, cur_idx - workers):
  *   (a) exact_inflight_min covers a slow PROCESSING worker (the real bug),
- *   (b) the cur_idx - total_workers floor covers the brief, non-blocking
- *       fetch_add->publish claim gap (indices always within total_workers of
- *       probe_idx there).
+ *   (b) the generator RESTRICTS unpublished claims to the last workers indices.
+ *       Real thread preemption need not obey that restriction: another worker
+ *       can complete arbitrarily many jobs while an unpublished claim pauses.
  *
  * Part 1 tests the pure low-water formula over millions of randomized states.
- * Part 2 runs a real threaded pool with planted laggards, "crashes" at random
- * points, and verifies no not-yet-completed index falls below the saved mark.
+ * Part 2 runs a copied threaded model with planted laggards and checks only
+ * after all workers join. It therefore cannot expose a live publication gap.
  *
  * Build (MinGW, here):
  *   g++ -O2 -g -std=gnu++17 -Wall -pthread fuzz/test_lowwater.cc \
@@ -40,7 +42,7 @@
 
 static const uint64_t NONE = std::numeric_limits<uint64_t>::max();
 
-/* The fix, lifted verbatim from fast_syn.cc::compute_low_water. */
+/* Legacy formula copied from the former fast_syn.cc::compute_low_water. */
 static uint64_t low_water_new(uint64_t probe_idx,
                               const std::vector<uint64_t> &inflight,
                               long total_workers) {
@@ -98,9 +100,9 @@ static int part1(uint64_t seed) {
       unfinished.push_back(idx);
     }
 
-    /* (b) Claim-gap indices: claimed but not yet published, hence slot==NONE.
-           They are always within total_workers of probe_idx (non-blocking
-           gap), so model them in [p - W, p). */
+    /* (b) Restricted model of unpublished claims, hence slot==NONE.
+           Sampling only [p - W, p) misses preempted claimants outside that
+           interval. The production-helper regression covers that case. */
     long n_gap = (long)(rng() % (uint64_t)(W + 1));
     for (long k = 0; k < n_gap && p > 0; k++) {
       uint64_t lo = (p > (uint64_t)W) ? p - (uint64_t)W : 0;

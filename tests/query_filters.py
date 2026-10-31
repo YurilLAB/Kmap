@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Offline actual-CLI contracts for stored CVE metadata and query arguments.
+
+Only --net-query is invoked; fixture addresses are inert SQLite values. Every
+command has a 15-second timeout, and logs/fixtures/hashes survive failures.
+"""
+import argparse
+from contextlib import closing
+import json
+from pathlib import Path
+import sqlite3
+import sys
+import time
+import traceback
+
+from query_performance import digest, fixture, normalized_digest
+from runtime_smoke import Runner, require
+
+
+def definitions():
+    high = {"id": "CVE-2000-0001", "cvss": 9.1, "epss": 0.9, "kev": 1, "ransomware": 1}
+    compact = json.dumps([high], separators=(",", ":"))
+    return [
+        (compact, ["kev", "ransomware", "vuln"]),
+        ('[{"id":"CVE-2000-0002","cvss":4.0,"epss":5e-05,"kev":0}]', ["vuln"]),
+        (json.dumps([high], indent=2), ["kev", "ransomware", "vuln"]),
+        (json.dumps([high], indent=2).replace(": ", ":\n "), ["kev", "ransomware", "vuln"]),
+        ('[{"id":"CVE-2000-0002","desc":"CVE-2000-0001","cvss":4.0,"epss":0.1}]', ["vuln"]),
+        (compact.replace('"CVE-', '"\\u0043ve-'), ["kev", "ransomware", "vuln"]),
+        ('[{"id":"CVE-2000-0002","cvss":11,"epss":2,"kev":10,"ransomware":10}]', ["vuln"]),
+        ('[{"id":"CVE-2000-0002","cvss":"9","epss":"0.9","kev":"1","ransomware":"1"}]', ["vuln"]),
+        ('[{"id":"CVE-2000-0002","cvss":true,"epss":false,"kev":true,"ransomware":true}]', ["kev", "ransomware", "vuln"]),
+        ('[{"id":"CVE-2000-0002","details":{"cvss":9,"epss":0.9,"kev":1,"ransomware":1}}]', ["vuln"]),
+        ('[', []),
+        (json.dumps(high), []),
+        ('[42,null,true,"CVE-2000-0001"]', []),
+        ('[{"cvss":9,"epss":0.9,"kev":1,"ransomware":1}]', []),
+        ('[]', []),
+        ('[{"id":"CVE-2000-0002","cvss":-9,"epss":-0.9,"kev":false,"ransomware":false}]', ["vuln"]),
+        ('[{"id":"CVE-2000-0001","cvss":9.1e0,"epss":9e-1,"kev":true,"ransomware":true}]', ["kev", "ransomware", "vuln"]),
+        ('[]', []),
+        ('[{"id":"CVE-2000-0003","cvss":0,"epss":0,"kev":0,"ransomware":0}]', ["vuln"]),
+        ('[]', ["cloud", "database", "self-signed"]),
+    ]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("--artifacts", type=Path, required=True)
+    args = parser.parse_args()
+    runner = Runner(args.artifacts)
+    deadline = time.monotonic() + 300
+    binary = args.binary.resolve()
+    data = runner.artifacts / "fixture"
+    rows, expected = [], []
+    for number, (raw, tags) in enumerate(definitions(), 1):
+        service = "postgresql" if number == 20 else "https"
+        asn = {15: 4000000000, 18: 4294967295}.get(number, 64512)
+        row = dict(ip=f"192.0.2.{number}", port=443, service=service, raw_cves=raw,
+                   asn=asn, country="US")
+        rows.append(row)
+        result = dict(ip=row["ip"], port=443, proto="tcp", service=service, asn=asn,
+                      country="US", device_class="db" if number == 20 else "web")
+        if tags:
+            result["tags"] = tags
+        if raw != "[]":
+            try:
+                parsed = json.loads(raw)
+                result["cves"] = parsed if isinstance(parsed, list) else raw
+            except ValueError:
+                result["cves"] = raw
+        if number == 20:
+            result["cloud"] = "aws"
+        expected.append(result)
+    fixture(data, rows)
+    with closing(sqlite3.connect(data / "shard_024.db")) as db:
+        db.executescript("ALTER TABLE hosts ADD COLUMN cloud_provider TEXT;"
+                         "ALTER TABLE hosts ADD COLUMN tls_self_signed INTEGER;")
+        db.execute("UPDATE hosts SET cloud_provider='aws',tls_self_signed=1 WHERE ip='192.0.2.20'")
+        db.commit()
+    source_hashes = {name: digest(Path(__file__).resolve().parents[1] / name)
+                     for name in ("net_query.cc", "net_query.h", "kmap.cc", "KmapOps.h")}
+    metadata = dict(binary=str(binary), binary_sha256=digest(binary), driver_sha256=digest(__file__),
+                    helper_hashes={name: digest(Path(__file__).parent / name)
+                                   for name in ("query_performance.py", "runtime_smoke.py")},
+                    working_source_hashes=source_hashes, fixture_initial_sha256=digest(data / "shard_024.db"))
+    cases = []
+
+    def query(name, options=(), error=False, text=False):
+        command = [str(binary), "--net-query", "--data-dir", str(data)]
+        if not text:
+            command += ["--nq-format", "json"]
+        remaining = deadline - time.monotonic()
+        require(remaining > 0, "300-second suite budget exhausted")
+        runner.run(name, [*command, *options], timeout=min(15, remaining),
+                   expected_returncodes=(1,) if error else (0,))
+        output = (runner.artifacts / (name + ".stdout.log")).read_text(encoding="utf-8")
+        if error:
+            diagnostic = output + (runner.artifacts / (name + ".stderr.log")).read_text(encoding="utf-8")
+            require(any(word in diagnostic.lower() for word in ("error", "invalid", "range", "must", "valid")),
+                    "controlled error lacked a diagnostic")
+            return None
+        return output if text else json.loads(output)
+
+    def case(name, check):
+        try:
+            check()
+            cases.append(dict(name=name, status="passed"))
+        except Exception:
+            cases.append(dict(name=name, status="failed", error=traceback.format_exc()))
+        runner.save(**metadata, cases=cases)
+
+    def subset(name, options, numbers):
+        actual = query(name, options)
+        oracle = [expected[i - 1] for i in numbers]
+        require(actual == oracle, f"{name}: complete result differs; expected {oracle!r}; actual {actual!r}")
+
+    case("all-fields-tags", lambda: subset("all", [], range(1, 21)))
+    for name, options, numbers in [
+        ("cvss", ["--nq-min-cvss", "8"], [1, 3, 4, 6, 17]),
+        ("epss", ["--nq-min-epss", "0.5"], [1, 3, 4, 6, 17]),
+        ("kev", ["--nq-kev"], [1, 3, 4, 6, 9, 17]),
+        ("kev-tag", ["--nq-tag", "KeV"], [1, 3, 4, 6, 9, 17]),
+        ("ransomware", ["--nq-tag", "ransomware"], [1, 3, 4, 6, 9, 17]),
+        ("id", ["--nq-cve", "cVe-2000-0001"], [1, 3, 4, 6, 17]),
+        ("id-no-prefix", ["--nq-cve", "CVE-2000-000"], []),
+        ("id-no-like-wildcard", ["--nq-cve", "CVE-%"], []),
+        ("asn-large", ["--nq-asn", "4000000000"], [15]),
+        ("asn-max", ["--nq-asn", "4294967295"], [18]),
+        ("non-cve-tags", ["--nq-tag", "cloud"], [20]),
+        ("country-case", ["--nq-country", "uS"], range(1, 21)),
+    ]:
+        case(name, lambda n=name, o=options, ids=numbers: subset(n, o, ids))
+    case("filtered-count", lambda: require(query("filtered-count", ["--nq-cve", "CVE-2000-0001", "--nq-count"])
+                                           == {"count": 5}, "filtered count differs"))
+
+    # Explicit JSON format; query(text=True) avoids trying to parse stdout diagnostics.
+    def export_json():
+        target = runner.artifacts / "export.json"
+        query("export", ["--nq-format", "json", "--nq-output", str(target)], text=True)
+        require(json.loads(target.read_text(encoding="utf-8")) == expected, "export differs from independent oracle")
+    case("file-export", export_json)
+
+    def text_summaries():
+        output = query("text", ["--nq-format", "text", "--nq-cve", "CVE-2000-0001"], text=True)
+        lines = [line for line in output.splitlines() if line.startswith("192.0.2.")]
+        require(len(lines) == 5, "text query omitted equivalent JSON rows")
+        require(all("(CVSS:9.1)" in line and "[kev, ransomware, vuln]" in line for line in lines),
+                "text summary/tags differ across equivalent JSON formatting")
+    case("text-summaries", text_summaries)
+    for name, options in [
+        ("epss-nan", ["--nq-min-epss", "nan"]), ("cvss-nan", ["--nq-min-cvss", "NaN"]),
+        ("epss-infinity", ["--nq-min-epss", "inf"]), ("cvss-overflow", ["--nq-min-cvss", "1e999"]),
+        ("asn-overflow", ["--nq-asn", "4294967296"]), ("asn-strtoull-overflow", ["--nq-asn", "18446744073709551616"]),
+        ("asn-zero", ["--nq-asn", "0"]), ("asn-negative", ["--nq-asn", "-1"]),
+        ("asn-trailing", ["--nq-asn", "64512junk"]), ("country-digits", ["--nq-country", "12"]),
+        ("country-mixed", ["--nq-country", "U1"]), ("country-short", ["--nq-country", "U"]),
+    ]:
+        case("invalid-" + name, lambda n=name, o=options: query("invalid-" + n, o, error=True))
+    passed = all(c["status"] == "passed" for c in cases)
+    runner.save(**metadata, status="passed" if passed else "failed", cases=cases,
+                expected_normalized_sha256=normalized_digest(expected), fixture_final_sha256=digest(data / "shard_024.db"))
+    print(f"query filters: {sum(c['status'] == 'passed' for c in cases)}/{len(cases)} passed; {runner.artifacts}")
+    return 0 if passed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

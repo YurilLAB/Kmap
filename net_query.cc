@@ -34,6 +34,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <cerrno>
+#include <cmath>
 
 extern KmapOps o;
 
@@ -140,95 +141,63 @@ static std::vector<int> shards_for_cidr(const CidrRange &cidr) {
 }
 
 /* -----------------------------------------------------------------------
- * Minimal JSON helpers for CVSS extraction from the cves column
+ * Parsed CVE metadata, shared by filters, tags, and output for each row
  *
  * The cves column contains a JSON array like:
  *   [{"id":"CVE-2024-6387","cvss":8.1,"severity":"HIGH","desc":"..."}]
  * ----------------------------------------------------------------------- */
 
-/* Extract the maximum CVSS score from a cves JSON string.
- * Returns -1.0f if no valid score found. */
-static float max_cvss_from_json(const std::string &cves_json) {
-  float max_score = -1.0f;
-  size_t pos = 0;
-  while (true) {
-    pos = cves_json.find("\"cvss\":", pos);
-    if (pos == std::string::npos) break;
-    pos += 7;
-    while (pos < cves_json.size() && cves_json[pos] == ' ') pos++;
-    size_t end = pos;
-    while (end < cves_json.size() &&
-           (isdigit(static_cast<unsigned char>(cves_json[end])) ||
-            cves_json[end] == '.' || cves_json[end] == '-'))
-      end++;
-    if (end > pos) {
-      float score = static_cast<float>(
-          atof(cves_json.substr(pos, end - pos).c_str()));
-      if (score > max_score) max_score = score;
-    }
-    pos = end;
-  }
-  return max_score;
-}
-
-/* Extract the maximum EPSS probability (0..1) from a cves JSON string.
- * EPSS values render as `"epss":0.9951`. Returns -1.0f if none present. */
-static float max_epss_from_json(const std::string &cves_json) {
+struct CveMetadata {
+  nlohmann::json parsed;
+  std::vector<std::string> ids;
+  float max_cvss = -1.0f;
   float max_epss = -1.0f;
-  size_t pos = 0;
-  while (true) {
-    pos = cves_json.find("\"epss\":", pos);
-    if (pos == std::string::npos) break;
-    pos += 7;
-    while (pos < cves_json.size() && cves_json[pos] == ' ') pos++;
-    size_t end = pos;
-    while (end < cves_json.size() &&
-           (isdigit(static_cast<unsigned char>(cves_json[end])) ||
-            cves_json[end] == '.'))
-      end++;
-    if (end > pos) {
-      float v = static_cast<float>(atof(cves_json.substr(pos, end - pos).c_str()));
-      if (v > max_epss) max_epss = v;
+  bool kev = false;
+  bool ransomware = false;
+  std::string first_summary;
+};
+
+/* JSON numeric values only: strings, booleans, out-of-range values, and
+ * non-finite numbers must not qualify a host for a score filter. */
+static float cve_score(const nlohmann::json &entry, const char *key, double hi) {
+  const auto value = entry.find(key);
+  if (value == entry.end() || !value->is_number()) return -1.0f;
+  const double score = value->get<double>();
+  return std::isfinite(score) && score >= 0.0 && score <= hi
+           ? static_cast<float>(score) : -1.0f;
+}
+
+static bool cve_flag(const nlohmann::json &entry, const char *key) {
+  const auto value = entry.find(key);
+  if (value == entry.end()) return false;
+  if (value->is_boolean()) return value->get<bool>();
+  return value->is_number() && value->get<double>() == 1.0;
+}
+
+static CveMetadata parse_cves(const std::string &raw) {
+  CveMetadata result;
+  if (raw.empty() || raw == "[]") return result;
+  result.parsed = nlohmann::json::parse(kmap_json_repair_utf8(raw), nullptr, false);
+  if (!result.parsed.is_array()) return result;
+  for (const auto &entry : result.parsed) {
+    if (!entry.is_object()) continue;
+    const auto id = entry.find("id");
+    if (id == entry.end() || !id->is_string()) continue;
+    const std::string &name = id->get_ref<const std::string &>();
+    if (name.empty()) continue;
+    result.ids.push_back(str_lower(name));
+    const float cvss = cve_score(entry, "cvss", 10.0);
+    result.max_cvss = (std::max)(result.max_cvss, cvss);
+    result.max_epss = (std::max)(result.max_epss, cve_score(entry, "epss", 1.0));
+    result.kev = result.kev || cve_flag(entry, "kev");
+    result.ransomware = result.ransomware || cve_flag(entry, "ransomware");
+    if (result.first_summary.empty()) {
+      result.first_summary = name;
+      if (cvss >= 0.0f)
+        result.first_summary += " (CVSS:" + entry["cvss"].dump() + ")";
     }
-    pos = end;
   }
-  return max_epss;
-}
-
-/* True if any CVE in the array is flagged as CISA-KEV (`"kev":1`). */
-static bool json_has_kev(const std::string &cves_json) {
-  return cves_json.find("\"kev\":1") != std::string::npos;
-}
-
-/* Extract the first CVE summary for compact display.
- * Returns something like "CVE-2024-6387 (CVSS:8.1)". */
-static std::string first_cve_summary(const std::string &cves_json) {
-  size_t id_pos = cves_json.find("\"id\":\"");
-  if (id_pos == std::string::npos) return "";
-  id_pos += 6;
-  size_t id_end = cves_json.find('"', id_pos);
-  if (id_end == std::string::npos) return "";
-  std::string cve_id = cves_json.substr(id_pos, id_end - id_pos);
-
-  /* Find the CVSS score near this entry */
-  size_t cvss_pos = cves_json.find("\"cvss\":", id_pos);
-  std::string cvss_str;
-  if (cvss_pos != std::string::npos && cvss_pos < id_pos + 200) {
-    cvss_pos += 7;
-    while (cvss_pos < cves_json.size() && cves_json[cvss_pos] == ' ')
-      cvss_pos++;
-    size_t cvss_end = cvss_pos;
-    while (cvss_end < cves_json.size() &&
-           (isdigit(static_cast<unsigned char>(cves_json[cvss_end])) ||
-            cves_json[cvss_end] == '.'))
-      cvss_end++;
-    if (cvss_end > cvss_pos)
-      cvss_str = cves_json.substr(cvss_pos, cvss_end - cvss_pos);
-  }
-
-  if (!cvss_str.empty())
-    return cve_id + " (CVSS:" + cvss_str + ")";
-  return cve_id;
+  return result;
 }
 
 /* -----------------------------------------------------------------------
@@ -245,7 +214,7 @@ struct QueryFilter {
   struct BindVal {
     BindType type;
     std::string text_val;
-    int int_val;
+    int64_t int_val;
   };
   std::vector<BindVal> binds;
 };
@@ -254,7 +223,7 @@ static QueryFilter build_filter(int port, const char *service,
                                 const char *cve, float min_cvss,
                                 const char *web_title,
                                 const char *web_server,
-                                int asn,
+                                int64_t asn,
                                 const char *country,
                                 bool kev_only, float min_epss) {
   QueryFilter f;
@@ -271,31 +240,9 @@ static QueryFilter build_filter(int port, const char *service,
                        "%" + str_lower(service) + "%", 0});
   }
 
-  if (cve && cve[0]) {
-    /* Anchor the match to the full quoted id.  cves is a JSON array of
-       [{"id":"CVE-...",...}] (no space after the colon), so binding the id
-       wrapped in quotes makes the whole id match: "CVE-2024-1" no longer
-       prefix-collides with "CVE-2024-100"/"CVE-2024-1234", and it matches the
-       id field rather than CVE-description prose.  Still a substring LIKE (no
-       cves index), but now correct. */
-    conditions.push_back("cves LIKE ?");
-    f.binds.push_back({QueryFilter::BTEXT,
-                       "%\"" + std::string(cve) + "\"%", 0});
-  }
-
-  /* CVSS filtering is done in post-processing since the score is
-   * embedded in the JSON cves column.  Pre-filter to rows with CVE data. */
-  if (min_cvss > 0.0f) {
-    conditions.push_back(
-        "cves IS NOT NULL AND cves != '' AND cves != '[]'");
-  }
-
-  /* KEV / EPSS live in the same JSON cves column, so they too pre-filter to
-     rows that carry CVE data and post-filter precisely below. */
-  if (kev_only) {
-    conditions.push_back("cves LIKE '%\"kev\":1%'");
-  }
-  if (min_epss > 0.0f) {
+  /* Only discard empty CVE columns here. Matching JSON text with LIKE loses
+   * valid whitespace/escapes and can match a description instead of an ID. */
+  if ((cve && cve[0]) || min_cvss > 0.0f || kev_only || min_epss > 0.0f) {
     conditions.push_back(
         "cves IS NOT NULL AND cves != '' AND cves != '[]'");
   }
@@ -407,8 +354,8 @@ static std::string classify_device(const std::string &service, int port) {
 /* -----------------------------------------------------------------------
  * JSON escaping + per-row JSON formatter
  *
- * The cves column is stored as a JSON array string; we emit it raw when it
- * looks well-formed (starts with '['), and as an escaped string otherwise.
+ * The cves column is emitted as a parsed array, or as an escaped string when
+ * malformed. Filters and output share the same parsed metadata.
  * ----------------------------------------------------------------------- */
 
 /* Escape a string for a JSON value AND guarantee the result is valid UTF-8.
@@ -442,6 +389,7 @@ static std::string format_result_json(const std::string &ip, int port,
                                       const std::string &service,
                                       const std::string &version,
                                       const std::string &cves_json,
+                                      const CveMetadata &cves,
                                       int64_t asn, const std::string &as_name,
                                       const std::string &country,
                                       const std::string &hostname,
@@ -478,20 +426,17 @@ static std::string format_result_json(const std::string &ip, int port,
     }
     oss << ']';
   }
-  /* cves is already JSON in the column.  Emit raw only if it looks like
-   * a JSON array; otherwise fall back to an escaped string to keep the
-   * output parseable. */
+  /* Preserve legacy malformed values as escaped strings. Valid arrays are
+   * serialized from the same parse used by filters and derived tags. */
   if (!cves_json.empty() && cves_json != "[]") {
     if (!first) oss << ',';
     /* cves is the last emitted field, so `first` is intentionally not updated
        here (a trailing `first = false` would be a dead store). Keep this block
        last, or restore the assignment if another field is appended after it. */
-    const std::string repaired = kmap_json_repair_utf8(cves_json);
-    const auto parsed = nlohmann::json::parse(repaired, nullptr, false);
-    if (parsed.is_array())
+    if (cves.parsed.is_array())
       // Re-serialize: an accepted leading BOM is legal at a document start,
       // but cannot be embedded verbatim in the middle of this document.
-      oss << "\"cves\":" << parsed.dump();
+      oss << "\"cves\":" << cves.parsed.dump();
     else
       oss << "\"cves\":\"" << json_escape(cves_json) << '"';
   }
@@ -509,7 +454,7 @@ static void bind_filter(sqlite3_stmt *stmt, const QueryFilter &f) {
                           SQLITE_TRANSIENT);
         break;
       case QueryFilter::BINT:
-        sqlite3_bind_int(stmt, idx, b.int_val);
+        sqlite3_bind_int64(stmt, idx, b.int_val);
         break;
     }
     idx++;
@@ -526,7 +471,7 @@ static std::string format_result(const std::string &ip, int port,
                                  const std::string &proto,
                                  const std::string &service,
                                  const std::string &version,
-                                 const std::string &cves_json,
+                                 const CveMetadata &cves,
                                  const std::vector<std::string> &tags) {
   std::ostringstream oss;
 
@@ -553,11 +498,8 @@ static std::string format_result(const std::string &ip, int port,
     oss << "  " << version;
 
   /* First CVE summary */
-  if (!cves_json.empty() && cves_json != "[]") {
-    std::string cve_summary = first_cve_summary(cves_json);
-    if (!cve_summary.empty())
-      oss << "  " << cve_summary;
-  }
+  if (!cves.first_summary.empty())
+    oss << "  " << cves.first_summary;
 
   /* Tags, bracketed: [self-signed, cloud, kev] */
   if (!tags.empty()) {
@@ -584,7 +526,7 @@ int run_net_query(const char *data_dir,
                   const char *web_title,
                   const char *web_server,
                   const char *ip_range,
-                  int asn,
+                  int64_t asn,
                   const char *country,
                   const char *device_class,
                   const char *output_file,
@@ -634,7 +576,10 @@ int run_net_query(const char *data_dir,
 
   /* Validate country code is 2 letters if provided. */
   if (country && country[0]) {
-    if (strlen(country) != 2) {
+    const auto ascii_letter = [](unsigned char c) {
+      return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+    };
+    if (strlen(country) != 2 || !ascii_letter(country[0]) || !ascii_letter(country[1])) {
       log_write(LOG_STDOUT,
         "net-query: ERROR: --nq-country must be a 2-letter ISO code "
         "(e.g. US, GB, JP)\n");
@@ -647,6 +592,7 @@ int run_net_query(const char *data_dir,
   if (device_class && device_class[0]) {
     device_filter = str_lower(device_class);
   }
+  const std::string cve_filter = cve ? str_lower(cve) : "";
 
   /* Parse IP range if provided */
   CidrRange cidr{};
@@ -813,17 +759,14 @@ int run_net_query(const char *data_dir,
         if (!ip_in_cidr(ip_num, cidr)) continue;
       }
 
-      /* Post-process: CVSS score filtering */
-      if (min_cvss > 0.0f) {
-        float max_score = max_cvss_from_json(row_cves);
-        if (max_score < min_cvss) continue;
-      }
-
-      /* Post-process: CISA-KEV and EPSS filtering (both embedded in cves). */
-      if (kev_only && !json_has_kev(row_cves)) continue;
-      if (min_epss > 0.0f) {
-        if (max_epss_from_json(row_cves) < min_epss) continue;
-      }
+      /* Parse once for CVE membership, bounded scores, tags and output. */
+      const CveMetadata cves = parse_cves(row_cves);
+      if (!cve_filter.empty() &&
+          std::find(cves.ids.begin(), cves.ids.end(), cve_filter) == cves.ids.end())
+        continue;
+      if (min_cvss > 0.0f && cves.max_cvss < min_cvss) continue;
+      if (kev_only && !cves.kev) continue;
+      if (min_epss > 0.0f && cves.max_epss < min_epss) continue;
 
       /* Post-process: device-class filtering (no schema column, classify
        * on the fly from service+port). */
@@ -841,8 +784,14 @@ int run_net_query(const char *data_dir,
       ti.cpe = row_cpe;
       ti.tls_self_signed = row_tls_self_signed;
       ti.cloud_provider = row_cloud;
-      ti.cves_json = row_cves;
+      /* The shared helper still supplies non-CVE tags. Supply CVE tags from
+       * structured metadata so JSON whitespace never changes membership. */
+      ti.cves_json = "[]";
       std::vector<std::string> tags = derive_host_tags(ti);
+      if (!cves.ids.empty()) tags.push_back("vuln");
+      if (cves.kev) tags.push_back("kev");
+      if (cves.ransomware) tags.push_back("ransomware");
+      std::sort(tags.begin(), tags.end());
       if (!tag_filter.empty() &&
           std::find(tags.begin(), tags.end(), tag_filter) == tags.end())
         continue;
@@ -852,10 +801,10 @@ int run_net_query(const char *data_dir,
       if (!count_only) {
         std::string payload = emit_json
           ? format_result_json(row_ip, row_port, row_proto, row_svc, row_ver,
-                               row_cves, row_asn, row_as_name, row_country,
+                               row_cves, cves, row_asn, row_as_name, row_country,
                                row_host, row_wtitle, row_wsrv, row_cpe, row_cloud,
                                dev_class, tags)
-          : format_result(row_ip, row_port, row_proto, row_svc, row_ver, row_cves,
+          : format_result(row_ip, row_port, row_proto, row_svc, row_ver, cves,
                           tags);
         shard_rows.push_back({ ip_to_u32(row_ip.c_str()), row_port, payload });
       }

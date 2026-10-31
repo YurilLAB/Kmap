@@ -318,7 +318,7 @@ class KmapOps {
   char *nq_ip_range;        /* Filter by IP range */
   char *nq_output;          /* Export results to file */
   bool nq_count;            /* Count mode */
-  int  nq_asn;              /* Filter by ASN (-1 = unset) */
+  int64_t nq_asn;           /* Full uint32 ASN, or -1 when unset */
   char *nq_country;         /* Filter by country code */
   char *nq_device;          /* Filter by device_class tag (web/ssh/router/iot/...) */
   char *nq_format;          /* "text" (default) or "json" */

@@ -19,6 +19,7 @@
 
 #include "tracemap.h"
 #include "topology_assemble.h"
+#include "topology_store.h"
 #include "asn_lookup.h"
 #include "output.h"
 #include "KmapOps.h"
@@ -1136,6 +1137,7 @@ int run_tracemap(const char *targets, const char *output_file,
      itself a shard; the whole topology is small enough to fit in a
      single file (millions of unique routers across the public
      internet, not billions like the host catalog). */
+  bool persistence_failed = false;
   if (!o.tm_no_persist) {
     const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
     char topo_path[1024];
@@ -1151,57 +1153,24 @@ int run_tracemap(const char *targets, const char *output_file,
 
     sqlite3 *topo_db = net_db_open(topo_path);
     if (topo_db) {
-      int64_t now = static_cast<int64_t>(time(nullptr));
-      net_db_begin(topo_db);
-
-      /* path_count from the in-memory Topology IS the per-batch trace
-         count: build_topology counts how many traces visited each node
-         and edge.  Pass it through verbatim so the DB column tracks
-         actual trace observations, not how-many-times-tracemap-ran. */
       int persisted_nodes = 0, persisted_edges = 0;
-      for (const TopoNode &n : topo.nodes) {
-        uint32_t u = ip_to_u32(n.ip.c_str());
-        if (u == 0) continue;
-        NetTopoNode nn{};
-        nn.ip_u32     = u;
-        nn.hostname   = n.hostname;
-        nn.asn        = n.asn;
-        nn.as_name    = n.as_name;
-        nn.country    = n.country;
-        nn.role       = n.role;
-        nn.path_count = n.path_count;
-        nn.avg_rtt_ms = n.avg_rtt_ms;
-        nn.rtt_sample_count = n.rtt_sample_count;
-        nn.last_seen  = now;
-        if (net_db_upsert_topo_node(topo_db, nn) == 0) persisted_nodes++;
+      if (!persist_topology(topo_db, topo, static_cast<int64_t>(time(nullptr)),
+                            persisted_nodes, persisted_edges)) {
+        persistence_failed = true;
+        log_write(LOG_STDERR, "tracemap: ERROR: graph was not persisted to %s\n", topo_path);
+      } else {
+        log_write(LOG_STDOUT, "  Persisted %d nodes + %d edges to %s\n",
+                  persisted_nodes, persisted_edges, topo_path);
+        int64_t nodes = net_db_count_topo_nodes(topo_db);
+        int64_t edges = net_db_count_topo_edges(topo_db);
+        if (nodes >= 0 && edges >= 0)
+          log_write(LOG_STDOUT, "  Cumulative: %lld nodes, %lld edges\n",
+                    static_cast<long long>(nodes), static_cast<long long>(edges));
       }
-      for (const TopoEdge &e : topo.edges) {
-        uint32_t f = ip_to_u32(e.from_ip.c_str());
-        uint32_t t = ip_to_u32(e.to_ip.c_str());
-        if (f == 0 || t == 0) continue;
-        NetTopoEdge ne{};
-        ne.from_u32       = f;
-        ne.to_u32         = t;
-        ne.asn_boundary   = e.asn_boundary ? 1 : 0;
-        ne.avg_latency_ms = e.avg_latency_ms;
-        ne.path_count     = e.path_count;
-        ne.latency_sample_count = e.latency_sample_count;
-        ne.last_seen      = now;
-        if (net_db_upsert_topo_edge(topo_db, ne) == 0) persisted_edges++;
-      }
-
-      net_db_commit(topo_db);
-      log_write(LOG_STDOUT,
-                "  Persisted %d nodes + %d edges to %s "
-                "(cumulative: %lld nodes, %lld edges)\n",
-                persisted_nodes, persisted_edges, topo_path,
-                static_cast<long long>(net_db_count_topo_nodes(topo_db)),
-                static_cast<long long>(net_db_count_topo_edges(topo_db)));
       net_db_close(topo_db);
     } else {
-      log_write(LOG_STDOUT,
-                "  WARNING: could not open %s — graph not persisted "
-                "(run with --tm-no-persist to suppress this warning)\n",
+      persistence_failed = true;
+      log_write(LOG_STDERR, "tracemap: ERROR: cannot open %s; graph was not persisted\n",
                 topo_path);
     }
   }
@@ -1230,5 +1199,5 @@ int run_tracemap(const char *targets, const char *output_file,
     log_write(LOG_STDOUT, "\n  Output written to %s\n", output_file);
   }
 
-  return 0;
+  return persistence_failed ? 1 : 0;
 }
