@@ -17,10 +17,21 @@ import textwrap
 
 
 def exported_symbols(text):
-    public, private = text.split("global:", 1)[1].split("local:", 1)
-    if not re.search(r"^\s*\*\s*;", private, re.M):
+    # Parse the entire deliberately small map grammar. Silently extracting only
+    # pcre2_* names would miss accidental exports of unrelated implementation
+    # symbols or wildcard entries. Comments must not contribute declarations.
+    text = re.sub(r"/\*.*?\*/|#[^\n]*", " ", text, flags=re.S)
+    match = re.fullmatch(
+        r"\s*[A-Za-z_][A-Za-z0-9_.]*\s*\{\s*global\s*:(.*?)"
+        r"local\s*:(.*?)\}\s*;\s*", text, flags=re.S)
+    if not match:
+        raise ValueError("invalid export map: expected one complete version block")
+    public, private = match.groups()
+    if not re.fullmatch(r"\s*\*\s*;\s*", private):
         raise ValueError("unlisted implementation/startup symbols must be local")
-    return set(re.findall(r"^\s*(pcre2_[a-z0-9_]+)\s*;", public, re.M))
+    if not re.fullmatch(r"(?:\s*[A-Za-z_][A-Za-z0-9_]*\s*;)*\s*", public):
+        raise ValueError("invalid global entry: only explicit symbol names are allowed")
+    return set(re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*;", public))
 
 
 def check_map(text, expected):
@@ -82,13 +93,23 @@ def main():
         check_map((src / f"libpcre2-{width}.sym").read_text(), expected)
     check_map((src / "libpcre2-posix.sym").read_text(), posix)
 
-    # Negative controls: a nonexistent export, a lost real API, and an
-    # unversioned global must all be rejected by the same checker.
+    # Reject unknown names regardless of prefix, missing APIs, wildcard or
+    # malformed declarations, missing localization and extra version blocks.
     reference = "V {\n global:\n pcre2_real;\n local:\n *;\n};\n"
     check_map(reference, {"pcre2_real"})
-    for broken in (reference.replace(" pcre2_real;", " pcre2_real;\n pcre2_absent;"),
-                   reference.replace(" pcre2_real;", ""),
-                   reference.replace(" *;", " _init;")):
+    check_map("# pcre2_comment;\n/* ignored */\n" + reference, {"pcre2_real"})
+    broken_maps = (
+        reference.replace(" pcre2_real;", " pcre2_real;\n pcre2_absent;"),
+        reference.replace(" pcre2_real;", " pcre2_real;\n unexpected_api;"),
+        reference.replace(" pcre2_real;", ""),
+        reference.replace(" pcre2_real;", " pcre2_real;\n *;"),
+        reference.replace(" pcre2_real;", " pcre2_real;\n pcre2_*;"),
+        reference.replace(" pcre2_real;", " pcre2_real"),
+        reference.replace(" pcre2_real;", " pcre2_/* gap */real;"),
+        reference.replace(" *;", " _init;"),
+        reference + "EXTRA { global: unexpected_api; local: *; };\n",
+    )
+    for broken in broken_maps:
         try:
             check_map(broken, {"pcre2_real"})
         except ValueError:
@@ -107,7 +128,7 @@ def main():
         print(f"compiled archive: {len(actual)} public 8-bit APIs match")
     check_vm_status(args.root)
     print(f"PCRE2 export contracts: {len(core)} APIs x 3 widths, {len(posix)} POSIX APIs; "
-          "3 negative controls passed")
+          f"{len(broken_maps)} negative controls passed")
 
 
 if __name__ == "__main__":

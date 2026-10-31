@@ -34,6 +34,31 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+def result_passed(results):
+    return bool((results["cases"] and
+            all(c["status"] == "passed" for c in results["cases"]) and
+            results.get("persisted_outputs_unchanged", False) and not results.get("fixture_error") and
+            results["binary_sha256_start"] == results["binary_sha256_end"] and
+            results["driver_sha256_start"] == results["driver_sha256_end"] and
+            results["source_inputs"] == results["source_inputs_end"]))
+
+
+def check_source_binding_gate():
+    # Exercise the same predicate used by the final result with otherwise
+    # successful evidence. A changed source must invalidate that evidence.
+    fixture = {
+        "cases": [{"status": "passed"}], "persisted_outputs_unchanged": True,
+        "binary_sha256_start": "binary", "binary_sha256_end": "binary",
+        "driver_sha256_start": "driver", "driver_sha256_end": "driver",
+        "source_inputs": {"output.cc": "original"},
+        "source_inputs_end": {"output.cc": "original"},
+    }
+    require(result_passed(fixture), "unchanged source-binding control failed")
+    fixture["source_inputs_end"] = {"output.cc": "changed"}
+    require(not result_passed(fixture), "changed source input was accepted")
+    return 2
+
+
 @contextlib.contextmanager
 def listeners():
     """Two listening endpoints plus reserved non-listening endpoints.
@@ -127,6 +152,7 @@ def main():
     deadline = started + args.total_timeout
     results = {
         "scope": "ordinary scan output; offline files and owned IPv4 loopback only",
+        "source_binding_controls": check_source_binding_gate(),
         "complete_default_run": args.only is None,
         "timeout_oracle_required": args.only is None or args.include_timeout or args.only == "timeout",
         "budget_seconds": args.total_timeout,
@@ -302,11 +328,7 @@ def main():
         results["binary_sha256_end"] = digest(binary)
         results["driver_sha256_end"] = digest(Path(__file__))
         results["source_inputs_end"] = {p: digest(source / p) for p in results["source_inputs"]}
-        results["status"] = "passed" if (results["cases"] and
-            all(c["status"] == "passed" for c in results["cases"]) and
-            results.get("persisted_outputs_unchanged", False) and not results.get("fixture_error") and
-            results["binary_sha256_start"] == results["binary_sha256_end"] and
-            results["driver_sha256_start"] == results["driver_sha256_end"]) else "failed"
+        results["status"] = "passed" if result_passed(results) else "failed"
         save()
     print(f"output contracts: {sum(c['status'] == 'passed' for c in results['cases'])}/{len(results['cases'])} passed; {out}")
     return 0 if results["status"] == "passed" else 1
