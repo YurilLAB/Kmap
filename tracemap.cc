@@ -18,6 +18,7 @@
 #endif
 
 #include "tracemap.h"
+#include "topology_assemble.h"
 #include "asn_lookup.h"
 #include "output.h"
 #include "KmapOps.h"
@@ -517,97 +518,6 @@ static std::vector<std::string> parse_targets(const char *spec) {
  * Merges all traces into a single directed graph.  Each unique IP
  * becomes a node, and each hop-to-hop transition becomes an edge.
  * ----------------------------------------------------------------------- */
-
-static Topology build_topology(const std::vector<TraceResult> &traces,
-                               const std::string &source_ip) {
-  Topology topo;
-  topo.source_ip = source_ip;
-  topo.targets_total = static_cast<int>(traces.size());
-  topo.targets_reached = 0;
-
-  /* Maps for deduplication */
-  std::map<std::string, TopoNode> node_map;
-  std::map<std::string, TopoEdge> edge_map; /* key: "from->to" */
-
-  /* Add source node */
-  TopoNode src_node;
-  src_node.ip = source_ip;
-  src_node.path_count = static_cast<int>(traces.size());
-  src_node.avg_rtt_ms = 0;
-  src_node.role = "source";
-  src_node.asn = 0;
-  src_node.convergence_point = false;
-  node_map[source_ip] = src_node;
-
-  for (const auto &trace : traces) {
-    if (trace.reached) topo.targets_reached++;
-
-    std::string prev_ip = source_ip;
-
-    for (const auto &hop : trace.hops) {
-      if (hop.timeout || hop.ip == "*") continue;
-
-      /* Update or create node */
-      auto &node = node_map[hop.ip];
-      if (node.ip.empty()) {
-        node.ip = hop.ip;
-        node.asn = hop.asn;
-        node.as_name = hop.as_name;
-        node.country = hop.country;
-        node.hostname = hop.hostname;
-        node.path_count = 0;
-        node.avg_rtt_ms = 0;
-        node.role = "router";
-        node.convergence_point = false;
-      }
-      node.path_count++;
-      if (hop.rtt_ms > 0) {
-        /* Running average */
-        node.avg_rtt_ms = node.avg_rtt_ms +
-                          (hop.rtt_ms - node.avg_rtt_ms) / node.path_count;
-      }
-
-      /* Mark target nodes */
-      if (hop.ip == trace.target_ip)
-        node.role = "target";
-
-      /* Create or update edge */
-      if (prev_ip != hop.ip) {
-        std::string edge_key = prev_ip + "->" + hop.ip;
-        auto &edge = edge_map[edge_key];
-        if (edge.from_ip.empty()) {
-          edge.from_ip = prev_ip;
-          edge.to_ip = hop.ip;
-          edge.avg_latency_ms = 0;
-          edge.path_count = 0;
-          edge.asn_boundary = false;
-        }
-        edge.path_count++;
-
-        /* Calculate inter-hop latency */
-        if (hop.rtt_ms > 0 && node_map.count(prev_ip) &&
-            node_map[prev_ip].avg_rtt_ms >= 0) {
-          double hop_latency = hop.rtt_ms - node_map[prev_ip].avg_rtt_ms;
-          if (hop_latency < 0) hop_latency = 0;
-          edge.avg_latency_ms = edge.avg_latency_ms +
-                                (hop_latency - edge.avg_latency_ms) /
-                                edge.path_count;
-        }
-
-        prev_ip = hop.ip;
-      }
-    }
-  }
-
-  /* Convert maps to vectors */
-  for (auto &kv : node_map) topo.nodes.push_back(kv.second);
-  for (auto &kv : edge_map) topo.edges.push_back(kv.second);
-
-  topo.total_nodes = static_cast<int>(topo.nodes.size());
-  topo.total_edges = static_cast<int>(topo.edges.size());
-
-  return topo;
-}
 
 /* -----------------------------------------------------------------------
  * Smart topology analysis
@@ -1261,6 +1171,7 @@ int run_tracemap(const char *targets, const char *output_file,
         nn.role       = n.role;
         nn.path_count = n.path_count;
         nn.avg_rtt_ms = n.avg_rtt_ms;
+        nn.rtt_sample_count = n.rtt_sample_count;
         nn.last_seen  = now;
         if (net_db_upsert_topo_node(topo_db, nn) == 0) persisted_nodes++;
       }
@@ -1274,6 +1185,7 @@ int run_tracemap(const char *targets, const char *output_file,
         ne.asn_boundary   = e.asn_boundary ? 1 : 0;
         ne.avg_latency_ms = e.avg_latency_ms;
         ne.path_count     = e.path_count;
+        ne.latency_sample_count = e.latency_sample_count;
         ne.last_seen      = now;
         if (net_db_upsert_topo_edge(topo_db, ne) == 0) persisted_edges++;
       }

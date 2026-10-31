@@ -4,8 +4,8 @@ name: static analysis (clang-analyzer)
 # the source files kmap actively maintains -- the net-scan / enrichment /
 # fingerprint / parser code. The analyzer finds bug classes the fuzzers and unit
 # tests can miss on un-exercised paths: null-pointer dereferences, use-after-
-# free, uninitialized reads, leaks, division-by-zero, dead stores. The gate is
-# clean today, so any new finding is a real regression introduced by the change.
+# free, uninitialized reads, leaks, division-by-zero, dead stores. Findings and
+# analyzer execution failures both fail the gate and retain their diagnostics.
 #
 # Scope is intentionally the maintained TUs, NOT the inherited upstream nmap core
 # (osscan/scan_engine/...), so legacy findings there do not mask new ones in the
@@ -18,6 +18,10 @@ on:
       - ".github/workflows/static-analysis.yml"
       - "**/*.cc"
       - "**/*.h"
+      - "**/*.c"
+      - "**/*.in"
+      - "configure"
+      - "configure.ac"
     branches:
       - master
   pull_request:
@@ -44,6 +48,7 @@ jobs:
       - name: Clang Static Analyzer over maintained TUs
         run: |
           set -euo pipefail
+          mkdir -p test-results/analyzer
           INC="-I. -I./liblinear -I./liblua -I./libdnet-stripped/include \
                -I./libssh2/include -I./libpcap -I./nbase -I./nsock/include \
                -Ithird-party -DHAVE_CONFIG_H -DKMAP_PLATFORM=\"x86_64\""
@@ -56,10 +61,14 @@ jobs:
           rc=0
           for f in $FILES; do
             echo "::group::$f"
-            out=$(clang-tidy --quiet --checks='-*,clang-analyzer-*' "$f" \
-                    -- $INC -std=gnu++17 2>/dev/null || true)
-            if echo "$out" | grep -qE "warning:|error:"; then
-              echo "$out" | grep -E "warning:|error:"
+            log="test-results/analyzer/$f.log"
+            if ! timeout 120 clang-tidy --quiet --checks='-*,clang-analyzer-*' \
+                    --warnings-as-errors='*' "$f" -- $INC -std=gnu++17 >"$log" 2>&1; then
+              echo "::error file=$f::clang-tidy failed or timed out"
+              rc=1
+            fi
+            cat "$log"
+            if grep -qE "warning:|error:" "$log"; then
               echo "::error file=$f::clang-analyzer finding(s) in $f"
               rc=1
             fi
@@ -67,3 +76,13 @@ jobs:
           done
           [ "$rc" -eq 0 ] && echo "clang-analyzer: no findings in maintained TUs"
           exit "$rc"
+
+      - name: Preserve analyzer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-analyzer-results
+          path: |
+            test-results/analyzer/
+            config.log
+          retention-days: 14

@@ -1,85 +1,187 @@
-/* test_linger.cc -- LIVE proof that SO_LINGER{1,0} produces an abortive RST
- * close (the mechanism that avoids local TIME_WAIT on mass connect-scans),
- * vs a graceful FIN close without it. Loopback only.
- *
- * Build (Win): g++ -O2 -std=gnu++17 test_linger.cc -lws2_32 -o test_linger.exe
- *      (POSIX): g++ -O2 -std=gnu++17 test_linger.cc -o test_linger.exe
+/* Owned loopback fixtures for graceful/abortive close and failure cleanup.
+ * Windows: g++ -std=c++17 fuzz/test_linger.cc -lws2_32 -o test_linger.exe
+ * POSIX: g++ -std=c++17 fuzz/test_linger.cc -o test_linger
  */
 #include <cstdio>
-#include <cstring>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
-typedef SOCKET sock_t;
+using sock_t = SOCKET;
+static constexpr sock_t invalid_socket = INVALID_SOCKET;
 static int sk_errno() { return WSAGetLastError(); }
-#define IS_RST(e) ((e) == WSAECONNRESET)
-#define CLOSESOCK closesocket
+static bool pending(int e) { return e == WSAEWOULDBLOCK || e == WSAEINPROGRESS; }
+static bool is_rst(int e) { return e == WSAECONNRESET; }
+static bool refused(int e) { return e == WSAECONNREFUSED; }
+#define CLOSESOCK ::closesocket
 #else
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <errno.h>
-typedef int sock_t;
+#include <fcntl.h>
+#include <cerrno>
+using sock_t = int;
+static constexpr sock_t invalid_socket = -1;
 static int sk_errno() { return errno; }
-#define IS_RST(e) ((e) == ECONNRESET)
-#define CLOSESOCK close
+static bool pending(int e) { return e == EINPROGRESS || e == EWOULDBLOCK; }
+static bool is_rst(int e) { return e == ECONNRESET; }
+static bool refused(int e) { return e == ECONNREFUSED; }
+#define CLOSESOCK ::close
 #endif
 
-static int passes = 0, fails = 0;
-#define CHECK(c,m) do{ if(c){passes++;} else {printf("  FAIL: %s\n",m); fails++;} }while(0)
+static int passes = 0, fails = 0, sockets_owned = 0;
+#define CHECK(c,m) do { if (c) ++passes; else { \
+  std::printf("FAIL: %s\n", m); ++fails; } } while (0)
 
-/* Open a loopback listener; return its port via *port. */
-static sock_t make_listener(unsigned short *port) {
-  sock_t s = socket(AF_INET, SOCK_STREAM, 0);
-  sockaddr_in a{}; a.sin_family = AF_INET;
-  a.sin_addr.s_addr = htonl(0x7f000001); a.sin_port = 0;
-  bind(s, (sockaddr*)&a, sizeof(a));
-  listen(s, 16);
-  socklen_t al = sizeof(a);
-  getsockname(s, (sockaddr*)&a, &al);
-  *port = ntohs(a.sin_port);
-  return s;
+struct Socket {
+  sock_t value;
+  explicit Socket(sock_t s) : value(s) { if (valid()) ++sockets_owned; }
+  Socket(const Socket &) = delete;
+  Socket &operator=(const Socket &) = delete;
+  ~Socket() { close(); }
+  bool valid() const { return value != invalid_socket; }
+  void close() {
+    if (valid()) {
+      CHECK(CLOSESOCK(value) == 0, "close succeeds");
+      value = invalid_socket; --sockets_owned;
+    }
+  }
+};
+
+static bool nonblocking(const Socket &s) {
+  if (!s.valid()) return false;
+#ifdef _WIN32
+  u_long mode = 1;
+  return ioctlsocket(s.value, FIONBIO, &mode) == 0;
+#else
+  if (s.value >= FD_SETSIZE) return false;
+  int flags = fcntl(s.value, F_GETFL, 0);
+  return flags >= 0 && fcntl(s.value, F_SETFL, flags | O_NONBLOCK) == 0;
+#endif
 }
 
-/* Connect to the listener, optionally set SO_LINGER{1,0}, then close.
- * Returns what the SERVER's recv() observed: 0 = graceful FIN, 1 = RST. */
-static int run_once(unsigned short port, bool linger) {
-  sock_t ls = socket(AF_INET, SOCK_STREAM, 0);
-  unsigned short lp; sock_t srv = make_listener(&lp);
-  (void)ls; (void)port;
-  sockaddr_in sa{}; sa.sin_family = AF_INET;
-  sa.sin_addr.s_addr = htonl(0x7f000001); sa.sin_port = htons(lp);
-  sock_t c = socket(AF_INET, SOCK_STREAM, 0);
-  if (connect(c, (sockaddr*)&sa, sizeof(sa)) != 0) { printf("  connect fail\n"); return -1; }
-  sock_t a = accept(srv, nullptr, nullptr);
-  if (linger) {
-    struct linger lg; lg.l_onoff = 1; lg.l_linger = 0;
-    setsockopt(c, SOL_SOCKET, SO_LINGER, (const char*)&lg, sizeof(lg));
+/* All sockets are nonblocking. select bounds every wait, including connect
+ * failure (Winsock signals that in exceptfds rather than writefds). */
+static int ready(const Socket &s, bool write, int milliseconds = 2000) {
+  fd_set set, errors;
+  FD_ZERO(&set); FD_ZERO(&errors);
+  FD_SET(s.value, &set); FD_SET(s.value, &errors);
+  timeval timeout{milliseconds / 1000, (milliseconds % 1000) * 1000};
+  return select(static_cast<int>(s.value + 1), write ? nullptr : &set,
+                write ? &set : nullptr, write ? &errors : nullptr, &timeout);
+}
+
+static bool bind_loopback(const Socket &s, unsigned short &port, bool listening) {
+  if (!nonblocking(s)) return false;
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(0x7f000001);
+  if (bind(s.value, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0)
+    return false;
+  if (listening && listen(s.value, 1) != 0) return false;
+  socklen_t length = sizeof(address);
+  if (getsockname(s.value, reinterpret_cast<sockaddr *>(&address), &length) != 0)
+    return false;
+  port = ntohs(address.sin_port);
+  return port != 0;
+}
+
+static bool connect_loopback(const Socket &s, unsigned short port, int &error) {
+  error = 0;
+  if (!nonblocking(s)) { error = sk_errno(); return false; }
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(0x7f000001);
+  address.sin_port = htons(port);
+  if (connect(s.value, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == 0)
+    return true;
+  error = sk_errno();
+  if (!pending(error)) return false;
+  int status = ready(s, true);
+  if (status <= 0) { error = status == 0 ? -1 : sk_errno(); return false; }
+  socklen_t length = sizeof(error);
+  if (getsockopt(s.value, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&error), &length) != 0) {
+    error = sk_errno(); return false;
   }
-  CLOSESOCK(c);                       /* graceful FIN, or RST if linger{1,0} */
-  char buf[8];
-  int n = recv(a, buf, sizeof(buf), 0);
-  int e = sk_errno();
-  int verdict = (n == 0) ? 0 : (n < 0 && IS_RST(e)) ? 1 : -2;
-  CLOSESOCK(a); CLOSESOCK(srv);
-  return verdict;
+  return error == 0;
+}
+
+static int run_once(bool abortive) {
+  Socket listener(socket(AF_INET, SOCK_STREAM, 0));
+  unsigned short port = 0;
+  if (!bind_loopback(listener, port, true)) {
+    std::fprintf(stderr, "listener setup failed: %d\n", sk_errno()); return -1;
+  }
+  Socket client(socket(AF_INET, SOCK_STREAM, 0));
+  int error;
+  if (!connect_loopback(client, port, error)) {
+    std::fprintf(stderr, "connect failed: %d\n", error); return -1;
+  }
+  if (ready(listener, false) != 1) {
+    std::fprintf(stderr, "accept readiness failed/timed out\n"); return -1;
+  }
+  Socket accepted(accept(listener.value, nullptr, nullptr));
+  if (!nonblocking(accepted)) {
+    std::fprintf(stderr, "accept setup failed: %d\n", sk_errno()); return -1;
+  }
+  CHECK(ready(accepted, false, 20) == 0, "idle receive readiness times out");
+  if (abortive) {
+    linger option{1, 0};
+    if (setsockopt(client.value, SOL_SOCKET, SO_LINGER,
+                   reinterpret_cast<const char *>(&option), sizeof(option)) != 0) {
+      std::fprintf(stderr, "SO_LINGER setup failed: %d\n", sk_errno()); return -1;
+    }
+  }
+  client.close();
+  if (ready(accepted, false) != 1) {
+    std::fprintf(stderr, "receive readiness failed/timed out\n"); return -1;
+  }
+  char buffer[8];
+  int n = recv(accepted.value, buffer, sizeof(buffer), 0);
+  error = sk_errno();
+  return n == 0 ? 0 : (n < 0 && is_rst(error)) ? 1 : -1;
+}
+
+static void connection_refused() {
+  Socket reserved(socket(AF_INET, SOCK_STREAM, 0));
+  unsigned short port = 0;
+  bool bound = bind_loopback(reserved, port, false);
+  CHECK(bound, "reserve non-listening loopback endpoint");
+  if (!bound) return;
+  Socket client(socket(AF_INET, SOCK_STREAM, 0));
+  int error = 0;
+  bool connected = connect_loopback(client, port, error);
+  bool expected_failure = refused(error);
+#ifdef _WIN32
+  /* Winsock can hold SYNs for a bound-but-not-listening socket rather than
+     reject them. Our explicit 2-second deadline must cancel that connection.
+     Other failures (including access denied by a sandbox) still fail. */
+  expected_failure = expected_failure || error == -1;
+#endif
+  if (connected || !expected_failure)
+    std::fprintf(stderr, "unexpected connect result: %d\n", error);
+  CHECK(!connected && expected_failure,
+        "non-listening endpoint fails within the bounded connect deadline");
 }
 
 int main() {
 #ifdef _WIN32
-  WSADATA w; WSAStartup(MAKEWORD(2,2), &w);
+  WSADATA data;
+  if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
+    std::fprintf(stderr, "WSAStartup failed\n"); return 2;
+  }
 #endif
-  unsigned short port = 0; (void)port;
-  int graceful = run_once(0, false);
-  CHECK(graceful == 0, "without SO_LINGER: server sees graceful FIN (recv==0)");
-  int abortive = run_once(0, true);
-  CHECK(abortive == 1, "with SO_LINGER{1,0}: server sees RST (recv ECONNRESET)");
-  printf("\n(verdicts: graceful=%d abortive=%d)\n", graceful, abortive);
-  printf("SO_LINGER live proof: %d passed, %d failed\n", passes, fails);
+  for (int run = 0; run < 3; ++run) {
+    CHECK(run_once(false) == 0, "graceful close returns FIN");
+    CHECK(sockets_owned == 0, "graceful run releases every socket");
+    CHECK(run_once(true) == 1, "abortive close returns RST");
+    CHECK(sockets_owned == 0, "abortive run releases every socket");
+  }
+  connection_refused();
+  CHECK(sockets_owned == 0, "failed connection releases every socket");
 #ifdef _WIN32
-  WSACleanup();
+  CHECK(WSACleanup() == 0, "WSACleanup succeeds");
 #endif
+  std::printf("socket lifecycle test: %d passed, %d failed\n", passes, fails);
   return fails ? 1 : 0;
 }

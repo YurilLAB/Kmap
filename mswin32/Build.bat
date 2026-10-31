@@ -1,154 +1,143 @@
 @echo off
-set TARGET=%1
-set VCCONFIG=%2
+setlocal EnableExtensions DisableDelayedExpansion
+set "TARGET=%~1"
+set "VCCONFIG=%~2"
+if not defined TARGET set "TARGET=Build"
+if not defined VCCONFIG set "VCCONFIG=Release"
 
-:: Set defaults if not provided
-if "%TARGET%" == "" set TARGET=Build
-if "%VCCONFIG%" == "" set VCCONFIG=Release
-
-:: Find and initialize Visual Studio environment first
-:: Try VS 2019 first, then fall back to latest
-"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version "[16.0,17.0)" -property installationPath > "%TEMP%\vspath.txt" 2>nul
-for /f "usebackq delims=" %%i in ("%TEMP%\vspath.txt") do (
-  call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x86
-  set VS_GENERATOR=Visual Studio 16 2019
-  goto :generator_set
+:: Resolve every relative path against this script, even when called elsewhere.
+pushd "%~dp0" || exit /b 1
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%VSWHERE%" (
+  echo ERROR: Visual Studio Installer's vswhere.exe was not found.
+  goto :FAIL
 )
 
-:: VS 2019 not found, use latest
-"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version "[16.0,)" -latest -property installationPath > "%TEMP%\vspath.txt" 2>nul
-"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version "[16.0,)" -latest -property installationVersion > "%TEMP%\vsver.txt" 2>nul
-
-for /f "usebackq delims=" %%i in ("%TEMP%\vspath.txt") do call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x86
-
-:: Determine generator from version
-set VS_GENERATOR=Visual Studio 17 2022
-for /f "usebackq delims=" %%v in ("%TEMP%\vsver.txt") do (
-  set VSVER=%%v
-  rem Extract the MAJOR version (e.g. "17" from "17.14.36304"). A substring on
-  rem a FOR variable -- %%v:~0,2 -- does NOT work in batch (substrings only
-  rem apply to regular %VAR% variables), so the previous code was a no-op that
-  rem always left the default generator, silently mis-detecting VS2019 and
-  rem VS2026. Split on '.' with an inner FOR to get the major reliably.
-  for /f "tokens=1 delims=." %%a in ("%%v") do (
-    if "%%a" == "16" set VS_GENERATOR=Visual Studio 16 2019
-    if "%%a" == "17" set VS_GENERATOR=Visual Studio 17 2022
-    if "%%a" == "18" set VS_GENERATOR=Visual Studio 18 2026
-  )
+:: Select an installation that actually has the C++ x86/x64 build tools.
+:: Read directly from vswhere; shared vspath.txt/vsver.txt files race across builds.
+set "VS_PATH="
+set "VS_MAJOR="
+pushd "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer" || goto :FAIL
+for /f "usebackq delims=" %%i in (`vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -version "[16.0,)" -property installationPath`) do set "VS_PATH=%%i"
+for /f "usebackq tokens=1 delims=." %%i in (`vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -version "[16.0,)" -property installationVersion`) do set "VS_MAJOR=%%i"
+popd
+set "VS_GENERATOR="
+if "%VS_MAJOR%"=="16" set "VS_GENERATOR=Visual Studio 16 2019"
+if "%VS_MAJOR%"=="17" set "VS_GENERATOR=Visual Studio 17 2022"
+if "%VS_MAJOR%"=="18" set "VS_GENERATOR=Visual Studio 18 2026"
+if not defined VS_GENERATOR (
+  echo ERROR: No supported Visual Studio C++ toolchain was found.
+  goto :FAIL
 )
-
-:generator_set
-del "%TEMP%\vspath.txt" 2>nul
-del "%TEMP%\vsver.txt" 2>nul
-
-:: Check and install dependencies
-set KMAP_AUX_DIR=%~dp0..\..\kmap-mswin32-aux
-if not exist "%KMAP_AUX_DIR%" (
-  echo.
-  echo ========================================
-  echo Installing required dependencies...
-  echo ========================================
-  call :install_dependencies
-  if errorlevel 1 goto :QUIT
+if not exist "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
+  echo ERROR: vcvarsall.bat was not found in "%VS_PATH%".
+  goto :FAIL
 )
-
-:: Verify dependencies are present
-if not exist "%KMAP_AUX_DIR%\Npcap\Include\pcap.h" (
-  echo ERROR: Npcap SDK not found after installation
-  exit /b 1
+:: Optional x64 host tools still produce Win32 binaries. Useful when the local
+:: x86-host toolchain is unavailable; supported by each VS generator above.
+set "KMAP_VC_ARCH=x86"
+set "KMAP_CMAKE_TOOLSET="
+set "KMAP_MSBUILD_HOST="
+if /i "%KMAP_VC_HOST%"=="x64" (
+  set "KMAP_VC_ARCH=x64_x86"
+  set "KMAP_CMAKE_TOOLSET=-T host=x64"
+  set "KMAP_MSBUILD_HOST=-p:PreferredToolArchitecture=x64"
 )
-if not exist "%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
-  echo ERROR: OpenSSL not found after installation
-  exit /b 1
-)
+call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" %KMAP_VC_ARCH%
+if errorlevel 1 goto :QUIT
 
+:: Vars only preprocesses make-vars.h. It must never fall into the installer.
+if /i "%TARGET%"=="Vars" goto :vars
+
+where cmake.exe >nul 2>&1
+if errorlevel 1 (
+  echo ERROR: CMake is required on PATH.
+  goto :FAIL
+)
+set "KMAP_AUX_DIR=%~dp0..\..\kmap-mswin32-aux"
+call :check_dependencies
+if not errorlevel 1 goto :dependencies_ready
+call :install_dependencies
+if errorlevel 1 goto :QUIT
+call :check_dependencies
+if errorlevel 1 goto :QUIT
+
+:dependencies_ready
 echo Dependencies verified successfully.
-echo.
-
-:next
-
 echo Detected Visual Studio Generator: %VS_GENERATOR%
-@echo on
-if "%TARGET%" == "Vars" ( goto :vars )
-
-if "%TARGET%" == "Clean" (
-  rd /S /Q build-pcre2
-) else (
-echo Using CMake Generator: %VS_GENERATOR%
-mkdir build-pcre2
-cd build-pcre2
-cmake.exe -A Win32 -G "%VS_GENERATOR%" ..\..\libpcre\ || goto :QUIT
-cd ..
-)
-msbuild -nologo kmap.sln -m -t:%TARGET% -p:Configuration="%VCCONFIG%" -p:Platform="Win32" -fl
+:: The solution references the generated PCRE project even for Clean. Keep it
+:: present and let MSBuild clean its outputs instead of deleting the project.
+cmake.exe -A Win32 -G "%VS_GENERATOR%" %KMAP_CMAKE_TOOLSET% -S "..\libpcre" -B "build-pcre2"
+if errorlevel 1 goto :QUIT
+msbuild -nologo kmap.sln -m:3 -t:"%TARGET%" -p:Configuration="%VCCONFIG%" -p:Platform="Win32" %KMAP_MSBUILD_HOST% -fl
 goto :QUIT
 
 :vars
 cl.exe /nologo /EP make-vars.h > make-vars.make
+goto :QUIT
 
-:install_dependencies
-echo.
-echo Creating auxiliary directory: %KMAP_AUX_DIR%
-mkdir "%KMAP_AUX_DIR%" 2>nul
+:check_dependencies
+call :check_npcap
+if errorlevel 1 exit /b 1
+call :check_openssl
+exit /b %errorlevel%
 
-:: Install Npcap SDK
-echo Downloading Npcap SDK...
-set NPCAP_URL=https://npcap.com/dist/npcap-sdk-1.13.zip
-set NPCAP_ZIP=%TEMP%\npcap-sdk.zip
-powershell -Command "Invoke-WebRequest -Uri '%NPCAP_URL%' -OutFile '%NPCAP_ZIP%'"
-if errorlevel 1 (
-  echo ERROR: Failed to download Npcap SDK
-  exit /b 1
+:check_npcap
+for %%f in ("Npcap\Include\pcap.h" "Npcap\Include\Packet32.h" "Npcap\Lib\wpcap.lib" "Npcap\Lib\Packet.lib") do (
+  if not exist "%KMAP_AUX_DIR%\%%~f" exit /b 1
 )
-
-echo Extracting Npcap SDK...
-powershell -Command "Expand-Archive -Path '%NPCAP_ZIP%' -DestinationPath '%KMAP_AUX_DIR%\Npcap' -Force"
-if errorlevel 1 (
-  echo ERROR: Failed to extract Npcap SDK
-  exit /b 1
-)
-del "%NPCAP_ZIP%" 2>nul
-
-:: Install OpenSSL - Use nmap's SVN repository (upstream build dependency)
-echo Downloading OpenSSL from nmap SVN repository...
-set OPENSSL_SVN_URL=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
-
-:: Check if svn is available
-where svn >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-  echo Using SVN to download OpenSSL...
-  svn export "%OPENSSL_SVN_URL%" "%KMAP_AUX_DIR%\OpenSSL" --force
-  if errorlevel 1 (
-    echo WARNING: SVN export failed, trying alternative method...
-    goto :openssl_fallback
-  )
-  goto :openssl_done
-)
-
-:openssl_fallback
-echo SVN not available, downloading OpenSSL headers manually...
-mkdir "%KMAP_AUX_DIR%\OpenSSL\include\openssl" 2>nul
-mkdir "%KMAP_AUX_DIR%\OpenSSL\lib" 2>nul
-
-:: Download from nmap SVN via HTTP
-set SVN_BASE=https://svn.nmap.org/nmap-mswin32-aux/OpenSSL
-echo Downloading OpenSSL files from nmap repository...
-
-:: Use PowerShell to recursively download the directory structure
-powershell -Command "$ErrorActionPreference='SilentlyContinue'; $wc=New-Object System.Net.WebClient; $wc.DownloadFile('%SVN_BASE%/include/openssl/ssl.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/crypto.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\crypto.h'); $wc.DownloadFile('%SVN_BASE%/include/openssl/opensslconf.h','%KMAP_AUX_DIR%\OpenSSL\include\openssl\opensslconf.h')"
-
-if not exist "%KMAP_AUX_DIR%\OpenSSL\include\openssl\ssl.h" (
-  echo ERROR: Failed to download OpenSSL files
-  echo Please install SVN or manually download OpenSSL to %KMAP_AUX_DIR%\OpenSSL
-  exit /b 1
-)
-
-:openssl_done
-
-echo.
-echo Dependencies installed successfully!
-echo.
 exit /b 0
 
+:check_openssl
+for %%f in ("OpenSSL\include\openssl\ssl.h" "OpenSSL\include\openssl\crypto.h" "OpenSSL\include\openssl\opensslconf.h" "OpenSSL\lib\libssl.lib" "OpenSSL\lib\libcrypto.lib") do (
+  if not exist "%KMAP_AUX_DIR%\%%~f" exit /b 1
+)
+exit /b 0
+
+:install_dependencies
+:: An existing directory may be an interrupted installation. Validate each
+:: component and retry only the incomplete one.
+call :check_openssl
+if not errorlevel 1 goto :install_npcap
+where svn >nul 2>&1
+if errorlevel 1 (
+  echo ERROR: Complete OpenSSL headers and x86 libraries are missing.
+  echo Install Subversion on PATH, or provide the complete OpenSSL tree in:
+  echo   "%KMAP_AUX_DIR%\OpenSSL"
+  echo Three downloaded headers alone cannot build or link Kmap.
+  exit /b 1
+)
+echo Downloading the complete OpenSSL build dependency...
+if not exist "%KMAP_AUX_DIR%" mkdir "%KMAP_AUX_DIR%"
+if not exist "%KMAP_AUX_DIR%" exit /b 1
+svn export "https://svn.nmap.org/nmap-mswin32-aux/OpenSSL" "%KMAP_AUX_DIR%\OpenSSL" --force
+if errorlevel 1 exit /b %errorlevel%
+call :check_openssl
+if errorlevel 1 (
+  echo ERROR: OpenSSL export is incomplete; required headers or libraries are missing.
+  exit /b 1
+)
+
+:install_npcap
+call :check_npcap
+if not errorlevel 1 exit /b 0
+echo Downloading Npcap SDK headers and libraries...
+set "NPCAP_ZIP=%TEMP%\kmap-npcap-%RANDOM%-%RANDOM%.zip"
+powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; try { Invoke-WebRequest -Uri 'https://npcap.com/dist/npcap-sdk-1.13.zip' -OutFile $env:NPCAP_ZIP; Expand-Archive -LiteralPath $env:NPCAP_ZIP -DestinationPath ($env:KMAP_AUX_DIR + '\Npcap') -Force } finally { if (Test-Path -LiteralPath $env:NPCAP_ZIP) { Remove-Item -LiteralPath $env:NPCAP_ZIP -Force } }"
+if errorlevel 1 exit /b %errorlevel%
+call :check_npcap
+if errorlevel 1 (
+  echo ERROR: Npcap SDK extraction is incomplete; required headers or libraries are missing.
+  exit /b 1
+)
+exit /b 0
+
+:FAIL
+set "KMAP_EXIT_CODE=1"
+goto :FINISH
+
 :QUIT
-exit /b %errorlevel%
+set "KMAP_EXIT_CODE=%errorlevel%"
+:FINISH
+popd
+endlocal & exit /b %KMAP_EXIT_CODE%

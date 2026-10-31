@@ -16,6 +16,7 @@
 #include "net_query.h"
 #include "net_db.h"
 #include "json_escape.h"
+#include "third-party/nlohmann/json.hpp"
 #include "KmapOps.h"
 #include "host_tags.h"
 #include "kmap.h"
@@ -31,6 +32,8 @@
 #include <cstdlib>
 #include <cstdint>
 #include <sstream>
+#include <sys/stat.h>
+#include <cerrno>
 
 extern KmapOps o;
 
@@ -483,14 +486,12 @@ static std::string format_result_json(const std::string &ip, int port,
     /* cves is the last emitted field, so `first` is intentionally not updated
        here (a trailing `first = false` would be a dead store). Keep this block
        last, or restore the assignment if another field is appended after it. */
-    if (cves_json[0] == '[')
-      /* Emitted verbatim as a nested array, but still run through a UTF-8
-         repair so one CVE description with a truncated multi-byte sequence
-         (or a column written by an older tool that predates the escaper's
-         UTF-8 validation) cannot make the whole --nq-format json document
-         unparseable. Structure is preserved -- only invalid high bytes become
-         U+FFFD -- so a well-formed column is byte-identical to before. */
-      oss << "\"cves\":" << kmap_json_repair_utf8(cves_json);
+    const std::string repaired = kmap_json_repair_utf8(cves_json);
+    const auto parsed = nlohmann::json::parse(repaired, nullptr, false);
+    if (parsed.is_array())
+      // Re-serialize: an accepted leading BOM is legal at a document start,
+      // but cannot be embedded verbatim in the middle of this document.
+      oss << "\"cves\":" << parsed.dump();
     else
       oss << "\"cves\":\"" << json_escape(cves_json) << '"';
   }
@@ -593,6 +594,19 @@ int run_net_query(const char *data_dir,
                   float min_epss,
                   const char *tag) {
   if (!data_dir) return 1;
+#ifdef WIN32
+  struct _stat directory_info;
+  bool directory_ok = _stat(data_dir, &directory_info) == 0 &&
+                       (directory_info.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat directory_info;
+  bool directory_ok = stat(data_dir, &directory_info) == 0 &&
+                       S_ISDIR(directory_info.st_mode);
+#endif
+  if (!directory_ok) {
+    log_write(LOG_STDERR, "net-query: ERROR: cannot read data directory '%s'\n", data_dir);
+    return 1;
+  }
 
   /* Pre-lowercase the tag filter for case-insensitive compare. */
   std::string tag_filter;
@@ -690,18 +704,21 @@ int run_net_query(const char *data_dir,
 
   int64_t total_count = 0;
   int shards_searched = 0;
+  bool failed = false;
 
   /* JSON array open. In count_only + JSON we skip the array entirely and
    * emit {"count":N} at the bottom. */
   auto emit_line = [&](const std::string &s) {
-    if (out_fp)
-      fprintf(out_fp, "%s\n", s.c_str());
+    if (out_fp) {
+      if (fprintf(out_fp, "%s\n", s.c_str()) < 0) failed = true;
+    }
     else
       log_write(LOG_PLAIN, "%s\n", s.c_str());
   };
   auto emit_raw = [&](const char *s) {
-    if (out_fp)
-      fputs(s, out_fp);
+    if (out_fp) {
+      if (fputs(s, out_fp) == EOF) failed = true;
+    }
     else
       log_write(LOG_PLAIN, "%s", s);
   };
@@ -720,7 +737,14 @@ int run_net_query(const char *data_dir,
 
     /* Check if shard file exists before trying to open */
     FILE *test = fopen(db_path.c_str(), "r");
-    if (!test) continue;
+    if (!test) {
+      if (errno != ENOENT) {
+        log_write(diag_dest, "net-query: ERROR: cannot read %s: %s\n",
+                  db_path.c_str(), strerror(errno));
+        failed = true;
+      }
+      continue;
+    }
     fclose(test);
 
     sqlite3 *db = net_db_open(db_path);
@@ -728,6 +752,7 @@ int run_net_query(const char *data_dir,
       log_write(diag_dest,
         "net-query: WARNING: cannot open %s -- skipping.\n",
         db_path.c_str());
+      failed = true;
       continue;
     }
     shards_searched++;
@@ -738,6 +763,7 @@ int run_net_query(const char *data_dir,
       log_write(diag_dest,
         "net-query: WARNING: query failed on %s: %s\n",
         db_path.c_str(), sqlite3_errmsg(db));
+      failed = true;
       net_db_close(db);
       continue;
     }
@@ -752,7 +778,8 @@ int run_net_query(const char *data_dir,
     struct EmitRow { uint32_t ipnum; int port; std::string payload; };
     std::vector<EmitRow> shard_rows;
 
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
+    int step_result;
+    while ((step_result = sqlite3_step(stmt)) == SQLITE_ROW) {
       auto col_str = [&](int c) -> std::string {
         const unsigned char *p = sqlite3_column_text(stmt, c);
         return p ? reinterpret_cast<const char *>(p) : "";
@@ -834,6 +861,11 @@ int run_net_query(const char *data_dir,
       }
     }
 
+    if (step_result != SQLITE_DONE) {
+      log_write(diag_dest, "net-query: ERROR: reading %s failed: %s\n",
+                db_path.c_str(), sqlite3_errmsg(db));
+      failed = true;
+    }
     sqlite3_finalize(stmt);
     net_db_close(db);
 
@@ -882,6 +914,14 @@ int run_net_query(const char *data_dir,
     "net-query: %s result(s) from %d shard(s)\n",
     format_count(total_count).c_str(), shards_searched);
 
-  if (own_fp && out_fp) fclose(out_fp);
-  return 0;
+  if (own_fp && out_fp && fclose(out_fp) != 0) {
+    log_write(diag_dest, "net-query: ERROR: output file could not be flushed\n");
+    failed = true;
+  }
+  if (!out_fp && (fflush(stdout) != 0 || ferror(stdout))) {
+    log_write(LOG_STDERR, "net-query: ERROR: stdout write failed\n");
+    failed = true;
+  }
+  if (failed) log_write(diag_dest, "net-query: ERROR: results may be incomplete\n");
+  return failed ? 1 : 0;
 }

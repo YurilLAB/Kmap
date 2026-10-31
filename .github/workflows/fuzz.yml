@@ -1,25 +1,28 @@
 name: kmap fuzz + sanitizers
 
-# Runs the YurilLAB parser/logic harnesses under AddressSanitizer +
-# UndefinedBehaviorSanitizer on every push/PR. These are the same harnesses
-# kept in fuzz/ that are run locally on Windows with guard pages + UBSan-trap;
-# on Linux we get ASan's allocator red-zones and full UBSan diagnostics, which
-# catch the same out-of-bounds / overflow / UB classes with richer reports.
+# Builds the executable harness manifest under AddressSanitizer and
+# UndefinedBehaviorSanitizer, including bundled SQLite and offline storage,
+# graph-output and topology-assembly regressions. Each command runs with an
+# isolated working directory and preserves its status, logs and fixtures.
 #
-# Scope: this job builds and runs, under ASan+UBSan, every standalone harness
-# in fuzz/ -- the self-contained parser fuzzers/oracles, the guard-page fuzzers
-# (fuzz_core/dns/proto, ported from their original VirtualAlloc form to
-# mmap/mprotect so they run here too), and the sqlite-backed LIVE tests
-# (test_netdb links the real net_db.cc; test_netquery exercises net_query's
-# verbatim filter logic) -- the latter two linked against a freshly built
-# sqlite amalgamation. The libFuzzer/OSS-Fuzz targets under fuzz/ossfuzz/ run
-# separately via cflite_pr.yml (PRs) and cflite_batch.yml (scheduled).
+# Coverage differs by harness: some link production sources/headers; others
+# retain copied parsers or logic models. For example, test_netdb links the real
+# net_db.cc, whereas test_netquery exercises a copied filter implementation
+# against SQLite and does not establish coverage of the shipping query CLI.
+# The manifest records these distinctions; a passing copied harness is not
+# proof that production code behaves identically.
+#
+# The production JSON serializer also has a bounded libFuzzer job below.
+# Additional fuzz/ossfuzz targets run in the separate ClusterFuzzLite workflows.
 
 on:
   push:
     paths:
       - ".github/workflows/fuzz.yml"
       - "fuzz/**"
+      - "tests/**"
+      - "**/*.c"
+      - "Makefile.in"
       - "**/*.cc"
       - "**/*.h"
     branches:
@@ -34,170 +37,59 @@ jobs:
   sanitize-fuzz:
     name: ASan/UBSan parser harnesses
     runs-on: ubuntu-latest
-    # The harness loop runs millions of iterations; cap it so a runaway/hung
-    # fuzzer fails fast instead of hanging on the 6-hour default.
     timeout-minutes: 30
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     steps:
       - uses: actions/checkout@v5
 
-      - name: Compiler version
-        run: g++ --version
+      - name: Validate executable harness inventory
+        run: python3 tests/run_sanitizer_harnesses.py --validate-only
 
-      - name: Harness coverage guard (every fuzz/*.cc must be run)
-        run: |
-          set -euo pipefail
-          # Fail CI if a harness was added under fuzz/ but never wired into this
-          # workflow -- otherwise new parser tests silently never run and a green
-          # "fuzz" check would overstate coverage. ossfuzz/ targets run in the
-          # ClusterFuzzLite workflows, so they are intentionally excluded here.
-          missing=0
-          for f in fuzz/*.cc; do
-            b=$(basename "$f" .cc)
-            if ! grep -q "\b$b\b" .github/workflows/fuzz.yml; then
-              echo "::error file=$f::harness '$b' is not run by fuzz.yml"
-              missing=1
-            fi
-          done
-          [ "$missing" -eq 0 ] || { echo "Wire the harness(es) above into fuzz.yml."; exit 1; }
-          echo "All fuzz/*.cc harnesses are wired into CI."
+      - name: Build and run isolated harnesses (ASan + UBSan)
+        run: python3 tests/run_sanitizer_harnesses.py --output test-results/fuzz --total-timeout 1500
 
-      - name: Build + run harnesses (ASan + UBSan, abort on any finding)
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/fz
-          # -fno-sanitize-recover=all => any ASan/UBSan finding aborts (CI fails).
-          CXXFLAGS="-O1 -g -std=gnu++17 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
-          # Each harness either runs an oracle (nonzero exit on mismatch) or
-          # drives a parser over millions of inputs (ASan aborts on a fault).
-          # -pthread is harmless for the non-threaded harnesses and required
-          # by test_lowwater (real worker-pool crash-snapshot stress) and
-          # test_linger (SO_LINGER live socket proof).
-          for h in test_cidr_parse test_json_escape test_discover_bail test_admit_reentry test_lowwater test_sha256 test_watchlist_diff test_ratelimit test_csum_patch test_header_extract test_checkpoint test_excludes test_throughput test_asn_prefix test_banner_classify test_banner_mutate test_linger fuzz_text fuzz_query; do
-            echo "::group::$h"
-            g++ $CXXFLAGS -pthread "fuzz/$h.cc" -o "/tmp/fz/$h"
-            # two seeds widen input coverage between runs
-            "/tmp/fz/$h" 1
-            "/tmp/fz/$h" 1337
-            echo "::endgroup::"
-          done
-
-          # Helper-linked harnesses: link the REAL net_hash_helpers.cc so a
-          # drift in the shipping mmh3 / base64 / favicon / CPE code is caught
-          # (not a stale copy). Fixed KAT vectors, nonzero exit on mismatch.
-          for h in test_mmh3 test_favicon test_cpe; do
-            echo "::group::$h"
-            g++ $CXXFLAGS "fuzz/$h.cc" net_hash_helpers.cc -o "/tmp/fz/$h"
-            "/tmp/fz/$h"
-            echo "::endgroup::"
-          done
-
-          # CPU governor control-law harness links the real cpu_meter.cc
-          # (kmap_cpu_governor_throttle). Convergence oracle, not a fuzzer.
-          echo "::group::test_governor"
-          g++ $CXXFLAGS -pthread fuzz/test_governor.cc cpu_meter.cc -o /tmp/fz/test_governor
-          /tmp/fz/test_governor
-          echo "::endgroup::"
-
-          # HASSH SSH fingerprint: links the REAL ssh_hassh.cc (and md5.h via
-          # include) so a drift in the shipping KEXINIT parser / MD5 is caught.
-          # Proves the RFC 1321 + Python-hashlib KATs, sweeps every truncation
-          # of a real OpenSSH server buffer, then fuzzes the parser over random
-          # + mutated bytes (must never fault under ASan/UBSan).
-          echo "::group::test_hassh"
-          g++ $CXXFLAGS fuzz/test_hassh.cc ssh_hassh.cc -o /tmp/fz/test_hassh
-          /tmp/fz/test_hassh 1
-          /tmp/fz/test_hassh 1337
-          echo "::endgroup::"
-
-          # Host tags: links the REAL host_tags.cc so a drift in the tag rules /
-          # EOL version math / CPE parse is caught. KATs per tag + a random-field
-          # fuzz loop (must never fault under ASan/UBSan).
-          echo "::group::test_host_tags"
-          g++ $CXXFLAGS fuzz/test_host_tags.cc host_tags.cc net_hash_helpers.cc -o /tmp/fz/test_host_tags
-          /tmp/fz/test_host_tags 1
-          /tmp/fz/test_host_tags 1337
-          echo "::endgroup::"
-
-          # JARM TLS fingerprint: links the REAL jarm.cc. Proves the ten
-          # ClientHello probes are byte-for-byte identical to Salesforce's
-          # reference jarm.py (fuzz/jarm_vectors.h, dumped from the reference)
-          # and fuzzes the ServerHello parser over random/truncated bytes (must
-          # never fault under ASan/UBSan). End-to-end hash equivalence with
-          # jarm.py is verified separately against a live openssl s_server.
-          echo "::group::test_jarm"
-          g++ $CXXFLAGS fuzz/test_jarm.cc jarm.cc -o /tmp/fz/test_jarm
-          /tmp/fz/test_jarm 1
-          /tmp/fz/test_jarm 1337
-          echo "::endgroup::"
-
-          # CVE version-comparison audit: KATs (numeric ordering, exclusive-bound
-          # "patched not flagged") + proves cve_map.cc and net_enrich.cc's two
-          # independent comparators agree over a 1M-pair fuzz + crash fuzz.
-          echo "::group::test_vercmp"
-          g++ $CXXFLAGS fuzz/test_vercmp.cc -o /tmp/fz/test_vercmp
-          /tmp/fz/test_vercmp 1
-          /tmp/fz/test_vercmp 1337
-          echo "::endgroup::"
-
-          # Cloud-range matcher links the real cloud_map.cc (offline longest-
-          # prefix match + strict CIDR parse). Known-IP -> known-provider KATs.
-          echo "::group::test_cloud_match"
-          g++ $CXXFLAGS -I. fuzz/test_cloud_match.cc cloud_map.cc -o /tmp/fz/test_cloud_match
-          /tmp/fz/test_cloud_match
-          echo "::endgroup::"
-
-          # Guard-page fuzzers (mmap/mprotect PROT_NONE): exact-boundary
-          # over-read detection for untrusted-input parsers --
-          #   fuzz_dns   : asn_lookup.cc DNS wire parser (network data)
-          #   fuzz_proto : default_creds/net_enrich binary protocol parsers
-          #   fuzz_core  : fast_syn cidr/permute + cpu governor control law
-          # They map a guard page per iteration so they are slower than the
-          # no-alloc harnesses above; run a smaller per-push budget here (the
-          # 2nd arg caps iterations / the permute window). Deep runs use the
-          # 20M / full default locally. These were Windows-only until ported
-          # to mmap, which is why they were absent from CI before.
-          for h in fuzz_dns fuzz_proto fuzz_core; do
-            echo "::group::$h"
-            g++ $CXXFLAGS "fuzz/$h.cc" -o "/tmp/fz/$h"
-            "/tmp/fz/$h" 1 300000
-            "/tmp/fz/$h" 1337 300000
-            echo "::endgroup::"
-          done
-
-          # SQLite-backed LIVE tests: these link the REAL net_db.cc (and
-          # net_query's verbatim filter logic) against a real database, so they
-          # catch storage / predicate regressions the parser fuzzers cannot --
-          # e.g. the drain-loop invariant that net_db_count_unenriched() and
-          # net_db_get_unenriched() stay in lockstep. Build the sqlite
-          # amalgamation once (plain -O1; it is upstream and well-tested) and
-          # link it into each test compiled with the sanitizers.
-          echo "::group::sqlite-backed live tests"
-          # FTS5 enabled to match the shipped build (Makefile.in) and exercise
-          # the --search core (net_db_search_fts).
-          cc -O1 -DSQLITE_ENABLE_FTS5 -c sqlite/sqlite3.c -o /tmp/fz/sqlite3.o
-          g++ $CXXFLAGS -I. fuzz/test_netdb.cc net_db.cc /tmp/fz/sqlite3.o \
-            -lpthread -ldl -o /tmp/fz/test_netdb && /tmp/fz/test_netdb
-          g++ $CXXFLAGS -I. -Inbase fuzz/test_entity_graph.cc entity_graph.cc net_db.cc \
-            /tmp/fz/sqlite3.o -lpthread -ldl -o /tmp/fz/test_entity_graph && /tmp/fz/test_entity_graph
-          g++ $CXXFLAGS -I. -Inbase fuzz/test_search.cc net_db.cc /tmp/fz/sqlite3.o \
-            -lpthread -ldl -o /tmp/fz/test_search && /tmp/fz/test_search
-          g++ $CXXFLAGS -I. fuzz/test_netquery.cc /tmp/fz/sqlite3.o \
-            -lpthread -ldl -o /tmp/fz/test_netquery && /tmp/fz/test_netquery
-          g++ $CXXFLAGS -I. fuzz/test_cve_limit.cc /tmp/fz/sqlite3.o \
-            -lpthread -ldl -o /tmp/fz/test_cve_limit && /tmp/fz/test_cve_limit
-          g++ $CXXFLAGS -I. fuzz/test_asn_update.cc net_db.cc /tmp/fz/sqlite3.o \
-            -lpthread -ldl -o /tmp/fz/test_asn_update && /tmp/fz/test_asn_update
-          echo "::endgroup::"
-
-          # LIVE test linking the real os_profile.cc -- pins the HTTP probe
-          # request builder (used by every enrichment + recon path) as
-          # well-formed (Host header, single CRLFCRLF terminator, IPv6
-          # bracketing). setsockopt resolves in libc on Linux.
-          echo "::group::test_osprofile"
-          g++ $CXXFLAGS -I. fuzz/test_osprofile.cc os_profile.cc \
-            -o /tmp/fz/test_osprofile && /tmp/fz/test_osprofile
-          echo "::endgroup::"
-
-      - name: Summary
+      - name: Preserve sanitizer diagnostics and test-owned fixtures
         if: always()
-        run: echo "Parser harnesses completed under ASan+UBSan."
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizer-harness-results
+          path: |
+            test-results/fuzz/
+            !test-results/fuzz/bin/
+          include-hidden-files: true
+          retention-days: 14
+
+  json-libfuzzer:
+    name: Real JSON serializer libFuzzer + ASan + UBSan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the production serializer fuzz target
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          clang++ --version | tee test-results/fuzzer-compiler.txt
+          clang++ -O1 -g -std=c++17 -fsanitize=fuzzer,address,undefined \
+            -fno-sanitize-recover=all -fno-omit-frame-pointer \
+            fuzz/ossfuzz/fuzz_jsonescape.cc -o test-results/fuzz_jsonescape \
+            2>&1 | tee test-results/fuzzer-build.log
+      - name: Bounded offline fuzzing with fixed seeds
+        run: |
+          python3 tests/run_offline_fuzz.py --binary test-results/fuzz_jsonescape --output test-results/seed-1 --seconds 30 --seed 1
+          python3 tests/run_offline_fuzz.py --binary test-results/fuzz_jsonescape --output test-results/seed-1337 --seconds 30 --seed 1337
+      - name: Preserve corpus, crashes, commands and statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-libfuzzer-results
+          path: |
+            test-results/seed-*/
+            test-results/fuzzer-*.txt
+            test-results/fuzzer-*.log
+          retention-days: 14

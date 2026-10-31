@@ -18,6 +18,7 @@
 
 #include "entity_graph.h"
 #include "net_db.h"
+#include "json_escape.h"
 
 #include <cctype>
 #include <set>
@@ -113,25 +114,25 @@ void add_ip_subgraph(sqlite3 *db, uint32_t ipu,
   }
 }
 
-/* RFC 8259 JSON string escaping; node ids/labels come off certs/PTR so they can
-   carry control bytes. unsigned-char iteration so UTF-8 passes through. */
+/* Metadata may contain malformed UTF-8 as well as JSON control characters. */
 std::string jesc(const std::string &s) {
-  std::string o; o.reserve(s.size() + 8);
-  for (unsigned char c : s) {
-    switch (c) {
-      case '"':  o += "\\\""; break;
-      case '\\': o += "\\\\"; break;
-      case '\n': o += "\\n";  break;
-      case '\r': o += "\\r";  break;
-      case '\t': o += "\\t";  break;
-      case '\b': o += "\\b";  break;
-      case '\f': o += "\\f";  break;
-      default:
-        if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); o += b; }
-        else o += static_cast<char>(c);
-    }
+  return kmap_json_escape(s);
+}
+
+/* Lossy UTF-8 repair is appropriate for display labels, but two different
+   invalid byte strings must not collapse into one graph identity. Escape the
+   reserved prefix too, making this mapping injective even for caller-supplied
+   ids. Ordinary valid UTF-8 ids keep their existing external representation. */
+std::string external_id(const std::string &id) {
+  if (id.compare(0, 6, "bytes:") != 0 && kmap_json_repair_utf8(id) == id)
+    return id;
+  static const char hex[] = "0123456789abcdef";
+  std::string encoded = "bytes:";
+  for (unsigned char byte : id) {
+    encoded += hex[byte >> 4];
+    encoded += hex[byte & 15];
   }
-  return o;
+  return encoded;
 }
 
 const char *type_color(const std::string &t) {
@@ -224,13 +225,13 @@ void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
     fprintf(out, "  node  [style=filled, fontname=\"Helvetica\"];\n");
     for (const auto &kv : nodes) {
       fprintf(out, "  \"%s\" [label=\"%s\", fillcolor=\"%s\", shape=%s];\n",
-              jesc(kv.first).c_str(), jesc(kv.second.label).c_str(),
+              jesc(external_id(kv.first)).c_str(), jesc(kv.second.label).c_str(),
               type_color(kv.second.type),
               kv.second.type == "ip" ? "box" : "ellipse");
     }
     for (const EgEdge &e : edges) {
       fprintf(out, "  \"%s\" -> \"%s\" [label=\"%s\"];\n",
-              jesc(e.from).c_str(), jesc(e.to).c_str(), e.label.c_str());
+              jesc(external_id(e.from)).c_str(), jesc(external_id(e.to)).c_str(), e.label.c_str());
     }
     fprintf(out, "}\n");
   } else if (f == "json") {
@@ -240,14 +241,14 @@ void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
     size_t i = 0;
     for (const auto &kv : nodes) {
       fprintf(out, "    {\"id\": \"%s\", \"type\": \"%s\", \"label\": \"%s\"}%s\n",
-              jesc(kv.first).c_str(), kv.second.type.c_str(),
+              jesc(external_id(kv.first)).c_str(), kv.second.type.c_str(),
               jesc(kv.second.label).c_str(),
               (++i == nodes.size()) ? "" : ",");
     }
     fprintf(out, "  ],\n  \"edges\": [\n");
     for (size_t j = 0; j < edges.size(); j++) {
       fprintf(out, "    {\"from\": \"%s\", \"to\": \"%s\", \"label\": \"%s\"}%s\n",
-              jesc(edges[j].from).c_str(), jesc(edges[j].to).c_str(),
+              jesc(external_id(edges[j].from)).c_str(), jesc(external_id(edges[j].to)).c_str(),
               jesc(edges[j].label).c_str(), (j + 1 == edges.size()) ? "" : ",");
     }
     fprintf(out, "  ]\n}\n");

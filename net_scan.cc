@@ -2521,7 +2521,7 @@ int run_topo_export_cli() {
       fprintf(fp,
         "%s    { \"ip\": \"%s\", \"hostname\": \"%s\", \"asn\": %u, "
         "\"as_name\": \"%s\", \"country\": \"%s\", \"role\": \"%s\", "
-        "\"path_count\": %d, \"avg_rtt_ms\": %.3f }",
+        "\"path_count\": %lld, \"avg_rtt_ms\": %.3f }",
         first ? "" : ",\n",
         u32_to_ip(u).c_str(),
         json_escape_topo(n.hostname).c_str(),
@@ -2529,7 +2529,7 @@ int run_topo_export_cli() {
         json_escape_topo(n.as_name).c_str(),
         json_escape_topo(n.country).c_str(),
         json_escape_topo(n.role).c_str(),
-        n.path_count, n.avg_rtt_ms);
+        static_cast<long long>(n.path_count), n.avg_rtt_ms);
       first = false;
     }
     fprintf(fp, "\n  ],\n  \"edges\": [\n");
@@ -2541,12 +2541,12 @@ int run_topo_export_cli() {
         fprintf(fp,
           "%s    { \"from\": \"%s\", \"to\": \"%s\", "
           "\"asn_boundary\": %s, \"avg_latency_ms\": %.3f, "
-          "\"path_count\": %d }",
+          "\"path_count\": %lld }",
           first ? "" : ",\n",
           u32_to_ip(e.from_u32).c_str(),
           u32_to_ip(e.to_u32).c_str(),
           e.asn_boundary ? "true" : "false",
-          e.avg_latency_ms, e.path_count);
+          e.avg_latency_ms, static_cast<long long>(e.path_count));
         first = false;
       }
     }

@@ -245,10 +245,9 @@ static void test_high_ip_topo_roundtrip(sqlite3 *db) {
 }
 
 int main() {
-  std::string path = "/tmp/kmap_topo_test_" +
-                     std::to_string(static_cast<long>(std::time(nullptr))) +
-                     ".db";
-  std::remove(path.c_str());
+  /* This suite keeps one connection throughout; an in-memory database avoids
+     cross-process temp-name collisions and works on Windows too. */
+  std::string path = ":memory:";
 
   sqlite3 *db = net_db_open(path);
   if (!db) {
@@ -267,7 +266,6 @@ int main() {
   test_high_ip_topo_roundtrip(db);
 
   net_db_close(db);
-  std::remove(path.c_str());
 
   if (g_failures == 0) {
     std::printf("net_db_topo_test: ALL PASS\n");

@@ -12,6 +12,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <set>
+#include <cmath>
 
 #ifdef WIN32
 #include <windows.h>
@@ -47,12 +49,26 @@ static int sqlite3_step_retry(sqlite3_stmt *stmt) {
  * ----------------------------------------------------------------------- */
 
 uint32_t ip_to_u32(const char *ip_str) {
-  unsigned int a, b, c, d;
-  if (sscanf(ip_str, "%u.%u.%u.%u", &a, &b, &c, &d) != 4)
-    return 0;
-  if (a > 255 || b > 255 || c > 255 || d > 255)
-    return 0;
-  return (a << 24) | (b << 16) | (c << 8) | d;
+  if (!ip_str) return 0;
+  uint32_t ip = 0;
+  const char *p = ip_str;
+  for (int part = 0; part < 4; ++part) {
+    unsigned octet = 0;
+    int digits = 0;
+    while (*p >= '0' && *p <= '9') {
+      if (++digits > 3) return 0;
+      octet = octet * 10 + static_cast<unsigned>(*p++ - '0');
+      if (octet > 255) return 0;
+    }
+    if (!digits) return 0;
+    ip = (ip << 8) | octet;
+    if (part == 3) {
+      if (*p != '\0') return 0;
+    } else if (*p++ != '.') {
+      return 0;
+    }
+  }
+  return ip;
 }
 
 std::string u32_to_ip(uint32_t ip) {
@@ -188,6 +204,7 @@ static const char *SCHEMA_SQL =
   "  role         TEXT,"
   "  path_count   INTEGER DEFAULT 0,"
   "  avg_rtt_ms   REAL,"
+  "  rtt_sample_count INTEGER NOT NULL DEFAULT 0,"
   "  last_seen    INTEGER NOT NULL"
   ");"
   "CREATE INDEX IF NOT EXISTS idx_topo_nodes_asn ON topo_nodes(asn);"
@@ -196,6 +213,7 @@ static const char *SCHEMA_SQL =
   "  to_u32          INTEGER NOT NULL,"
   "  asn_boundary    INTEGER DEFAULT 0,"
   "  avg_latency_ms  REAL,"
+  "  latency_sample_count INTEGER NOT NULL DEFAULT 0,"
   "  path_count      INTEGER DEFAULT 0,"
   "  last_seen       INTEGER NOT NULL,"
   "  PRIMARY KEY (from_u32, to_u32)"
@@ -213,9 +231,9 @@ static const char *SCHEMA_SQL =
   "  val TEXT    NOT NULL UNIQUE"
   ");";
 
-/* Per-statement migrations applied to pre-existing databases.  ALTER TABLE
-   ADD COLUMN errors out if the column already exists; we run each statement
-   in its own sqlite3_exec() so a single failure does not skip the others. */
+/* Column migrations applied to pre-existing databases. Existing columns are
+   detected before ALTER TABLE; any other error aborts the schema transaction
+   so callers never receive a connection with a partially upgraded schema. */
 static const char *MIGRATIONS[] = {
   /* v2: ASN/GeoIP columns */
   "ALTER TABLE hosts ADD COLUMN asn INTEGER DEFAULT 0",
@@ -275,6 +293,24 @@ static const char *MIGRATIONS[] = {
   "ALTER TABLE hosts ADD COLUMN cloud_service TEXT",
 };
 
+/* Read the schema instead of treating every ALTER failure as an already
+   existing column. A locked, corrupt or incompatible database must not be
+   handed to callers as a successfully upgraded store. */
+static bool db_columns(sqlite3 *db, const char *table,
+                        std::set<std::string> &columns) {
+  sqlite3_stmt *stmt = nullptr;
+  std::string sql = std::string("PRAGMA table_info(") + table + ")";
+  if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+    return false;
+  int rc;
+  while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    const unsigned char *name = sqlite3_column_text(stmt, 1);
+    if (name) columns.emplace(reinterpret_cast<const char *>(name));
+  }
+  sqlite3_finalize(stmt);
+  return rc == SQLITE_DONE && !columns.empty();
+}
+
 sqlite3 *net_db_open(const std::string &path) {
   sqlite3 *db = nullptr;
   int rc = sqlite3_open(path.c_str(), &db);
@@ -296,37 +332,59 @@ sqlite3 *net_db_open(const std::string &path) {
      after a few short retries and silently drop a discovered open. */
   sqlite3_busy_timeout(db, 5000);
 
-  /* Create schema */
-  char *errmsg = nullptr;
-  rc = sqlite3_exec(db, SCHEMA_SQL, nullptr, nullptr, &errmsg);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "net-scan: schema creation failed: %s\n",
-            errmsg ? errmsg : "unknown error");
+  auto exec_schema = [&](const char *sql) {
+    char *errmsg = nullptr;
+    int status = sqlite3_exec(db, sql, nullptr, nullptr, &errmsg);
+    if (status != SQLITE_OK)
+      fprintf(stderr, "net-scan: schema initialization failed for %s: %s\n",
+              path.c_str(), errmsg ? errmsg : sqlite3_errmsg(db));
     sqlite3_free(errmsg);
+    return status == SQLITE_OK;
+  };
+  bool ok = exec_schema("BEGIN") && exec_schema(SCHEMA_SQL);
+  std::set<std::string> columns;
+  if (ok && !db_columns(db, "hosts", columns)) {
+    fprintf(stderr, "net-scan: cannot read hosts schema for %s: %s\n",
+            path.c_str(), sqlite3_errmsg(db));
+    ok = false;
+  }
+  for (const char *stmt : MIGRATIONS) {
+    if (!ok) break;
+    const char *name = stmt + strlen("ALTER TABLE hosts ADD COLUMN ");
+    std::string column(name, strcspn(name, " "));
+    if (!columns.count(column)) ok = exec_schema(stmt);
+  }
+  columns.clear();
+  if (ok && !db_columns(db, "topo_nodes", columns)) ok = false;
+  if (ok && !columns.count("rtt_sample_count")) {
+    ok = exec_schema("ALTER TABLE topo_nodes ADD COLUMN "
+                     "rtt_sample_count INTEGER NOT NULL DEFAULT 0") &&
+         exec_schema("UPDATE topo_nodes SET rtt_sample_count = "
+                     "CASE WHEN avg_rtt_ms IS NOT NULL THEN path_count ELSE 0 END");
+  }
+  columns.clear();
+  if (ok && !db_columns(db, "topo_edges", columns)) ok = false;
+  if (ok && !columns.count("latency_sample_count")) {
+    /* Legacy stores did not retain the number of missing measurements.
+       Preserve their existing average and use path_count as the best
+       available weight; all new observations track measured samples only. */
+    ok = exec_schema("ALTER TABLE topo_edges ADD COLUMN "
+                     "latency_sample_count INTEGER NOT NULL DEFAULT 0") &&
+         exec_schema("UPDATE topo_edges SET latency_sample_count = "
+                     "CASE WHEN avg_latency_ms IS NOT NULL THEN path_count ELSE 0 END");
+  }
+  if (ok) ok = exec_schema(
+    "CREATE INDEX IF NOT EXISTS idx_hosts_asn ON hosts(asn);"
+    "CREATE INDEX IF NOT EXISTS idx_hosts_country ON hosts(country);"
+    "CREATE INDEX IF NOT EXISTS idx_hosts_err_at ON hosts(enrichment_error_at);"
+    "CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname);"
+    "CREATE INDEX IF NOT EXISTS idx_hosts_tls_sha256 ON hosts(tls_sha256);");
+  if (ok) ok = exec_schema("COMMIT");
+  if (!ok) {
+    sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
     sqlite3_close(db);
     return nullptr;
   }
-
-  /* Migrate existing databases by running each ADD COLUMN independently.
-   * "duplicate column" errors mean the column already exists -- ignore them. */
-  for (const char *stmt : MIGRATIONS) {
-    sqlite3_exec(db, stmt, nullptr, nullptr, nullptr);
-  }
-  /* Indexes that depend on migration-added columns -- now safe to create. */
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_asn ON hosts(asn)",
-               nullptr, nullptr, nullptr);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_country ON hosts(country)",
-               nullptr, nullptr, nullptr);
-  sqlite3_exec(db,
-    "CREATE INDEX IF NOT EXISTS idx_hosts_err_at ON hosts(enrichment_error_at)",
-    nullptr, nullptr, nullptr);
-  /* v4/v5 pivot-key indexes — relationship matching looks up cohorts of IPs
-     by these values, so they need to be cheap.  hostname can pivot across
-     wildcard zones; tls_sha256 fingerprints the actual server certificate. */
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname)",
-               nullptr, nullptr, nullptr);
-  sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS idx_hosts_tls_sha256 ON hosts(tls_sha256)",
-               nullptr, nullptr, nullptr);
 
   return db;
 }
@@ -1237,7 +1295,9 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
      binds only ints.  Empty -> id 0 -> NULLIF maps to NULL -> COALESCE
      keeps the previously-stored id (no wipe on partial re-observation). */
   int64_t hostname_id = net_db_intern_string(db, node.hostname.c_str());
+  if (!node.hostname.empty() && hostname_id <= 0) return -1;
   int64_t as_name_id  = net_db_intern_string(db, node.as_name.c_str());
+  if (!node.as_name.empty() && as_name_id <= 0) return -1;
 
   /* path_count is the number of traces that visited this node in the
      in-memory Topology being persisted — a hub router visited by 500
@@ -1246,12 +1306,17 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
      because 0 would make the UPSERT mean "do not increment", which
      would silently lose every re-observation. */
   int64_t batch_count = (node.path_count > 0) ? node.path_count : 1;
+  int64_t samples = node.rtt_sample_count < 0
+      ? (node.avg_rtt_ms > 0 ? batch_count : 0) : node.rtt_sample_count;
+  if (node.rtt_sample_count < -1 || samples > batch_count ||
+      (samples > 0 && (!std::isfinite(node.avg_rtt_ms) || node.avg_rtt_ms < 0)))
+    return -1;
 
   static const char *sql =
     "INSERT INTO topo_nodes "
     "  (ip_u32, hostname_id, asn, as_name_id, country, role, "
-    "   path_count, avg_rtt_ms, last_seen) "
-    "VALUES (?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, ?, ?) "
+    "   path_count, avg_rtt_ms, last_seen, rtt_sample_count) "
+    "VALUES (?, NULLIF(?, 0), ?, NULLIF(?, 0), ?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(ip_u32) DO UPDATE SET "
     "  hostname_id = COALESCE(NULLIF(excluded.hostname_id, 0), hostname_id), "
     "  asn         = CASE WHEN excluded.asn  != 0 THEN excluded.asn  ELSE asn  END, "
@@ -1259,8 +1324,12 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
     "  country     = COALESCE(NULLIF(excluded.country, ''),  country), "
     "  role        = COALESCE(NULLIF(excluded.role, ''),     role), "
     "  path_count  = path_count + excluded.path_count, "
-    "  avg_rtt_ms  = CASE WHEN excluded.avg_rtt_ms IS NOT NULL "
-    "                     THEN excluded.avg_rtt_ms ELSE avg_rtt_ms END, "
+    "  avg_rtt_ms  = CASE WHEN excluded.rtt_sample_count > 0 "
+    "                THEN COALESCE(avg_rtt_ms, 0.0) + excluded.rtt_sample_count * "
+    "                  (excluded.avg_rtt_ms - COALESCE(avg_rtt_ms, 0.0)) / "
+    "                  (rtt_sample_count + excluded.rtt_sample_count) "
+    "                ELSE avg_rtt_ms END, "
+    "  rtt_sample_count = rtt_sample_count + excluded.rtt_sample_count, "
     "  last_seen   = excluded.last_seen";
 
   sqlite3_stmt *stmt = nullptr;
@@ -1274,9 +1343,10 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
   sqlite3_bind_text (stmt, 5, node.country.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, 6, node.role.c_str(),    -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, 7, batch_count);
-  if (node.avg_rtt_ms > 0.0) sqlite3_bind_double(stmt, 8, node.avg_rtt_ms);
+  if (samples > 0) sqlite3_bind_double(stmt, 8, node.avg_rtt_ms);
   else                       sqlite3_bind_null  (stmt, 8);
   sqlite3_bind_int64(stmt, 9, node.last_seen);
+  sqlite3_bind_int64(stmt, 10, samples);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -1290,30 +1360,39 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
      same reasoning as nodes above: a 0 would freeze the count forever
      under repeated upserts. */
   int64_t batch_count = (edge.path_count > 0) ? edge.path_count : 1;
+  int64_t samples = edge.latency_sample_count < 0
+      ? (edge.avg_latency_ms > 0 ? batch_count : 0) : edge.latency_sample_count;
+  if (edge.latency_sample_count < -1 || samples > batch_count ||
+      (samples > 0 && (!std::isfinite(edge.avg_latency_ms) || edge.avg_latency_ms < 0)))
+    return -1;
 
-  /* Running-mean update for BATCHED observations.  excluded.avg_latency_ms
-     is the mean of `batch_count` new samples; we merge it with the
-     existing path_count-sample mean using the weighted-mean identity:
+  /* Running-mean update for BATCHED observations. excluded.avg_latency_ms
+     is the mean of `samples` new measured observations; we merge it with the
+     existing measured-sample mean using the weighted-mean identity:
         new_avg = old_avg + N * (sample - old_avg) / (M + N)
-     where M is the prior path_count and N is excluded.path_count.
+     where M is the prior latency_sample_count and N is the number of
+     measured samples in this batch. path_count also includes observations
+     with no latency data, so it must not be used as the averaging weight.
      This is exact-equivalent to (M * old_avg + N * sample) / (M + N)
      but avoids the multiplication-overflow risk of the sum form on
      large counts.  Skipping the update when the new sample is NULL
      (a `* * *` hop) keeps the stat from being poisoned by zero. */
   static const char *sql =
     "INSERT INTO topo_edges "
-    "  (from_u32, to_u32, asn_boundary, avg_latency_ms, path_count, last_seen) "
-    "VALUES (?, ?, ?, ?, ?, ?) "
+    "  (from_u32, to_u32, asn_boundary, avg_latency_ms, path_count, last_seen, "
+    "   latency_sample_count) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(from_u32, to_u32) DO UPDATE SET "
     "  asn_boundary   = excluded.asn_boundary, "
     "  avg_latency_ms = CASE WHEN excluded.avg_latency_ms IS NOT NULL "
     "                        THEN COALESCE(avg_latency_ms, 0.0) + "
-    "                             excluded.path_count * "
+    "                             excluded.latency_sample_count * "
     "                             (excluded.avg_latency_ms - "
     "                              COALESCE(avg_latency_ms, 0.0)) / "
-    "                             (path_count + excluded.path_count) "
+    "                             (latency_sample_count + excluded.latency_sample_count) "
     "                        ELSE avg_latency_ms END, "
     "  path_count     = path_count + excluded.path_count, "
+    "  latency_sample_count = latency_sample_count + excluded.latency_sample_count, "
     "  last_seen      = excluded.last_seen";
 
   sqlite3_stmt *stmt = nullptr;
@@ -1323,12 +1402,13 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
   sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(edge.from_u32));
   sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(edge.to_u32));
   sqlite3_bind_int  (stmt, 3, edge.asn_boundary ? 1 : 0);
-  if (edge.avg_latency_ms > 0.0)
+  if (samples > 0)
     sqlite3_bind_double(stmt, 4, edge.avg_latency_ms);
   else
     sqlite3_bind_null  (stmt, 4);
   sqlite3_bind_int64(stmt, 5, batch_count);
   sqlite3_bind_int64(stmt, 6, edge.last_seen);
+  sqlite3_bind_int64(stmt, 7, samples);
 
   int rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
@@ -1350,8 +1430,9 @@ edge_rows(sqlite3 *db, const char *sql, uint32_t bind_u32) {
     e.asn_boundary   = sqlite3_column_int(stmt, 2);
     e.avg_latency_ms = (sqlite3_column_type(stmt, 3) == SQLITE_NULL)
                          ? 0.0 : sqlite3_column_double(stmt, 3);
-    e.path_count     = sqlite3_column_int(stmt, 4);
+    e.path_count     = sqlite3_column_int64(stmt, 4);
     e.last_seen      = sqlite3_column_int64(stmt, 5);
+    e.latency_sample_count = sqlite3_column_int64(stmt, 6);
     out.push_back(std::move(e));
   }
   sqlite3_finalize(stmt);
@@ -1362,7 +1443,7 @@ std::vector<NetTopoEdge>
 net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32) {
   return edge_rows(db,
     "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
-    "path_count, last_seen FROM topo_edges WHERE from_u32 = ?",
+    "path_count, last_seen, latency_sample_count FROM topo_edges WHERE from_u32 = ?",
     from_u32);
 }
 
@@ -1370,7 +1451,7 @@ std::vector<NetTopoEdge>
 net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32) {
   return edge_rows(db,
     "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
-    "path_count, last_seen FROM topo_edges WHERE to_u32 = ?",
+    "path_count, last_seen, latency_sample_count FROM topo_edges WHERE to_u32 = ?",
     to_u32);
 }
 
@@ -1385,7 +1466,7 @@ bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out) {
     "       COALESCE(n.role, ''), "
     "       n.path_count, "
     "       COALESCE(n.avg_rtt_ms, 0.0), "
-    "       n.last_seen "
+    "       n.last_seen, n.rtt_sample_count "
     "FROM topo_nodes n "
     "LEFT JOIN strings h ON h.id = n.hostname_id "
     "LEFT JOIN strings a ON a.id = n.as_name_id "
@@ -1408,9 +1489,10 @@ bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out) {
     out->country    = c ? reinterpret_cast<const char *>(c) : "";
     const unsigned char *r = sqlite3_column_text(stmt, 5);
     out->role       = r ? reinterpret_cast<const char *>(r) : "";
-    out->path_count = sqlite3_column_int(stmt, 6);
+    out->path_count = sqlite3_column_int64(stmt, 6);
     out->avg_rtt_ms = sqlite3_column_double(stmt, 7);
     out->last_seen  = sqlite3_column_int64(stmt, 8);
+    out->rtt_sample_count = sqlite3_column_int64(stmt, 9);
     found = true;
   }
   sqlite3_finalize(stmt);

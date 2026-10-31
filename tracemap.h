@@ -55,6 +55,7 @@ struct TopoNode {
 
   /* Analysis results */
   int         path_count;       /* how many traces pass through this node */
+  int64_t     rtt_sample_count = 0; /* observations with a measured RTT */
   double      avg_rtt_ms;
   std::string role;             /* "source", "gateway", "router", "ixp",
                                    "target", "border", "hub" */
@@ -67,6 +68,7 @@ struct TopoEdge {
   std::string to_ip;
   double      avg_latency_ms; /* avg (to.rtt - from.rtt) */
   int         path_count;     /* how many traces use this edge */
+  int64_t     latency_sample_count = 0; /* pairs with both RTTs measured */
   bool        asn_boundary;   /* true if ASN changes on this edge */
 };
 

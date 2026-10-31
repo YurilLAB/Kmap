@@ -245,8 +245,9 @@ void net_db_commit(sqlite3 *db);
  * IP conversion helpers
  * ----------------------------------------------------------------------- */
 
-/* Convert a dotted-quad string to a 32-bit host-order integer.
-   Returns 0 on parse failure. */
+/* Convert a dotted-quad string to a 32-bit host-order integer. Requires
+   exactly four decimal octets (1-3 digits, 0..255), with no extra text.
+   Returns 0 on parse failure (also the value for 0.0.0.0). */
 uint32_t ip_to_u32(const char *ip_str);
 
 /* Convert a 32-bit host-order integer to a dotted-quad string. */
@@ -335,10 +336,11 @@ struct NetTopoNode {
   std::string country;
   std::string role;       /* "source", "gateway", "router", "ixp",
                              "target", "border", "hub", "" */
-  int         path_count  = 0; /* traces that visited this node in the
+  int64_t     path_count  = 0; /* traces that visited this node in the
                                   in-memory batch being persisted; the
                                   upsert sums it into the DB total */
   double      avg_rtt_ms  = 0.0;
+  int64_t     rtt_sample_count = -1; /* -1: infer from legacy avg/path_count */
   int64_t     last_seen   = 0;
 };
 
@@ -346,8 +348,9 @@ struct NetTopoEdge {
   uint32_t from_u32       = 0;
   uint32_t to_u32         = 0;
   int      asn_boundary   = 0;   /* 1 if from.asn != to.asn, else 0 */
-  double   avg_latency_ms = 0.0; /* mean of `path_count` samples */
-  int      path_count     = 0;   /* traces using this edge in the batch */
+  double   avg_latency_ms = 0.0; /* mean of measured samples */
+  int64_t  path_count     = 0;   /* traces using this edge in the batch */
+  int64_t  latency_sample_count = -1; /* -1: infer; 0: no measured samples */
   int64_t  last_seen      = 0;
 };
 
@@ -358,15 +361,21 @@ struct NetTopoEdge {
    repeat probes that learned nothing new about hostname/asn won't wipe
    previously-captured data.  A caller-supplied path_count of 0 is
    treated as 1, since 0 would freeze the counter forever.  Returns
-   0 on success, -1 on error. */
+   0 on success, -1 on error. rtt_sample_count separates measured RTTs from
+   paths with missing RTTs; explicit zero RTT measurements are valid. For old
+   callers leaving the count at -1, positive avg_rtt_ms implies path_count
+   measured samples. The stored average is weighted by measured samples. */
 int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node);
 
 /* UPSERT an edge.  path_count is summed across batches (same as nodes)
    and avg_latency_ms is updated via the batch-weighted running-mean
    formula `new_avg = old_avg + N*(sample - old_avg)/(M + N)` where M
-   is the prior count and N is the new batch's count, so successive
+   is the count of prior measured samples and N is latency_sample_count,
+   so successive
    probes refine the mean without bias from observation order.  NULL
-   samples (a `* * *` hop) keep the prior average.  Returns 0/-1. */
+   samples (a `* * *` hop) keep the prior average. An explicit sample count
+   permits zero latency; -1 retains the legacy positive-average inference.
+   Returns 0/-1, including invalid sample counts or nonfinite measurements. */
 int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge);
 
 /* Out-neighbors of an IP: every node this IP has been observed

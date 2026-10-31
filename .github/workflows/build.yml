@@ -41,6 +41,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   MAKEFLAGS: -j3
 
@@ -53,52 +56,61 @@ jobs:
           - name: ubuntu-latest-gcc
             os: ubuntu-latest
             cc: gcc
+            cxx: g++
           - name: ubuntu-24.04-arm-gcc
             os: ubuntu-24.04-arm
             cc: gcc
+            cxx: g++
           - name: ubuntu-latest-clang
             os: ubuntu-latest
             cc: clang
+            cxx: clang++
           - name: macos-15-clang
             os: macos-15
             cc: clang
+            cxx: clang++
           - name: macos-26-clang
             os: macos-26
             cc: clang
+            cxx: clang++
           - name: freebsd-15-gcc
             os: ubuntu-latest
             cc: gcc
+            cxx: g++
           - name: freebsd-15-clang
             os: ubuntu-latest
             cc: clang
+            cxx: clang++
           - name: openbsd-7-gcc
             os: ubuntu-latest
             cc: egcc
+            cxx: eg++
           - name: openbsd-7-clang
             os: ubuntu-latest
             cc: clang
+            cxx: clang++
           - name: netbsd-10-gcc
             os: ubuntu-latest
             cc: gcc
+            cxx: g++
           - name: netbsd-10-clang
             os: ubuntu-latest
             cc: clang
+            cxx: clang++
           - name: solaris-11-gcc
             os: ubuntu-latest
             cc: gcc
+            cxx: g++
           - name: solaris-11-clang
             os: ubuntu-latest
             cc: clang
+            cxx: clang++
           - name: windows-2022-msvc
-            # Pinned to windows-2022 (Visual Studio 2022 / v143). GitHub is
-            # migrating `windows-latest` to windows-2025 + VS 2026, which has no
-            # VS 2022 -- and mswin32/Build.bat asks CMake for the "Visual Studio
-            # 17 2022" generator when building libpcre2, so on the new image
-            # CMake aborts with "could not find any instance of Visual Studio".
-            # Pinning keeps the toolchain matched to Build.bat's generator until
-            # its VS-version detection is made version-agnostic.
+            # Retain the established VS 2022 runner while Build.bat's newer
+            # Visual Studio detection receives hosted CI validation.
             os: windows-2022
             cc: msvc
+            cxx: msvc
 
     runs-on: ${{ matrix.os }}
     # Bound every matrix job. The slowest legitimate job (the OpenBSD VM) runs
@@ -110,11 +122,18 @@ jobs:
 
       - name: Build Linux
         if: startsWith(matrix.name,'ubuntu')
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
+          set -euo pipefail
+          mkdir -p test-results
           sudo apt-get update
           sudo apt-get install -y build-essential clang tree libpcap-dev libnet-dev libpcre2-dev
-          ./configure
-          make
+          "$CC" --version
+          "$CXX" --version
+          ./configure 2>&1 | tee test-results/configure.log
+          make 2>&1 | tee test-results/build.log
           # Fail loudly if the binary was not actually produced. A bare `make`
           # previously exited 0 while building only sqlite3.o (wrong default
           # goal), so build breaks passed CI undetected.
@@ -124,23 +143,13 @@ jobs:
 
       - name: Smoke test Linux
         if: startsWith(matrix.name,'ubuntu')
-        run: |
-          set -e
-          # Catch crash-on-exit / runtime regressions that a build-only job
-          # misses (e.g. the OpenSSL teardown SIGSEGV after -sV).
-          ./kmap --version
-          python3 -m http.server 8088 --bind 127.0.0.1 >/dev/null 2>&1 &
-          srv=$!
-          sleep 1
-          rc=0
-          ./kmap -sV -p 8088 127.0.0.1 || rc=$?
-          kill "$srv" 2>/dev/null || true
-          if [ "$rc" -ne 0 ]; then
-            echo "::error::kmap -sV exited with $rc (expected 0)"; exit "$rc"
-          fi
+        run: python3 tests/runtime_smoke.py ./kmap --artifacts test-results/runtime
 
       - name: Build MacOS
         if: startsWith(matrix.name,'macos')
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
           brew update
           # PCRE2 is already installed
@@ -160,7 +169,7 @@ jobs:
             # OS has libpcap already installed (and adding puts a second in /usr/local)
             pkg install -y gcc llvm autotools tree pkgconf libnet pcre2 gmake dbus
           run: |
-            ./configure
+            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
             gmake
             gmake install DESTDIR=/tmp
             tree /tmp/usr
@@ -176,7 +185,7 @@ jobs:
           run: |
             export AUTOCONF_VERSION=2.72
             export AUTOMAKE_VERSION=1.17
-            ./configure
+            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
             gmake
             gmake install DESTDIR=/tmp
             tree /tmp/usr
@@ -191,7 +200,8 @@ jobs:
             export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r | cut -d_ -f1)/All"
             pkg_add -u gcc13 clang autoconf automake pkgconf libpcap libnet gmake dbus
           run: |
-            ./configure
+            export PATH=/usr/sbin:/usr/pkg/sbin:/usr/pkg/bin:$PATH
+            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
             gmake
             gmake install DESTDIR=/tmp
             tree /tmp/usr
@@ -204,10 +214,21 @@ jobs:
           prepare: |
             pkg install gcc-c clang autoconf automake pcre2 libpcap libnet developer/build/gnu-make
           run: |
-            ./configure
+            CC=${{ matrix.cc }} CXX=${{ matrix.cxx }} ./configure
             gmake
             gmake install DESTDIR=/tmp
             tree /tmp/usr
+
+      - name: Windows build-script regression fixtures (offline)
+        if: startsWith(matrix.name,'windows')
+        shell: cmd
+        run: |
+          set "KMAP_TEST_VS="
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "KMAP_TEST_VS=%%i"
+          if not defined KMAP_TEST_VS exit /b 1
+          call "%KMAP_TEST_VS%\Common7\Tools\vsdevcmd.bat" -arch=x64 -host_arch=x64
+          if errorlevel 1 exit /b %errorlevel%
+          python tests/windows_build_test.py --cc cl --output test-results/windows-build
 
       - name: Install Subversion
         if: startsWith(matrix.name,'windows')
@@ -224,3 +245,14 @@ jobs:
         run: |
           cd mswin32
           Build.bat
+
+      - name: Preserve build and runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.name }}
+          path: |
+            test-results/
+            config.log
+            mswin32/*.log
+          retention-days: 14

@@ -1,7 +1,9 @@
 name: ClusterFuzzLite PR fuzzing
 
 # Runs the libFuzzer targets in fuzz/ossfuzz/ (built via .clusterfuzzlite/) on
-# pull requests, fuzzing only the code touched by the PR for a short budget.
+# pull requests with a short budget in code-change mode. No coverage storage
+# repo is configured, so this does not restrict execution to affected targets.
+# See https://google.github.io/clusterfuzzlite/running-clusterfuzzlite/github-actions/
 # This is OSS-Fuzz's engine (libFuzzer + ASan/UBSan) run in this repo's own CI,
 # no separate OSS-Fuzz onboarding required. To also enrol in the central
 # OSS-Fuzz service later, the same fuzz/ossfuzz/*.cc + .clusterfuzzlite/build.sh
@@ -22,6 +24,7 @@ permissions:
 jobs:
   PR:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:

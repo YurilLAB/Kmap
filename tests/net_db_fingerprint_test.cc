@@ -211,12 +211,9 @@ static void test_bad_input_rejected(sqlite3 *db) {
 }
 
 int main() {
-  /* Use a unique temp path so reruns do not collide.  time(NULL) is
-     enough granularity for the rare case of back-to-back invocations. */
-  std::string path = "/tmp/kmap_fp_test_" +
-                     std::to_string(static_cast<long>(std::time(nullptr))) +
-                     ".db";
-  std::remove(path.c_str());
+  /* No cross-connection persistence is tested here. Avoid second-granularity
+     file names, which collide when the suite runs concurrently. */
+  std::string path = ":memory:";
 
   sqlite3 *db = net_db_open(path);
   if (!db) {
@@ -243,7 +240,6 @@ int main() {
   test_san_parser_empty_and_malformed();
 
   net_db_close(db);
-  std::remove(path.c_str());
 
   if (g_failures == 0) {
     std::printf("net_db_fingerprint_test: ALL PASS\n");

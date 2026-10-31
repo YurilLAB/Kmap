@@ -2052,13 +2052,17 @@ void  apply_delayed_options() {
   // ISO 8601 date/time -- http://www.cl.cam.ac.uk/~mgk25/iso-time.html
   if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %z", &local_time) <= 0)
     fatal("Unable to properly format time");
-  log_write(LOG_STDOUT | LOG_SKID, "Starting %s %s ( %s ) at %s\n", KMAP_NAME, KMAP_VERSION, KMAP_URL, tbuf);
+  /* Query JSON on stdout must contain only the document, including startup. */
+  const int startup_log = o.net_query && o.nq_format &&
+      strcmp(o.nq_format, "json") == 0 && (!o.nq_output || !o.nq_output[0])
+      ? LOG_STDERR : (LOG_STDOUT | LOG_SKID);
+  log_write(startup_log, "Starting %s %s ( %s ) at %s\n", KMAP_NAME, KMAP_VERSION, KMAP_URL, tbuf);
   if (o.verbose) {
     if (local_time.tm_mon == 8 && local_time.tm_mday == 1) {
       unsigned int a = (local_time.tm_year - 97)%100;
-      log_write(LOG_STDOUT | LOG_SKID, "Happy %d%s Birthday to Kmap, may it live to be %d!\n", local_time.tm_year - 97,(a>=11&&a<=13?"th":(a%10==1?"st":(a%10==2?"nd":(a%10==3?"rd":"th")))), local_time.tm_year + 3);
+      log_write(startup_log, "Happy %d%s Birthday to Kmap, may it live to be %d!\n", local_time.tm_year - 97,(a>=11&&a<=13?"th":(a%10==1?"st":(a%10==2?"nd":(a%10==3?"rd":"th")))), local_time.tm_year + 3);
     } else if (local_time.tm_mon == 11 && local_time.tm_mday == 25) {
-      log_write(LOG_STDOUT | LOG_SKID, "Kmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://github.com/YurilLAB/Kmap/book/man-port-scanning-techniques.html).\n");
+      log_write(startup_log, "Kmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://github.com/YurilLAB/Kmap/book/man-port-scanning-techniques.html).\n");
     }
   }
 
