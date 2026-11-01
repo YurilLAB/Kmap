@@ -317,12 +317,27 @@ static bool send_all(wr_fd_t fd, const char *buf, size_t len) {
   return true;
 }
 
+/* Milliseconds left before `deadline` (0 once it has passed). Response reads
+   use one deadline for the whole response: waiting the full timeout per chunk
+   let a server dripping a byte at a time hold a request for hours. */
+static int wr_remaining_ms(std::chrono::steady_clock::time_point deadline) {
+  auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+      deadline - std::chrono::steady_clock::now()).count();
+  return left > 0 ? static_cast<int>(left) : 0;
+}
+
+static std::chrono::steady_clock::time_point wr_deadline(int timeout_ms) {
+  return std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+}
+
 static std::string recv_response(wr_fd_t fd, int timeout_ms, size_t max_bytes = 65536) {
   std::string response;
   response.reserve(4096);
   char chunk[4096];
+  const auto deadline = wr_deadline(timeout_ms);
   while (response.size() < max_bytes) {
-    if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
+    int left = wr_remaining_ms(deadline);
+    if (left == 0 || wr_wait_fd(fd, /*want_write=*/false, left) <= 0)
       break;
 #ifdef WIN32
     int n = static_cast<int>(recv(static_cast<SOCKET>(fd), chunk, sizeof(chunk), 0));
@@ -353,10 +368,18 @@ static std::string extract_title(const std::string &body) {
   bool capped = (te == std::string::npos);
   if (capped) te = std::min(ts + 200, body.size());
   std::string t = body.substr(ts, te - ts);
-  // Strip whitespace
-  size_t a = t.find_first_not_of(" \t\r\n");
-  size_t b = t.find_last_not_of(" \t\r\n");
-  std::string title = (a == std::string::npos) ? "" : t.substr(a, b - a + 1);
+  /* Collapse whitespace and control runs to one space and trim, as browsers
+     display titles. A raw multi-line title otherwise forged headings and
+     table rows in the text and Markdown reports. */
+  std::string title;
+  for (unsigned char c : t) {
+    if (c <= ' ' || c == 0x7f) {
+      if (!title.empty() && title.back() != ' ') title += ' ';
+    } else {
+      title += static_cast<char>(c);
+    }
+  }
+  if (!title.empty() && title.back() == ' ') title.pop_back();
   /* When hard-capped at 200 bytes (no </title> within reach) the cut can land
      inside a multi-byte UTF-8 codepoint, leaving a dangling partial sequence
      that makes the stored title -- and any JSON export of it -- invalid UTF-8.
@@ -642,9 +665,11 @@ static std::string https_get(const char *ip, uint16_t port,
 
   std::string response;
   char chunk[4096];
+  const auto deadline = wr_deadline(timeout_ms);
   while (true) {
     /* Timeout guard to prevent blocking on slow/malicious servers */
-    if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
+    int left = wr_remaining_ms(deadline);
+    if (left == 0 || wr_wait_fd(fd, /*want_write=*/false, left) <= 0)
       break;
     int n = SSL_read(ssl, chunk, sizeof(chunk));
     if (n <= 0) break;
@@ -842,8 +867,10 @@ http_options_probe(const char *ip, uint16_t port,
     char chunk[4096];
     // Read the response headers; we don't need the body. Cap at 8K so
     // a misbehaving server doesn't stall the scan.
+    const auto deadline = wr_deadline(timeout_ms);
     while (response.size() < 8192) {
-      if (wr_wait_fd(fd, /*want_write=*/false, timeout_ms) <= 0)
+      int left = wr_remaining_ms(deadline);
+      if (left == 0 || wr_wait_fd(fd, /*want_write=*/false, left) <= 0)
         break;
       int n = SSL_read(ssl, chunk, sizeof(chunk));
       if (n <= 0) break;
@@ -923,10 +950,21 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
 
   // TLS: already populated above if is_https and get("/") succeeded
 
-  // Path probing
+  // Path probing. A server that holds every request to the read deadline
+  // (a tarpit) would cost paths x READ_TIMEOUT, so stop after a few in a row.
+  int slow_streak = 0;
   for (const std::string &path : paths) {
     if (path == "/robots.txt") continue; // already done
+    if (slow_streak >= 3) {
+      log_write(LOG_STDOUT, "  web-recon: %s:%u stalls requests; skipping remaining paths\n",
+                ip, static_cast<unsigned>(port));
+      break;
+    }
+    auto started = std::chrono::steady_clock::now();
     std::string resp = do_get(path.c_str());
+    bool slow = std::chrono::steady_clock::now() - started >=
+                std::chrono::milliseconds(READ_TIMEOUT);
+    slow_streak = slow ? slow_streak + 1 : 0;
     if (resp.empty()) continue;
     int code = extract_status_code(resp);
     if (code == 0 || code == 404 || code == 400) continue;
@@ -982,8 +1020,22 @@ void run_web_recon(std::vector<Target *> &targets,
     } else {
       std::string line;
       while (std::getline(f, line)) {
-        if (!line.empty() && line[0] != '#')
-          paths.push_back(line);
+        /* Trim (CRLF files left "\r" in the request line, which servers
+           reject with 400, so every custom path was silently dropped). */
+        size_t a = line.find_first_not_of(" \t\r\n");
+        if (a == std::string::npos || line[a] == '#') continue;
+        line = line.substr(a, line.find_last_not_of(" \t\r\n") - a + 1);
+        bool unsafe = false;
+        for (unsigned char c : line)
+          if (c <= ' ' || c == 0x7f) unsafe = true;
+        if (unsafe) {
+          log_write(LOG_STDOUT,
+            "WARNING: --web-paths: skipping path with whitespace or control "
+            "characters: %s\n", line.c_str());
+          continue;
+        }
+        if (line[0] != '/') line.insert(0, "/");
+        paths.push_back(line);
       }
     }
   }
@@ -1012,7 +1064,9 @@ void run_web_recon(std::vector<Target *> &targets,
                      [](unsigned char c){ return static_cast<char>(tolower(c)); });
 
       bool is_http  = (svc.find("http")  != std::string::npos);
-      bool is_https = (svc.find("https") != std::string::npos ||
+      /* -sV reports HTTPS as "http" tunnelled over SSL ("ssl/http"). */
+      bool is_https = (sd.service_tunnel == SERVICE_TUNNEL_SSL ||
+                       svc.find("https") != std::string::npos ||
                        port->portno == 443 || port->portno == 8443);
 
       if (!is_http && !is_https) continue;
@@ -1330,7 +1384,8 @@ void run_screenshot_capture(std::vector<Target *> &targets,
                            [](unsigned char c){ return static_cast<char>(tolower(c)); });
 
             bool is_http  = (svc.find("http") != std::string::npos);
-            bool is_https = (svc.find("https") != std::string::npos ||
+            bool is_https = (sd.service_tunnel == SERVICE_TUNNEL_SSL ||
+                             svc.find("https") != std::string::npos ||
                              port->portno == 443 || port->portno == 8443);
             if (!is_http && !is_https) continue;
 

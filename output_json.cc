@@ -958,9 +958,13 @@ static void write_md_report(std::ofstream &f) {
                     }
                     if (!r.robots_disallowed.empty()) {
                         f << "- **Robots:** ";
-                        for (size_t i = 0; i < r.robots_disallowed.size(); ++i)
-                            f << "`" << r.robots_disallowed[i] << "`"
+                        for (size_t i = 0; i < r.robots_disallowed.size(); ++i) {
+                            /* A backtick in the entry needs a double-backtick span. */
+                            const std::string &e = r.robots_disallowed[i];
+                            bool tick = e.find('`') != std::string::npos;
+                            f << (tick ? "`` " : "`") << e << (tick ? " ``" : "`")
                               << (i + 1 < r.robots_disallowed.size() ? ", " : "");
+                        }
                         f << "\n";
                     }
                     if (!r.paths.empty()) {
