@@ -1543,6 +1543,10 @@ int enrich_single_host(const char *ip,
       if (!skip_banner && cve_db && !out_services[i].empty()) {
         std::vector<EnrichCve> cves = lookup_cves(cve_db, out_services[i], out_versions[i]);
         out_cves[i] = cves_to_json(cves);
+        /* "" leaves the stored list in place (COALESCE), so a version that
+           now matches nothing must store an explicit empty list; otherwise
+           an upgraded host kept the CVEs it no longer has. */
+        if (out_cves[i].empty() && !out_versions[i].empty()) out_cves[i] = "[]";
       }
 
       /* Step 3: HTTP recon on plaintext web ports.  Skip when async

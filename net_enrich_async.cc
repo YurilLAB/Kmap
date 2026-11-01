@@ -1019,6 +1019,8 @@ static void dispatch_after_banner(AsyncEnrichBatch *b, AsyncPortItem *p) {
     std::vector<AsyncEnrichCve> cves =
       a_lookup_cves(b->cve_db, br.service, br.version);
     (*h->out_cves)[p->port_idx] = a_cves_to_json(cves);
+    /* An evaluated version with no matches clears the stored list. */
+    if (cves.empty() && !br.version.empty()) (*h->out_cves)[p->port_idx] = "[]";
   }
 
   /* Branch.  Same logic as enrich_single_host's per-port worker. */
