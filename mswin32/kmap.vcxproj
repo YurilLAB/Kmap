@@ -69,6 +69,7 @@
       </HeaderFileName>
     </Midl>
     <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>kmap_winconfig.h</ForcedIncludeFiles>
@@ -118,6 +119,7 @@
       </HeaderFileName>
     </Midl>
     <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -163,6 +165,7 @@
       </HeaderFileName>
     </Midl>
     <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>.;..;..\liblua;..\nbase;build-pcre2\interface;..\nsock\include;..\..\kmap-mswin32-aux\Npcap\Include;..\libdnet-stripped\include;..\..\kmap-mswin32-aux\OpenSSL\include;..\liblinear;..\libssh2\include;..\libz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

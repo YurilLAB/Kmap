@@ -11,6 +11,7 @@
 
 #include "net_scan.h"
 #include "net_db.h"
+#include "store_output.h"
 #include "json_escape.h"
 #include "joined_workers.h"
 #include "watchlist_state.h"
@@ -39,6 +40,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <filesystem>
 #include <set>
 #include <map>
 #include <algorithm>
@@ -2059,15 +2061,27 @@ int run_net_cluster_cli() {
   /* Step 1: get the target's own fingerprint set from its shard. */
   int target_shard = net_shard_index(target_u32);
   std::string target_shard_path = net_shard_path(data_dir, target_shard);
+  std::error_code seed_status;
+  if (!std::filesystem::exists(target_shard_path, seed_status)) {
+    fprintf(stderr, "net-cluster: cannot read seed shard %s%s%s\n",
+            target_shard_path.c_str(), seed_status ? ": " : "",
+            seed_status ? seed_status.message().c_str() : "");
+    return 1;
+  }
   sqlite3 *target_db = net_db_open(target_shard_path);
   if (!target_db) {
     fprintf(stderr, "net-cluster: cannot open shard %s\n",
             target_shard_path.c_str());
     return 1;
   }
+  std::string read_error;
   std::vector<NetFingerprint> target_fps =
-      net_db_get_fingerprints_for_ip(target_db, o.nc_ip);
+      net_db_get_fingerprints_for_ip(target_db, o.nc_ip, &read_error);
   net_db_close(target_db);
+  if (!read_error.empty()) {
+    fprintf(stderr, "net-cluster: cannot read seed fingerprints: %s\n", read_error.c_str());
+    return 1;
+  }
 
   if (target_fps.empty()) {
     fprintf(stderr,
@@ -2090,16 +2104,27 @@ int run_net_cluster_cli() {
     std::string sp = net_shard_path(data_dir, sh);
     /* Skip shards whose file does not exist — saves a noisy stderr
        from net_db_open when shards have not been populated yet. */
-    FILE *test = fopen(sp.c_str(), "r");
-    if (!test) continue;
-    fclose(test);
+    std::error_code status;
+    bool found = std::filesystem::exists(sp, status);
+    if (status) {
+      fprintf(stderr, "net-cluster: cannot inspect shard %s: %s\n",
+              sp.c_str(), status.message().c_str());
+      return 1;
+    }
+    if (!found) continue;
 
     sqlite3 *db = net_db_open(sp);
-    if (!db) continue;
+    if (!db) return 1;
 
     for (const NetFingerprint &fp : target_fps) {
       std::vector<NetFingerprint> matches =
-          net_db_find_by_fingerprint(db, fp.kind.c_str(), fp.value.c_str());
+          net_db_find_by_fingerprint(db, fp.kind.c_str(), fp.value.c_str(), &read_error);
+      if (!read_error.empty()) {
+        fprintf(stderr, "net-cluster: cannot read shard %s: %s\n",
+                sp.c_str(), read_error.c_str());
+        net_db_close(db);
+        return 1;
+      }
       std::string sig = fp.kind + ":" + fp.value;
       for (const NetFingerprint &m : matches) {
         if (m.ip_u32 == target_u32) continue;  /* exclude the target itself */
@@ -2130,44 +2155,17 @@ int run_net_cluster_cli() {
 
   FILE *fp_out = stdout;
   if (o.nc_output && o.nc_output[0]) {
-    fp_out = fopen(o.nc_output, "w");
+    std::string output_error;
+    fp_out = open_store_output(o.nc_output, data_dir, output_error);
     if (!fp_out) {
-      fprintf(stderr, "net-cluster: cannot open output %s\n", o.nc_output);
+      fprintf(stderr, "net-cluster: cannot open output %s: %s\n",
+              o.nc_output, output_error.c_str());
       return 1;
     }
   }
 
-  /* JSON-escape helper — only quote and backslash escapes, sufficient
-     for the fingerprint signature values we ever emit here. */
-  /* RFC 8259 JSON string escaping. Fingerprint values are network-derived
-     (tls_subject_cn / tls_san come straight off the peer certificate, redirect
-     and PTR hosts off the wire), so they can carry raw control bytes; emitting
-     those unescaped produced invalid JSON. Escape every control char < 0x20
-     via \uXXXX (matching net_enrich.cc::json_escape and tracemap.cc::json_str)
-     and iterate as unsigned char so UTF-8 high bytes pass through untouched. */
-  auto jesc = [](const std::string &s) {
-    std::string out; out.reserve(s.size() + 8);
-    for (unsigned char c : s) {
-      switch (c) {
-        case '"':  out += "\\\""; break;
-        case '\\': out += "\\\\"; break;
-        case '\n': out += "\\n";  break;
-        case '\r': out += "\\r";  break;
-        case '\t': out += "\\t";  break;
-        case '\b': out += "\\b";  break;
-        case '\f': out += "\\f";  break;
-        default:
-          if (c < 0x20) {
-            char buf[8];
-            snprintf(buf, sizeof(buf), "\\u%04x", c);
-            out += buf;
-          } else {
-            out += static_cast<char>(c);
-          }
-      }
-    }
-    return out;
-  };
+  // Shared serializer repairs malformed UTF-8 and escapes JSON controls.
+  auto jesc = [](const std::string &value) { return kmap_json_escape(value); };
 
   const std::string fmt = o.nc_format ? o.nc_format : "text";
 
@@ -2238,8 +2236,11 @@ int run_net_cluster_cli() {
     }
   }
 
-  if (fp_out != stdout) fclose(fp_out);
-  return 0;
+  bool failed = ferror(fp_out) != 0;
+  if (fp_out != stdout) failed = fclose(fp_out) != 0 || failed;
+  else failed = fflush(fp_out) != 0 || ferror(fp_out) != 0 || failed;
+  if (failed) fprintf(stderr, "net-cluster: output write failed\n");
+  return failed ? 1 : 0;
 }
 
 /* -----------------------------------------------------------------------
@@ -2273,7 +2274,10 @@ int run_entity_graph_cli() {
   std::map<std::string, EgNode> nodes;
   std::vector<EgEdge> edges;
   size_t cohort = 0;
-  int rc = entity_graph_build(data_dir, o.eg_seed, depth, nodes, edges, &cohort);
+  std::string read_error;
+  bool limit_reached = false;
+  int rc = entity_graph_build(data_dir, o.eg_seed, depth, nodes, edges, &cohort,
+                              &read_error, &limit_reached);
   if (rc == -1) {
     fprintf(stderr, "entity-graph: cannot parse IP '%s'\n", o.eg_seed);
     return 1;
@@ -2284,19 +2288,31 @@ int run_entity_graph_cli() {
     return 1;
   }
 
+  if (rc != 0) {
+    fprintf(stderr, "entity-graph: store read failed: %s\n", read_error.c_str());
+    return 1;
+  }
+
   FILE *out = stdout;
   if (o.eg_output && o.eg_output[0]) {
-    out = fopen(o.eg_output, "w");
+    std::string output_error;
+    out = open_store_output(o.eg_output, data_dir, output_error);
     if (!out) {
-      fprintf(stderr, "entity-graph: cannot open output %s\n", o.eg_output);
+      fprintf(stderr, "entity-graph: cannot open output %s: %s\n",
+              o.eg_output, output_error.c_str());
       return 1;
     }
   }
   std::string seed_ip = u32_to_ip(ip_to_u32(o.eg_seed));
+  if (limit_reached)
+    fprintf(stderr, "entity-graph: 500-IP cohort limit reached; graph may be incomplete\n");
   entity_graph_emit(out, o.eg_format ? o.eg_format : "text",
-                    seed_ip, depth, cohort, nodes, edges);
-  if (out != stdout) fclose(out);
-  return 0;
+                    seed_ip, depth, cohort, nodes, edges, limit_reached);
+  bool failed = ferror(out) != 0;
+  if (out != stdout) failed = fclose(out) != 0 || failed;
+  else failed = fflush(out) != 0 || ferror(out) != 0 || failed;
+  if (failed) fprintf(stderr, "entity-graph: output write failed\n");
+  return failed ? 1 : 0;
 }
 
 /* -----------------------------------------------------------------------
@@ -2374,8 +2390,9 @@ int run_search_cli() {
 
   FILE *out = stdout;
   if (o.search_output && o.search_output[0]) {
-    out = fopen(o.search_output, "w");
-    if (!out) { fprintf(stderr, "search: cannot open output %s\n", o.search_output); return 1; }
+    std::string output_error;
+    out = open_store_output(o.search_output, data_dir, output_error);
+    if (!out) { fprintf(stderr, "search: cannot open output %s: %s\n", o.search_output, output_error.c_str()); return 1; }
   }
   auto jesc = [](const std::string &s) {
     return kmap_json_escape(s);
@@ -2549,10 +2566,11 @@ int run_topo_export_cli() {
     return 1;
   }
 
-  FILE *fp = fopen(o.topo_export_file, "w");
+  std::string output_error;
+  FILE *fp = open_store_output(o.topo_export_file, data_dir, output_error);
   if (!fp) {
-    fprintf(stderr, "topo-export: cannot open output %s\n",
-            o.topo_export_file);
+    fprintf(stderr, "topo-export: cannot open output %s: %s\n",
+            o.topo_export_file, output_error.c_str());
     net_db_close(db);
     return 1;
   }

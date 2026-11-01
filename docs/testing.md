@@ -126,6 +126,19 @@ quiet conditions. Raw records are retained; timing is not a CI threshold and
 does not measure network scanning throughput. Different platforms, disk caches
 and concurrent workloads can change these results.
 
+`export_paths.py` checks that query, search, graph and topology exports refuse
+store-file destinations. It covers existing and absent database/SQLite sidecar
+paths, relative names and Windows case, trailing-dot/space and stream aliases.
+Exports to distinct files inside the store remain valid.
+These tests create no filesystem links. Do not move or replace store paths
+concurrently with an export.
+
+`graph_read_test.cc` checks SQLite read failures and graph depths against an
+independent distance oracle for 100 small seeded graphs (seeds 1 and 1337).
+`graph_contracts.py` exercises the actual offline CLI, including corrupt shards,
+Unicode, empty stores, repeated output and closed output pipes. A nonzero pipe
+exit is failure propagation, not evidence of graceful cancellation.
+
 ## Sanitizer harnesses
 
 ```sh

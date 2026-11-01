@@ -22,18 +22,22 @@ struct EgEdge { std::string from; std::string to; std::string label; };
 /* Assemble the graph around seed_ip from the shard store at data_dir, expanding
    `depth` hops into the shared-certificate / shared-domain cohort (0 = seed
    only).  Fills `nodes` (keyed by typed id, e.g. "ip:1.2.3.4") and `edges`,
-   and sets *cohort_ips to the number of cohort IPs pulled in.
-   Returns 0 on success, -1 on an unparseable seed IP, -2 when the seed has no
-   enriched data in the store. */
+   and sets *cohort_ips to the number of cohort IPs pulled in. Depth is 0..3;
+   at most 500 cohort IPs are included across all levels. limit_reached signals
+   that the cap was reached and the graph may be incomplete. Outputs are cleared
+   on failure. Returns 0 on success, -1 on invalid arguments, -2 when the seed
+   has no enriched data, -3 on a store read failure (with optional error text). */
 int entity_graph_build(const char *data_dir, const char *seed_ip, int depth,
                        std::map<std::string, EgNode> &nodes,
-                       std::vector<EgEdge> &edges, size_t *cohort_ips);
+                       std::vector<EgEdge> &edges, size_t *cohort_ips,
+                       std::string *error = nullptr, bool *limit_reached = nullptr);
 
 /* Emit the assembled graph to `out`.  fmt is "dot", "json", or anything else
    for the default pipeable text format. */
 void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
                        int depth, size_t cohort_ips,
                        const std::map<std::string, EgNode> &nodes,
-                       const std::vector<EgEdge> &edges);
+                       const std::vector<EgEdge> &edges,
+                       bool cohort_limit_reached = false);
 
 #endif /* ENTITY_GRAPH_H */

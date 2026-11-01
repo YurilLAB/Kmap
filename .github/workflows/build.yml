@@ -285,6 +285,14 @@ jobs:
         if: startsWith(matrix.name,'windows')
         run: python tests/resume_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume
 
+      - name: Windows export paths preserve stored data (offline fixtures)
+        if: startsWith(matrix.name,'windows')
+        run: python tests/export_paths.py mswin32/Release/kmap.exe --artifacts test-results/export-paths
+
+      - name: Windows stored graph contracts (offline fixtures)
+        if: startsWith(matrix.name,'windows')
+        run: python tests/graph_contracts.py mswin32/Release/kmap.exe --artifacts test-results/graph-contracts
+
       - name: Windows resume and structured output contracts
         if: startsWith(matrix.name,'windows')
         run: python tests/resume_output_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume-output

@@ -88,6 +88,12 @@ jobs:
       - name: Shard path and error propagation contracts (offline SQLite fixtures)
         run: python3 tests/shard_path_contracts.py ./kmap --artifacts test-results/shard-paths
 
+      - name: Export paths preserve stored data (offline fixtures)
+        run: python3 tests/export_paths.py ./kmap --artifacts test-results/export-paths
+
+      - name: Stored graph depth, cohort and failure contracts (offline fixtures)
+        run: python3 tests/graph_contracts.py ./kmap --artifacts test-results/graph-contracts
+
       - name: Ordinary output contracts (owned loopback and write failures)
         run: python3 tests/output_contracts.py ./kmap --artifacts test-results/output-contracts
 

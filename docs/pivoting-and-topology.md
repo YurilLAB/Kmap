@@ -62,6 +62,9 @@ Raise `--nc-min-shared` to cut noise: requiring 2+ shared fingerprints filters
 out coincidental single-SAN overlaps and surfaces tightly-coupled hosts.
 
 Results are sorted by shared-fingerprint count (descending), then by IP.
+An existing unreadable or corrupt shard is an error, rather than a successful
+partial cohort. A genuinely absent shard is skipped. Output paths must be
+separate from the SQLite store and its sidecar files.
 
 ### Output formats
 
@@ -97,7 +100,22 @@ downstream ingestion.
 
 ---
 
-## `--tracemap` / `--topo-export` — path & ASN topology
+## `--entity-graph` - stored asset relationships
+
+`--entity-graph <ip>` assembles IP, domain, certificate, ASN, organization and
+country relationships from stored host records and fingerprints. It sends no
+new probes. `--eg-depth 0` includes only the seed; depths 1 through 3 follow
+successive shared-certificate/domain relationships. The default is 1.
+
+The graph retains at most 500 cohort IPs across all levels. Reaching that limit
+produces a warning; JSON includes `cohort_limit` and `cohort_limit_reached`.
+The result may then be incomplete. This limit does not bound the amount of
+metadata attached to each IP. Shared infrastructure is a correlation signal,
+not proof of common ownership. `--eg-format` accepts `text`, `dot` or `json`;
+`--eg-output` selects a separate export file. Read and output failures return
+nonzero instead of presenting an incomplete graph as successful.
+
+## `--tracemap` / `--topo-export` - path & ASN topology
 
 `--tracemap` runs TTL-limited probes toward each target (traceroute-style),
 records the routers in between, annotates them with ASN/geo, and — unless you

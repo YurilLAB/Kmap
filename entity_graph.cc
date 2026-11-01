@@ -21,6 +21,8 @@
 #include "json_escape.h"
 
 #include <cctype>
+#include <filesystem>
+#include <memory>
 #include <set>
 #include <utility>
 
@@ -51,16 +53,18 @@ bool looks_like_ip(const std::string &s) {
 /* Add one IP's subgraph (its host rows + fingerprints).  When out_certs /
    out_domains are non-null (the seed pass) collect its cert SHAs / domains so
    the caller can expand the shared-infrastructure cohort. */
-void add_ip_subgraph(sqlite3 *db, uint32_t ipu,
+bool add_ip_subgraph(sqlite3 *db, uint32_t ipu,
                      std::map<std::string, EgNode> &nodes,
                      std::vector<EgEdge> &edges, std::set<std::string> &eseen,
                      std::set<std::string> *out_certs,
-                     std::set<std::string> *out_domains) {
+                     std::set<std::string> *out_domains,
+                     std::string &error) {
   std::string ip = u32_to_ip(ipu);
   std::string ip_id = "ip:" + ip;
   add_node(nodes, ip_id, "ip", ip);
 
-  std::vector<NetHost> hrows = net_db_get_host(db, ip.c_str());
+  std::vector<NetHost> hrows = net_db_get_host(db, ip.c_str(), &error);
+  if (!error.empty()) return false;
   for (const NetHost &h : hrows) {
     if (h.asn > 0) {
       std::string asn_id = "asn:" + std::to_string(h.asn);
@@ -95,7 +99,8 @@ void add_ip_subgraph(sqlite3 *db, uint32_t ipu,
     }
   }
 
-  std::vector<NetFingerprint> fps = net_db_get_fingerprints_for_ip(db, ip.c_str());
+  std::vector<NetFingerprint> fps = net_db_get_fingerprints_for_ip(db, ip.c_str(), &error);
+  if (!error.empty()) return false;
   for (const NetFingerprint &fp : fps) {
     if (fp.kind == "hostname" || fp.kind == "tls_subject_cn" ||
         fp.kind == "tls_san") {
@@ -112,6 +117,7 @@ void add_ip_subgraph(sqlite3 *db, uint32_t ipu,
       if (out_certs) out_certs->insert(fp.value);
     }
   }
+  return true;
 }
 
 /* Metadata may contain malformed UTF-8 as well as JSON control characters. */
@@ -150,77 +156,120 @@ const char *type_color(const std::string &t) {
 
 int entity_graph_build(const char *data_dir, const char *seed_ip, int depth,
                        std::map<std::string, EgNode> &nodes,
-                       std::vector<EgEdge> &edges, size_t *cohort_ips) {
+                       std::vector<EgEdge> &edges, size_t *cohort_ips,
+                       std::string *error, bool *limit_reached) {
+  nodes.clear();
+  edges.clear();
   if (cohort_ips) *cohort_ips = 0;
-  if (!seed_ip || !seed_ip[0]) return -1;
+  if (error) error->clear();
+  if (limit_reached) *limit_reached = false;
+  if (!data_dir || !seed_ip || !seed_ip[0] || depth < 0 || depth > 3) return -1;
   uint32_t seed_u32 = ip_to_u32(seed_ip);
   if (seed_u32 == 0) return -1;
 
+  std::map<std::string, EgNode> assembled_nodes;
+  std::vector<EgEdge> assembled_edges;
   std::set<std::string> eseen;
-  std::set<std::string> seed_certs, seed_domains;
-
-  /* Phase 1: the seed's own subgraph. */
+  std::set<std::string> certs, domains;
+  std::string read_error;
+  using Database = std::unique_ptr<sqlite3, decltype(&net_db_close)>;
+  auto failure = [&](const std::string &path) {
+    if (error) *error = path + ": " + read_error;
+    return -3;
+  };
+  auto exists = [&](const std::string &path) {
+    std::error_code status;
+    bool found = std::filesystem::exists(path, status);
+    read_error = status ? status.message() : "";
+    return found;
+  };
+  auto make_lookups = [](const std::set<std::string> &cs,
+                         const std::set<std::string> &ds) {
+    std::set<std::pair<std::string, std::string>> result;
+    for (const auto &c : cs) result.insert({"tls_sha256", c});
+    for (const auto &d : ds) {
+      result.insert({"tls_san", d});
+      result.insert({"tls_subject_cn", d});
+      result.insert({"hostname", d});
+    }
+    return result;
+  };
   {
-    std::string sp = net_shard_path(data_dir, net_shard_index(seed_u32));
-    sqlite3 *db = net_db_open(sp.c_str());
-    if (!db) return -2;
-    add_ip_subgraph(db, seed_u32, nodes, edges, eseen, &seed_certs, &seed_domains);
-    net_db_close(db);
+    std::string path = net_shard_path(data_dir, net_shard_index(seed_u32));
+    if (!exists(path)) return read_error.empty() ? -2 : failure(path);
+    Database db(net_db_open(path), net_db_close);
+    if (!db) { read_error = "cannot open shard"; return failure(path); }
+    if (!add_ip_subgraph(db.get(), seed_u32, assembled_nodes, assembled_edges,
+                        eseen, &certs, &domains, read_error)) return failure(path);
   }
-  if (nodes.size() <= 1) return -2;   /* only the ip node, no enriched data */
+  if (assembled_nodes.size() <= 1) return -2;
 
-  /* Phase 2: cohort expansion -- IPs sharing the seed's cert or a domain. */
-  if (depth >= 1 && (!seed_certs.empty() || !seed_domains.empty())) {
-    std::vector<std::pair<std::string, std::string>> lookups;
-    for (const std::string &c : seed_certs) lookups.push_back({"tls_sha256", c});
-    for (const std::string &d : seed_domains) {
-      lookups.push_back({"tls_san", d});
-      lookups.push_back({"tls_subject_cn", d});
-      lookups.push_back({"hostname", d});
-    }
-    const size_t COHORT_CAP = 500;
-    std::set<uint32_t> cohort;
-    for (int sh = 0; sh < NET_SHARD_COUNT && cohort.size() < COHORT_CAP; sh++) {
-      std::string sp = net_shard_path(data_dir, sh);
-      FILE *t = fopen(sp.c_str(), "r");
-      if (!t) continue;
-      fclose(t);
-      sqlite3 *db = net_db_open(sp.c_str());
-      if (!db) continue;
-      for (const auto &lv : lookups) {
-        std::vector<NetFingerprint> m =
-            net_db_find_by_fingerprint(db, lv.first.c_str(), lv.second.c_str());
-        for (const NetFingerprint &fp : m) {
-          if (fp.ip_u32 != seed_u32) cohort.insert(fp.ip_u32);
-          if (cohort.size() >= COHORT_CAP) break;
+  // Breadth-first expansion preserves the existing 500-peer cap across all
+  // levels. Ordered lookups, shards and IPs make truncation deterministic.
+  const size_t COHORT_CAP = 500;
+  std::set<uint32_t> visited{seed_u32};
+  auto lookups = make_lookups(certs, domains);
+  for (int level = 0; level < depth && !lookups.empty() &&
+       visited.size() - 1 < COHORT_CAP; ++level) {
+    std::set<uint32_t> next;
+    for (int sh = 0; sh < NET_SHARD_COUNT &&
+         visited.size() - 1 + next.size() < COHORT_CAP; ++sh) {
+      std::string path = net_shard_path(data_dir, sh);
+      if (!exists(path)) {
+        if (!read_error.empty()) return failure(path);
+        continue;
+      }
+      Database db(net_db_open(path), net_db_close);
+      if (!db) { read_error = "cannot open shard"; return failure(path); }
+      for (const auto &lookup : lookups) {
+        // A fingerprint has one row per IP. At most 501 already-selected
+        // IPs can precede eligible peers, so 1001 rows suffice to fill the
+        // cap without materializing an arbitrarily large matching cohort.
+        auto matches = net_db_find_by_fingerprint(db.get(), lookup.first.c_str(),
+            lookup.second.c_str(), &read_error, static_cast<int>(2 * COHORT_CAP + 1));
+        if (!read_error.empty()) return failure(path);
+        for (const auto &match : matches) {
+          if (!visited.count(match.ip_u32)) next.insert(match.ip_u32);
+          if (visited.size() - 1 + next.size() >= COHORT_CAP) break;
         }
-        if (cohort.size() >= COHORT_CAP) break;
+        if (visited.size() - 1 + next.size() >= COHORT_CAP) break;
       }
-      net_db_close(db);
     }
+    certs.clear();
+    domains.clear();
     std::map<int, std::vector<uint32_t>> by_shard;
-    for (uint32_t ipu : cohort) by_shard[net_shard_index(ipu)].push_back(ipu);
-    for (const auto &kv : by_shard) {
-      std::string sp = net_shard_path(data_dir, kv.first);
-      sqlite3 *db = net_db_open(sp.c_str());
-      if (!db) continue;
-      for (uint32_t ipu : kv.second) {
-        add_ip_subgraph(db, ipu, nodes, edges, eseen, nullptr, nullptr);
-        if (cohort_ips) (*cohort_ips)++;
+    for (uint32_t ip : next) by_shard[net_shard_index(ip)].push_back(ip);
+    for (const auto &group : by_shard) {
+      std::string path = net_shard_path(data_dir, group.first);
+      if (!exists(path)) {
+        if (read_error.empty()) read_error = "cohort shard disappeared";
+        return failure(path);
       }
-      net_db_close(db);
+      Database db(net_db_open(path), net_db_close);
+      if (!db) { read_error = "cannot open shard"; return failure(path); }
+      for (uint32_t ip : group.second) {
+        if (!add_ip_subgraph(db.get(), ip, assembled_nodes, assembled_edges,
+                            eseen, &certs, &domains, read_error)) return failure(path);
+        visited.insert(ip);
+      }
     }
+    lookups = make_lookups(certs, domains);
   }
+  nodes.swap(assembled_nodes);
+  edges.swap(assembled_edges);
+  if (cohort_ips) *cohort_ips = visited.size() - 1;
+  if (limit_reached) *limit_reached = visited.size() - 1 == COHORT_CAP;
   return 0;
 }
 
 void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
                        int depth, size_t cohort_ips,
                        const std::map<std::string, EgNode> &nodes,
-                       const std::vector<EgEdge> &edges) {
+                       const std::vector<EgEdge> &edges, bool cohort_limit_reached) {
   std::string f = fmt ? fmt : "text";
   if (f == "dot") {
     fprintf(out, "digraph entity_graph {\n");
+    if (cohort_limit_reached) fprintf(out, "  // Cohort limit reached; graph may be incomplete.\n");
     fprintf(out, "  graph [rankdir=LR, overlap=false, splines=true];\n");
     fprintf(out, "  node  [style=filled, fontname=\"Helvetica\"];\n");
     for (const auto &kv : nodes) {
@@ -237,7 +286,9 @@ void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
   } else if (f == "json") {
     fprintf(out, "{\n  \"seed\": \"%s\",\n  \"depth\": %d,\n",
             jesc(seed_ip).c_str(), depth);
-    fprintf(out, "  \"cohort_ips\": %zu,\n  \"nodes\": [\n", cohort_ips);
+    fprintf(out, "  \"cohort_ips\": %zu,\n  \"cohort_limit\": 500,\n"
+                 "  \"cohort_limit_reached\": %s,\n  \"nodes\": [\n",
+            cohort_ips, cohort_limit_reached ? "true" : "false");
     size_t i = 0;
     for (const auto &kv : nodes) {
       fprintf(out, "    {\"id\": \"%s\", \"type\": \"%s\", \"label\": \"%s\"}%s\n",
@@ -256,6 +307,7 @@ void entity_graph_emit(FILE *out, const char *fmt, const std::string &seed_ip,
     fprintf(out, "# entity-graph for %s (depth=%d): %zu nodes, %zu edges, "
             "%zu cohort IPs\n", seed_ip.c_str(), depth, nodes.size(),
             edges.size(), cohort_ips);
+    if (cohort_limit_reached) fprintf(out, "# Cohort limit reached; graph may be incomplete.\n");
     for (const EgEdge &e : edges) {
       auto info = [&](const std::string &id) -> std::pair<std::string, std::string> {
         auto it = nodes.find(id);

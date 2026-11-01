@@ -905,9 +905,13 @@ std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
   return ips;
 }
 
-std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
+std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip, std::string *error) {
   std::vector<NetHost> hosts;
-  if (!db || !ip) return hosts;
+  if (error) error->clear();
+  if (!db || !ip) {
+    if (error) *error = "invalid host lookup arguments";
+    return hosts;
+  }
 
   /* Selects v4 patch-status columns and v4b/v5 enrichment columns
      alongside the existing fields.  The COALESCE on the patch-status
@@ -928,20 +932,27 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     "tls_subject_cn, tls_issuer, tls_san_json, tls_not_after, "
     "tls_self_signed, tls_protocol, tls_sha256, cpe, "
     "cloud_provider, cloud_region, cloud_service "
-    "FROM hosts WHERE ip=?";
+    "FROM hosts WHERE ip=? ORDER BY port";
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  auto fail = [&]() {
+    if (error) *error = sqlite3_errmsg(db);
+    sqlite3_finalize(stmt);
+    hosts.clear();
     return hosts;
+  };
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return fail();
 
-  sqlite3_bind_text(stmt, 1, ip, -1, SQLITE_TRANSIENT);
+  if (sqlite3_bind_text(stmt, 1, ip, -1, SQLITE_TRANSIENT) != SQLITE_OK) return fail();
 
   auto col = [&](int c) -> std::string {
     const unsigned char *p = sqlite3_column_text(stmt, c);
     return p ? reinterpret_cast<const char *>(p) : "";
   };
 
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  int rc;
+  while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     NetHost h;
     h.ip          = col(0);
     h.port        = sqlite3_column_int(stmt, 1);
@@ -992,7 +1003,12 @@ std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip) {
     h.cloud_service          = col(41);
     hosts.push_back(std::move(h));
   }
-  sqlite3_finalize(stmt);
+  if (rc != SQLITE_DONE) return fail();
+  rc = sqlite3_finalize(stmt);
+  if (rc != SQLITE_OK) {
+    if (error) *error = sqlite3_errstr(rc);
+    hosts.clear();
+  }
   return hosts;
 }
 
@@ -1214,21 +1230,35 @@ int net_db_insert_fingerprint(sqlite3 *db,
 
 std::vector<NetFingerprint>
 net_db_find_by_fingerprint(sqlite3 *db,
-                           const char *kind, const char *value) {
+                           const char *kind, const char *value,
+                           std::string *error, int limit) {
   std::vector<NetFingerprint> out;
-  if (!db || !kind || !value) return out;
+  if (error) error->clear();
+  if (!db || !kind || !value || limit < 0) {
+    if (error) *error = "invalid fingerprint lookup arguments";
+    return out;
+  }
 
   static const char *sql =
     "SELECT ip_u32, port, kind, value, observed_at FROM fingerprints "
-    "WHERE kind = ? AND value = ?";
+    "WHERE kind = ? AND value = ? ORDER BY ip_u32 LIMIT ?";
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  auto fail = [&]() {
+    if (error) *error = sqlite3_errmsg(db);
+    sqlite3_finalize(stmt);
+    out.clear();
     return out;
-  sqlite3_bind_text(stmt, 1, kind,  -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT);
+  };
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return fail();
+  if (sqlite3_bind_text(stmt, 1, kind, -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+      sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+      sqlite3_bind_int(stmt, 3, limit > 0 ? limit : -1) != SQLITE_OK)
+    return fail();
 
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  int rc;
+  while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     NetFingerprint fp;
     fp.ip_u32      = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
     fp.port        = (sqlite3_column_type(stmt, 1) == SQLITE_NULL)
@@ -1240,28 +1270,48 @@ net_db_find_by_fingerprint(sqlite3 *db,
     fp.observed_at = sqlite3_column_int64(stmt, 4);
     out.push_back(std::move(fp));
   }
-  sqlite3_finalize(stmt);
+  if (rc != SQLITE_DONE) return fail();
+  rc = sqlite3_finalize(stmt);
+  if (rc != SQLITE_OK) {
+    if (error) *error = sqlite3_errstr(rc);
+    out.clear();
+  }
   return out;
 }
 
 std::vector<NetFingerprint>
-net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip) {
+net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip,
+                                std::string *error) {
   std::vector<NetFingerprint> out;
-  if (!db || !ip) return out;
+  if (error) error->clear();
+  if (!db || !ip) {
+    if (error) *error = "invalid fingerprint lookup arguments";
+    return out;
+  }
 
   uint32_t ip_u32 = ip_to_u32(ip);
-  if (ip_u32 == 0) return out;  /* parse failure */
+  if (ip_u32 == 0) {
+    if (error) *error = "invalid fingerprint IP";
+    return out;
+  }
 
   static const char *sql =
     "SELECT ip_u32, port, kind, value, observed_at FROM fingerprints "
-    "WHERE ip_u32 = ?";
+    "WHERE ip_u32 = ? ORDER BY kind, value";
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  auto fail = [&]() {
+    if (error) *error = sqlite3_errmsg(db);
+    sqlite3_finalize(stmt);
+    out.clear();
     return out;
-  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
+  };
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+    return fail();
+  if (sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32)) != SQLITE_OK) return fail();
 
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  int rc;
+  while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
     NetFingerprint fp;
     fp.ip_u32      = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
     fp.port        = (sqlite3_column_type(stmt, 1) == SQLITE_NULL)
@@ -1273,7 +1323,12 @@ net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip) {
     fp.observed_at = sqlite3_column_int64(stmt, 4);
     out.push_back(std::move(fp));
   }
-  sqlite3_finalize(stmt);
+  if (rc != SQLITE_DONE) return fail();
+  rc = sqlite3_finalize(stmt);
+  if (rc != SQLITE_OK) {
+    if (error) *error = sqlite3_errstr(rc);
+    out.clear();
+  }
   return out;
 }
 

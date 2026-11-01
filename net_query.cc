@@ -15,6 +15,7 @@
 
 #include "net_query.h"
 #include "net_db.h"
+#include "store_output.h"
 #include "json_escape.h"
 #include "third-party/nlohmann/json.hpp"
 #include "KmapOps.h"
@@ -634,11 +635,12 @@ int run_net_query(const char *data_dir,
   FILE *out_fp = nullptr;
   bool own_fp = false;
   if (output_file && output_file[0]) {
-    out_fp = fopen(output_file, "w");
+    std::string output_error;
+    out_fp = open_store_output(output_file, data_dir, output_error);
     if (!out_fp) {
-      log_write(LOG_STDOUT,
-        "net-query: ERROR: cannot open output file '%s'\n",
-        output_file);
+      log_write(LOG_STDERR,
+        "net-query: ERROR: cannot open output file '%s': %s\n",
+        output_file, output_error.c_str());
       return 1;
     }
     own_fp = true;

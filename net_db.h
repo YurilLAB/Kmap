@@ -208,8 +208,10 @@ std::vector<std::string> net_db_get_unenriched(sqlite3 *db, int limit,
                                                int64_t retry_after_seconds =
                                                    NET_DB_ENRICH_RETRY_SECONDS);
 
-/* Fetch all port records for a given IP. */
-std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip);
+/* Fetch all port records for a given IP. An empty error means success,
+   including no matches; errors return no partial rows. */
+std::vector<NetHost> net_db_get_host(sqlite3 *db, const char *ip,
+                                     std::string *error = nullptr);
 
 /* One full-text search hit (a matched host:port plus its key fields + the
    FTS5 bm25 rank, lower = better). */
@@ -311,16 +313,21 @@ int net_db_insert_fingerprint(sqlite3 *db,
 
 /* Inverse lookup: every (ip_u32, port) row in this shard whose
    (kind, value) matches.  Used by --net-cluster to enumerate the
-   cohort that shares a given fingerprint. */
+   cohort that shares a given fingerprint. Ordered by numeric IP; a positive
+   limit bounds returned rows (0 means unlimited). Empty error means success;
+   failures return no partial rows. */
 std::vector<NetFingerprint>
 net_db_find_by_fingerprint(sqlite3 *db,
-                           const char *kind, const char *value);
+                           const char *kind, const char *value,
+                           std::string *error = nullptr, int limit = 0);
 
 /* Forward lookup: every fingerprint row for a given IP in this shard.
    ip is the dotted-quad form for caller convenience; internally we
-   convert to ip_u32 via ip_to_u32 and query the indexed column. */
+   convert to ip_u32 via ip_to_u32 and query the indexed column. Empty error
+   means success; failures return no partial rows. */
 std::vector<NetFingerprint>
-net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip);
+net_db_get_fingerprints_for_ip(sqlite3 *db, const char *ip,
+                                std::string *error = nullptr);
 
 /* -----------------------------------------------------------------------
  * Persistent topology — incremental graph storage
