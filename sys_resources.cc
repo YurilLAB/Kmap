@@ -274,11 +274,16 @@ void kmap_perf_apply_to_scan(void) {
   if (p.scan_min_parallelism > 0 && o.min_parallelism == 0)
     o.min_parallelism = p.scan_min_parallelism;
 
+  /* Clamp each automatic size to the other, possibly explicit, bound: the
+     setters reject min > max, so --efficient --min-hostgroup 32 or
+     --fast --max-hostgroup 8 aborted the scan instead of honouring the flag. */
   if (p.scan_max_hostgroup > 0 &&
       o.maxHostGroupSz() == static_cast<int>(KMAP_DEFAULT_MAX_HOSTGROUP))
-    o.setMaxHostGroupSz(static_cast<unsigned int>(p.scan_max_hostgroup));
+    o.setMaxHostGroupSz(static_cast<unsigned int>(
+        std::max(p.scan_max_hostgroup, o.minHostGroupSz())));
 
   if (p.scan_min_hostgroup > 0 &&
       o.minHostGroupSz() == static_cast<int>(KMAP_DEFAULT_MIN_HOSTGROUP))
-    o.setMinHostGroupSz(static_cast<unsigned int>(p.scan_min_hostgroup));
+    o.setMinHostGroupSz(static_cast<unsigned int>(
+        std::min(p.scan_min_hostgroup, o.maxHostGroupSz())));
 }
