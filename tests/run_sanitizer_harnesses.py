@@ -102,7 +102,7 @@ HARNESSES = {
                                    headers=("net_db.h",)),
     "net_db_bind_test": Harness("tests/net_db_bind_test.cc", ("net_db.cc", "net_fp_helpers.cc"),
                                 sqlite=True, coverage="production bind-error handling and enrichment rollback; bounded SQLite length limit, no network",
-                                headers=("net_db.h", "enrichment_store.h", "net_enrich.h", "net_fp_helpers.h")),
+                                headers=("net_db.h", "enrichment_store.h", "net_enrich.h", "net_fp_helpers.h", "topology_store.h", "tracemap.h")),
     "net_db_lifecycle_test": Harness("tests/net_db_lifecycle_test.cc", ("entity_graph.cc", "net_db.cc"),
                                      sqlite=True, coverage="production storage/graph lifecycle and recovery + real SQLite",
                                      headers=("net_db.h", "entity_graph.h", "json_escape.h", "third-party/nlohmann/json.hpp")),

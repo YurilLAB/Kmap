@@ -3,6 +3,7 @@
  * handling, not natural production-size inputs or out-of-memory behavior.
  * No networking or active fingerprint probes are executed. */
 #include "enrichment_store.h"
+#include "topology_store.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -188,10 +189,148 @@ static void caller_rolls_back() {
   }
 }
 
+static std::string raw_rows(sqlite3 *db, const char *query) {
+  sqlite3_stmt *st=nullptr;
+  CHECK(sqlite3_prepare_v2(db,query,-1,&st,nullptr)==SQLITE_OK);
+  if(!st)std::exit(2);
+  std::string result;int rc;
+  while((rc=sqlite3_step(st))==SQLITE_ROW) {
+    for(int i=0;i<sqlite3_column_count(st);++i) {
+      result+=std::to_string(sqlite3_column_type(st,i))+":";
+      const char *data=static_cast<const char *>(sqlite3_column_blob(st,i));
+      const int size=sqlite3_column_bytes(st,i);
+      result+=std::to_string(size)+":";
+      if(data)result.append(data,size);
+      result+='|';
+    }
+    result+='\n';
+  }
+  CHECK(rc==SQLITE_DONE);CHECK(sqlite3_finalize(st)==SQLITE_OK);return result;
+}
+static int64_t raw_count(sqlite3 *db,const std::string &query) {
+  sqlite3_stmt *st=nullptr;
+  CHECK(sqlite3_prepare_v2(db,query.c_str(),-1,&st,nullptr)==SQLITE_OK);
+  if(!st)std::exit(2);
+  CHECK(sqlite3_step(st)==SQLITE_ROW);
+  const int64_t count=sqlite3_column_int64(st,0);
+  CHECK(sqlite3_finalize(st)==SQLITE_OK);return count;
+}
+static std::string graph_rows(sqlite3 *db) {
+  return raw_rows(db,"SELECT * FROM topo_nodes ORDER BY ip_u32")+
+    raw_rows(db,"SELECT * FROM topo_edges ORDER BY from_u32,to_u32")+
+    raw_rows(db,"SELECT * FROM strings ORDER BY id")+
+    raw_rows(db,"SELECT * FROM sqlite_sequence ORDER BY name");
+}
+static NetTopoNode node_value() {
+  NetTopoNode n{};n.ip_u32=0xc0000201u;n.hostname="old-host";n.as_name="old-as";
+  n.country="AA";n.role="target";n.path_count=2;n.avg_rtt_ms=5;
+  n.rtt_sample_count=1;n.last_seen=1;return n;
+}
+static void topology_node_bind_failures() {
+  for(bool outer:{false,true})for(bool existing:{false,true})for(bool role:{false,true}) {
+    sqlite3 *db=fixture();NetTopoNode n=node_value();
+    if(existing)CHECK(net_db_upsert_topo_node(db,n)==0);
+    if(outer)CHECK(net_db_begin(db)==0);
+    const auto before=graph_rows(db);
+    n.hostname="new-host";n.as_name="new-as";n.country="ZZ";n.role="router";
+    n.path_count=3;n.avg_rtt_ms=10;n.last_seen=2;
+    (role?n.role:n.country).assign(1001,'x');
+    CHECK(net_db_upsert_topo_node(db,n)==-1);
+    CHECK(graph_rows(db)==before); // Includes intern rows and sequence counters.
+    CHECK(sqlite3_get_autocommit(db)==!outer);
+    if(outer)CHECK(net_db_commit(db)==0);
+    CHECK(graph_rows(db)==before);
+    n.country="ZZ";n.role="router";
+    CHECK(net_db_upsert_topo_node(db,n)==0);
+    const std::string query="SELECT COUNT(*) FROM topo_nodes n JOIN strings h ON h.id=n.hostname_id "
+      "JOIN strings a ON a.id=n.as_name_id WHERE h.val='new-host' AND a.val='new-as' "
+      "AND country='ZZ' AND role='router' AND last_seen=2 AND path_count="+
+      std::to_string(existing?5:3)+" AND rtt_sample_count="+std::to_string(existing?2:1)+
+      " AND avg_rtt_ms="+(existing?"7.5":"10");
+    CHECK(raw_count(db,query)==1);close_db(db);
+  }
+}
+static void topology_edge_failure_retry() {
+  // Numeric edge binds cannot trigger SQLITE_TOOBIG. Exercise actual SQLite
+  // insert/update step errors and preserved edge values as nearby coverage.
+  for(bool outer:{false,true})for(bool existing:{false,true}) {
+    sqlite3 *db=fixture();NetTopoEdge e{};
+    e.from_u32=0xc0000201u;e.to_u32=0xc0000202u;e.path_count=2;
+    e.avg_latency_ms=5;e.latency_sample_count=1;e.last_seen=1;
+    if(existing)CHECK(net_db_upsert_topo_edge(db,e)==0);
+    const std::string trigger=std::string("CREATE TEMP TRIGGER reject_edge BEFORE ")+
+      (existing?"UPDATE":"INSERT")+" ON topo_edges BEGIN SELECT RAISE(ABORT,'fixture'); END";
+    sql(db,trigger.c_str());
+    if(outer)CHECK(net_db_begin(db)==0);
+    const auto before=graph_rows(db);
+    e.path_count=3;e.avg_latency_ms=10;e.last_seen=2;e.asn_boundary=1;
+    CHECK(net_db_upsert_topo_edge(db,e)==-1);CHECK(graph_rows(db)==before);
+    CHECK(sqlite3_get_autocommit(db)==!outer);
+    if(outer)CHECK(net_db_commit(db)==0);
+    CHECK(graph_rows(db)==before);sql(db,"DROP TRIGGER reject_edge");
+    CHECK(net_db_upsert_topo_edge(db,e)==0);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM topo_edges WHERE asn_boundary=1 AND last_seen=2 "
+      "AND path_count="+std::to_string(existing?5:3)+" AND latency_sample_count="+
+      std::to_string(existing?2:1)+" AND avg_latency_ms="+(existing?"7.5":"10"))==1);
+    close_db(db);
+  }
+}
+static void fingerprint_and_intern_bind_failures() {
+  const std::string bad(1001,'x');
+  for(bool outer:{false,true}) {
+    sqlite3 *db=fixture();CHECK(net_db_intern_string(db,"first")>0);
+    if(outer)CHECK(net_db_begin(db)==0);
+    const auto before=graph_rows(db);
+    CHECK(net_db_intern_string(db,bad.c_str())==0);CHECK(graph_rows(db)==before);
+    if(outer)CHECK(net_db_commit(db)==0);
+    CHECK(graph_rows(db)==before);
+    CHECK(net_db_intern_string(db,"retry")>0);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM strings WHERE val='retry'")==1);
+    close_db(db);
+  }
+  for(bool outer:{false,true})for(bool existing:{false,true})for(bool kind:{false,true}) {
+    sqlite3 *db=fixture();
+    if(existing)CHECK(net_db_insert_fingerprint(db,0xc0000201u,80,"kind","value",1)==0);
+    if(outer)CHECK(net_db_begin(db)==0);
+    const auto before=raw_rows(db,"SELECT * FROM fingerprints ORDER BY ip_u32,kind,value");
+    CHECK(net_db_insert_fingerprint(db,0xc0000201u,81,kind?bad.c_str():"kind",kind?"value":bad.c_str(),2)==-1);
+    CHECK(raw_rows(db,"SELECT * FROM fingerprints ORDER BY ip_u32,kind,value")==before);
+    if(outer)CHECK(net_db_commit(db)==0);
+    CHECK(raw_rows(db,"SELECT * FROM fingerprints ORDER BY ip_u32,kind,value")==before);
+    CHECK(net_db_insert_fingerprint(db,0xc0000201u,81,"kind","value",2)==0);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM fingerprints WHERE kind='kind' AND value='value' AND port=81 AND observed_at=2")==1);
+    close_db(db);
+  }
+}
+static void topology_caller_rollback() {
+  for(bool role:{false,true}) {
+    sqlite3 *db=fixture();Topology topology;
+    TopoNode first{};first.ip="192.0.2.1";first.hostname="first-host";first.as_name="first-as";
+    first.path_count=1;first.rtt_sample_count=1;first.avg_rtt_ms=10;
+    TopoNode second=first;second.ip="192.0.2.2";second.hostname="second-host";
+    (role?second.role:second.country).assign(1001,'x');
+    topology.nodes={first,second};
+    TopoEdge edge{};edge.from_ip=first.ip;edge.to_ip=second.ip;edge.path_count=1;
+    edge.latency_sample_count=1;edge.avg_latency_ms=1;topology.edges={edge};
+    const auto before=graph_rows(db);int nodes=99,edges=99;
+    CHECK(!persist_topology(db,topology,10,nodes,edges));CHECK(nodes==0&&edges==0);
+    CHECK(graph_rows(db)==before);CHECK(sqlite3_get_autocommit(db));
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM topo_nodes")==0);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM topo_edges")==0);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM strings")==0);
+    topology.nodes[1].country="ZZ";topology.nodes[1].role="router";
+    CHECK(persist_topology(db,topology,10,nodes,edges));CHECK(nodes==2&&edges==1);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM topo_nodes")==2);
+    CHECK(raw_count(db,"SELECT COUNT(*) FROM topo_edges")==1);close_db(db);
+  }
+}
+
 int main() {
   for(bool transaction:{false,true})for(size_t length:{16u,800u,999u,1000u,1001u,2000u})boundary(length,transaction);
   enrichment_fields();neighboring_writes();
   optional_values();metadata_bind_positions();caller_rolls_back();
+  topology_node_bind_failures();topology_edge_failure_retry();
+  fingerprint_and_intern_bind_failures();topology_caller_rollback();
   std::printf("bind failures: checks=%d failures=%d\n",checks,failures);
   return failures?1:0;
 }

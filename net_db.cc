@@ -1169,14 +1169,14 @@ int net_db_insert_fingerprint(sqlite3 *db,
   /* ip_u32 stored as int64 — same reason as net_db_update_asn: values
      above INT_MAX (the top half of IPv4) would otherwise round-trip
      through a negative int and break direct numeric comparisons. */
-  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
-  sqlite3_bind_text(stmt, 2, kind, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 3, value, -1, SQLITE_TRANSIENT);
-  if (port > 0) sqlite3_bind_int(stmt, 4, port);
-  else          sqlite3_bind_null(stmt, 4);
-  sqlite3_bind_int64(stmt, 5, observed_at);
+  int rc = sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 2, kind, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, value, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK)
+    rc = port > 0 ? sqlite3_bind_int(stmt, 4, port) : sqlite3_bind_null(stmt, 4);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 5, observed_at);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -1267,11 +1267,12 @@ int64_t net_db_intern_string(sqlite3 *db, const char *val) {
   if (sqlite3_prepare_v2(db, "SELECT id FROM strings WHERE val = ?",
                          -1, &stmt, nullptr) != SQLITE_OK)
     return 0;
-  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  int rc = sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
   int64_t id = 0;
-  if (sqlite3_step(stmt) == SQLITE_ROW)
-    id = sqlite3_column_int64(stmt, 0);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_ROW) id = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
+  if (rc != SQLITE_ROW && rc != SQLITE_DONE) return 0;
   if (id > 0) return id;
 
   /* Cold path: insert.  INSERT OR IGNORE so a concurrent inserter
@@ -1280,8 +1281,8 @@ int64_t net_db_intern_string(sqlite3 *db, const char *val) {
         "INSERT OR IGNORE INTO strings(val) VALUES(?)",
         -1, &stmt, nullptr) != SQLITE_OK)
     return 0;
-  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
-  int rc = sqlite3_step_retry(stmt);
+  rc = sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   if (rc != SQLITE_DONE) return 0;
 
@@ -1306,9 +1307,9 @@ int64_t net_db_intern_string(sqlite3 *db, const char *val) {
   if (sqlite3_prepare_v2(db, "SELECT id FROM strings WHERE val = ?",
                          -1, &stmt, nullptr) != SQLITE_OK)
     return 0;
-  sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
-  if (sqlite3_step(stmt) == SQLITE_ROW)
-    id = sqlite3_column_int64(stmt, 0);
+  rc = sqlite3_bind_text(stmt, 1, val, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_ROW) id = sqlite3_column_int64(stmt, 0);
   sqlite3_finalize(stmt);
   return id;
 }
@@ -1344,14 +1345,6 @@ std::string net_db_lookup_string(sqlite3 *db, int64_t id) {
 
 int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
   if (!db) return -1;
-
-  /* Intern the string-valued columns up front so the UPSERT itself
-     binds only ints.  Empty -> id 0 -> NULLIF maps to NULL -> COALESCE
-     keeps the previously-stored id (no wipe on partial re-observation). */
-  int64_t hostname_id = net_db_intern_string(db, node.hostname.c_str());
-  if (!node.hostname.empty() && hostname_id <= 0) return -1;
-  int64_t as_name_id  = net_db_intern_string(db, node.as_name.c_str());
-  if (!node.as_name.empty() && as_name_id <= 0) return -1;
 
   /* path_count is the number of traces that visited this node in the
      in-memory Topology being persisted — a hub router visited by 500
@@ -1390,19 +1383,29 @@ int net_db_upsert_topo_node(sqlite3 *db, const NetTopoNode &node) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(node.ip_u32));
-  sqlite3_bind_int64(stmt, 2, hostname_id);
-  sqlite3_bind_int64(stmt, 3, static_cast<int64_t>(node.asn));
-  sqlite3_bind_int64(stmt, 4, as_name_id);
-  sqlite3_bind_text (stmt, 5, node.country.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, 6, node.role.c_str(),    -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 7, batch_count);
-  if (samples > 0) sqlite3_bind_double(stmt, 8, node.avg_rtt_ms);
-  else                       sqlite3_bind_null  (stmt, 8);
-  sqlite3_bind_int64(stmt, 9, node.last_seen);
-  sqlite3_bind_int64(stmt, 10, samples);
+  // Validate direct bindings before interning, so rejected country/role
+  // values cannot leave unused strings behind. The caller's transaction
+  // remains responsible for atomicity across interning and node writes.
+  int rc = sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(node.ip_u32));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 3, static_cast<int64_t>(node.asn));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 5, node.country.c_str(), -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 6, node.role.c_str(), -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 7, batch_count);
+  if (rc == SQLITE_OK)
+    rc = samples > 0 ? sqlite3_bind_double(stmt, 8, node.avg_rtt_ms) : sqlite3_bind_null(stmt, 8);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 9, node.last_seen);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 10, samples);
+  if (rc == SQLITE_OK) {
+    // Empty strings map to id zero, retaining the previous value on update.
+    const int64_t id = net_db_intern_string(db, node.hostname.c_str());
+    rc = !node.hostname.empty() && id <= 0 ? SQLITE_ERROR : sqlite3_bind_int64(stmt, 2, id);
+  }
+  if (rc == SQLITE_OK) {
+    const int64_t id = net_db_intern_string(db, node.as_name.c_str());
+    rc = !node.as_name.empty() && id <= 0 ? SQLITE_ERROR : sqlite3_bind_int64(stmt, 4, id);
+  }
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -1453,18 +1456,16 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(edge.from_u32));
-  sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(edge.to_u32));
-  sqlite3_bind_int  (stmt, 3, edge.asn_boundary ? 1 : 0);
-  if (samples > 0)
-    sqlite3_bind_double(stmt, 4, edge.avg_latency_ms);
-  else
-    sqlite3_bind_null  (stmt, 4);
-  sqlite3_bind_int64(stmt, 5, batch_count);
-  sqlite3_bind_int64(stmt, 6, edge.last_seen);
-  sqlite3_bind_int64(stmt, 7, samples);
+  int rc = sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(edge.from_u32));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 2, static_cast<int64_t>(edge.to_u32));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 3, edge.asn_boundary ? 1 : 0);
+  if (rc == SQLITE_OK)
+    rc = samples > 0 ? sqlite3_bind_double(stmt, 4, edge.avg_latency_ms) : sqlite3_bind_null(stmt, 4);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 5, batch_count);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 6, edge.last_seen);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 7, samples);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }

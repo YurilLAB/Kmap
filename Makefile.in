@@ -371,7 +371,7 @@ tests/scheduler_progress_test: work_progress.h
 tests/joined_workers_test: joined_workers.h
 tests/persistence_boundary_test: persistence_boundary.h scan_checkpoint.h joined_workers.h
 tests/net_db_failure_test: net_db.h
-tests/net_db_bind_test: net_db.h enrichment_store.h net_enrich.h net_fp_helpers.h
+tests/net_db_bind_test: net_db.h enrichment_store.h net_enrich.h net_fp_helpers.h topology_store.h tracemap.h
 tests/net_db_lifecycle_test: net_db.h entity_graph.h third-party/nlohmann/json.hpp
 tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test: CPPFLAGS += -I.
 tests/report_lifetime_test: output_json.h Target.h default_creds.h web_recon.h cve_map.h
