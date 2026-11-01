@@ -320,6 +320,22 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     }
   }
 
+  /* Overlapping lines ("10.0.0.1" and "10.0.0.0/24") must not probe or count
+     a host twice: each duplicate bumped scan_count again. */
+  std::sort(targets.begin(), targets.end());
+  targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+
+  /* --exclude-file applies here as in --net-scan. The built-in reserved list
+     does not: a watchlist names the operator's own, often private, assets. */
+  if (o.net_exclude_file) {
+    std::vector<ExcludeRange> excludes;
+    if (!load_exclude_list(o.net_exclude_file, excludes)) targets.clear();
+    else
+      targets.erase(std::remove_if(targets.begin(), targets.end(),
+                                   [&](uint32_t ip) { return is_excluded(ip, excludes); }),
+                    targets.end());
+  }
+
   if (targets.empty()) {
     scan_log("ERROR", "no valid targets in %s", targets_file);
 #ifndef WIN32
@@ -608,6 +624,30 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     return out;
   };
 
+  /* --rate caps connection attempts per second across all workers, as in
+     --net-scan (0 = unlimited). Each probe reserves the next slot; the wait
+     is sliced so Ctrl+C still stops the workers promptly. */
+  const int rate = o.net_rate;
+  std::mutex rate_mu;
+  auto next_slot = std::chrono::steady_clock::now();
+  auto pace = [&]() {
+    if (rate <= 0) return;
+    std::chrono::steady_clock::time_point slot;
+    {
+      std::lock_guard<std::mutex> lk(rate_mu);
+      auto now = std::chrono::steady_clock::now();
+      if (next_slot < now) next_slot = now;
+      slot = next_slot;
+      next_slot += std::chrono::nanoseconds(1000000000LL / rate);
+    }
+    while (!g_scan_interrupted.load(std::memory_order_relaxed)) {
+      auto now = std::chrono::steady_clock::now();
+      if (now >= slot) break;
+      std::this_thread::sleep_for(std::min<std::chrono::steady_clock::duration>(
+          slot - now, std::chrono::milliseconds(50)));
+    }
+  };
+
   auto worker = [&]() {
     while (true) {
       if (g_scan_interrupted.load(std::memory_order_relaxed)) return;
@@ -619,6 +659,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       bool any_response = false;
 
       for (int port : ports) {
+        pace();
         if (g_scan_interrupted.load(std::memory_order_relaxed)) break;
 
         int pr = probe_one(ip, port);
@@ -685,7 +726,14 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
   } else {
   log_write(LOG_STDOUT, "  Enriching watchlist hosts...\n");
   {
-    std::vector<std::string> unenriched = net_db_get_unenriched(wl_db, 10000);
+    /* Enrich this run's discoveries that are eligible. A LIMIT here let
+       stale eligible rows (hosts gone dark before being enriched) crowd the
+       live hosts out of every run. */
+    std::set<uint32_t> discovered_ips;
+    for (const auto &entry : opens) discovered_ips.insert(entry.first);
+    std::vector<std::string> unenriched;
+    for (const auto &ip : net_db_get_unenriched(wl_db, -1 /* no limit */))
+      if (discovered_ips.count(ip_to_u32(ip.c_str()))) unenriched.push_back(ip);
     /* Locate CVE database.  Tries kmap_fetchfile's standard search
      * (--datadir, $KMAPDIR, %APPDATA%/kmap or ~/.kmap, exe-dir,
      * /usr/share/kmap).  Falls back to ./kmap-cve.db so users
@@ -776,6 +824,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
       CloudInfo cloud_info{};
       int erc = 0;
       bool empty_host = false;  /* host had no ports in DB, skip */
+      bool done = false;        /* a worker enriched it (false after Ctrl+C) */
     };
 
     /* Stage A: build per-host work units serially from the DB.
@@ -961,6 +1010,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
           uint32_t ipu = ip_to_u32(hr.ip.c_str());
           if (ipu) hr.cloud_info = lookup_cloud(ipu);
         }
+        hr.done = true;
         /* --fast / --efficient CPU governor (no-op in normal mode). */
         kmap_cpu_governor_throttle();
       }
@@ -1049,7 +1099,9 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     bool persisted = net_db_begin(wl_db) == 0;
     for (const auto &hr : results) {
       if (!persisted) break;
-      if (hr.empty_host) continue;
+      /* Hosts the interrupted pool never reached keep their stored data;
+         writing them would mark them enriched with empty CVEs and web data. */
+      if (hr.empty_host || !hr.done) continue;
       if (hr.erc != 0) {
         scan_log("WARN", "enrichment failed for %s (rc=%d), will retry after cooldown",
                  hr.ip.c_str(), hr.erc);
@@ -1659,8 +1711,14 @@ int run_net_scan() {
     }
   }
 
-  /* Watchlist mode */
+  /* Watchlist mode probes, enriches and reports in one run; a phase-only flag
+     would otherwise be ignored (--report-only still touched the network). */
   if (o.net_watchlist) {
+    if (o.net_discover_only || o.net_enrich_only || o.net_report_only) {
+      fprintf(stderr, "net-scan: ERROR: --discover-only, --enrich-only and "
+              "--report-only cannot be combined with --watchlist\n");
+      return 1;
+    }
     return run_watchlist(o.net_watchlist, data_dir, findings_dir);
   }
 
@@ -1734,9 +1792,10 @@ int run_net_scan() {
     } else {
       excludes = builtin_excludes();
     }
-    if (o.net_exclude_file) {
-      auto user_excl = load_exclude_list(o.net_exclude_file);
-      excludes.insert(excludes.end(), user_excl.begin(), user_excl.end());
+    if (o.net_exclude_file && !load_exclude_list(o.net_exclude_file, excludes)) {
+      scan_log("ERROR", "cannot read exclude file %s; not scanning", o.net_exclude_file);
+      scan_log_close();
+      return 1;
     }
 
     /* Parse ports */

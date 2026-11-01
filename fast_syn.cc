@@ -137,12 +137,11 @@ std::vector<ExcludeRange> builtin_excludes() {
   return list;
 }
 
-std::vector<ExcludeRange> load_exclude_list(const char *path) {
-  std::vector<ExcludeRange> list;
+bool load_exclude_list(const char *path, std::vector<ExcludeRange> &list) {
   std::ifstream f(path);
   if (!f.is_open()) {
-    fprintf(stderr, "net-scan: WARNING: cannot open exclude file: %s\n", path);
-    return list;
+    fprintf(stderr, "net-scan: ERROR: cannot open exclude file: %s\n", path);
+    return false;
   }
   std::string line;
   while (std::getline(f, line)) {
@@ -166,7 +165,11 @@ std::vector<ExcludeRange> load_exclude_list(const char *path) {
         line.c_str());
     }
   }
-  return list;
+  if (f.bad()) {
+    fprintf(stderr, "net-scan: ERROR: cannot read exclude file: %s\n", path);
+    return false;
+  }
+  return true;
 }
 
 bool is_excluded(uint32_t ip, const std::vector<ExcludeRange> &excludes) {

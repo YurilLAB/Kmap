@@ -116,6 +116,9 @@ jobs:
           python3 tests/watchlist_contracts.py ./kmap --artifacts test-results/watchlist
           python3 tests/watchlist_contracts.py ./kmap --rapid --artifacts test-results/watchlist-rapid
 
+      - name: Net-scan and watchlist option contracts (owned loopback)
+        run: python3 tests/net_option_contracts.py ./kmap --artifacts test-results/net-options
+
       - name: Ordinary resume contracts (owned loopback and preserved invalid logs)
         run: python3 tests/resume_contracts.py ./kmap --artifacts test-results/resume
 

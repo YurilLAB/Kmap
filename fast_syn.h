@@ -28,8 +28,10 @@ struct ExcludeRange {
   uint32_t mask;
 };
 
-/* Load exclusion ranges from a file.  Lines: "10.0.0.0/8", "#" comments. */
-std::vector<ExcludeRange> load_exclude_list(const char *path);
+/* Append exclusion ranges from a file.  Lines: "10.0.0.0/8", "#" comments.
+   Returns false when the file cannot be read, so a mistyped path cannot
+   silently drop every exclusion. */
+bool load_exclude_list(const char *path, std::vector<ExcludeRange> &list);
 
 /* Load the built-in hard-coded exclusion ranges. */
 std::vector<ExcludeRange> builtin_excludes();
