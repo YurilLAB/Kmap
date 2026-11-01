@@ -380,6 +380,7 @@ tests/watchlist_state_test: watchlist_state.h net_db.h
 tests/watchlist_targets_test: watchlist_targets.h net_db.h
 tests/http_headers_test: http_headers.h
 tests/string_pool_test: string_pool.h
+tests/jarm_probe_test: jarm.h
 net_scan.o: watchlist_targets.h
 web_recon.o net_enrich.o: http_headers.h
 
@@ -486,7 +487,7 @@ check-nsock:
 check-zekmap:
 	@cd $(ZEKMAPDIR)/test && $(PYTHON) run_tests.py
 
-check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test tests/watchlist_targets_test tests/http_headers_test tests/graph_read_test tests/string_pool_test
+check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test tests/watchlist_targets_test tests/http_headers_test tests/graph_read_test tests/string_pool_test tests/jarm_probe_test
 	@set -e; for test in $^; do ./$$test; done
 	$(PYTHON) tests/checkpoint_recovery.py ./tests/checkpoint_persistence_test
 

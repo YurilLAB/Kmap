@@ -34,7 +34,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/select.h>
+#include <poll.h>
 #endif
 
 /* --------------------------------------------------------------------------
@@ -431,6 +431,19 @@ std::string jarm_hash(const std::string &jarm_raw) {
 #ifndef WIN32
 namespace {
 
+/* Wait until fd is ready for `events` or `timeout_ms` passes. poll(), not
+   select(): enrichment workers hold enough sockets for fd values to pass
+   FD_SETSIZE, where FD_SET writes past the fd_set. */
+static bool jarm_wait(int fd, short events, int timeout_ms) {
+  struct pollfd pfd;
+  pfd.fd = fd; pfd.events = events; pfd.revents = 0;
+  int rc;
+  do {
+    rc = ::poll(&pfd, 1, timeout_ms);
+  } while (rc < 0 && errno == EINTR);
+  return rc > 0;
+}
+
 /* Blocking connect + send + single recv (up to 1484 bytes, like jarm.py),
    bounded by `timeout_ms`. Returns the bytes read, or "" on any failure. */
 static std::string jarm_probe_once(const char *ip, int port, int timeout_ms,
@@ -447,9 +460,7 @@ static std::string jarm_probe_once(const char *ip, int port, int timeout_ms,
   int rc = ::connect(fd, (struct sockaddr *)&sa, sizeof(sa));
   if (rc < 0 && errno != EINPROGRESS) { ::close(fd); return ""; }
   if (rc < 0) {
-    fd_set wf; FD_ZERO(&wf); FD_SET(fd, &wf);
-    struct timeval tv; tv.tv_sec = timeout_ms / 1000; tv.tv_usec = (timeout_ms % 1000) * 1000;
-    if (select(fd + 1, nullptr, &wf, nullptr, &tv) <= 0) { ::close(fd); return ""; }
+    if (!jarm_wait(fd, POLLOUT, timeout_ms)) { ::close(fd); return ""; }
     int err = 0; socklen_t el = sizeof(err);
     getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &el);
     if (err != 0) { ::close(fd); return ""; }
@@ -461,24 +472,20 @@ static std::string jarm_probe_once(const char *ip, int port, int timeout_ms,
     ssize_t w = ::send(fd, hello.data() + sent, hello.size() - sent, 0);
     if (w > 0) { sent += (size_t)w; continue; }
     if (w < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      fd_set wf; FD_ZERO(&wf); FD_SET(fd, &wf);
-      struct timeval tv; tv.tv_sec = timeout_ms / 1000; tv.tv_usec = (timeout_ms % 1000) * 1000;
-      if (select(fd + 1, nullptr, &wf, nullptr, &tv) <= 0) { ::close(fd); return ""; }
+      if (!jarm_wait(fd, POLLOUT, timeout_ms)) { ::close(fd); return ""; }
       continue;
     }
     ::close(fd); return "";
   }
 
+  /* One recv, as jarm.py does. Looping until 1484 bytes waited a further
+     timeout after every chunk, so a short first flight cost the whole
+     timeout and a server dripping bytes could hold the probe indefinitely. */
   std::string resp;
   char buf[1484];
-  for (;;) {
-    fd_set rf; FD_ZERO(&rf); FD_SET(fd, &rf);
-    struct timeval tv; tv.tv_sec = timeout_ms / 1000; tv.tv_usec = (timeout_ms % 1000) * 1000;
-    if (select(fd + 1, &rf, nullptr, nullptr, &tv) <= 0) break;
-    ssize_t r = ::recv(fd, buf, sizeof(buf) - resp.size() > 0
-                                 ? sizeof(buf) : 0, 0);
-    if (r > 0) { resp.append(buf, (size_t)r); if (resp.size() >= 1484) break; }
-    else break;
+  if (jarm_wait(fd, POLLIN, timeout_ms)) {
+    ssize_t r = ::recv(fd, buf, sizeof(buf), 0);
+    if (r > 0) resp.assign(buf, (size_t)r);
   }
   ::close(fd);
   return resp;
