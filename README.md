@@ -19,9 +19,13 @@ Kmap's framing draws on the history of large-scale internet reconnaissance:
 
 - **TREASUREMAP** — Snowden-era reporting described the NSA and its Five Eyes
   partners seeking a near-real-time map of the internet, including network
-  infrastructure and end-user devices. [DER SPIEGEL, 2014](https://www.spiegel.de/international/world/snowden-documents-indicate-nsa-has-breached-deutsche-telekom-a-991503.html).
+  infrastructure and end-user devices. The reported goal was to relate cables,
+  routers and devices, identify collection access points, and support planning
+  for further surveillance or exploitation. [DER SPIEGEL, 2014](https://www.spiegel.de/international/world/snowden-documents-indicate-nsa-has-breached-deutsche-telekom-a-991503.html).
 - **HACIENDA** — GCHQ's country-wide port-scanning program catalogued exposed
-  services to support intelligence operations. [Heise, 2014](https://www.heise.de/hintergrund/NSA-GCHQ-The-HACIENDA-Program-for-Internet-Colonization-2292681.html).
+  services to support intelligence operations. It collected software banners to
+  identify services and sought vulnerable machines for subsequent intrusions or
+  use as covert relay infrastructure. [Heise, 2014](https://www.heise.de/hintergrund/NSA-GCHQ-The-HACIENDA-Program-for-Internet-Colonization-2292681.html).
 - **Equation Group** — Kaspersky's 2015 investigation described a sophisticated
   cyber-espionage actor; contemporary reporting linked it to the NSA, while
   noting attribution uncertainty. Kaspersky later connected tools in the
@@ -29,6 +33,7 @@ Kmap's framing draws on the history of large-scale internet reconnaissance:
   [WIRED](https://www.wired.com/2015/02/kapersky-discovers-equation-group),
   [Shadow Brokers analysis](https://securelist.com/the-equation-giveaway/75812/).
 
+Reported mapping ambitions do not establish complete global coverage.
 That history illustrates how discovery and mapping can inform later operations.
 Services such as [Shodan](https://www.shodan.io/) and [Censys](https://censys.io/)
 bring internet asset discovery into commercial research. Kmap focuses on running
