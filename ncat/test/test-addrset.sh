@@ -246,24 +246,26 @@ test_addrset "1:2::0003/0" "1:2::3 1:2::0 1:2::ff 1:2::1ff 1:3::3 ff::00" <<EOF
 ff::00
 EOF
 
-# Name lookup.
-test_addrset "scanme.kmap.org" "scanme.kmap.org" <<EOF
+# Name lookup uses the local resolver fixture so tests do not depend on
+# a public hostname whose DNS records can change or disappear.
+test_addrset "localhost" "localhost" <<EOF
 1:2::3:4
 1.2.3.4
-scanme.kmap.org
+localhost
 EOF
 
-# Name lookup combined with CIDR netmask.
-test_addrset "scanme.kmap.org/30" "scanme.kmap.org" <<EOF
+# Name lookup combined with CIDR netmask. Use an IPv6 nonmember here:
+# localhost can resolve to ::1, whose /30 also includes IPv4-mapped addresses.
+test_addrset "localhost/30" "localhost" <<EOF
 1:2::3:4
-1.2.3.4
-scanme.kmap.org
+2001:db8::1
+localhost
 EOF
 
 # Name lookup combined with /0 CIDR netmask.
-test_addrset "scanme.kmap.org/0" "1.2.3.4 scanme.kmap.org" <<EOF
+test_addrset "localhost/0" "1.2.3.4 localhost" <<EOF
 1.2.3.4
-scanme.kmap.org
+localhost
 EOF
 
 expect_fail "."

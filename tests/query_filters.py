@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Offline actual-CLI contracts for stored CVE metadata and query arguments.
 
-Only --net-query is invoked; fixture addresses are inert SQLite values. Every
-command has a 15-second timeout, and logs/fixtures/hashes survive failures.
+Only --net-query and --search are invoked; fixture addresses are inert SQLite
+values. Every command has a 15-second timeout, and logs/fixtures/hashes survive
+failures.
 """
 import argparse
 from contextlib import closing
@@ -80,7 +81,8 @@ def main():
         db.execute("UPDATE hosts SET cloud_provider='aws',tls_self_signed=1 WHERE ip='192.0.2.20'")
         db.commit()
     source_hashes = {name: digest(Path(__file__).resolve().parents[1] / name)
-                     for name in ("net_query.cc", "net_query.h", "kmap.cc", "KmapOps.h")}
+                     for name in ("net_query.cc", "net_query.h", "net_scan.cc",
+                                  "json_escape.h", "kmap.cc", "KmapOps.h")}
     metadata = dict(binary=str(binary), binary_sha256=digest(binary), driver_sha256=digest(__file__),
                     helper_hashes={name: digest(Path(__file__).parent / name)
                                    for name in ("query_performance.py", "runtime_smoke.py")},
@@ -177,6 +179,64 @@ def main():
         ("country-mixed", ["--nq-country", "U1"]), ("country-short", ["--nq-country", "U"]),
     ]:
         case("invalid-" + name, lambda n=name, o=options: query("invalid-" + n, o, error=True))
+
+    # Search shares the collected store with --net-query, but has a separate
+    # output path. Exercise it through the actual CLI, including legacy raw
+    # banner bytes and errors that must never look like an empty successful
+    # result. These fixtures are inert database values, not scan targets.
+    search_data = runner.artifacts / "search-fixture"
+    fixture(search_data, [dict(ip="192.0.2.1", port=80, service="http")])
+    raw_title = 'Café 東京 "quoted"\n'.encode("utf-8") + b"\xff\xed\xa0\x80\xe2"
+    with closing(sqlite3.connect(search_data / "shard_024.db")) as db:
+        db.execute("UPDATE hosts SET web_title=CAST(? AS TEXT)", (raw_title,))
+        db.commit()
+
+    def search(name, directory=search_data, options=(), error=False):
+        runner.run(name, [str(binary), "--search", "http", "--data-dir", str(directory),
+                          "--search-format", "json", *options], timeout=15,
+                   expected_returncodes=(1,) if error else (0,))
+        output = (runner.artifacts / (name + ".stdout.log")).read_bytes()
+        if error:
+            diagnostic = (runner.artifacts / (name + ".stderr.log")).read_text(encoding="utf-8")
+            require(any(word in diagnostic.lower() for word in ("error", "cannot", "failed")),
+                    "search error lacked a diagnostic")
+            return None
+        if "--search-output" in options:
+            return None
+        return json.loads(output.decode("utf-8"))
+
+    def search_json():
+        actual = search("search-utf8")
+        require(len(actual) == 1 and actual[0]["web_title"] ==
+                'Café 東京 "quoted"\n' + "\ufffd" * 5,
+                "search JSON did not repair malformed/truncated UTF-8")
+        target = runner.artifacts / "search-export.json"
+        search("search-export", options=["--search-output", str(target)])
+        require(json.loads(target.read_text(encoding="utf-8")) == actual,
+                "search file export differs from stdout JSON")
+
+    case("search-json-utf8-export", search_json)
+    case("search-missing-directory", lambda: search("search-missing", runner.artifacts / "missing", error=True))
+    bad_search_data = runner.artifacts / "search-corrupt"
+    bad_search_data.mkdir()
+    (bad_search_data / "shard_025.db").write_bytes(b"invalid SQLite fixture")
+    case("search-corrupt-shard", lambda: search("search-corrupt", bad_search_data, error=True))
+    # Good matches in one shard must not mask another shard's failure.
+    (search_data / "shard_025.db").write_bytes(b"invalid SQLite fixture")
+
+    def partial_search():
+        target = runner.artifacts / "search-preserved.json"
+        original = b"previous complete search export\n"
+        target.write_bytes(original)
+        search("search-partial", options=["--search-output", str(target)], error=True)
+        require(target.read_bytes() == original,
+                "a failed search replaced an existing export with partial results")
+
+    case("search-partial-store", partial_search)
+    (search_data / "shard_025.db").unlink()
+    if Path("/dev/full").exists():
+        case("search-full-output", lambda: search("search-full-output",
+             options=["--search-output", "/dev/full"], error=True))
     passed = all(c["status"] == "passed" for c in cases)
     runner.save(**metadata, status="passed" if passed else "failed", cases=cases,
                 expected_normalized_sha256=normalized_digest(expected), fixture_final_sha256=digest(data / "shard_024.db"))

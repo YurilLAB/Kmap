@@ -14,6 +14,7 @@
 #include "json_escape.h"
 #include "joined_workers.h"
 #include "watchlist_state.h"
+#include "watchlist_targets.h"
 #include "fast_syn.h"
 #include "net_enrich.h"
 #include "cloud_map.h"   /* lookup_cloud, cloud_ranges_load */
@@ -34,6 +35,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <sys/stat.h>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -54,7 +56,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <sys/stat.h>
 #include <sys/resource.h>
 #include <signal.h>
 #else
@@ -305,54 +306,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     line.erase(line.find_last_not_of(" \t\r\n") + 1);
     if (line.empty() || line[0] == '#') continue;
 
-    /* Handle CIDR notation -- expand small ranges */
-    size_t slash = line.find('/');
-    if (slash != std::string::npos) {
-      /* Strict prefix parse: atoi() would turn a non-numeric/empty prefix
-         into 0, which then falls through to the misleading "exceeds cap"
-         warning below. Reject malformed prefixes with an accurate message. */
-      std::string ptok = line.substr(slash + 1);
-      int prefix = -1;
-      if (!ptok.empty()) {
-        char *endp = nullptr;
-        long pv = strtol(ptok.c_str(), &endp, 10);
-        if (endp != ptok.c_str() && *endp == '\0' && pv >= 0 && pv <= 32)
-          prefix = (int)pv;
-      }
-      if (prefix < 0) {
-        scan_log("WARN", "invalid CIDR prefix in '%s' (skipped)", line.c_str());
-        continue;
-      }
-      uint32_t base = ip_to_u32(line.substr(0, slash).c_str());
-      if (prefix >= 16 && prefix <= 30) {
-        /* Up to /16 (65,534 hosts) expands fully -- skip network + broadcast
-           addresses. /16 is the practical ceiling for a watchlist: it fits
-           in memory, finishes inside a single discovery batch, and matches
-           the "targeted asset list" use case the watchlist mode is designed
-           for. Larger prefixes are rejected below rather than silently
-           collapsing to the network address -- the previous behavior turned
-           an operator's office /14 into a single-IP scan with no warning. */
-        uint32_t count = 1u << (32 - prefix);
-        uint32_t mask = ~(count - 1);
-        base &= mask;
-        for (uint32_t i = 1; i < count - 1; i++)
-          targets.push_back(base + i);
-      } else if (prefix == 31) {
-        uint32_t mask = ~1u;
-        base &= mask;
-        targets.push_back(base);
-        targets.push_back(base + 1);
-      } else if (prefix == 32) {
-        targets.push_back(base);
-      } else {
-        scan_log("WARN",
-          "CIDR prefix /%d in '%s' exceeds watchlist cap (/16 = 65,534 hosts) -- skipped",
-          prefix, line.c_str());
-        continue;
-      }
-    } else {
-      uint32_t ip = ip_to_u32(line.c_str());
-      if (ip != 0) targets.push_back(ip);
+    const WatchlistTargetStatus status = watchlist_expand_target(line, targets);
+    if (status == WatchlistTargetStatus::InvalidAddress) {
+      scan_log("WARN", "invalid IPv4 address in '%s' (skipped)", line.c_str());
+    } else if (status == WatchlistTargetStatus::InvalidPrefix) {
+      scan_log("WARN", "invalid CIDR prefix in '%s' (skipped)", line.c_str());
+    } else if (status == WatchlistTargetStatus::TooLarge) {
+      scan_log("WARN",
+        "CIDR range '%s' exceeds watchlist cap (/16 = 65,534 hosts) -- skipped",
+        line.c_str());
     }
   }
 
@@ -2346,25 +2308,48 @@ int run_search_cli() {
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   int limit = o.search_limit > 0 ? o.search_limit : 100;
 
+#ifdef WIN32
+  struct _stat directory_info;
+  bool directory_ok = _stat(data_dir, &directory_info) == 0 &&
+                       (directory_info.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat directory_info;
+  bool directory_ok = stat(data_dir, &directory_info) == 0 &&
+                       S_ISDIR(directory_info.st_mode);
+#endif
+  if (!directory_ok) {
+    fprintf(stderr, "search: ERROR: cannot read data directory '%s'\n", data_dir);
+    return 1;
+  }
+
   std::vector<NetSearchHit> all;
   std::string err;
+  bool failed = false;
   for (int sh = 0; sh < NET_SHARD_COUNT; sh++) {
     std::string sp = net_shard_path(data_dir, sh);
     FILE *t = fopen(sp.c_str(), "r");
-    if (!t) continue;
+    if (!t) {
+      if (errno != ENOENT) {
+        fprintf(stderr, "search: ERROR: cannot read %s: %s\n", sp.c_str(), strerror(errno));
+        failed = true;
+      }
+      continue;
+    }
     fclose(t);
     sqlite3 *db = net_db_open(sp.c_str());
-    if (!db) continue;
+    if (!db) { failed = true; continue; }
     std::string e2;
     std::vector<NetSearchHit> hits = net_db_search_fts(db, o.search_query, limit, &e2);
     net_db_close(db);
     if (!e2.empty() && err.empty()) err = e2;
     for (auto &h : hits) all.push_back(std::move(h));
   }
-  /* A query-syntax / FTS5-availability error (vs. simply no matches) is worth
-     surfacing rather than silently printing zero results. */
-  if (all.empty() && !err.empty()) {
-    fprintf(stderr, "search: query error: %s\n", err.c_str());
+  /* A failed shard must not look like a complete successful search, even
+     when another shard supplied matches. Do not replace an export with
+     partial results after a storage or query error. */
+  if (failed || !err.empty()) {
+    if (!err.empty()) fprintf(stderr, "search: query error: %s\n", err.c_str());
+    if (failed) fprintf(stderr, "search: ERROR: could not read all shards\n");
     return 1;
   }
   std::sort(all.begin(), all.end(),
@@ -2377,18 +2362,7 @@ int run_search_cli() {
     if (!out) { fprintf(stderr, "search: cannot open output %s\n", o.search_output); return 1; }
   }
   auto jesc = [](const std::string &s) {
-    std::string r; r.reserve(s.size() + 8);
-    for (unsigned char c : s) {
-      switch (c) {
-        case '"':  r += "\\\""; break; case '\\': r += "\\\\"; break;
-        case '\n': r += "\\n";  break; case '\r': r += "\\r";  break;
-        case '\t': r += "\\t";  break; case '\b': r += "\\b";  break;
-        case '\f': r += "\\f";  break;
-        default: if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); r += b; }
-                 else r += static_cast<char>(c);
-      }
-    }
-    return r;
+    return kmap_json_escape(s);
   };
 
   const std::string fmt = o.search_format ? o.search_format : "text";
@@ -2418,7 +2392,16 @@ int run_search_cli() {
       fprintf(out, "\n");
     }
   }
-  if (out != stdout) fclose(out);
+  bool output_ok = ferror(out) == 0;
+  if (out != stdout) {
+    if (fclose(out) != 0) output_ok = false;
+  } else if (fflush(out) != 0) {
+    output_ok = false;
+  }
+  if (!output_ok) {
+    fprintf(stderr, "search: ERROR: output write failed\n");
+    return 1;
+  }
   return 0;
 }
 

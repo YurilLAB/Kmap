@@ -26,7 +26,8 @@ Usage:
 
 With no file overrides the current EPSS CSV (gzip) and KEV JSON are downloaded.
 --epss-file / --kev-file use a local copy instead (the file may be .gz or
-plain); --no-download requires both files to be supplied locally.
+plain). With --no-download, supply either or both local feeds; annotations for
+an omitted feed are preserved.
 """
 
 import argparse
@@ -91,7 +92,7 @@ def load_epss(path, allow_download):
         with urllib.request.urlopen(EPSS_URL, timeout=REQUEST_TIMEOUT) as r:
             raw = r.read()
     else:
-        return {}
+        return None
     text = _read_maybe_gzip(raw, "EPSS")
     scores = {}
     for line in text.splitlines():
@@ -119,10 +120,12 @@ def load_kev(path, allow_download):
         with urllib.request.urlopen(KEV_URL, timeout=REQUEST_TIMEOUT) as r:
             raw = r.read()
     else:
-        return {}
+        return None
     data = json.loads(_read_maybe_gzip(raw, "KEV"))
+    if not isinstance(data, dict) or not isinstance(data.get("vulnerabilities"), list):
+        raise ValueError("KEV catalog must contain a vulnerabilities array")
     kev = {}
-    for v in data.get("vulnerabilities", []):
+    for v in data["vulnerabilities"]:
         cve = (v.get("cveID") or "").strip().upper()
         if not cve:
             continue
@@ -162,21 +165,25 @@ def main():
         print(f"kmap-cve.db: {total} CVEs")
         epss = load_epss(args.epss_file, allow_download)
         kev = load_kev(args.kev_file, allow_download)
-        print(f"  EPSS dataset: {len(epss)} CVEs;  KEV catalog: {len(kev)} CVEs")
+        epss_status = f"{len(epss)} CVEs" if epss is not None else "not supplied (preserved)"
+        kev_status = f"{len(kev)} CVEs" if kev is not None else "not supplied (preserved)"
+        print(f"  EPSS dataset: {epss_status};  KEV catalog: {kev_status}")
 
         # EPSS: only update rows we actually carry.
-        epss_rows = [(s, p, cve) for cve, (s, p) in epss.items() if cve in db_ids]
+        epss_rows = [(s, p, cve) for cve, (s, p) in (epss or {}).items() if cve in db_ids]
         conn.executemany(
             "UPDATE cves SET epss_score=?, epss_percentile=? WHERE cve_id=?",
             epss_rows)
 
-        # KEV: reset all flags first so a CVE removed from the catalog clears,
-        # then mark the current set.
-        conn.execute("UPDATE cves SET kev=0, kev_date_added=NULL, kev_ransomware=0")
-        kev_rows = [(d, r, cve) for cve, (d, r) in kev.items() if cve in db_ids]
-        conn.executemany(
-            "UPDATE cves SET kev=1, kev_date_added=?, kev_ransomware=? WHERE cve_id=?",
-            kev_rows)
+        # An omitted feed is distinct from an explicitly supplied empty catalog.
+        # Only a refreshed catalog can establish that old KEV entries were removed.
+        kev_rows = []
+        if kev is not None:
+            conn.execute("UPDATE cves SET kev=0, kev_date_added=NULL, kev_ransomware=0")
+            kev_rows = [(d, r, cve) for cve, (d, r) in kev.items() if cve in db_ids]
+            conn.executemany(
+                "UPDATE cves SET kev=1, kev_date_added=?, kev_ransomware=? WHERE cve_id=?",
+                kev_rows)
         conn.commit()
 
         kev_ransom = sum(1 for _, r, _ in kev_rows if r)

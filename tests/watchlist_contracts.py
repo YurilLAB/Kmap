@@ -166,6 +166,33 @@ def main():
             with socket.create_connection(('127.0.0.1', endpoint.port), timeout=2) as conn:
                 require(endpoint.marker.encode() in conn.recv(4096), 'fixture readiness marker missing')
 
+        # A malformed CIDR host used to become 0.0.0.0 before expansion.
+        # Restrict this runtime regression to /32; broad malformed ranges are
+        # covered by the offline production-helper unit, without any probes.
+        invalid_targets = out / 'invalid-targets.txt'
+        invalid_targets.write_text('not-an-ip/32\n127.0.0.999/32\n', encoding='ascii')
+        invalid_data = out / 'invalid-target-data'
+        invalid_data.mkdir()
+        invalid_command = [str(binary), '--unprivileged', '-n', '--datadir', str(source),
+                           '--watchlist', str(invalid_targets), '--data-dir', str(invalid_data),
+                           '--findings-dir', str(out / 'invalid-target-findings'),
+                           '-p', f'{a.port},{b.port}']
+        invalid_record = {'name': '00-invalid-cidr-hosts', 'command': invalid_command,
+                          'expected_success': False}
+        document['cases'].append(invalid_record)
+        invalid_result = subprocess.run(invalid_command, cwd=out, env=env,
+                                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, timeout=10)
+        (out / 'invalid-targets.stdout.log').write_bytes(invalid_result.stdout)
+        (out / 'invalid-targets.stderr.log').write_bytes(invalid_result.stderr)
+        invalid_record['returncode'] = invalid_result.returncode
+        check('invalid CIDR hosts rejected', invalid_result.returncode, 1)
+        check('invalid CIDR hosts create no scan database', (invalid_data / 'watchlist.db').exists(), False)
+        invalid_log = (invalid_data / 'kmap.log').read_text(encoding='utf-8')
+        check('invalid CIDR hosts logged explicitly', invalid_log.count('invalid IPv4 address'), 2)
+        check('invalid CIDR hosts leave no valid targets', 'no valid targets' in invalid_log, True)
+        save()
+
         def run(name, destination=findings, success=True):
             # Distinct seconds exercise legacy timestamp behavior deterministically.
             if not args.rapid:

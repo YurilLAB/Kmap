@@ -15,6 +15,7 @@ make -j2
 python3 tests/check_test_gate.py
 make check-kmap
 python3 tests/runtime_smoke.py ./kmap --artifacts test-results/runtime
+python3 tests/http_metadata_smoke.py ./kmap --artifacts test-results/http-metadata
 python3 tests/query_smoke.py ./kmap --artifacts test-results/query
 python3 tests/query_filters.py ./kmap --artifacts test-results/query-filters
 ```
@@ -61,6 +62,9 @@ open HTTP port, a reserved non-listening port, repeated scans, malformed CLI
 input, and cleanup. POSIX also checks interruption after a real local connection;
 Windows reports that interruption case as skipped. The query driver uses inert
 documentation-range addresses stored in SQLite; it never scans those addresses.
+The HTTP metadata driver serves header-like lines in a local response body and
+checks that web recon ignores them for server, security, cookie and redirect
+metadata while retaining real headers and the page title.
 
 ## Query accuracy and local performance
 

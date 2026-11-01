@@ -2107,9 +2107,12 @@ void  apply_delayed_options() {
   // ISO 8601 date/time -- http://www.cl.cam.ac.uk/~mgk25/iso-time.html
   if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %z", &local_time) <= 0)
     fatal("Unable to properly format time");
-  /* Query JSON on stdout must contain only the document, including startup. */
-  const int startup_log = o.net_query && o.nq_format &&
-      strcmp(o.nq_format, "json") == 0 && (!o.nq_output || !o.nq_output[0])
+  /* Query/search JSON on stdout must contain only the document. */
+  const bool query_json_stdout = o.net_query && o.nq_format &&
+      strcmp(o.nq_format, "json") == 0 && (!o.nq_output || !o.nq_output[0]);
+  const bool search_json_stdout = o.do_search && o.search_format &&
+      strcmp(o.search_format, "json") == 0 && (!o.search_output || !o.search_output[0]);
+  const int startup_log = query_json_stdout || search_json_stdout
       ? LOG_STDERR : (LOG_STDOUT | LOG_SKID);
   log_write(startup_log, "Starting %s %s ( %s ) at %s\n", KMAP_NAME, KMAP_VERSION, KMAP_URL, tbuf);
   if (o.verbose) {

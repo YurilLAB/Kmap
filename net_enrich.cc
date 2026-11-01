@@ -16,6 +16,7 @@
 #endif
 
 #include "net_enrich.h"
+#include "http_headers.h"
 #include "enrichment_store.h"
 #include "net_fp_helpers.h"
 #include "net_hash_helpers.h"   /* derive_cpe, favicon_mmh3 */
@@ -952,18 +953,7 @@ struct WebResult {
 static std::string extract_header_val(const std::string &resp,
                                       const std::string &lower_resp,
                                       const char *name) {
-  std::string lower_name = str_lower(std::string(name));
-  /* Anchor to start of header line: require '\n' before the header name so a
-   * search for "Server" does not match "X-Server:" or "Last-Modified-Server:". */
-  std::string needle = "\n" + lower_name + ":";
-  size_t pos = lower_resp.find(needle);
-  if (pos == std::string::npos) return "";
-  size_t start = pos + needle.size();
-  while (start < resp.size() && resp[start] == ' ') start++;
-  size_t end = resp.find('\r', start);
-  if (end == std::string::npos) end = resp.find('\n', start);
-  if (end == std::string::npos) end = resp.size();
-  return resp.substr(start, end - start);
+  return kmap_http::header_value(resp, lower_resp, name);
 }
 
 static std::string extract_html_title(const std::string &body) {

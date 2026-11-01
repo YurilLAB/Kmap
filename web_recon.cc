@@ -10,6 +10,7 @@
 #endif
 
 #include "web_recon.h"
+#include "http_headers.h"
 #include "output.h"
 #include "portlist.h"
 #include "service_scan.h"
@@ -338,25 +339,7 @@ static std::string recv_response(wr_fd_t fd, int timeout_ms, size_t max_bytes = 
  * HTTP helpers
  * ----------------------------------------------------------------------- */
 static std::string extract_header(const std::string &response, const char *name) {
-  std::string lower_resp = response;
-  std::transform(lower_resp.begin(), lower_resp.end(), lower_resp.begin(),
-                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
-  std::string lower_name = name;
-  std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
-                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
-
-  /* Require '\n' before the header name so we don't match a name that appears
-   * embedded in another header's value or in a longer header name (e.g.
-   * "X-Server:" matching when searching for "Server"). */
-  std::string needle = "\n" + lower_name + ":";
-  size_t pos = lower_resp.find(needle);
-  if (pos == std::string::npos) return "";
-  size_t start = pos + needle.size();
-  while (start < response.size() && response[start] == ' ') ++start;
-  size_t end = response.find('\r', start);
-  if (end == std::string::npos) end = response.find('\n', start);
-  if (end == std::string::npos) end = response.size();
-  return response.substr(start, end - start);
+  return kmap_http::header_value(response, kmap_http::ascii_lower(response), name);
 }
 
 static std::string extract_title(const std::string &body) {
@@ -746,71 +729,7 @@ static void extract_security_headers(const std::string &response,
  * ----------------------------------------------------------------------- */
 static std::vector<std::string>
 extract_cookie_flag_summary(const std::string &response) {
-  std::vector<std::string> out;
-
-  std::string lower = response;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c){ return static_cast<char>(tolower(c)); });
-
-  const std::string needle = "\nset-cookie:";
-  size_t pos = 0;
-  while ((pos = lower.find(needle, pos)) != std::string::npos) {
-    size_t start = pos + needle.size();
-    while (start < response.size() && response[start] == ' ') start++;
-    size_t end = response.find('\r', start);
-    if (end == std::string::npos) end = response.find('\n', start);
-    if (end == std::string::npos) end = response.size();
-
-    std::string line = response.substr(start, end - start);
-    std::string lline = lower.substr(start, end - start);
-
-    // Cookie name is everything before the first '='.
-    size_t eq = line.find('=');
-    std::string name = (eq != std::string::npos) ? line.substr(0, eq) : line;
-
-    std::vector<std::string> flags;
-    auto has_attr = [&](const char *attr) -> bool {
-      // Match "; <attr>" with optional whitespace and word-boundary so
-      // "Secure" doesn't false-positive against "Secured-By".
-      std::string n1 = "; ";   n1 += attr;
-      std::string n2 = ";";    n2 += attr;
-      size_t p = lline.find(n1);
-      if (p == std::string::npos) p = lline.find(n2);
-      if (p == std::string::npos) return false;
-      size_t after = p + (lline[p+1] == ' ' ? 2 : 1) + strlen(attr);
-      // End of attribute is start of next ';' or end of line, possibly '='.
-      return after >= lline.size() || lline[after] == ';' ||
-             lline[after] == '=' || lline[after] == ' ' ||
-             lline[after] == '\0';
-    };
-    if (has_attr("secure"))   flags.push_back("Secure");
-    if (has_attr("httponly")) flags.push_back("HttpOnly");
-    size_t ss = lline.find("samesite=");
-    if (ss != std::string::npos) {
-      size_t v_start = ss + 9;
-      size_t v_end = lline.find(';', v_start);
-      if (v_end == std::string::npos) v_end = lline.size();
-      std::string val = line.substr(v_start, v_end - v_start);
-      // Trim trailing whitespace.
-      while (!val.empty() && (val.back() == ' ' || val.back() == '\t'))
-        val.pop_back();
-      if (!val.empty()) flags.push_back("SameSite=" + val);
-    }
-
-    std::string s = name;
-    if (!flags.empty()) {
-      s += " (";
-      for (size_t i = 0; i < flags.size(); i++) {
-        s += flags[i];
-        if (i + 1 < flags.size()) s += ", ";
-      }
-      s += ")";
-    }
-    out.push_back(s);
-
-    pos = end;
-  }
-  return out;
+  return kmap_http::cookie_flag_summary(response);
 }
 
 /* -----------------------------------------------------------------------

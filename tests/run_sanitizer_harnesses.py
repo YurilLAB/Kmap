@@ -116,6 +116,12 @@ HARNESSES = {
     "watchlist_state_test": Harness("tests/watchlist_state_test.cc", ("net_db.cc",), sqlite=True,
                                     coverage="production completed-watchlist membership; offline SQLite failure/recovery fixtures",
                                     headers=("watchlist_state.h", "net_db.h")),
+    "watchlist_targets_test": Harness("tests/watchlist_targets_test.cc", ("net_db.cc",), sqlite=True,
+                                      coverage="production watchlist target parser; offline IPv4/CIDR inputs",
+                                      headers=("watchlist_targets.h", "net_db.h")),
+    "http_headers_test": Harness("tests/http_headers_test.cc",
+                                 coverage="production HTTP header/cookie parser; offline response fixtures",
+                                 headers=("http_headers.h",)),
 }
 
 
