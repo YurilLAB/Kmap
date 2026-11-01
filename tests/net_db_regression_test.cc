@@ -59,6 +59,33 @@ static void test_ip_validation() {
     CHECK(ip_to_u32(u32_to_ip(ip).c_str()) == ip);
 }
 
+static void test_db_paths(const FixtureDir &dir) {
+  const std::string long_directory(2048, 'x');
+  CHECK(net_shard_path(long_directory.c_str(), 0) == long_directory + "/shard_000.db");
+  CHECK(net_shard_path(long_directory.c_str(), 31) == long_directory + "/shard_031.db");
+  CHECK(net_shard_path(long_directory.c_str(), 0) != net_shard_path(long_directory.c_str(), 31));
+  CHECK(net_shard_path("data", 7) == "data/shard_007.db");
+
+  std::string error = "old error";
+  const auto unused = dir.path / "unused.db";
+  CHECK(net_db_validate_path(unused.string(), &error));
+  CHECK(error.empty());
+  CHECK(!std::filesystem::exists(unused)); // Preflight must not create a file.
+  CHECK(net_db_validate_path(":memory:", &error));
+  CHECK(net_db_validate_path("", &error));
+  CHECK(!net_db_validate_path(std::string("unused\0.db", 10), &error));
+  CHECK(!error.empty());
+
+  sqlite3_vfs *vfs = sqlite3_vfs_find(nullptr);
+  CHECK(vfs != nullptr);
+  if (vfs) {
+    const auto oversized = std::string(static_cast<size_t>(vfs->mxPathname) + 1, 'x');
+    CHECK(!net_db_validate_path(oversized, &error));
+    CHECK(!error.empty());
+    CHECK(net_db_open(oversized) == nullptr);
+  }
+}
+
 static void test_missing_latency(sqlite3 *db) {
   NetTopoEdge edge{};
   edge.from_u32 = 1; edge.to_u32 = 2; edge.path_count = 10; edge.last_seen = 1;
@@ -224,6 +251,7 @@ int main() {
     CHECK(sqlite3_close(db) == SQLITE_OK);
   }
   FixtureDir dir;
+  test_db_paths(dir);
   test_migrations(dir);
   std::printf("net_db_regression_test: %d failure(s)\n", failures);
   return failures ? 1 : 0;

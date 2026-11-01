@@ -19,6 +19,7 @@ on:
   push:
     paths:
       - ".github/workflows/fuzz.yml"
+      - ".clusterfuzzlite/**"
       - "fuzz/**"
       - "tests/**"
       - "**/*.c"
@@ -44,6 +45,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: ClusterFuzzLite build and seed archive contracts
+        run: python3 tests/clusterfuzzlite_build_test.py --artifacts test-results/clusterfuzzlite-build
+
       - name: Validate executable harness inventory
         run: python3 tests/run_sanitizer_harnesses.py --validate-only
 
@@ -57,6 +61,7 @@ jobs:
           name: sanitizer-harness-results
           path: |
             test-results/fuzz/
+            test-results/clusterfuzzlite-build/
             !test-results/fuzz/bin/
           include-hidden-files: true
           retention-days: 14

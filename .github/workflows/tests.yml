@@ -13,6 +13,7 @@ on:
       - "Makefile.in"
       - "configure"
       - "configure.ac"
+      - "m4/**"
       - "tests/**"
       - "scripts/update_epss_kev.py"
       - "ncat/test/test-addrset.sh"
@@ -39,7 +40,10 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang libpcap-dev libnet-dev libpcre2-dev
+          sudo apt-get install -y build-essential clang autoconf libpcap-dev libnet-dev libpcre2-dev
+
+      - name: Configure hardening feature probes and flag overrides
+        run: python3 tests/configure_hardening_test.py
 
       - name: Configure + build
         run: |
@@ -74,6 +78,9 @@ jobs:
 
       - name: Offline query filter contracts (stored metadata and argument validation)
         run: python3 tests/query_filters.py ./kmap --artifacts test-results/query-filters
+
+      - name: Shard path and error propagation contracts (offline SQLite fixtures)
+        run: python3 tests/shard_path_contracts.py ./kmap --artifacts test-results/shard-paths
 
       - name: Ordinary output contracts (owned loopback and write failures)
         run: python3 tests/output_contracts.py ./kmap --artifacts test-results/output-contracts

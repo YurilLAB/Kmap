@@ -30,4 +30,10 @@ for t in $TARGETS; do
     -o "$OUT/${t}"
 done
 
+# Fuzzing infrastructure loads a target's seeds from this named archive. It
+# does not discover corpus directories in the source checkout. Recreate it so
+# removed seeds cannot survive a local rebuild that reuses OUT.
+rm -f "$OUT/fuzz_jsonescape_seed_corpus.zip"
+zip -q -j "$OUT/fuzz_jsonescape_seed_corpus.zip" fuzz/corpus/jsonescape/*
+
 echo "Built: $TARGETS"

@@ -536,6 +536,12 @@ int run_net_query(const char *data_dir,
                   float min_epss,
                   const char *tag) {
   if (!data_dir) return 1;
+  std::string path_error;
+  if (!net_db_validate_path(net_shard_path(data_dir, 0), &path_error)) {
+    log_write(LOG_STDERR, "net-query: ERROR: invalid data directory '%s': %s\n",
+              data_dir, path_error.c_str());
+    return 1;
+  }
 #ifdef WIN32
   struct _stat directory_info;
   bool directory_ok = _stat(data_dir, &directory_info) == 0 &&

@@ -30,6 +30,11 @@ int net_shard_index(uint32_t ip);
    e.g. "kmap-data/shard_007.db" */
 std::string net_shard_path(const char *data_dir, int shard_idx);
 
+/* Check SQLite's resolved filename and journal-path limits without opening or
+   creating a database. Also accepts SQLite's temporary/in-memory filenames.
+   On failure, optionally return a diagnostic in error. */
+bool net_db_validate_path(const std::string &path, std::string *error = nullptr);
+
 /* Open (or create) a shard database.  Creates the schema if missing.
    Returns nullptr on failure (error printed to stderr). */
 sqlite3 *net_db_open(const std::string &path);

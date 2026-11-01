@@ -1622,6 +1622,15 @@ int run_net_scan() {
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   const char *findings_dir = o.net_findings_dir ? o.net_findings_dir : "Findings";
 
+  /* Reject unsupported SQLite paths before creating a directory, log,
+     checkpoint or starting any network collection. */
+  std::string path_error;
+  if (!net_db_validate_path(net_shard_path(data_dir, 0), &path_error)) {
+    fprintf(stderr, "net-scan: ERROR: invalid data directory '%s': %s\n",
+            data_dir, path_error.c_str());
+    return 1;
+  }
+
   /* Validate that data-dir is writable before starting scan */
   {
     std::string test_path = std::string(data_dir) + "/.kmap_write_test";
@@ -2307,6 +2316,13 @@ int run_search_cli() {
   }
   const char *data_dir = o.net_data_dir ? o.net_data_dir : "kmap-data";
   int limit = o.search_limit > 0 ? o.search_limit : 100;
+
+  std::string path_error;
+  if (!net_db_validate_path(net_shard_path(data_dir, 0), &path_error)) {
+    fprintf(stderr, "search: ERROR: invalid data directory '%s': %s\n",
+            data_dir, path_error.c_str());
+    return 1;
+  }
 
 #ifdef WIN32
   struct _stat directory_info;

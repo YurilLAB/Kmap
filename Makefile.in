@@ -47,7 +47,7 @@ CXXFLAGS = @CXXFLAGS@ $(DBGFLAGS) $(CCOPT)
 CPPFLAGS = @CPPFLAGS@ $(DEFS) -Ithird-party
 CFLAGS = @CFLAGS@ $(DBGFLAGS) $(CCOPT)
 STATIC =
-LDFLAGS = @LDFLAGS@ $(DBGFLAGS) $(STATIC)
+LDFLAGS = @KMAP_SSP_LDFLAGS@ @LDFLAGS@ $(DBGFLAGS) $(STATIC)
 LIBS =  @LIBNSOCK_LIBS@ @LIBNBASE_LIBS@ @LIBPCRE_LIBS@ @LIBPCAP_LIBS@ $(LIBSSH2_LIBS) $(OPENSSL_LIBS) $(ZLIB_LIBS) libnetutil/libnetutil.a @LIBDNET_LIBS@ @LIBLUA_LIBS@ @LIBLINEAR_LIBS@ @LIBS@
 OPENSSL_LIBS = @OPENSSL_LIBS@
 LIBSSH2_LIBS = @LIBSSH2_LIBS@
@@ -489,7 +489,7 @@ check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test test
 
 check: @NCAT_CHECK@ @NSOCK_CHECK@ @ZEKMAP_CHECK@ @NSE_CHECK@ @NDIFF_CHECK@ check-kmap
 
-${srcdir}/configure: configure.ac
+${srcdir}/configure: configure.ac m4/kmap_hardening.m4
 	cd ${srcdir} && autoconf
 
 ## autoheader might not change config.h.in, so touch a stamp file.

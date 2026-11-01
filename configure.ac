@@ -64,6 +64,8 @@ AC_C_INLINE
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
+m4_include([m4/kmap_hardening.m4])
+KMAP_CHECK_HARDENING
 CXXFLAGS="$CXXFLAGS -std=c++17"
 
 dnl Kmap uses std::thread even when optional dependencies do not need pthreads.

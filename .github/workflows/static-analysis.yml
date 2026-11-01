@@ -22,6 +22,7 @@ on:
       - "**/*.in"
       - "configure"
       - "configure.ac"
+      - "m4/**"
     branches:
       - master
   pull_request:

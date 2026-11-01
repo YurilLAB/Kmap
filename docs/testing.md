@@ -20,6 +20,22 @@ python3 tests/query_smoke.py ./kmap --artifacts test-results/query
 python3 tests/query_filters.py ./kmap --artifacts test-results/query-filters
 ```
 
+Configure detects stack protection separately for C and C++, preferring
+`-fstack-protector-strong` with a `-fstack-protector` fallback. On ELF targets it
+also tests full RELRO with both compiler drivers. Unsupported or warning-only
+options are omitted. Defaults precede explicit `CFLAGS`, `CXXFLAGS` and
+`LDFLAGS`, so user overrides retain precedence; `--disable-hardening` omits these
+automatic stack/RELRO defaults. Existing platform PIE/NX defaults and the
+Makefile's FORTIFY definition continue to apply.
+
+The configure regression builds tiny offline C/C++ fixtures and checks their
+ELF metadata, flag fallback, unsupported-option rejection and user overrides.
+It requires Autoconf, make and readelf:
+
+```sh
+python3 tests/configure_hardening_test.py
+```
+
 `make check-kmap` builds the application and its libraries first and stops when
 any test fails. It includes storage migration rollback, missing latency batches,
 64-bit topology counters and strict graph JSON. It is a smaller, reviewed suite

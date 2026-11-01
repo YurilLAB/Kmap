@@ -90,9 +90,34 @@ int net_shard_index(uint32_t ip) {
 }
 
 std::string net_shard_path(const char *data_dir, int shard_idx) {
-  char buf[512];
-  snprintf(buf, sizeof(buf), "%s/shard_%03d.db", data_dir, shard_idx);
-  return buf;
+  char suffix[32];
+  snprintf(suffix, sizeof(suffix), "/shard_%03d.db", shard_idx);
+  return std::string(data_dir) + suffix;
+}
+
+bool net_db_validate_path(const std::string &path, std::string *error) {
+  if (error) error->clear();
+  auto fail = [&](const std::string &message) {
+    if (error) *error = message;
+    return false;
+  };
+  if (path.find('\0') != std::string::npos)
+    return fail("database path contains an embedded NUL byte");
+  if (path.empty() || path == ":memory:") return true;
+  sqlite3_vfs *vfs = sqlite3_vfs_find(nullptr);
+  if (!vfs || !vfs->xFullPathname || vfs->mxPathname <= 0)
+    return fail("SQLite filesystem is unavailable");
+  std::vector<char> full_path(static_cast<size_t>(vfs->mxPathname) + 1, 0);
+  const int rc = vfs->xFullPathname(vfs, path.c_str(),
+                                   static_cast<int>(full_path.size()), full_path.data());
+  if (rc != SQLITE_OK && rc != SQLITE_OK_SYMLINK)
+    return fail(std::string("SQLite cannot resolve database path: ") + sqlite3_errstr(rc));
+  /* Match SQLite's pager check: it reserves eight bytes for "-journal" even
+     when a database is only read or is subsequently switched to WAL mode.
+     Resolve relative paths first, since the working directory counts too. */
+  if (strlen(full_path.data()) + 8 > static_cast<size_t>(vfs->mxPathname))
+    return fail("database path is too long for SQLite (including its journal)");
+  return true;
 }
 
 /* Schema creation SQL */
@@ -313,6 +338,12 @@ static bool db_columns(sqlite3 *db, const char *table,
 }
 
 sqlite3 *net_db_open(const std::string &path) {
+  std::string path_error;
+  if (!net_db_validate_path(path, &path_error)) {
+    fprintf(stderr, "net-scan: cannot open database %s: %s\n",
+            path.c_str(), path_error.c_str());
+    return nullptr;
+  }
   sqlite3 *db = nullptr;
   int rc = sqlite3_open(path.c_str(), &db);
   if (rc != SQLITE_OK) {
