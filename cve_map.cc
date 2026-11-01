@@ -172,8 +172,14 @@ static std::string extract_ver(const std::string &s) {
       while (i < s.size() && (isalnum((unsigned char)s[i]) || s[i] == '.'))
         i++;
       std::string candidate = s.substr(start, i - start);
-      if (candidate.find('.') != std::string::npos)
+      if (candidate.find('.') != std::string::npos) {
+        /* Nmap writes an unknown component as "X" ("2.0.X", "3.X - 4.X").
+           That names a release family rather than a version; comparing it
+           as "3" matched CVEs for every later release. */
+        for (const auto &part : str_split(candidate, '.'))
+          if (!isdigit((unsigned char)part[0])) return "";
         return candidate;
+      }
     } else {
       i++;
     }
@@ -202,8 +208,10 @@ static std::vector<ProductQuery> normalize_service(
   std::string svc  = str_lower(service_name);
   std::string prod = str_lower(product_str);
 
-  /* OpenSSH */
-  if (prod.find("openssh") != std::string::npos || svc == "ssh")
+  /* OpenSSH -- only when the product says so. Other SSH servers (Cisco,
+     libssh, Dropbear, ...) number their releases independently, so checking
+     them against OpenSSH bounds produced false matches. */
+  if (prod.find("openssh") != std::string::npos)
     return {{"openssh", "", true}};
 
   /* Apache HTTP Server */

@@ -86,7 +86,11 @@ static std::string extract_ver(const std::string &s) {
       size_t start = i;
       while (i < s.size() && (isalnum((unsigned char)s[i]) || s[i] == '.')) i++;
       std::string candidate = s.substr(start, i - start);
-      if (candidate.find('.') != std::string::npos) return candidate;
+      if (candidate.find('.') != std::string::npos) {
+        for (const auto &part : str_split(candidate, '.'))
+          if (!isdigit((unsigned char)part[0])) return "";
+        return candidate;
+      }
     } else i++;
   }
   return "";
@@ -357,6 +361,9 @@ int main(int argc, char **argv) {
       { "nginx/1.18.0",          "1.18.0" },
       { "1.0.2k-fips",           "1.0.2k" },
       { "Apache/2.4.41 (Ubuntu)", "2.4.41" },
+      /* Nmap's unknown-component placeholder is not a version */
+      { "3.X - 4.X",             "" },
+      { "2.0.X",                 "" },
     };
     for (const EV &e : kEv) {
       std::string got = extract_ver(e.in);

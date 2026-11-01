@@ -84,6 +84,9 @@ jobs:
       - name: HTTP metadata boundaries (owned loopback with header-like response bodies)
         run: python3 tests/http_metadata_smoke.py ./kmap --artifacts test-results/http-metadata
 
+      - name: CVE map matches against the shipped DB (owned loopback banners)
+        run: python3 tests/cve_map_contracts.py ./kmap --artifacts test-results/cve-map
+
       - name: Offline query smoke (isolated legacy SQLite fixtures)
         run: python3 tests/query_smoke.py ./kmap --artifacts test-results/query
 
