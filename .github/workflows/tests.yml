@@ -78,6 +78,11 @@ jobs:
       - name: Ordinary resume contracts (owned loopback and preserved invalid logs)
         run: python3 tests/resume_contracts.py ./kmap --artifacts test-results/resume
 
+      - name: Resume partial host and watchlist retry boundaries (owned loopback)
+        run: |
+          python3 tests/resume_boundaries.py ./kmap --artifacts test-results/resume-boundaries
+          python3 tests/watchlist_cve_retry.py ./kmap --artifacts test-results/watchlist-cve-retry
+
       - name: Resume and structured output contracts (preserve saved results)
         run: python3 tests/resume_output_contracts.py ./kmap --artifacts test-results/resume-output
 

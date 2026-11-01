@@ -421,14 +421,16 @@ int net_db_insert_host(sqlite3 *db, uint32_t ip, int port,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
   std::string ip_str = u32_to_ip(ip);
-  sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 2, port);
-  sqlite3_bind_text(stmt, 3, proto, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 4, timestamp);
-  sqlite3_bind_int64(stmt, 5, timestamp);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 1, ip_str.c_str(), -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 2, port);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, proto, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 4, timestamp);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 5, timestamp);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
 
   if (rc == SQLITE_DONE) {
@@ -566,11 +568,14 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
   auto bind_or_null = [&](int idx, const char *val) {
+    if (rc != SQLITE_OK) return;
     if (val && val[0])
-      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+      rc = sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
     else
-      sqlite3_bind_null(stmt, idx);
+      rc = sqlite3_bind_null(stmt, idx);
   };
 
   bind_or_null(1,  service);
@@ -585,10 +590,10 @@ int net_db_update_enrichment(sqlite3 *db, const char *ip, int port,
   bind_or_null(10, redirect_target);
   bind_or_null(11, robots_disallowed_json);
   bind_or_null(12, cpe);
-  sqlite3_bind_text(stmt, 13, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 14, port);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 13, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 14, port);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -606,14 +611,18 @@ int net_db_record_enrichment_error(sqlite3 *db, const char *ip, int port,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  if (error_msg && error_msg[0])
-    sqlite3_bind_text(stmt, 1, error_msg, -1, SQLITE_TRANSIENT);
-  else
-    sqlite3_bind_null(stmt, 1);
-  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 3, port);
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
+  if (rc == SQLITE_OK) {
+    if (error_msg && error_msg[0])
+      rc = sqlite3_bind_text(stmt, 1, error_msg, -1, SQLITE_TRANSIENT);
+    else
+      rc = sqlite3_bind_null(stmt, 1);
+  }
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 3, port);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -647,26 +656,29 @@ int net_db_update_asn(sqlite3 *db, const char *ip,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
   /* ASN is uint32_t (4-byte ASNs go up to 4,294,967,295). Binding via
    * sqlite3_bind_int would truncate values above INT_MAX to a negative
    * integer in storage, which round-trips by accident through column_int
    * + uint32_t cast but breaks any SQL that filters by asn directly. Use
    * int64 to preserve the full unsigned range. */
-  sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(asn));
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(asn));
   auto bind_or_null = [&](int idx, const char *val) {
+    if (rc != SQLITE_OK) return;
     if (val && val[0])
-      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+      rc = sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
     else
-      sqlite3_bind_null(stmt, idx);
+      rc = sqlite3_bind_null(stmt, idx);
   };
   bind_or_null(2, as_name);
   bind_or_null(3, country);
   bind_or_null(4, bgp_prefix);
   bind_or_null(5, asn_registry);
   bind_or_null(6, asn_region);
-  sqlite3_bind_text(stmt, 7, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 7, ip, -1, SQLITE_TRANSIENT);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -683,13 +695,17 @@ int net_db_set_hostname(sqlite3 *db, const char *ip, const char *hostname) {
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  if (hostname && hostname[0])
-    sqlite3_bind_text(stmt, 1, hostname, -1, SQLITE_TRANSIENT);
-  else
-    sqlite3_bind_null(stmt, 1);
-  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
+  if (rc == SQLITE_OK) {
+    if (hostname && hostname[0])
+      rc = sqlite3_bind_text(stmt, 1, hostname, -1, SQLITE_TRANSIENT);
+    else
+      rc = sqlite3_bind_null(stmt, 1);
+  }
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -711,18 +727,21 @@ int net_db_update_cloud(sqlite3 *db, const char *ip,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
   auto bind_or_null = [&](int idx, const char *val) {
+    if (rc != SQLITE_OK) return;
     if (val && val[0])
-      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+      rc = sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
     else
-      sqlite3_bind_null(stmt, idx);
+      rc = sqlite3_bind_null(stmt, idx);
   };
   bind_or_null(1, provider);
   bind_or_null(2, region);
   bind_or_null(3, service);
-  sqlite3_bind_text(stmt, 4, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 4, ip, -1, SQLITE_TRANSIENT);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -737,14 +756,18 @@ int net_db_set_screenshot(sqlite3 *db, const char *ip, int port,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
-  if (screenshot_path && screenshot_path[0])
-    sqlite3_bind_text(stmt, 1, screenshot_path, -1, SQLITE_TRANSIENT);
-  else
-    sqlite3_bind_null(stmt, 1);
-  sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 3, port);
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
+  if (rc == SQLITE_OK) {
+    if (screenshot_path && screenshot_path[0])
+      rc = sqlite3_bind_text(stmt, 1, screenshot_path, -1, SQLITE_TRANSIENT);
+    else
+      rc = sqlite3_bind_null(stmt, 1);
+  }
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 2, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 3, port);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }
@@ -777,27 +800,32 @@ int net_db_update_tls(sqlite3 *db, const char *ip, int port,
   if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
     return -1;
 
+  // Do not execute a partially bound statement after a bind failure.
+  int rc = SQLITE_OK;
   auto bind_or_null = [&](int idx, const char *val) {
+    if (rc != SQLITE_OK) return;
     if (val && val[0])
-      sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
+      rc = sqlite3_bind_text(stmt, idx, val, -1, SQLITE_TRANSIENT);
     else
-      sqlite3_bind_null(stmt, idx);
+      rc = sqlite3_bind_null(stmt, idx);
   };
 
   bind_or_null(1, tls_subject_cn);
   bind_or_null(2, tls_issuer);
   bind_or_null(3, tls_san_json);
   bind_or_null(4, tls_not_after);
-  if (tls_self_signed < 0)
-    sqlite3_bind_null(stmt, 5);
-  else
-    sqlite3_bind_int(stmt, 5, tls_self_signed ? 1 : 0);
+  if (rc == SQLITE_OK) {
+    if (tls_self_signed < 0)
+      rc = sqlite3_bind_null(stmt, 5);
+    else
+      rc = sqlite3_bind_int(stmt, 5, tls_self_signed ? 1 : 0);
+  }
   bind_or_null(6, tls_protocol);
   bind_or_null(7, tls_sha256);
-  sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 9, port);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 8, ip, -1, SQLITE_TRANSIENT);
+  if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 9, port);
 
-  int rc = sqlite3_step_retry(stmt);
+  if (rc == SQLITE_OK) rc = sqlite3_step_retry(stmt);
   sqlite3_finalize(stmt);
   return (rc == SQLITE_DONE) ? 0 : -1;
 }

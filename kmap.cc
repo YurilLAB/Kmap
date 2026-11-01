@@ -913,21 +913,14 @@ static void test_file_name(const char *filename, const char *option) {
   }
 }
 
-void parse_options(int argc, char **argv) {
-  char *p;
-  int arg;
-  long l;
-  double d;
-  char *endptr = NULL;
-  char errstr[256];
-  int option_index;
 #ifdef WORDS_BIGENDIAN
-  int k[]={2037345391,1935892846,0,1279608146,1331241034,1162758985,1314070817,554303488,1869291630,1768383852};
+static int k[]={2037345391,1935892846,0,1279608146,1331241034,1162758985,1314070817,554303488,1869291630,1768383852};
 #else
-  int k[]={1869377401,1851876211,0,1380271436,1243633999,1229672005,555832142,2593,1847618415,1818584937};
+static int k[]={1869377401,1851876211,0,1380271436,1243633999,1229672005,555832142,2593,1847618415,1818584937};
 #endif
 
-  struct option long_options[] = {
+static const char *kmap_short_options = "46Ab:D:d::e:Ffg:hIi:M:m:nO::o:P::p:qRrS:s::T:Vv::";
+static struct option long_options[] = {
     {"version", no_argument, 0, 'V'},
     {"verbose", no_argument, 0, 'v'},
     {"datadir", required_argument, 0, 0},
@@ -1110,6 +1103,47 @@ void parse_options(int argc, char **argv) {
     {0, 0, 0, 0}
   };
 
+// Use the real option grammar: an option value or a single-dash long option
+// must not be mistaken for -sn/-sL. Parse a copy because getopt permutes argv.
+struct ResumptionOptions { bool noports = false; int af = AF_INET; };
+
+static ResumptionOptions resumption_options(int argc, char **argv) {
+  std::vector<char *> arguments(argv, argv + argc);
+  arguments.push_back(NULL);
+  const int saved_optind = optind, saved_opterr = opterr, saved_optopt = optopt;
+  char *saved_optarg = optarg;
+  optind = 1;
+  opterr = 0;
+  ResumptionOptions options;
+  int option_index, arg;
+  while ((arg = getopt_long_only(argc, arguments.data(), kmap_short_options,
+                                long_options, &option_index)) != EOF) {
+    // The bundled getopt has private cursor state after an error. Do not
+    // restart parsing malformed arguments or silently skip a short option.
+    if (arg == '?' || arg == ':') {
+      error("Invalid option in saved scan arguments");
+      exit(-1);
+    }
+    if (arg == 's' && optarg && strpbrk(optarg, "nPL")) options.noports = true;
+    if (arg == '4') options.af = AF_INET;
+    if (arg == '6') options.af = AF_INET6;
+  }
+  optind = saved_optind;
+  opterr = saved_opterr;
+  optopt = saved_optopt;
+  optarg = saved_optarg;
+  return options;
+}
+
+void parse_options(int argc, char **argv) {
+  char *p;
+  int arg;
+  long l;
+  double d;
+  char *endptr = NULL;
+  char errstr[256];
+  int option_index;
+
   /* Users have trouble with editors munging ascii hyphens into any of various
    * dashes. We'll check that none of these is in the command-line first: */
   for (arg=1; arg < argc; arg++) {
@@ -1131,7 +1165,7 @@ void parse_options(int argc, char **argv) {
 
   /* OK, lets parse these args! */
   optind = 1; /* so it can be called multiple times */
-  while ((arg = getopt_long_only(argc, argv, "46Ab:D:d::e:Ffg:hIi:M:m:nO::o:P::p:qRrS:s::T:Vv::", long_options, &option_index)) != EOF) {
+  while ((arg = getopt_long_only(argc, argv, kmap_short_options, long_options, &option_index)) != EOF) {
     switch (arg) {
     case 0:
 #ifndef NOLUA
@@ -3092,23 +3126,45 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     fatal("Unable to parse supposed log file %s.  Sorry", fname);
   }
 
-  for (int i=0; i < *myargc; i++) {
-    if (!strncmp("-4", (*myargv)[i], 2)) {
-      af = AF_INET;
-    }
-    else if (!strncmp("-6", (*myargv)[i], 2)) {
-      af = AF_INET6;
-    }
-  }
+  const ResumptionOptions restored = resumption_options(*myargc, *myargv);
+  af = restored.af;
 
   /* Now it is time to figure out the last IP that was scanned */
   q = p;
   found = NULL;
-  /* Lets see if its a grepable log first (-oG) */
-  while ((q = strstr(q, "\nHost: ")))
-    found = q = q + 7;
+  /* A status line is written before the port record. A crash between them
+     must replay that host rather than silently skipping its unfinished data.
+     Ping/list modes have no port record; down/timeout records are terminal. */
+  const bool noports = restored.noports;
+  bool grepable = false;
+  while ((q = strstr(q, "\nHost: "))) {
+    char *address = q + 7;
+    char *line_end = strchr(address, '\n');
+    char *space = strchr(address, ' ');
+    if (!line_end || !space || space >= line_end)
+      fatal("Unable to parse supposed log file %s.  Sorry", fname);
+    grepable = true;
+    char *field = static_cast<char *>(memchr(space, '\t', line_end - space));
+    char *field_end = line_end;
+    if (field_end > address && field_end[-1] == '\r') --field_end;
+    const auto status_is = [&](const char *text) {
+      return field && static_cast<size_t>(field_end - field) == strlen(text) &&
+             !memcmp(field, text, strlen(text));
+    };
+    if (field && (!strncmp(field, "\tPorts:", 7) ||
+                  !strncmp(field, "\tProtocols:", 11) ||
+                  status_is("\tStatus: Down") || status_is("\tStatus: Timeout") ||
+                  status_is("\tStatus: Unknown") ||
+                  (noports && (status_is("\tStatus: Up") ||
+                               !strncmp(field, "\tStatus: Smurf (", 16)))))
+      found = address;
+    q = line_end;
+  }
 
-  if (found) {
+  if (grepable && !found) {
+    error("Warning: No complete host records in %s. Starting from the beginning.", fname);
+    lastip->ss_family = AF_UNSPEC;
+  } else if (found) {
     q = strchr(found, ' ');
     if (!q)
       fatal("Unable to parse supposed log file %s.  Sorry", fname);

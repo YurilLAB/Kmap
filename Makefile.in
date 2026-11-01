@@ -274,7 +274,7 @@ clean-nping:
 	-cd $(NPINGDIR) && $(MAKE) clean
 
 clean-tests:
-	@rm -f tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test
+	@rm -f tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test
 
 distclean-pcap:
 	-cd $(LIBPCAPDIR) && $(MAKE) distclean
@@ -371,8 +371,9 @@ tests/scheduler_progress_test: work_progress.h
 tests/joined_workers_test: joined_workers.h
 tests/persistence_boundary_test: persistence_boundary.h scan_checkpoint.h joined_workers.h
 tests/net_db_failure_test: net_db.h
+tests/net_db_bind_test: net_db.h enrichment_store.h net_enrich.h net_fp_helpers.h
 tests/net_db_lifecycle_test: net_db.h entity_graph.h third-party/nlohmann/json.hpp
-tests/net_db_failure_test tests/net_db_lifecycle_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test: CPPFLAGS += -I.
+tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test: CPPFLAGS += -I.
 tests/report_lifetime_test: output_json.h Target.h default_creds.h web_recon.h cve_map.h
 tests/enrichment_store_test: enrichment_store.h net_db.h net_enrich.h net_fp_helpers.h
 tests/watchlist_state_test: watchlist_state.h net_db.h
@@ -478,7 +479,7 @@ check-nsock:
 check-zekmap:
 	@cd $(ZEKMAPDIR)/test && $(PYTHON) run_tests.py
 
-check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test
+check-kmap: tests/kmap_dns_test tests/expr_match_test tests/os_profile_test tests/net_db_diff_test tests/net_db_fingerprint_test tests/net_db_topo_test tests/net_db_regression_test tests/entity_graph_json_test tests/topology_assemble_test tests/checkpoint_persistence_test tests/scheduler_progress_test tests/joined_workers_test tests/net_db_failure_test tests/net_db_bind_test tests/net_db_lifecycle_test tests/persistence_boundary_test tests/report_lifetime_test tests/enrichment_store_test tests/watchlist_state_test
 	@set -e; for test in $^; do ./$$test; done
 	$(PYTHON) tests/checkpoint_recovery.py ./tests/checkpoint_persistence_test
 

@@ -52,7 +52,8 @@ int reject_commit(void *context) {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size > 4096) return 0;
   Input input{data, size};
-  const unsigned fault = input.byte() % 3; // normal, row constraint, commit failure
+  const unsigned selector = input.byte();
+  const unsigned fault = selector % 4; // normal, row constraint, commit failure, bind failure
   const unsigned host_count = 1 + input.byte() % 3;
   const unsigned failed_host = input.byte() % host_count;
   std::vector<NetEnrichResult> records;
@@ -92,9 +93,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     sql(db, "CREATE TEMP TRIGGER reject_row BEFORE UPDATE ON hosts WHEN NEW.ip='" +
         records[failed_host].ip + "' AND NEW.port=10000 BEGIN SELECT RAISE(ABORT,'owned fixture'); END");
   }
+  if (fault == 3) {
+    // A bounded SQLITE_TOOBIG bind failure must never execute a partially
+    // bound UPDATE. Skipped/empty hosts and collection errors do not consume
+    // these fields, so they must retain their ordinary behavior.
+    sqlite3_limit(db, SQLITE_LIMIT_LENGTH, 1000);
+    if (selector & 4) records[failed_host].hostname.assign(1001, 'x');
+    else records[failed_host].services[0].assign(1001, 'x');
+  }
   int commit_calls = 0;
   if (fault == 2) sqlite3_commit_hook(db, reject_commit, &commit_calls);
-  const bool rejected = (fault == 1 && selected_active) || (fault == 2 && active_hosts != 0);
+  const bool rejected = (fault == 1 && selected_active) ||
+                        (fault == 2 && active_hosts != 0) ||
+                        (fault == 3 && selected_active && records[failed_host].rc == 0);
   const auto status = net_store_enrichment_results({db}, records, inert_cpe);
   sqlite3_commit_hook(db, nullptr, nullptr);
   require(status.failed_shards == (rejected ? 1 : 0));

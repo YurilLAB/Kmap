@@ -459,6 +459,14 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     }
   }
 
+  // Report deltas belong to the last successfully published scan. Enrichment
+  // can run more than once before publication succeeds, so hosts.prev_cves
+  // is not a stable baseline for retries. Legacy databases retain the same
+  // pre-scan fallback used for service/version changes until their next save.
+  std::map<std::string, std::string> previous_cves;
+  for (const auto &pe : prev_state)
+    previous_cves[pe.ip + ":" + std::to_string(pe.port)] = pe.cves;
+
   /* Scan each target -- using connect probes for the top ports.
    * We do NOT DELETE the hosts table before re-scanning.  The original
    * code wiped the table here, which destroyed first_seen, scan_count,
@@ -1362,7 +1370,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
    *
    * Renders every enrichment column the DB carries -- web title/server,
    * TLS subject/issuer, ASN+as_name+country, hostname, CVE deltas
-   * (prev_cves vs cves), scan_count for "how many times have we seen
+   * (completed snapshot vs current cves), scan_count for "how many times have we seen
    * this row".  The previous version dropped all of this on the floor
    * and only printed port/proto + service + version, leaving the
    * operator no choice but to inspect kmap-data/watchlist.db directly
@@ -1497,9 +1505,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
             }
           }
         }
-        /* Patch-status delta -- only when prev_cves was populated by a
-         * prior enrichment. */
-        if (!r.prev_cves.empty() && r.prev_cves != "[]" && r.prev_cves != r.cves) {
+        const auto prior = previous_cves.find(r.ip + ":" + std::to_string(r.port));
+        // Empty SQL cells and an empty JSON list both mean no known CVEs.
+        if (prior != previous_cves.end() &&
+            (prior->second.empty() ? "[]" : prior->second) !=
+            (r.cves.empty() ? "[]" : r.cves)) {
           fprintf(full_fp, "    NOTE:     CVE list changed since prior scan\n");
         }
       }
