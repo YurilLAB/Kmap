@@ -42,16 +42,32 @@ REQUEST_TIMEOUT = 120   # seconds per HTTP request
 # applied AFTER import (and via --apply-corrections-only) so the shipped DB and
 # every regeneration stay accurate. Verified against the CVE's own advisory.
 CORRECTIONS = [
-    # Introduced in OpenSSH 9.0/9.1, fixed in 9.2p1 (double-free in
-    # options.kex_algorithms). NVD omits the lower bound, so the row matched
-    # every OpenSSH back to the 2000s (e.g. 6.6.1p1) -- a false positive.
-    ("CVE-2023-25136", {"version_min": "9.0", "version_max": "9.1"}),
+    # Introduced in OpenSSH 9.1, fixed in 9.2p1 (double-free in
+    # options.kex_algorithms; OpenSSH 9.2 release notes). NVD omits the lower
+    # bound, so the row matched every OpenSSH back to the 2000s (e.g.
+    # 6.6.1p1) -- a false positive. The upper bound names the portable
+    # release: 9.1p1 sorts after a bare "9.1", which missed it.
+    ("CVE-2023-25136", {"version_min": "9.1", "version_max": "9.1p1"}),
     # ssh-agent PKCS#11 support was only ADDED in OpenSSH 5.4 (it replaced the
     # old libsectok/OpenSC smartcard code); the PKCS#11 search-path RCE cannot
     # exist in releases predating the feature. NVD gives only an upper bound
     # (before 9.3p2), so the row FP'd OpenSSH 5.3p1 and older. Add the lower
-    # bound at 5.4.
-    ("CVE-2023-38408", {"version_min": "5.4"}),
+    # bound at 5.4, and the fixed 9.3p2 as an exclusive upper bound (a bare
+    # inclusive "9.3" missed the vulnerable 9.3p1).
+    ("CVE-2023-38408", {"version_min": "5.4", "version_max": "9.3p2",
+                        "version_max_exclusive": 1}),
+    # OpenSSH client 6.8p1 through 9.9p1, fixed in 9.9p2 (Qualys advisory).
+    ("CVE-2025-26465", {"version_min": "6.8p1", "version_max": "9.9p1"}),
+    # These name the FIXED release ("before X") as an inclusive upper bound,
+    # so the patched release itself matched. Affected is < X.
+    ("CVE-2006-5051", {"version_max_exclusive": 1}),   # fixed 4.4
+    ("CVE-2016-6515", {"version_max_exclusive": 1}),   # fixed 7.3
+    ("CVE-2016-10009", {"version_max_exclusive": 1}),  # fixed 7.4
+    ("CVE-2016-10012", {"version_max_exclusive": 1}),  # fixed 7.4
+    ("CVE-2016-10708", {"version_max_exclusive": 1}),  # fixed 7.4
+    ("CVE-2021-28041", {"version_max_exclusive": 1}),  # fixed 8.5
+    ("CVE-2021-41617", {"version_max_exclusive": 1}),  # fixed 8.8
+    ("CVE-2025-61984", {"version_max_exclusive": 1}),  # fixed 10.1
     # "IngressNightmare" is an unauth RCE in the Kubernetes ingress-nginx
     # Controller (< 1.11.5 / < 1.12.1), NOT the nginx web server. Re-tag the
     # product so it can never match a plain nginx banner.
@@ -69,8 +85,9 @@ CORRECTIONS = [
     ("CVE-2024-38474", {"version_max_exclusive": 1}),  # mod_rewrite, fixed 2.4.60
     # regreSSHion: NVD row had version_max=4.4 with no lower bound, so it both
     # FP'd ancient OpenSSH (<=4.4) and MISSED the real vulnerable range. The
-    # primary modern vulnerable range is 8.5p1..9.7p1.
-    ("CVE-2024-6387", {"version_min": "8.5", "version_max": "9.7"}),
+    # primary modern vulnerable range is 8.5p1..9.7p1 (fixed in 9.8p1); a bare
+    # "9.7" bound missed 9.7p1, which sorts after it.
+    ("CVE-2024-6387", {"version_min": "8.5", "version_max": "9.7p1"}),
     # ALPACA is a cross-protocol TLS attack, not an nginx-version flaw; tagged
     # product=nginx with version_max=1.21.0 it flagged the whole pre-1.21 nginx
     # base. Re-tag to a product no banner maps to, so it can never fire.
