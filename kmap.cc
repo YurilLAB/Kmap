@@ -459,13 +459,17 @@ static bool parse_kmap_option(const char *name, const char *arg) {
       fatal("--efficient and --fast are mutually exclusive");
     o.perf_mode = 2; /* KMAP_PERF_FAST */
     return true;
-  } else if (strcmp(name, "fast-cpu-percent") == 0) {
-    o.fast_cpu_percent = parse_float_arg("fast-cpu-percent", arg, 1.0, 100.0);
-    if (o.perf_mode != 1) o.perf_mode = 2; /* implies --fast tuning */
-    return true;
-  } else if (strcmp(name, "fast-mem-percent") == 0) {
-    o.fast_mem_percent = parse_float_arg("fast-mem-percent", arg, 1.0, 100.0);
-    if (o.perf_mode != 1) o.perf_mode = 2; /* implies --fast tuning */
+  } else if (strcmp(name, "fast-cpu-percent") == 0 ||
+             strcmp(name, "fast-mem-percent") == 0) {
+    /* Either share implies --fast, so it conflicts with --efficient in any
+       order (the efficient profile would silently ignore the share). */
+    if (o.perf_mode == 1 /* KMAP_PERF_EFFICIENT */)
+      fatal("--%s implies --fast; --efficient and --fast are mutually exclusive", name);
+    if (strcmp(name, "fast-cpu-percent") == 0)
+      o.fast_cpu_percent = parse_float_arg(name, arg, 1.0, 100.0);
+    else
+      o.fast_mem_percent = parse_float_arg(name, arg, 1.0, 100.0);
+    o.perf_mode = 2; /* KMAP_PERF_FAST */
     return true;
   }
   return false;

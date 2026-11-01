@@ -237,6 +237,16 @@ def main():
                 "invalid option did not produce its expected diagnostic")
         runner.run("invalid-port", [binary, "--unprivileged", "-n", "-Pn", "-sT",
                                     "-p", "invalid-port", "127.0.0.1"], timeout=10, expect_success=False)
+        # A --fast share implies --fast, so --efficient conflicts in either order.
+        for index, flags in enumerate((["--efficient", "--fast-cpu-percent", "85"],
+                                       ["--fast-mem-percent", "60", "--efficient"])):
+            name = f"perf-conflict-{index}"
+            runner.run(name, [binary, *flags, "--unprivileged", "-n", "-Pn", "-sT",
+                              "-p", "1", "127.0.0.1"], timeout=10, expect_success=False)
+            diagnostic = (runner.artifacts / (name + ".stderr.log")).read_text(
+                encoding="utf-8", errors="replace")
+            require("mutually exclusive" in diagnostic,
+                    f"{' '.join(flags)} was not rejected as conflicting")
         with http_fixture(runner.artifacts) as open_port, socket.socket() as reserved:
             # Reserve a port WITHOUT listening, preventing another process from
             # claiming it while Kmap verifies connection-refused handling.
