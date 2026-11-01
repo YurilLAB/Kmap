@@ -129,7 +129,7 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
 
-$(srcdir)/configure: $(srcdir)/configure.ac $(srcdir)/../m4/kmap_hardening.m4 $(CONFIGURE_DEPENDENCIES)
+$(srcdir)/configure: $(srcdir)/configure.ac $(CONFIGURE_DEPENDENCIES)
 	cd $(srcdir) && autoconf
 
 config.h:

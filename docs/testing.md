@@ -35,6 +35,7 @@ It requires Autoconf, make and readelf:
 ```sh
 python3 tests/configure_hardening_test.py
 python3 tests/subtool_ssp_test.py
+python3 tests/distributed_configure_test.py
 ```
 
 Nping and Ncat independently probe their own compiler driver for the stack
@@ -43,6 +44,19 @@ archives built by Kmap, including libnetutil and Lua, without changing the
 helpers' compile flags. The subtool regression executes their actual link
 recipes against an archive requiring a separate runtime and verifies that
 removing the driver option fails at the linker.
+
+Normal builds use the checked-in configure scripts and do not require Autoconf.
+After editing `m4/kmap_hardening.m4`, maintainers must explicitly regenerate all
+three scripts with Autoconf and commit them together with the macro:
+
+```sh
+autoconf
+(cd nping && autoconf)
+(cd ncat && autoconf)
+```
+
+The distributed-configure regression checks the actual Makefile rules with
+the macro newer than the generated scripts and no Autoconf on `PATH`.
 
 `make check-kmap` builds the application and its libraries first and stops when
 any test fails. It includes storage migration rollback, missing latency batches,

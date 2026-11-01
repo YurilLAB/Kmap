@@ -142,7 +142,7 @@ uninstall-nping:
 	rm -f $(DESTDIR)$(bindir)/$(TARGET)
 	rm -f $(DESTDIR)$(mandir)/man1/$(TARGET).1
 
-${srcdir}/configure: ${srcdir}/configure.ac ${srcdir}/../m4/kmap_hardening.m4
+${srcdir}/configure: ${srcdir}/configure.ac
 	cd ${srcdir} && autoconf
 
 ## autoheader might not change config.h.in, so touch a stamp file.

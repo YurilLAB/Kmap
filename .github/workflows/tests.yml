@@ -48,6 +48,9 @@ jobs:
       - name: Subtool stack-protector runtime propagation
         run: python3 tests/subtool_ssp_test.py
 
+      - name: Distributed configure scripts without Autoconf
+        run: python3 tests/distributed_configure_test.py
+
       - name: Configure + build
         run: |
           set -euo pipefail
