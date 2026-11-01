@@ -479,10 +479,13 @@ def insert_rows(conn, rows):
             conn.execute(
                 """INSERT OR IGNORE INTO cves
                    (cve_id, product, vendor, version_min, version_max,
+                    version_min_exclusive, version_max_exclusive,
                     cvss_score, severity, description)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (row["cve_id"], row["product"], row["vendor"],
                  row["version_min"], row["version_max"],
+                 row.get("version_min_exclusive", 0),
+                 row.get("version_max_exclusive", 0),
                  row["cvss_score"], row["severity"], row["description"])
             )
             if conn.execute("SELECT changes()").fetchone()[0]:
@@ -516,7 +519,8 @@ def apply_corrections(conn):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def process_year(conn, year):
-    """Try to download and import CVE data for a single year. Returns inserted count."""
+    """Download and import one year. Returns the inserted count, or None when
+    neither feed could be downloaded."""
     print(f"\n[{year}] Downloading NVD 2.0 feed…", flush=True)
     url_2 = NVD_2_0_URL.format(year=year)
     data = fetch_gz(url_2)
@@ -535,7 +539,7 @@ def process_year(conn, year):
             parser = parse_nvd_1_1
         else:
             print(f"  Both feeds unavailable for {year}, skipping.", flush=True)
-            return 0
+            return None
 
     rows = parser(data)
     print(f"  Parsed {len(rows)} relevant CVE entries", flush=True)
@@ -587,7 +591,9 @@ def main():
     for year in years:
         try:
             n = process_year(conn, year)
-            if n >= 0:
+            if n is None:
+                failed.append(year)
+            else:
                 succeeded.append(year)
                 total_inserted += n
         except Exception as e:

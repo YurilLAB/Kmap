@@ -16,6 +16,8 @@ on:
       - "m4/**"
       - "tests/**"
       - "scripts/update_epss_kev.py"
+      - "scripts/update_cves.py"
+      - "scripts/add_cves.py"
       - "ncat/test/test-addrset.sh"
     branches:
       - master
@@ -69,6 +71,9 @@ jobs:
 
       - name: Offline vulnerability feed refresh contracts
         run: python3 tests/update_epss_kev_test.py
+
+      - name: Offline CVE import contracts
+        run: python3 tests/update_cves_test.py
 
       - name: Inherited Ncat, Nsock and NSE unit suites
         run: timeout 180 make check-ncat check-nsock check-nse

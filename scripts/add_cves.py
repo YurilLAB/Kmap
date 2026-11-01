@@ -279,7 +279,10 @@ def main():
     inserted = 0
     skipped = 0
     for row in NEW_CVES:
-        c.execute('INSERT OR IGNORE INTO cves VALUES (?,?,?,?,?,?,?,?)', row)
+        # Name the columns: the shipped table has more than these eight.
+        c.execute('INSERT OR IGNORE INTO cves (cve_id, product, vendor, '
+                  'version_min, version_max, cvss_score, severity, description) '
+                  'VALUES (?,?,?,?,?,?,?,?)', row)
         if c.rowcount > 0:
             inserted += 1
         else:
