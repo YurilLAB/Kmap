@@ -34,7 +34,15 @@ It requires Autoconf, make and readelf:
 
 ```sh
 python3 tests/configure_hardening_test.py
+python3 tests/subtool_ssp_test.py
 ```
+
+Nping and Ncat independently probe their own compiler driver for the stack
+runtime link option. Their configured Makefiles retain that option for shared
+archives built by Kmap, including libnetutil and Lua, without changing the
+helpers' compile flags. The subtool regression executes their actual link
+recipes against an archive requiring a separate runtime and verifies that
+removing the driver option fails at the linker.
 
 `make check-kmap` builds the application and its libraries first and stops when
 any test fails. It includes storage migration rollback, missing latency batches,

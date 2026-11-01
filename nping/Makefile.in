@@ -47,7 +47,7 @@ CPPFLAGS = @CPPFLAGS@ -I$(NBASEDIR) -I$(NSOCKDIR)/include
 export CFLAGS = $(CXXFLAGS)
 # CFLAGS = $(DEFS) $(INCLS)
 STATIC =
-LDFLAGS = @LDFLAGS@ $(DBGFLAGS) $(STATIC)
+LDFLAGS = @KMAP_SSP_LDFLAGS@ @LDFLAGS@ $(DBGFLAGS) $(STATIC)
 OPENSSL_LIBS = @OPENSSL_LIBS@
 LIBS =  $(NSOCKDIR)/src/libnsock.a ../libnetutil/libnetutil.a $(NBASEDIR)/libnbase.a $(OPENSSL_LIBS) @LIBPCAP_LIBS@ @LIBDNET_LIBS@ @LIBS@
 # LIBS =  -lefence @LIBS@
@@ -142,7 +142,7 @@ uninstall-nping:
 	rm -f $(DESTDIR)$(bindir)/$(TARGET)
 	rm -f $(DESTDIR)$(mandir)/man1/$(TARGET).1
 
-${srcdir}/configure: configure.ac
+${srcdir}/configure: ${srcdir}/configure.ac ${srcdir}/../m4/kmap_hardening.m4
 	cd ${srcdir} && autoconf
 
 ## autoheader might not change config.h.in, so touch a stamp file.

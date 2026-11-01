@@ -18,12 +18,39 @@ AC_DEFUN([KMAP_STACK_PROTECTOR], [
   AC_LANG_POP([$1])
 ])
 
-AC_DEFUN([KMAP_CHECK_HARDENING], [
+AC_DEFUN([KMAP_HARDENING_OPTION], [
   AC_ARG_ENABLE([hardening],
     [AS_HELP_STRING([--disable-hardening], [omit automatically detected stack/RELRO flags])],
     [], [enable_hardening=yes])
   AS_CASE([$enable_hardening], [yes|no], [],
     [AC_MSG_ERROR([--enable-hardening accepts only yes or no])])
+])
+
+dnl Helper executables can consume archives built by the parent with stack
+dnl protection even when their own compile flags are unchanged. Detect runtime
+dnl support with the helper's actual driver and persist the link option.
+AC_DEFUN([KMAP_CHECK_SSP_LINK], [
+  KMAP_HARDENING_OPTION
+  KMAP_SSP_LDFLAGS=
+  if test "$enable_hardening" = yes; then
+    kmap_link_saved_flags="$$2"
+    kmap_link_saved_c_werror_flag=$ac_c_werror_flag
+    kmap_link_saved_cxx_werror_flag=$ac_cxx_werror_flag
+    ac_c_werror_flag=yes
+    ac_cxx_werror_flag=yes
+    KMAP_STACK_PROTECTOR([$1], [$2])
+    if test "$kmap_stack_protector" != none; then
+      KMAP_SSP_LDFLAGS=$kmap_stack_protector
+    fi
+    $2="$kmap_link_saved_flags"
+    ac_c_werror_flag=$kmap_link_saved_c_werror_flag
+    ac_cxx_werror_flag=$kmap_link_saved_cxx_werror_flag
+  fi
+  AC_SUBST([KMAP_SSP_LDFLAGS])
+])
+
+AC_DEFUN([KMAP_CHECK_HARDENING], [
+  KMAP_HARDENING_OPTION
   KMAP_SSP_LDFLAGS=
   if test "$enable_hardening" = yes; then
     dnl Some drivers warn and ignore unknown options. Reject those probes too,

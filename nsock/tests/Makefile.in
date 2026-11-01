@@ -30,7 +30,7 @@ EXE = tests_main
 all: $(SRC) $(EXE)
 
 $(EXE): $(OBJ)
-	$(CC) $(LDFLAGS) $(OBJ) -o $@ $(NSOCKLIB) $(NBASELIB) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $@ $(NSOCKLIB) $(NBASELIB) $(LIBS)
 
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@

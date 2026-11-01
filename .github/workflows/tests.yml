@@ -45,6 +45,9 @@ jobs:
       - name: Configure hardening feature probes and flag overrides
         run: python3 tests/configure_hardening_test.py
 
+      - name: Subtool stack-protector runtime propagation
+        run: python3 tests/subtool_ssp_test.py
+
       - name: Configure + build
         run: |
           set -euo pipefail

@@ -49,7 +49,7 @@ NBASELIB = $(NBASEDIR)/libnbase.a
 CC = @CC@
 CPPFLAGS = @CPPFLAGS@
 CFLAGS = @CFLAGS@
-LDFLAGS = @LDFLAGS@
+LDFLAGS = @KMAP_SSP_LDFLAGS@ @LDFLAGS@
 LIBS = @LIBS@
 DEFS = @DEFS@ -DNCAT_DATADIR="\"$(pkgdatadir)\""
 # With GCC, add extra security checks to source code.
@@ -129,7 +129,7 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
 
-$(srcdir)/configure: $(srcdir)/configure.ac $(CONFIGURE_DEPENDENCIES)
+$(srcdir)/configure: $(srcdir)/configure.ac $(srcdir)/../m4/kmap_hardening.m4 $(CONFIGURE_DEPENDENCIES)
 	cd $(srcdir) && autoconf
 
 config.h:

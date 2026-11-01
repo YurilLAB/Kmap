@@ -29,6 +29,8 @@ AC_ARG_WITH(openssl,[  --with-openssl=DIR    Use optional openssl libs and inclu
 
 # Checks for programs.
 AC_PROG_CC
+m4_include([../m4/kmap_hardening.m4])
+KMAP_CHECK_SSP_LINK([C], [CFLAGS])
 if test -n "$GCC"; then
   CFLAGS="$CFLAGS -Wall"
 fi

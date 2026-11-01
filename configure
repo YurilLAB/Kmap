@@ -5290,6 +5290,11 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+
+
+
+
+
   # Check whether --enable-hardening was given.
 if test ${enable_hardening+y}
 then :
@@ -5304,6 +5309,7 @@ fi
   *) :
     as_fn_error $? "--enable-hardening accepts only yes or no" "$LINENO" 5 ;;
 esac
+
   KMAP_SSP_LDFLAGS=
   if test "$enable_hardening" = yes; then
             kmap_saved_c_werror_flag=$ac_c_werror_flag
