@@ -228,6 +228,23 @@ static void test_topo_edge_null_sample_keeps_prior_average(sqlite3 *db) {
   }
 }
 
+/* A later trace whose ASN lookup failed reports no boundary; it must not
+   erase a boundary observed when both ASNs were known. */
+static void test_topo_edge_keeps_known_asn_boundary(sqlite3 *db) {
+  NetTopoEdge e{};
+  e.from_u32 = ip_to_u32("10.9.0.1");
+  e.to_u32   = ip_to_u32("10.9.0.2");
+  e.asn_boundary = 1;
+  e.avg_latency_ms = 5.0;
+  e.last_seen = 1000;
+  CHECK(net_db_upsert_topo_edge(db, e) == 0);
+  e.asn_boundary = 0;
+  e.last_seen = 2000;
+  CHECK(net_db_upsert_topo_edge(db, e) == 0);
+  auto outs = net_db_get_topo_edges_from(db, e.from_u32);
+  CHECK(outs.size() == 1 && outs[0].asn_boundary == 1 && outs[0].last_seen == 2000);
+}
+
 static void test_high_ip_topo_roundtrip(sqlite3 *db) {
   /* Same uint32-as-int64 round-trip check as fingerprints. */
   uint32_t hi = ip_to_u32("220.10.20.30");
@@ -263,6 +280,7 @@ int main() {
   test_topo_edge_null_sample_keeps_prior_average(db);
   test_topo_batched_path_count(db);
   test_topo_edge_batched_running_mean(db);
+  test_topo_edge_keeps_known_asn_boundary(db);
   test_high_ip_topo_roundtrip(db);
 
   net_db_close(db);

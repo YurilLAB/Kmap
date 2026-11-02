@@ -1526,7 +1526,9 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
     "   latency_sample_count) "
     "VALUES (?, ?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(from_u32, to_u32) DO UPDATE SET "
-    "  asn_boundary   = excluded.asn_boundary, "
+    /* Node ASNs survive a run whose lookup failed (asn 0 keeps the stored
+       value), and such a run reports no boundary; keep a known one. */
+    "  asn_boundary   = MAX(asn_boundary, excluded.asn_boundary), "
     "  avg_latency_ms = CASE WHEN excluded.avg_latency_ms IS NOT NULL "
     "                        THEN COALESCE(avg_latency_ms, 0.0) + "
     "                             excluded.latency_sample_count * "
