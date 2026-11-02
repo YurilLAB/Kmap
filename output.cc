@@ -829,8 +829,10 @@ void printportoutput(const Target *currenths, const PortList *plist) {
   // Now we write the table for the user
   {
     const char *raw_table = Tbl->printableTable(nullptr);
-    std::string colored = Color::colorize_port_table(raw_table ? raw_table : "");
-    log_write(LOG_PLAIN, "%s", colored.c_str());
+    const std::string plain = raw_table ? raw_table : "";
+    /* Color only the terminal copy: -oN/-oS files stay plain text. */
+    log_write(LOG_STDOUT, "%s", Color::colorize_port_table(plain).c_str());
+    log_write(LOG_NORMAL | LOG_SKID, "%s", plain.c_str());
   }
   delete Tbl;
 
@@ -1393,11 +1395,13 @@ static char *num_to_string_sigdigits(double d, int digits) {
 void write_host_header(const Target *currenths) {
   if ((currenths->flags & HOST_UP) || o.verbose || o.always_resolve) {
     if (currenths->flags & HOST_UP) {
-      std::string header = Color::bold_cyan(std::string("Kmap scan report for ") + currenths->NameIP());
-      log_write(LOG_PLAIN, "%s\n", header.c_str());
+      std::string header = std::string("Kmap scan report for ") + currenths->NameIP();
+      log_write(LOG_STDOUT, "%s\n", Color::bold_cyan(header).c_str());
+      log_write(LOG_NORMAL | LOG_SKID, "%s\n", header.c_str());
     } else if (currenths->flags & HOST_DOWN) {
-      std::string header = Color::bold_cyan(std::string("Kmap scan report for ") + currenths->NameIP());
-      log_write(LOG_PLAIN, "%s [host down", header.c_str());
+      std::string header = std::string("Kmap scan report for ") + currenths->NameIP();
+      log_write(LOG_STDOUT, "%s [host down", Color::bold_cyan(header).c_str());
+      log_write(LOG_NORMAL | LOG_SKID, "%s [host down", header.c_str());
       if (o.reason)
         log_write(LOG_PLAIN, ", %s", target_reason_str(currenths));
       log_write(LOG_PLAIN, "]\n");

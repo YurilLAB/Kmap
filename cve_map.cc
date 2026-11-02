@@ -693,21 +693,25 @@ void print_cve_map_output(const Target *t) {
         entry += epss_buf;
       }
 
+      std::string colored = entry;
       if (Color::enabled()) {
         if (cve.severity == "CRITICAL")
-          entry = Color::red(entry);
+          colored = Color::red(entry);
         else if (cve.severity == "HIGH")
-          entry = Color::yellow(entry);
+          colored = Color::yellow(entry);
       }
 
       /* KEV is the strongest signal -- always flag it (and ransomware use),
          in red regardless of CVSS severity so it stands out. */
       if (cve.kev) {
         std::string tag = cve.kev_ransomware ? "  [KEV+RANSOMWARE]" : "  [KEV]";
-        entry += Color::enabled() ? Color::red(tag) : tag;
+        colored += Color::enabled() ? Color::red(tag) : tag;
+        entry += tag;
       }
 
-      log_write(LOG_PLAIN, "%s\n", entry.c_str());
+      /* Color only the terminal copy: -oN/-oS files stay plain text. */
+      log_write(LOG_STDOUT, "%s\n", colored.c_str());
+      log_write(LOG_NORMAL | LOG_SKID, "%s\n", entry.c_str());
 
       /* Description — truncate to 76 chars */
       std::string desc = cve.description;

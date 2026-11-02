@@ -104,7 +104,13 @@ def main():
                                 "-n", "-Pn", "-sT", "-sV", "--version-light",
                                 "--max-retries", "0", "--host-timeout", "60s",
                                 "--cve-map", "-p", ",".join(map(str, ports)),
+                                "--color=always", "-oN", str(runner.artifacts / "scan.nmap"),
                                 "-oJ", str(out), "127.0.0.1"], timeout=120)
+        # Color is for the terminal only; the -oN log must stay plain text.
+        require("\x1b[" in (runner.artifacts / "scan.stdout.log").read_text(errors="replace"),
+                "--color=always did not color the terminal output")
+        require("\x1b" not in (runner.artifacts / "scan.nmap").read_text(errors="replace"),
+                "ANSI escapes were written to the -oN file")
         hosts = json.loads(out.read_text(encoding="utf-8"))["hosts"]
         require(len(hosts) == 1, "expected one scanned host")
         matched = {}
