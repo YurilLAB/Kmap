@@ -1557,14 +1557,20 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge) {
 }
 
 static std::vector<NetTopoEdge>
-edge_rows(sqlite3 *db, const char *sql, uint32_t bind_u32) {
+edge_rows(sqlite3 *db, const char *sql, uint32_t bind_u32, std::string *error) {
   std::vector<NetTopoEdge> out;
-  if (!db) return out;
-  sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  if (!db) {
+    if (error) *error = "no topology database";
     return out;
+  }
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    if (error) *error = sqlite3_errmsg(db);
+    return out;
+  }
   sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(bind_u32));
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  int step;
+  while ((step = sqlite3_step(stmt)) == SQLITE_ROW) {
     NetTopoEdge e;
     e.from_u32       = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
     e.to_u32         = static_cast<uint32_t>(sqlite3_column_int64(stmt, 1));
@@ -1576,28 +1582,34 @@ edge_rows(sqlite3 *db, const char *sql, uint32_t bind_u32) {
     e.latency_sample_count = sqlite3_column_int64(stmt, 6);
     out.push_back(std::move(e));
   }
+  /* A read error mid-scan is not "no more edges". */
+  if (step != SQLITE_DONE && error) *error = sqlite3_errmsg(db);
   sqlite3_finalize(stmt);
   return out;
 }
 
 std::vector<NetTopoEdge>
-net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32) {
+net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32, std::string *error) {
   return edge_rows(db,
     "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
     "path_count, last_seen, latency_sample_count FROM topo_edges WHERE from_u32 = ?",
-    from_u32);
+    from_u32, error);
 }
 
 std::vector<NetTopoEdge>
-net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32) {
+net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32, std::string *error) {
   return edge_rows(db,
     "SELECT from_u32, to_u32, asn_boundary, avg_latency_ms, "
     "path_count, last_seen, latency_sample_count FROM topo_edges WHERE to_u32 = ?",
-    to_u32);
+    to_u32, error);
 }
 
-bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out) {
-  if (!db || !out) return false;
+bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out,
+                          std::string *error) {
+  if (!db || !out) {
+    if (error) *error = "invalid topology node lookup";
+    return false;
+  }
   static const char *sql =
     "SELECT n.ip_u32, "
     "       COALESCE(h.val, ''), "
@@ -1614,12 +1626,16 @@ bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out) {
     "WHERE n.ip_u32 = ?";
 
   sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    if (error) *error = sqlite3_errmsg(db);
     return false;
+  }
   sqlite3_bind_int64(stmt, 1, static_cast<int64_t>(ip_u32));
 
   bool found = false;
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
+  const int step = sqlite3_step(stmt);
+  if (step != SQLITE_ROW && step != SQLITE_DONE && error) *error = sqlite3_errmsg(db);
+  if (step == SQLITE_ROW) {
     out->ip_u32     = static_cast<uint32_t>(sqlite3_column_int64(stmt, 0));
     const unsigned char *h = sqlite3_column_text(stmt, 1);
     out->hostname   = h ? reinterpret_cast<const char *>(h) : "";

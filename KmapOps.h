@@ -355,7 +355,7 @@ class KmapOps {
   char *topo_format;         /* "dot" or "json" (default "json") */
   uint32_t topo_around_ip;   /* If non-zero, restrict to neighborhood of this IP */
   int  topo_around_depth;    /* BFS depth for --topo-around (default 1) */
-  int  topo_asn_filter;      /* If non-zero, restrict to nodes in this ASN */
+  int64_t topo_asn_filter;  /* If non-zero, restrict to nodes in this ASN */
   /* --spoof-os: OS fingerprint spoofing profile name for net-scan probes
      (TTL, RCVBUF, HTTP User-Agent + Accept-* headers). NULL = no spoofing.
      Validated against os_profile_is_valid() at parse time. */

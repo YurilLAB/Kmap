@@ -2533,7 +2533,7 @@ static std::string json_escape_topo(const std::string &s) {
 #define BFS_NODE_CAP 50000
 
 static std::set<uint32_t>
-bfs_neighborhood(sqlite3 *db, uint32_t start, int depth) {
+bfs_neighborhood(sqlite3 *db, uint32_t start, int depth, std::string *error) {
   std::set<uint32_t> seen;
   std::vector<uint32_t> frontier;
   seen.insert(start);
@@ -2543,8 +2543,9 @@ bfs_neighborhood(sqlite3 *db, uint32_t start, int depth) {
     std::vector<uint32_t> next;
     for (uint32_t u : frontier) {
       if (seen.size() >= BFS_NODE_CAP) { capped = true; break; }
-      auto outs = net_db_get_topo_edges_from(db, u);
-      auto ins  = net_db_get_topo_edges_to  (db, u);
+      auto outs = net_db_get_topo_edges_from(db, u, error);
+      auto ins  = net_db_get_topo_edges_to  (db, u, error);
+      if (!error->empty()) return seen;
       for (const auto &e : outs) {
         if (seen.size() >= BFS_NODE_CAP) { capped = true; break; }
         if (seen.insert(e.to_u32).second)   next.push_back(e.to_u32);
@@ -2563,6 +2564,22 @@ bfs_neighborhood(sqlite3 *db, uint32_t start, int depth) {
             "Try a smaller --topo-around-depth.\n", BFS_NODE_CAP);
   }
   return seen;
+}
+
+/* Collect the ip_u32 column of a node query; a read error sets *error. */
+static void topo_node_ids(sqlite3 *db, const char *sql, int64_t bind,
+                          std::set<uint32_t> &out, std::string *error) {
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    *error = sqlite3_errmsg(db);
+    return;
+  }
+  sqlite3_bind_int64(stmt, 1, bind);
+  int step;
+  while ((step = sqlite3_step(stmt)) == SQLITE_ROW)
+    out.insert(static_cast<uint32_t>(sqlite3_column_int64(stmt, 0)));
+  if (step != SQLITE_DONE) *error = sqlite3_errmsg(db);
+  sqlite3_finalize(stmt);
 }
 
 int run_topo_export_cli() {
@@ -2584,44 +2601,47 @@ int run_topo_export_cli() {
   }
 
   /* Build the include-set of nodes.  Order of precedence:
-       --topo-around > --topo-asn > everything (capped). */
+       --topo-around > --topo-asn > everything (capped).
+     Every read is checked: a corrupt store must fail the export rather
+     than produce a smaller graph that looks complete. */
   std::set<uint32_t> include_nodes;
+  std::string read_error;
 
   if (o.topo_around_ip != 0) {
     include_nodes = bfs_neighborhood(db, o.topo_around_ip,
-                                     o.topo_around_depth);
+                                     o.topo_around_depth, &read_error);
   } else if (o.topo_asn_filter != 0) {
-    sqlite3_stmt *stmt = nullptr;
-    if (sqlite3_prepare_v2(db,
-          "SELECT ip_u32 FROM topo_nodes WHERE asn = ?",
-          -1, &stmt, nullptr) == SQLITE_OK) {
-      sqlite3_bind_int64(stmt, 1, o.topo_asn_filter);
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
-        include_nodes.insert(
-          static_cast<uint32_t>(sqlite3_column_int64(stmt, 0)));
-      }
-      sqlite3_finalize(stmt);
-    }
+    topo_node_ids(db, "SELECT ip_u32 FROM topo_nodes WHERE asn = ?",
+                  o.topo_asn_filter, include_nodes, &read_error);
   } else {
     /* No filter: include everything up to a sanity cap so a 50M-node
        graph doesn't produce a 5 GB DOT file. */
-    const int64_t cap = 100000;
-    sqlite3_stmt *stmt = nullptr;
-    if (sqlite3_prepare_v2(db,
-          "SELECT ip_u32 FROM topo_nodes ORDER BY path_count DESC LIMIT ?",
-          -1, &stmt, nullptr) == SQLITE_OK) {
-      sqlite3_bind_int64(stmt, 1, cap);
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
-        include_nodes.insert(
-          static_cast<uint32_t>(sqlite3_column_int64(stmt, 0)));
-      }
-      sqlite3_finalize(stmt);
-    }
+    topo_node_ids(db, "SELECT ip_u32 FROM topo_nodes ORDER BY path_count DESC LIMIT ?",
+                  100000, include_nodes, &read_error);
   }
 
-  if (include_nodes.empty()) {
+  /* Read the nodes and the edges between them before opening the output,
+     so a read failure cannot leave a truncated export behind. */
+  std::vector<NetTopoNode> nodes;
+  std::vector<NetTopoEdge> edges;
+  for (uint32_t u : include_nodes) {
+    if (!read_error.empty()) break;
+    NetTopoNode n{};
+    if (net_db_get_topo_node(db, u, &n, &read_error)) nodes.push_back(n);
+  }
+  for (uint32_t u : include_nodes) {
+    if (!read_error.empty()) break;
+    for (const auto &e : net_db_get_topo_edges_from(db, u, &read_error))
+      if (include_nodes.count(e.to_u32)) edges.push_back(e);
+  }
+  net_db_close(db);
+
+  if (!read_error.empty()) {
+    fprintf(stderr, "topo-export: cannot read %s: %s\n", topo_path, read_error.c_str());
+    return 1;
+  }
+  if (nodes.empty()) {
     fprintf(stderr, "topo-export: no nodes match the filter\n");
-    net_db_close(db);
     return 1;
   }
 
@@ -2630,7 +2650,6 @@ int run_topo_export_cli() {
   if (!fp) {
     fprintf(stderr, "topo-export: cannot open output %s: %s\n",
             o.topo_export_file, output_error.c_str());
-    net_db_close(db);
     return 1;
   }
 
@@ -2641,10 +2660,8 @@ int run_topo_export_cli() {
     fprintf(fp, "  graph [layout=sfdp, overlap=false, splines=true];\n");
     fprintf(fp, "  node  [shape=ellipse, style=filled];\n");
     /* Emit nodes first so DOT positions them stably. */
-    for (uint32_t u : include_nodes) {
-      NetTopoNode n{};
-      if (!net_db_get_topo_node(db, u, &n)) continue;
-      std::string ip_s = u32_to_ip(u);
+    for (const NetTopoNode &n : nodes) {
+      std::string ip_s = u32_to_ip(n.ip_u32);
       const char *color = (n.role == "target") ? "#ff6b6b"
                         : (n.role == "hub")    ? "#ffd93d"
                         : (n.role == "ixp")    ? "#a78bfa"
@@ -2653,16 +2670,12 @@ int run_topo_export_cli() {
               ip_s.c_str(), color, ip_s.c_str(), n.asn);
     }
     /* Edges between included nodes only. */
-    for (uint32_t u : include_nodes) {
-      auto outs = net_db_get_topo_edges_from(db, u);
-      for (const auto &e : outs) {
-        if (include_nodes.count(e.to_u32) == 0) continue;
-        const char *style = e.asn_boundary ? "dashed" : "solid";
-        fprintf(fp, "  \"%s\" -> \"%s\" [style=%s, label=\"%.1fms\"];\n",
-                u32_to_ip(e.from_u32).c_str(),
-                u32_to_ip(e.to_u32).c_str(),
-                style, e.avg_latency_ms);
-      }
+    for (const NetTopoEdge &e : edges) {
+      const char *style = e.asn_boundary ? "dashed" : "solid";
+      fprintf(fp, "  \"%s\" -> \"%s\" [style=%s, label=\"%.1fms\"];\n",
+              u32_to_ip(e.from_u32).c_str(),
+              u32_to_ip(e.to_u32).c_str(),
+              style, e.avg_latency_ms);
     }
     fprintf(fp, "}\n");
   } else {
@@ -2670,15 +2683,13 @@ int run_topo_export_cli() {
        ingestion (cytoscape, d3-force, gephi, etc). */
     fprintf(fp, "{\n  \"nodes\": [\n");
     bool first = true;
-    for (uint32_t u : include_nodes) {
-      NetTopoNode n{};
-      if (!net_db_get_topo_node(db, u, &n)) continue;
+    for (const NetTopoNode &n : nodes) {
       fprintf(fp,
         "%s    { \"ip\": \"%s\", \"hostname\": \"%s\", \"asn\": %u, "
         "\"as_name\": \"%s\", \"country\": \"%s\", \"role\": \"%s\", "
         "\"path_count\": %lld, \"avg_rtt_ms\": %.3f }",
         first ? "" : ",\n",
-        u32_to_ip(u).c_str(),
+        u32_to_ip(n.ip_u32).c_str(),
         json_escape_topo(n.hostname).c_str(),
         n.asn,
         json_escape_topo(n.as_name).c_str(),
@@ -2689,29 +2700,29 @@ int run_topo_export_cli() {
     }
     fprintf(fp, "\n  ],\n  \"edges\": [\n");
     first = true;
-    for (uint32_t u : include_nodes) {
-      auto outs = net_db_get_topo_edges_from(db, u);
-      for (const auto &e : outs) {
-        if (include_nodes.count(e.to_u32) == 0) continue;
-        fprintf(fp,
-          "%s    { \"from\": \"%s\", \"to\": \"%s\", "
-          "\"asn_boundary\": %s, \"avg_latency_ms\": %.3f, "
-          "\"path_count\": %lld }",
-          first ? "" : ",\n",
-          u32_to_ip(e.from_u32).c_str(),
-          u32_to_ip(e.to_u32).c_str(),
-          e.asn_boundary ? "true" : "false",
-          e.avg_latency_ms, static_cast<long long>(e.path_count));
-        first = false;
-      }
+    for (const NetTopoEdge &e : edges) {
+      fprintf(fp,
+        "%s    { \"from\": \"%s\", \"to\": \"%s\", "
+        "\"asn_boundary\": %s, \"avg_latency_ms\": %.3f, "
+        "\"path_count\": %lld }",
+        first ? "" : ",\n",
+        u32_to_ip(e.from_u32).c_str(),
+        u32_to_ip(e.to_u32).c_str(),
+        e.asn_boundary ? "true" : "false",
+        e.avg_latency_ms, static_cast<long long>(e.path_count));
+      first = false;
     }
     fprintf(fp, "\n  ]\n}\n");
   }
 
-  fclose(fp);
+  bool written = ferror(fp) == 0;
+  if (fclose(fp) != 0) written = false;
+  if (!written) {
+    fprintf(stderr, "topo-export: cannot write %s\n", o.topo_export_file);
+    return 1;
+  }
   fprintf(stderr,
           "topo-export: wrote %zu nodes to %s (%s)\n",
-          include_nodes.size(), o.topo_export_file, fmt.c_str());
-  net_db_close(db);
+          nodes.size(), o.topo_export_file, fmt.c_str());
   return 0;
 }

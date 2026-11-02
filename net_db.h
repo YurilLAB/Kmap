@@ -402,16 +402,20 @@ int net_db_upsert_topo_edge(sqlite3 *db, const NetTopoEdge &edge);
 /* Out-neighbors of an IP: every node this IP has been observed
    pointing at.  Uses the PK leading-column index on from_u32. */
 std::vector<NetTopoEdge>
-net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32);
+net_db_get_topo_edges_from(sqlite3 *db, uint32_t from_u32,
+                           std::string *error = nullptr);
 
 /* In-neighbors of an IP: every node observed pointing at it.  Uses
    the explicit idx_topo_edges_to index for the reverse direction. */
 std::vector<NetTopoEdge>
-net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32);
+net_db_get_topo_edges_to(sqlite3 *db, uint32_t to_u32,
+                         std::string *error = nullptr);
 
 /* Read a single node by IP.  Returns true if found and populates *out;
-   false if the IP has never been seen. */
-bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out);
+   false if the IP has never been seen. Read failures (for these three
+   readers) set *error when given, so callers can tell them from "none". */
+bool net_db_get_topo_node(sqlite3 *db, uint32_t ip_u32, NetTopoNode *out,
+                          std::string *error = nullptr);
 
 /* Count rows in topo_nodes / topo_edges respectively. */
 int64_t net_db_count_topo_nodes(sqlite3 *db);

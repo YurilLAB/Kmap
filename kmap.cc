@@ -186,15 +186,15 @@ static int parse_int_arg(const char *name, const char *arg, int lo, int hi) {
 }
 
 /* ASNs cover the unsigned 32-bit range, including values above INT_MAX. */
-static int64_t parse_asn_arg(const char *arg) {
-  if (!arg || !*arg) fatal("--nq-asn requires a numeric argument");
+static int64_t parse_asn_arg(const char *name, const char *arg) {
+  if (!arg || !*arg) fatal("--%s requires a numeric argument", name);
   for (const char *p = arg; *p; ++p)
-    if (*p < '0' || *p > '9') fatal("--nq-asn: '%s' is not a valid integer", arg);
+    if (*p < '0' || *p > '9') fatal("--%s: '%s' is not a valid integer", name, arg);
   char *end = nullptr;
   errno = 0;
   const unsigned long long value = strtoull(arg, &end, 10);
   if (errno == ERANGE || *end || value < 1 || value > UINT32_MAX)
-    fatal("--nq-asn: value '%s' out of range [1..4294967295]", arg);
+    fatal("--%s: value '%s' out of range [1..4294967295]", name, arg);
   return static_cast<int64_t>(value);
 }
 
@@ -350,7 +350,7 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     o.net_query = true; o.nq_count = true; return true;
   } else if (strcmp(name, "nq-asn") == 0) {
     o.net_query = true;
-    o.nq_asn = parse_asn_arg(arg);
+    o.nq_asn = parse_asn_arg("nq-asn", arg);
     return true;
   } else if (strcmp(name, "nq-country") == 0) {
     o.net_query = true; o.nq_country = strdup(arg); return true;
@@ -434,7 +434,7 @@ static bool parse_kmap_option(const char *name, const char *arg) {
     return true;
   } else if (strcmp(name, "topo-asn") == 0) {
     o.topo_export = true;
-    o.topo_asn_filter = parse_int_arg("topo-asn", arg, 1, INT_MAX);
+    o.topo_asn_filter = parse_asn_arg("topo-asn", arg);
     return true;
   } else if (strcmp(name, "spoof-os") == 0) {
     /* Validate against the os_profile preset list at parse time so a typo

@@ -111,6 +111,9 @@ jobs:
       - name: Stored graph depth, cohort and failure contracts (offline fixtures)
         run: python3 tests/graph_contracts.py ./kmap --artifacts test-results/graph-contracts
 
+      - name: Topology export failure contracts (offline fixtures)
+        run: python3 tests/topo_export_contracts.py ./kmap --artifacts test-results/topo-export
+
       - name: Ordinary output contracts (owned loopback and write failures)
         run: python3 tests/output_contracts.py ./kmap --artifacts test-results/output-contracts
 
