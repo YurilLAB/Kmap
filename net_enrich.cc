@@ -657,13 +657,17 @@ static std::string normalize_product(const std::string &service,
     /* SSH service but unrecognized implementation -- refuse to match. */
     return "";
   }
+  /* Tomcat before the generic Apache rule: "Apache Tomcat/9.0.83" on an http
+     port is not httpd. "Apache-Coyote/1.1" names Tomcat's connector, whose
+     version is not Tomcat's, so it cannot be range-checked. */
+  if (ver.find("coyote") != std::string::npos) return "";
+  if (ver.find("tomcat") != std::string::npos) return "tomcat";
   if (ver.find("apache") != std::string::npos &&
       (ver.find("http") != std::string::npos || svc == "http"))
     return "http_server";
   if (ver.find("nginx") != std::string::npos) return "nginx";
   if (ver.find("lighttpd") != std::string::npos) return "lighttpd";
   if (ver.find("iis") != std::string::npos) return "iis";
-  if (ver.find("tomcat") != std::string::npos) return "tomcat";
   /* MariaDB before MySQL: MariaDB greetings/banners contain "mariadb" and must
      not fall through to the Oracle MySQL product (different CVE history). */
   if (ver.find("mariadb") != std::string::npos || svc == "mariadb")
