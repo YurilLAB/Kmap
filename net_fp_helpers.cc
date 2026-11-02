@@ -66,14 +66,34 @@ fp_parse_san_json(const std::string &json) {
 std::string fp_extract_redirect_host(const std::string &loc) {
   if (loc.empty()) return "";
   std::string s = loc;
-  /* Strip a scheme prefix if present. */
+  /* Strip a scheme prefix if present. "://" only starts a scheme before any
+     '/', '?' or '#': in "/login?next=https://other/" it is part of a relative
+     reference, which names no host. */
   size_t scheme_end = s.find("://");
-  if (scheme_end != std::string::npos) {
+  bool has_scheme = scheme_end != std::string::npos && scheme_end > 0 &&
+                    scheme_end <= s.find_first_of("/?#") &&
+                    isalpha(static_cast<unsigned char>(s[0]));
+  for (size_t i = 0; has_scheme && i < scheme_end; i++) {
+    unsigned char c = static_cast<unsigned char>(s[i]);
+    if (!isalnum(c) && c != '+' && c != '-' && c != '.') has_scheme = false;
+  }
+  bool authority = true;
+  if (has_scheme) {
     s = s.substr(scheme_end + 3);
   } else if (s.size() >= 2 && s[0] == '/' && s[1] == '/') {
     s = s.substr(2);
-  } else if (!s.empty() && s[0] == '/') {
+  } else if (!s.empty() && (s[0] == '/' || s[0] == '?' || s[0] == '#')) {
     return "";
+  } else {
+    authority = false;  /* bare "host" or "scheme:opaque" */
+  }
+  /* Drop authority userinfo ("user:pass@host"): it is not part of the host
+     and must not be stored as a fingerprint. */
+  if (authority) {
+    size_t authority_end = s.find_first_of("/?#");
+    size_t at = s.rfind('@', authority_end);
+    if (at != std::string::npos && (authority_end == std::string::npos || at < authority_end))
+      s = s.substr(at + 1);
   }
   /* IPv6-literal hosts arrive bracketed per RFC 3986 ("[::1]:8080/x").
      The brackets must be processed BEFORE the port-delimiter scan, or

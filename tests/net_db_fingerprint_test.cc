@@ -155,6 +155,19 @@ static void test_redirect_host_rejects_relatives_and_empty() {
   CHECK(fp_extract_redirect_host("")                  == "");
   CHECK(fp_extract_redirect_host("/relative/path")    == "");
   CHECK(fp_extract_redirect_host("/")                 == "");
+  /* An absolute URL inside a relative reference's query names no host. */
+  CHECK(fp_extract_redirect_host("/login?next=https://accounts.example.org/cb") == "");
+  CHECK(fp_extract_redirect_host("?return=http://other.example.com/") == "");
+  CHECK(fp_extract_redirect_host("#https://other.example.com/") == "");
+}
+
+static void test_redirect_host_drops_userinfo() {
+  CHECK(fp_extract_redirect_host("http://user@real-host.example.com/") == "real-host.example.com");
+  CHECK(fp_extract_redirect_host("https://admin:secret@real-host.example.com:8443/") ==
+        "real-host.example.com");
+  /* An '@' after the authority belongs to the path or query. */
+  CHECK(fp_extract_redirect_host("https://real-host.example.com/?to=a@b.example") ==
+        "real-host.example.com");
 }
 
 static void test_redirect_host_rejects_non_http_schemes() {
@@ -233,6 +246,7 @@ int main() {
   /* Pure-function regressions — no DB needed. */
   test_redirect_host_normal_urls();
   test_redirect_host_rejects_relatives_and_empty();
+  test_redirect_host_drops_userinfo();
   test_redirect_host_rejects_non_http_schemes();
   test_redirect_host_rejects_single_label();
   test_redirect_host_ipv6_brackets();
