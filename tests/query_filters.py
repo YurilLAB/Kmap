@@ -136,6 +136,26 @@ def main():
         ("country-case", ["--nq-country", "uS"], range(1, 21)),
     ]:
         case(name, lambda n=name, o=options, ids=numbers: subset(n, o, ids))
+    # Substring filters are literal: '%' and '_' in the argument are not LIKE wildcards.
+    literal = runner.artifacts / "literal-fixture"
+    fixture(literal, [
+        dict(ip="192.0.2.1", port=80, service="http", web_title="Admin Panel", web_server="srv_a"),
+        dict(ip="192.0.2.2", port=80, service="http", web_title="Admin_Panel", web_server="srv%b"),
+        dict(ip="192.0.2.3", port=80, service="http", web_title="100% uptime"),
+        dict(ip="192.0.2.4", port=80, service="http", web_title="1000 servers")])
+
+    def literal_ips(name, options):
+        runner.run(name, [str(binary), "--net-query", "--data-dir", str(literal),
+                          "--nq-format", "json", *options], timeout=15)
+        return [r["ip"] for r in json.loads((runner.artifacts / (name + ".stdout.log")).read_text())]
+    for name, options, ips in [
+        ("title-underscore", ["--nq-web-title", "Admin_Panel"], ["192.0.2.2"]),
+        ("title-percent", ["--nq-web-title", "100%"], ["192.0.2.3"]),
+        ("server-percent", ["--nq-web-server", "srv%"], ["192.0.2.2"]),
+        ("title-substring", ["--nq-web-title", "admin"], ["192.0.2.1", "192.0.2.2"]),
+    ]:
+        case(name, lambda n=name, o=options, e=ips: require(
+            literal_ips(n, o) == e, f"{n}: rows differ from the literal-substring oracle"))
     case("filtered-count", lambda: require(query("filtered-count", ["--nq-cve", "CVE-2000-0001", "--nq-count"])
                                            == {"count": 5}, "filtered count differs"))
     for name, options, count in [

@@ -220,6 +220,18 @@ struct QueryFilter {
   std::vector<BindVal> binds;
 };
 
+/* LIKE pattern for a case-insensitive literal substring: the documented
+   filters are substrings, so '%' and '_' in the argument must not act as
+   wildcards ("Admin_Panel" matched "Admin Panel"). */
+static std::string like_substring(const char *text) {
+  std::string out = "%";
+  for (char c : str_lower(text)) {
+    if (c == '%' || c == '_' || c == '\\') out += '\\';
+    out += c;
+  }
+  return out + "%";
+}
+
 static QueryFilter build_filter(int port, const char *service,
                                 const char *cve, float min_cvss,
                                 const char *web_title,
@@ -236,9 +248,8 @@ static QueryFilter build_filter(int port, const char *service,
   }
 
   if (service && service[0]) {
-    conditions.push_back("LOWER(service) LIKE ?");
-    f.binds.push_back({QueryFilter::BTEXT,
-                       "%" + str_lower(service) + "%", 0});
+    conditions.push_back("LOWER(service) LIKE ? ESCAPE '\\'");
+    f.binds.push_back({QueryFilter::BTEXT, like_substring(service), 0});
   }
 
   /* Only discard empty CVE columns here. Matching JSON text with LIKE loses
@@ -249,15 +260,13 @@ static QueryFilter build_filter(int port, const char *service,
   }
 
   if (web_title && web_title[0]) {
-    conditions.push_back("LOWER(web_title) LIKE ?");
-    f.binds.push_back({QueryFilter::BTEXT,
-                       "%" + str_lower(web_title) + "%", 0});
+    conditions.push_back("LOWER(web_title) LIKE ? ESCAPE '\\'");
+    f.binds.push_back({QueryFilter::BTEXT, like_substring(web_title), 0});
   }
 
   if (web_server && web_server[0]) {
-    conditions.push_back("LOWER(web_server) LIKE ?");
-    f.binds.push_back({QueryFilter::BTEXT,
-                       "%" + str_lower(web_server) + "%", 0});
+    conditions.push_back("LOWER(web_server) LIKE ? ESCAPE '\\'");
+    f.binds.push_back({QueryFilter::BTEXT, like_substring(web_server), 0});
   }
 
   if (asn > 0) {
