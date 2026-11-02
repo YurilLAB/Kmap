@@ -156,6 +156,18 @@ def main():
     ]:
         case(name, lambda n=name, o=options, e=ips: require(
             literal_ips(n, o) == e, f"{n}: rows differ from the literal-substring oracle"))
+    # A corrupt, deeply nested cves value is reported as a string, not a crash.
+    deep = runner.artifacts / "deep-fixture"
+    fixture(deep, [dict(ip="192.0.2.1", port=80, service="http",
+                        raw_cves="[" * 100000 + "]" * 100000)])
+
+    def deep_json():
+        runner.run("deep-json", [str(binary), "--net-query", "--data-dir", str(deep),
+                                 "--nq-format", "json"], timeout=15)
+        rows = json.loads((runner.artifacts / "deep-json.stdout.log").read_text())
+        require(len(rows) == 1 and isinstance(rows[0].get("cves"), str),
+                "deeply nested cves was not emitted as an escaped string")
+    case("deep-cves-json", deep_json)
     case("filtered-count", lambda: require(query("filtered-count", ["--nq-cve", "CVE-2000-0001", "--nq-count"])
                                            == {"count": 5}, "filtered count differs"))
     for name, options, count in [
