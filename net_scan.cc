@@ -1907,7 +1907,13 @@ int run_net_scan() {
    * no-progress guard breaks defensively if a pass somehow marks nothing
    * (e.g. the unreachable empty-host row Stage C skips), so this can
    * never spin forever. */
-  if (!o.net_discover_only && !o.net_report_only) {
+  if (!o.net_discover_only && !o.net_report_only && g_scan_interrupted.load()) {
+    /* Ctrl+C during discovery: do not start network enrichment (its DNS and
+       ASN pre-passes would still contact every discovered host). */
+    log_write(LOG_STDOUT, "\nnet-scan: discovery interrupted; skipping enrichment "
+              "(re-run with --net-resume, or --enrich-only for hosts already found)\n");
+    scan_log("INFO", "enrichment skipped due to interrupt");
+  } else if (!o.net_discover_only && !o.net_report_only) {
     log_write(LOG_STDOUT, "\nnet-scan: Starting enrichment phase\n");
     scan_log("INFO", "enrichment phase starting");
     time_t enr_t0 = time(nullptr);

@@ -992,6 +992,9 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
   std::atomic<bool> tx_done{false};
   std::atomic<uint64_t> opens{0};
   std::atomic<uint64_t> sent{0};
+  /* Totals already recorded before a --net-resume; the counters above are
+     this run's (they also drive the live rate), so checkpoints add both. */
+  const uint64_t base_sent = cp.packets_sent, base_opens = cp.hosts_found;
 
   /* Opens are buffered here during the blast and flushed to the shard DBs after
      the sweep (or periodically when the buffer grows), NOT written one-per-open
@@ -1277,8 +1280,8 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
           }
           ScanCheckpoint candidate = cp;
           candidate.next_index = lo;
-          candidate.packets_sent = sent.load();
-          candidate.hosts_found = opens.load();
+          candidate.packets_sent = base_sent + sent.load();
+          candidate.hosts_found = base_opens + opens.load();
           candidate.last_save = nowt;
           if (!persist_discovery(shards, persistence, true, data_dir, cp, &candidate)) break;
           last_ckpt = nowt;
@@ -1334,8 +1337,8 @@ static int run_raw_syn_engine(std::vector<sqlite3 *> &shards,
        the same intent for its own sample case.) */
     cp.next_index = scan_end;
   }
-  cp.packets_sent = sent.load();
-  cp.hosts_found = opens.load();
+  cp.packets_sent = base_sent + sent.load();
+  cp.hosts_found = base_opens + opens.load();
 
   // Positive errors are terminal. Only negative setup results permit fallback.
   return persistence.failed() ? 1 : 0;
@@ -1484,7 +1487,7 @@ int fast_syn_scan(const char *data_dir,
       }
     }
     log_write(LOG_STDOUT, "\n\nnet-scan: Discovery %s\n",
-              scan_interrupted ? "interrupted (use --resume to continue)" : "complete");
+              scan_interrupted ? "interrupted (re-run with --net-resume to continue)" : "complete");
     log_write(LOG_STDOUT, "  Packets sent:   %llu\n", (unsigned long long)cp.packets_sent);
     log_write(LOG_STDOUT, "  Open ports:     %llu\n", (unsigned long long)cp.hosts_found);
     for (int i = 0; i < NET_SHARD_COUNT; ++i) {
@@ -1668,6 +1671,8 @@ int fast_syn_scan(const char *data_dir,
   std::atomic<uint64_t> probe_idx{cp.next_index};
   std::atomic<uint64_t> probes_done{0};
   std::atomic<uint64_t> hosts_found_atomic{0};
+  /* Totals already recorded before a --net-resume (see the raw engine). */
+  const uint64_t base_sent = cp.packets_sent, base_found = cp.hosts_found;
   std::mutex rate_mu;
   std::mutex db_mu;
 
@@ -2025,8 +2030,8 @@ int fast_syn_scan(const char *data_dir,
          are stamped with the current time, not the scan-start time. */
       now_ts.store(static_cast<int64_t>(now_time), std::memory_order_relaxed);
       ScanCheckpoint candidate = cp;
-      candidate.packets_sent = done;
-      candidate.hosts_found  = found;
+      candidate.packets_sent = base_sent + done;
+      candidate.hosts_found  = base_found + found;
       /* Save the EXACT in-flight low-water-mark (see worker_inflight): the
          lowest index any worker is still probing, or probe_idx if every
          worker is idle. A crash right after this checkpoint resumes here and
@@ -2081,8 +2086,8 @@ int fast_syn_scan(const char *data_dir,
   }
 
   /* Sync stats vector to atomic results before the final checkpoint. */
-  cp.packets_sent = probes_done.load();
-  cp.hosts_found  = hosts_found_atomic.load();
+  cp.packets_sent = base_sent + probes_done.load();
+  cp.hosts_found  = base_found + hosts_found_atomic.load();
   uint64_t idx    = probe_idx.load();
   if (idx > scan_end) idx = scan_end;
   (void)batch_inserts;  /* kept for ABI -- replaced by 60s commit cycle */

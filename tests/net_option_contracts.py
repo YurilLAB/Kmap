@@ -136,6 +136,18 @@ def main():
             require(row is not None and row[1] == 1 and row[0],
                     f"live host not enriched behind stale rows: {row}")
 
+            # --net-resume keeps the totals an earlier session recorded.
+            resume = store("ns2")
+            data = root / "ns2" / "data"
+            data.mkdir()
+            (data / ".net-scan-checkpoint").write_text("0\n500\n7\n123456789\n1700000000\n")
+            runner.run("netscan-resume", base + [
+                "--net-scan", "127.0.0.1/32", "--no-builtin-excludes", "--discover-only",
+                "-p", port, "--net-resume"] + resume, timeout=60)
+            sent, found = (data / ".net-scan-checkpoint").read_text().split()[1:3]
+            require(int(sent) == 501 and int(found) == 8,
+                    f"resumed totals {sent}/{found}, expected 501/8")
+
         # Watchlist --rate paces connection attempts like --net-scan.
         held, ports = closed_ports(20)
         try:
