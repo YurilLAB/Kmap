@@ -73,7 +73,8 @@ void yuril_export_write_stats(int up, int down, int total, float elapsed);
 
 /* Serialize, hash, and atomically write the data + metadata files to the
    directory chosen in yuril_export_initialize(). Safe to call even if
-   yuril_export_initialize was not called (no-op). */
-void yuril_export_finalize(void);
+   yuril_export_initialize was not called (no-op). Returns false when the
+   export could not be written. */
+bool yuril_export_finalize(void);
 
 #endif /* KMAP_YURIL_EXPORT_H */

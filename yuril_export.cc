@@ -201,14 +201,18 @@ static int write_atomic(const std::string &path, const std::string &content) {
          * ofs._write(...) on Windows and the linker can't find that
          * member. Same trick used for ofs.close() above. */
         (ofs.write)(content.data(), static_cast<std::streamsize>(content.size()));
-        if (!ofs.good()) {
+        /* Close before checking: a small payload is still buffered after
+           write(), so a full disk or file-size limit only shows up when the
+           buffer is flushed. Renaming without this replaced the previous
+           export with an empty file.
+           Parenthesize the member name so the preprocessor sees ')'
+           after 'close' and skips expanding nbase_winunix.h's
+           #define close(x) closesocket(x), which would otherwise
+           mangle ofs.close() into ofs.closesocket() on Windows. */
+        (ofs.close)();
+        if (ofs.fail()) {
             fprintf(stderr,
                 "KMAP WARNING: --yuril-export: write error on %s.\n", tmp.c_str());
-            /* Parenthesize the member name so the preprocessor sees ')'
-             * after 'close' and skips expanding nbase_winunix.h's
-             * #define close(x) closesocket(x), which would otherwise
-             * mangle ofs.close() into ofs.closesocket() on Windows. */
-            (ofs.close)();
             std::remove(tmp.c_str());
             return 1;
         }
@@ -333,8 +337,8 @@ void yuril_export_write_stats(int up, int down, int total, float elapsed) {
     g_doc["stats"]["elapsed"]     = static_cast<double>(elapsed);
 }
 
-void yuril_export_finalize(void) {
-    if (!g_active) return;
+bool yuril_export_finalize(void) {
+    if (!g_active) return true;
 
     std::string data_json;
     try {
@@ -351,7 +355,7 @@ void yuril_export_finalize(void) {
             e.what());
         g_active = false;
         g_doc = nlohmann::json{};
-        return;
+        return false;
     }
 
     std::string sha = sha256_hex(data_json);
@@ -379,7 +383,7 @@ void yuril_export_finalize(void) {
             e.what());
         g_active = false;
         g_doc = nlohmann::json{};
-        return;
+        return false;
     }
 
     std::string data_path = path_join(g_dir, KMAP_YURIL_EXPORT_DATA_FILE);
@@ -388,14 +392,15 @@ void yuril_export_finalize(void) {
     if (write_atomic(data_path, data_json) != 0) {
         g_active = false;
         g_doc = nlohmann::json{};
-        return;
+        return false;
     }
     if (write_atomic(meta_path, meta_json) != 0) {
         /* Keep data+meta either both-present-and-consistent or both-absent. */
         std::remove(data_path.c_str());
+        std::remove(meta_path.c_str());  /* the previous run's meta */
         g_active = false;
         g_doc = nlohmann::json{};
-        return;
+        return false;
     }
 
     fprintf(stdout,
@@ -407,4 +412,5 @@ void yuril_export_finalize(void) {
     g_dir.clear();
     g_kmap_version.clear();
     g_active = false;
+    return true;
 }

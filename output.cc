@@ -2552,7 +2552,7 @@ bool printfinaloutput() {
                              static_cast<int>(o.numhosts_scanned - o.numhosts_up),
                              static_cast<int>(o.numhosts_scanned),
                              o.TimeSinceStart(&tv));
-    yuril_export_finalize();
+    output_saved = yuril_export_finalize() && output_saved;
   }
   if (o.report_file) {
     report_write_stats(static_cast<int>(o.numhosts_up),

@@ -105,6 +105,9 @@ jobs:
       - name: Export paths preserve stored data (offline fixtures)
         run: python3 tests/export_paths.py ./kmap --artifacts test-results/export-paths
 
+      - name: Yuril export write failures keep the last export
+        run: python3 tests/yuril_export_contracts.py ./kmap --artifacts test-results/yuril-export
+
       - name: Stored graph depth, cohort and failure contracts (offline fixtures)
         run: python3 tests/graph_contracts.py ./kmap --artifacts test-results/graph-contracts
 
