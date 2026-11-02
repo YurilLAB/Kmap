@@ -136,6 +136,19 @@ def main():
             require(row is not None and row[1] == 1 and row[0],
                     f"live host not enriched behind stale rows: {row}")
 
+            # Narrowing -p is not a closure: unprobed ports keep their baseline.
+            with http_server() as second:
+                scope = base + ["--net-scan", "--watchlist", str(single)] + store("wl6")
+                diffs = root / "wl6" / "f" / "watchlist"
+
+                def latest_diff():
+                    return max(diffs.glob("diff_*.txt"), key=lambda p: p.stat().st_mtime).read_text()
+                runner.run("scope-both", scope + ["-p", f"{port},{second}"], timeout=120)
+                runner.run("scope-narrow", scope + ["-p", port], timeout=120)
+                require("[CLOSED]" not in latest_diff(), "unprobed port reported closed")
+                runner.run("scope-restored", scope + ["-p", f"{port},{second}"], timeout=120)
+                require("[NEW PORT]" not in latest_diff(), "unprobed port re-reported as new")
+
             # --net-resume keeps the totals an earlier session recorded.
             resume = store("ns2")
             data = root / "ns2" / "data"

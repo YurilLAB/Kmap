@@ -1261,6 +1261,15 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     }
   }
 
+  /* [CLOSED] is inferred from absence, which only means something for ports
+     this run probed: a baseline entry outside the current targets or -p list
+     was not observed, so it is neither closed nor dropped from the baseline. */
+  const std::set<int> port_set(ports.begin(), ports.end());
+  auto in_scope = [&](const std::string &ip, int port) {
+    return port_set.count(port) &&
+           std::binary_search(targets.begin(), targets.end(), ip_to_u32(ip.c_str()));
+  };
+
   /* Write diff report */
   char datebuf[32];
   {
@@ -1360,7 +1369,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
     } else {
       for (const auto &pe : prev_state) {
         std::string key = pe.ip + ":" + std::to_string(pe.port);
-        if (curr_keys.find(key) == curr_keys.end()) {
+        if (curr_keys.find(key) == curr_keys.end() && in_scope(pe.ip, pe.port)) {
           fprintf(diff_fp, "\n  [CLOSED] %s:%d\n", pe.ip.c_str(), pe.port);
           if (!pe.service.empty())
             fprintf(diff_fp, "    Was: %s %s\n", pe.service.c_str(), pe.version.c_str());
@@ -1544,7 +1553,11 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
 
   /* Do not advance after interruption or an incomplete report. Historical
      host rows remain intact; only the last successful open set is replaced. */
-  if (!g_scan_interrupted.load() && !net_watchlist_state_save(wl_db, opens, scan_start_ts))
+  std::vector<std::pair<uint32_t, int>> membership = opens;
+  for (const auto &pe : prev_state)
+    if (!in_scope(pe.ip, pe.port))
+      membership.push_back({ip_to_u32(pe.ip.c_str()), pe.port});
+  if (!g_scan_interrupted.load() && !net_watchlist_state_save(wl_db, membership, scan_start_ts))
     return abort_watchlist();
 
   net_db_close(wl_db);
