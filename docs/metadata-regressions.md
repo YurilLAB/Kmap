@@ -46,6 +46,11 @@ deterministic regression checks. CI permits 300 seconds per execution within
 the unchanged 1,500-second overall runner budget. A timeout, failed assertion or
 sanitizer finding still fails the job.
 
+The CVE integration peer reads a complete bounded NetBIOS frame before replying
+to SMB negotiation. Its stream tests split a request at every byte boundary and
+check incomplete frames, unrelated protocols and an overall deadline. Request
+diagnostics are retained when investigating a service-detection failure.
+
 Protocol references: [HTTP message framing, RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html#section-2),
 [informational responses, RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.2),
 and [JSON grammar, RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html#section-2).

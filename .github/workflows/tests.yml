@@ -94,7 +94,9 @@ jobs:
         run: python3 tests/web_recon_contracts.py ./kmap --artifacts test-results/web-recon
 
       - name: CVE map matches against the shipped DB (owned loopback banners)
-        run: python3 tests/cve_map_contracts.py ./kmap --artifacts test-results/cve-map
+        run: |
+          python3 tests/cve_map_fixture_test.py
+          python3 tests/cve_map_contracts.py ./kmap --artifacts test-results/cve-map
 
       - name: Upgraded services drop stored CVEs (owned loopback net-scan)
         run: python3 tests/cve_upgrade_contracts.py ./kmap --artifacts test-results/cve-upgrade

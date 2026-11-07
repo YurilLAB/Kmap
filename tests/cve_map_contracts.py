@@ -14,6 +14,7 @@ import socket
 import socketserver
 import sys
 import threading
+import time
 import traceback
 
 from runtime_smoke import Runner, require
@@ -41,6 +42,11 @@ class Server(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.requests = []
+        self.requests_lock = threading.Lock()
+
 
 def banner_handler(banner):
     class Handler(socketserver.BaseRequestHandler):
@@ -54,11 +60,57 @@ def banner_handler(banner):
 
 class SmbHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        self.request.settimeout(6)
-        with contextlib.suppress(OSError):
-            if b"\xffSMBr" in self.request.recv(4096):
+        deadline = time.monotonic() + 10
+        received = bytearray()
+        complete = replied = False
+        reads = 0
+
+        def read_exact(length):
+            nonlocal reads
+            data = bytearray()
+            while len(data) < length:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise TimeoutError("SMB fixture request deadline")
+                self.request.settimeout(left)
+                chunk = self.request.recv(length - len(data))
+                reads += 1
+                if not chunk:
+                    return None
+                data.extend(chunk)
+                received.extend(chunk)
+            return bytes(data)
+
+        try:
+            with contextlib.suppress(OSError):
+                header = read_exact(4)
+                if header is None or header[0] != 0:
+                    return
+                length = int.from_bytes(header[1:], "big")
+                if not 1 <= length <= 4096:
+                    return
+                payload = read_exact(length)
+                if payload is None:
+                    return
+                complete = True
+                if not payload.startswith(b"\xffSMBr"):
+                    return
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return
+                self.request.settimeout(left)
                 self.request.sendall(SMB_NEGOTIATE_REPLY)
-                self.request.recv(4096)
+                replied = True
+                left = deadline - time.monotonic()
+                if left > 0:
+                    self.request.settimeout(min(1, left))
+                    self.request.recv(4096)
+        finally:
+            if self.server is not None:
+                with self.server.requests_lock:
+                    self.server.requests.append({"prefix_hex": bytes(received[:128]).hex(),
+                        "bytes": len(received), "read_calls": reads, "complete": complete,
+                        "replied": replied})
 
 
 def smb_server():
@@ -71,9 +123,11 @@ def smb_server():
 
 
 @contextlib.contextmanager
-def serve(handlers):
+def serve(handlers, smb_requests=None):
     servers = [Server(("127.0.0.1", 0), handler) for handler in handlers]
     servers.append(smb_server())
+    if smb_requests is not None:
+        servers[-1].requests = smb_requests
     threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in servers]
     for thread in threads:
         thread.start()
@@ -95,10 +149,11 @@ def main():
     source = str(Path(__file__).resolve().parent.parent)
     status = "failed"
     error = None
+    smb_requests = []
     try:
         banners = list(SSH_CASES)
         handlers = [banner_handler(b) for b in banners]
-        with serve(handlers) as ports:
+        with serve(handlers, smb_requests) as ports:
             out = runner.artifacts / "scan.json"
             runner.run("scan", [binary, "--unprivileged", "--datadir", source,
                                 "-n", "-Pn", "-sT", "-sV", "--version-light",
@@ -136,7 +191,7 @@ def main():
         error = traceback.format_exc()
         print(error, file=sys.stderr)
     finally:
-        runner.save(status=status, error=error)
+        runner.save(status=status, error=error, smb_requests=smb_requests)
     print(f"cve-map contracts: {status}; artifacts: {runner.artifacts}")
     return 0 if status == "passed" else 1
 
