@@ -28,7 +28,7 @@ HTTP fixtures or inert SQLite rows:
 python3 tests/enrichment_http_contracts.py ./kmap --artifacts test-results/enrichment-http
 python3 tests/report_json_contracts.py ./kmap --artifacts test-results/report-json
 make check-kmap
-python3 tests/run_sanitizer_harnesses.py --output test-results/sanitizers
+python3 tests/run_sanitizer_harnesses.py --output test-results/sanitizers --run-timeout 300
 ```
 
 The new drivers run in both the Linux unit workflow and the Windows build
@@ -37,6 +37,11 @@ JSON helper and CVE diff tests. `fuzz/ossfuzz/fuzz_stored_json.cc` exercises the
 production stored parser and serialization round trips; ClusterFuzzLite builds
 it and packages the committed seeds. The seed-archive tests cover compiler
 failure, missing inputs and removal of stale seeds during a rebuild.
+
+The text harness retains five million generated inputs per seed and its final
+deterministic regression checks. CI permits 300 seconds per execution within
+the unchanged 1,500-second overall runner budget. A timeout, failed assertion or
+sanitizer finding still fails the job.
 
 Protocol references: [HTTP message framing, RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html#section-2),
 [informational responses, RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.2),

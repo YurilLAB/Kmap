@@ -52,7 +52,10 @@ jobs:
         run: python3 tests/run_sanitizer_harnesses.py --validate-only
 
       - name: Build and run isolated harnesses (ASan + UBSan)
-        run: python3 tests/run_sanitizer_harnesses.py --output test-results/fuzz --total-timeout 1500
+        # fuzz_text keeps five million inputs per seed plus deterministic
+        # regression checks. ASan can exceed two minutes on a shared runner;
+        # retain the workload and allow it to finish within the overall budget.
+        run: python3 tests/run_sanitizer_harnesses.py --output test-results/fuzz --run-timeout 300 --total-timeout 1500
 
       - name: Preserve sanitizer diagnostics and test-owned fixtures
         if: always()
