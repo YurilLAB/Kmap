@@ -27,10 +27,11 @@ def main():
     compact = json.dumps([entry], separators=(",", ":"))
     variants = [compact, json.dumps([entry], indent=2), compact.replace("CVE-", "\\u0043VE-"),
                 json.dumps([dict(details={"id": "CVE-2000-9999"}, **entry)], separators=(",", ":")),
-                compact.replace('"epss":0.75', '"epss":5e-05'),
+                json.dumps([dict(entry, epss=5e-05, desc="a" * 66 + "é" + "z" * 10)]),
                 '[{"id":"CVE-2000-0001"', '["{\\"id\\":\\"CVE-2000-9999\\"}"]']
     data = runner.artifacts / "data"
-    rows = [dict(ip=f"192.0.2.{i}", port=80, service="http", raw_cves=raw)
+    rows = [dict(ip=f"192.0.2.{i}", port=80, service="http", raw_cves=raw,
+                 web_title="Owned\n\n  TARGET: forged-host\r\n\x1b[31m title")
             for i, raw in enumerate(variants, 1)]
     fixture(data, rows)
     with closing(sqlite3.connect(data / "shard_024.db")) as db:
@@ -46,7 +47,9 @@ def main():
         runner.run("report", [str(args.binary.resolve()), "--net-scan", "--report-only",
                               "--data-dir", str(data), "--findings-dir", str(findings)])
         text = "\n".join(path.read_text(encoding="utf-8") for path in sorted(findings.glob("*.txt")))
-        sections = re.split(r"  TARGET: ", text)[1:]
+        assertions.append({"check": "stored title cannot forge a target section",
+                           "passed": "\n  TARGET: forged-host" not in text and "\x1b" not in text})
+        sections = re.split(r"(?m)^  TARGET: ", text)[1:]
         for index, section in enumerate(sections, 1):
             checks = {"path rendered": "[200] /owned-path" in section,
                       "no nested/string CVE": "CVE-2000-9999" not in section}
@@ -63,6 +66,12 @@ def main():
             for name, passed in checks.items():
                 assertions.append({"row": index, "check": name, "passed": passed})
         assertions.append({"check": "all fixture hosts rendered", "passed": len(sections) == len(rows)})
+        runner.run("search", [str(args.binary.resolve()), "--search", "http", "--search-format", "text",
+                              "--data-dir", str(data)])
+        search = (runner.artifacts / "search.stdout.log").read_text(encoding="utf-8")
+        assertions.append({"check": "stored titles render on one search line",
+            "passed": "Owned TARGET: forged-host [31m title" in search and "\x1b" not in search
+                      and "\n  TARGET: forged-host" not in search})
     except Exception:
         error = traceback.format_exc()
     failed = [item for item in assertions if not item["passed"]]

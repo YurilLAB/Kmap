@@ -62,6 +62,9 @@ def main():
          b"HTTP/1.1 200 OK\r\nServer: OwnedServer\r\nContent-Type: text/html\r\n\r\n"
          b"<title>Final response</title>",
          {"web_title": "Final response", "web_server": "OwnedServer"}, 200),
+        ("title-controls", b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
+         b"<title>Owned\n\n  TARGET: forged-host\r\n\x1b[31m text\t</title>",
+         {"web_title": "Owned TARGET: forged-host [31m text"}, 200),
     ]
     assertions, errors = [], []
     targets = runner.artifacts / "targets.txt"
@@ -96,6 +99,11 @@ def main():
                 log = (data / "kmap.log").read_text(encoding="utf-8", errors="replace")
                 assertions.append({"case": name, "field": "scan completion logged",
                                    "passed": "scan complete" in log.lower()})
+                if label == "title-controls":
+                    reports = list((data / "findings" / "watchlist").glob("full_*.txt"))
+                    report = "\n".join(path.read_text(encoding="utf-8") for path in reports)
+                    assertions.append({"case": name, "field": "title cannot forge report content",
+                        "passed": bool(reports) and "\n  TARGET: forged-host" not in report and "\x1b" not in report})
     except Exception:
         errors.append(traceback.format_exc())
     failed = [item for item in assertions if not item["passed"]]

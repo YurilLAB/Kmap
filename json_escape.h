@@ -124,4 +124,20 @@ static inline std::string kmap_json_repair_utf8(const std::string &in) {
   return out;
 }
 
+/* A title occupies one report line. Collapse ASCII controls and whitespace so
+ * target-supplied content cannot create headings or terminal escape sequences.
+ * Repair invalid UTF-8, including a title truncated inside a code point. */
+static inline std::string kmap_single_line_text(const std::string &in) {
+  std::string out;
+  for (unsigned char c : in) {
+    if (c <= ' ' || c == 0x7f) {
+      if (!out.empty() && out.back() != ' ') out += ' ';
+    } else {
+      out += static_cast<char>(c);
+    }
+  }
+  if (!out.empty() && out.back() == ' ') out.pop_back();
+  return kmap_json_repair_utf8(out);
+}
+
 #endif /* KMAP_JSON_ESCAPE_H */

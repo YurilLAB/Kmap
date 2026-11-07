@@ -1462,7 +1462,7 @@ static int run_watchlist(const char *targets_file, const char *data_dir,
         fprintf(full_fp, "\n");
 
         if (!r.web_title.empty())
-          fprintf(full_fp, "    Title:    %s\n", r.web_title.c_str());
+          fprintf(full_fp, "    Title:    %s\n", kmap_single_line_text(r.web_title).c_str());
         if (!r.web_server.empty())
           fprintf(full_fp, "    Server:   %s\n", r.web_server.c_str());
         if (!r.powered_by.empty())
@@ -2499,7 +2499,7 @@ int run_search_cli() {
       if (!h.country.empty())        fprintf(out, " %s", h.country.c_str());
       if (!h.as_name.empty())        fprintf(out, " [%s]", h.as_name.c_str());
       if (!h.cloud_provider.empty()) fprintf(out, " {%s}", h.cloud_provider.c_str());
-      if (!h.web_title.empty())      fprintf(out, " \"%s\"", h.web_title.c_str());
+      if (!h.web_title.empty())      fprintf(out, " \"%s\"", kmap_single_line_text(h.web_title).c_str());
       fprintf(out, "\n");
     }
   }

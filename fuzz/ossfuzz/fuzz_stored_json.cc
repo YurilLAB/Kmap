@@ -4,7 +4,12 @@
 #include <cstdlib>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  const auto parsed = kmap_stored_json_array(std::string(reinterpret_cast<const char *>(data), size));
+  const std::string input(reinterpret_cast<const char *>(data), size);
+  const std::string line = kmap_single_line_text(input);
+  for (unsigned char c : line)
+    if (c < ' ' || c == 0x7f) std::abort();
+  if (kmap_single_line_text(line) != line) std::abort();
+  const auto parsed = kmap_stored_json_array(input);
   if (parsed.is_discarded()) return 0;
   if (!parsed.is_array()) std::abort();
   const std::string canonical = parsed.dump();

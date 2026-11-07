@@ -7,6 +7,9 @@ Partial headers have no body; LF-only header separators are accepted. Text in
 a response body cannot supply `Server`, `Location` or other header metadata.
 Synchronous enrichment, the opt-in async pre-pass and web recon share these
 boundaries. The async path lowercases each response once for header lookups.
+Titles use one normalized line when collected or rendered from historical
+rows, so newlines and terminal controls cannot imitate report content. Invalid
+UTF-8 is repaired, including a description cut inside a multibyte character.
 
 Stored CVE and web-path arrays use `stored_json.h`. JSON whitespace, escaped
 strings, scientific notation and boolean triage flags do not change their

@@ -265,6 +265,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
 
         if (!desc.empty()) {
           if (desc.size() > 70) desc = desc.substr(0, 67) + "...";
+          desc = kmap_single_line_text(desc);
           fprintf(fp, "      %s\n", desc.c_str());
         }
       }
@@ -399,7 +400,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
       fprintf(fp, "  Port %d/%s:\n", p.port, proto.c_str());
 
       if (!p.web_title.empty())
-        fprintf(fp, "    Title:   %s\n", p.web_title.c_str());
+        fprintf(fp, "    Title:   %s\n", kmap_single_line_text(p.web_title).c_str());
       if (!p.web_server.empty())
         fprintf(fp, "    Server:  %s\n", p.web_server.c_str());
 

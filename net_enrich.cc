@@ -968,9 +968,7 @@ static std::string extract_html_title(const std::string &body) {
   size_t te = lower.find("</title>", ts);
   if (te == std::string::npos) te = std::min(ts + 200, body.size());
   std::string t = body.substr(ts, te - ts);
-  size_t a = t.find_first_not_of(" \t\r\n");
-  size_t b = t.find_last_not_of(" \t\r\n");
-  return (a == std::string::npos) ? "" : t.substr(a, b - a + 1);
+  return kmap_single_line_text(t);
 }
 
 static int extract_status(const std::string &resp) {

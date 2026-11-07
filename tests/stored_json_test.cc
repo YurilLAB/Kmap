@@ -6,6 +6,11 @@ static int failures = 0;
 #define CHECK(x) do { if (!(x)) { ++failures; std::fprintf(stderr, "FAIL line %d: %s\n", __LINE__, #x); } } while (0)
 
 int main() {
+  for (int c = 0; c <= 32; ++c)
+    CHECK(kmap_single_line_text("a" + std::string(1, static_cast<char>(c)) + "b") == "a b");
+  CHECK(kmap_single_line_text(" \r\nA\t \x1b[31m\x7f B\n ") == "A [31m B");
+  CHECK(kmap_single_line_text("\xc3\xa9") == "\xc3\xa9");
+  CHECK(kmap_single_line_text("\xc3") == "\xef\xbf\xbd");
   CHECK(kmap_stored_json_array("").is_array());
   CHECK(kmap_stored_json_array(" \n[ ]\t").empty());
   for (const char *bad : {"null", "{}", "true", "3", "[", "[{}] trailing"})
