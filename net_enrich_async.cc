@@ -123,6 +123,7 @@
 #include "net_enrich.h"   /* TlsCapture + EnrichMetrics decls */
 #include "json_escape.h"  /* kmap_json_escape -- shared JSON escaper */
 #include "banner_classify.h" /* shared kmap_classify_banner */
+#include "http_headers.h"
 #include "os_profile.h"
 #include "KmapOps.h"
 
@@ -568,20 +569,9 @@ static bool a_banner_is_tls_port(int port) {
  * ----------------------------------------------------------------------- */
 
 static std::string a_extract_header_val(const std::string &resp,
+                                        const std::string &lower_resp,
                                         const char *name) {
-  std::string lower_resp = a_str_lower(resp);
-  std::string lower_name = a_str_lower(std::string(name));
-  /* Anchor to start of header line so a search for "Server" does not
-     match "X-Server:" or "Last-Modified-Server:". */
-  std::string needle = "\n" + lower_name + ":";
-  size_t pos = lower_resp.find(needle);
-  if (pos == std::string::npos) return "";
-  size_t start = pos + needle.size();
-  while (start < resp.size() && resp[start] == ' ') start++;
-  size_t end = resp.find('\r', start);
-  if (end == std::string::npos) end = resp.find('\n', start);
-  if (end == std::string::npos) end = resp.size();
-  return resp.substr(start, end - start);
+  return kmap_http::header_value(resp, lower_resp, name);
 }
 
 static std::string a_extract_html_title(const std::string &body) {
@@ -598,14 +588,7 @@ static std::string a_extract_html_title(const std::string &body) {
 }
 
 static int a_extract_status(const std::string &resp) {
-  if (resp.size() < 12) return 0;
-  if (resp.substr(0, 4) != "HTTP") return 0;
-  size_t sp = resp.find(' ');
-  if (sp == std::string::npos || sp + 3 >= resp.size()) return 0;
-  char c1 = resp[sp + 1], c2 = resp[sp + 2], c3 = resp[sp + 3];
-  if (c1 < '0' || c1 > '9' || c2 < '0' || c2 > '9' || c3 < '0' || c3 > '9')
-    return 0;
-  return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
+  return kmap_http::status_code(resp);
 }
 
 /* WebResult mirrors the synchronous probe_http output. */
@@ -625,15 +608,11 @@ static AsyncWebResult a_parse_http_response(const std::string &response) {
   AsyncWebResult wr;
   if (response.empty()) return wr;
 
-  size_t body_start = response.find("\r\n\r\n");
-  std::string body = (body_start != std::string::npos)
-                     ? response.substr(body_start + 4) : "";
+  std::string body = kmap_http::response_body(response);
 
   wr.title           = a_extract_html_title(body);
-  wr.server          = a_extract_header_val(response, "Server");
-  wr.powered_by      = a_extract_header_val(response, "X-Powered-By");
-  wr.x_generator     = a_extract_header_val(response, "X-Generator");
-  wr.redirect_target = a_extract_header_val(response, "Location");
+  const std::string lower_response = a_str_lower(response);
+  wr.redirect_target = a_extract_header_val(response, lower_response, "Location");
 
   std::ostringstream hdr_json;
   hdr_json << "{";
@@ -643,8 +622,11 @@ static AsyncWebResult a_parse_http_response(const std::string &response) {
     "X-Frame-Options", "Content-Type", "Set-Cookie", nullptr
   };
   for (const char **hp = interesting; *hp; hp++) {
-    std::string val = a_extract_header_val(response, *hp);
+    std::string val = a_extract_header_val(response, lower_response, *hp);
     if (!val.empty()) {
+      if (strcmp(*hp, "Server") == 0) wr.server = val;
+      else if (strcmp(*hp, "X-Powered-By") == 0) wr.powered_by = val;
+      else if (strcmp(*hp, "X-Generator") == 0) wr.x_generator = val;
       if (!first) hdr_json << ",";
       hdr_json << "\"" << a_json_escape(*hp) << "\":\""
                << a_json_escape(val) << "\"";

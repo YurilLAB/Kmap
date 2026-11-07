@@ -399,15 +399,7 @@ static std::string extract_title(const std::string &body) {
 }
 
 static int extract_status_code(const std::string &response) {
-  if (response.size() < 12) return 0;
-  if (response.substr(0, 4) != "HTTP") return 0;
-  size_t sp = response.find(' ');
-  if (sp == std::string::npos || sp + 3 >= response.size()) return 0;
-  /* Validate that the status code chars are digits before parsing */
-  char c1 = response[sp + 1], c2 = response[sp + 2], c3 = response[sp + 3];
-  if (c1 < '0' || c1 > '9' || c2 < '0' || c2 > '9' || c3 < '0' || c3 > '9')
-    return 0;
-  return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
+  return kmap_http::status_code(response);
 }
 
 static std::string extract_redirect(const std::string &response) {
@@ -916,10 +908,7 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
   // GET /
   std::string root = do_get("/");
   if (!root.empty()) {
-    // Find the body (after \r\n\r\n)
-    size_t body_start = root.find("\r\n\r\n");
-    std::string body = (body_start != std::string::npos)
-                       ? root.substr(body_start + 4) : root;
+    std::string body = kmap_http::response_body(root);
     r.title      = extract_title(body);
     r.server     = extract_header(root, "Server");
     r.powered_by = extract_header(root, "X-Powered-By");
@@ -943,9 +932,7 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
   // robots.txt
   std::string robots_resp = do_get("/robots.txt");
   if (!robots_resp.empty() && extract_status_code(robots_resp) == 200) {
-    size_t body_start = robots_resp.find("\r\n\r\n");
-    if (body_start != std::string::npos)
-      r.robots_disallowed = parse_robots(robots_resp.substr(body_start + 4));
+    r.robots_disallowed = parse_robots(kmap_http::response_body(robots_resp));
   }
 
   // TLS: already populated above if is_https and get("/") succeeded
@@ -975,9 +962,7 @@ static WebReconResult probe_web_port(const char *ip, uint16_t port,
     if (code >= 300 && code < 400)
       wp.redirect_to = extract_redirect(resp);
     if (code == 200) {
-      size_t body_start = resp.find("\r\n\r\n");
-      if (body_start != std::string::npos)
-        wp.title = extract_title(resp.substr(body_start + 4));
+      wp.title = extract_title(kmap_http::response_body(resp));
     }
     r.paths.push_back(wp);
   }

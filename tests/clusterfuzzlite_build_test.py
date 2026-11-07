@@ -16,8 +16,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {"fuzz_dns", "fuzz_cidr", "fuzz_jsonescape", "fuzz_proto",
-           "fuzz_hassh", "fuzz_banner"}
-ARCHIVE = "fuzz_jsonescape_seed_corpus.zip"
+           "fuzz_hassh", "fuzz_banner", "fuzz_stored_json"}
+ARCHIVES = {"fuzz_jsonescape_seed_corpus.zip": "jsonescape",
+            "fuzz_stored_json_seed_corpus.zip": "stored-json"}
 COMPILER = """#!/usr/bin/env python3
 import os
 from pathlib import Path
@@ -29,10 +30,10 @@ output.write_text('inert compiler fixture: ' + output.name + '\\n')
 """
 
 
-def check_archive(output, seeds):
+def check_archive(output, archive_name, seeds):
     expected = {path.name: path.read_bytes() for path in seeds.iterdir()
                 if path.is_file()}
-    with zipfile.ZipFile(output / ARCHIVE) as archive:
+    with zipfile.ZipFile(output / archive_name) as archive:
         names = archive.namelist()
         assert len(names) == len(set(names)), "duplicate archive entries"
         assert set(names) == set(expected), "missing, stale or nested seed entries"
@@ -54,12 +55,13 @@ def main():
     compiler.chmod(0o755)
     results = []
 
-    def run(name, *, fail_target="", missing_corpus=False, rebuild=False):
+    def run(name, *, fail_target="", missing_corpus="", rebuild=False):
         work = output_root / name
         work.mkdir()
-        seeds = work / "fuzz/corpus/jsonescape"
-        if not missing_corpus:
-            shutil.copytree(ROOT / "fuzz/corpus/jsonescape", seeds)
+        seeds = {archive: work / "fuzz/corpus" / corpus for archive, corpus in ARCHIVES.items()}
+        for archive, corpus in ARCHIVES.items():
+            if missing_corpus != corpus:
+                shutil.copytree(ROOT / "fuzz/corpus" / corpus, seeds[archive])
         output = work / "output with spaces"
         output.mkdir()
         env = {**os.environ, "CXX": str(compiler), "CXXFLAGS": "-O1 -g",
@@ -77,27 +79,33 @@ def main():
         code = invoke("build")
         if fail_target:
             assert code == 47, f"compiler failure was lost: exit {code}"
-            assert not (output / ARCHIVE).exists(), "failed build published a seed archive"
+            assert not any((output / archive).exists() for archive in ARCHIVES), \
+                "failed build published a seed archive"
         elif missing_corpus:
             assert code != 0, "missing mandatory JSON corpus did not fail the build"
         else:
             assert code == 0, f"build failed: exit {code}"
-            assert {path.name for path in output.iterdir()} == TARGETS | {ARCHIVE}, \
+            assert {path.name for path in output.iterdir()} == TARGETS | set(ARCHIVES), \
                 "fuzzer binary or JSON seed archive missing"
-            check_archive(output, seeds)
+            for archive in ARCHIVES:
+                check_archive(output, archive, seeds[archive])
             if rebuild:
                 # Reusing OUT must not retain seeds removed from the checkout.
-                removed = next(path for path in sorted(seeds.iterdir()) if path.is_file())
-                removed.unlink()
-                (seeds / "new-binary-seed").write_bytes(b"\x00\xff\xed\xa0\x80")
+                for directory in seeds.values():
+                    removed = next(path for path in sorted(directory.iterdir()) if path.is_file())
+                    removed.unlink()
+                    (directory / "new-binary-seed").write_bytes(b"\x00\xff\xed\xa0\x80")
                 assert invoke("rebuild") == 0, "rebuild failed"
-                check_archive(output, seeds)
+                for archive in ARCHIVES:
+                    check_archive(output, archive, seeds[archive])
         return {"case": name, "status": "passed", "returncode": code}
 
     cases = [("committed-seed-bytes", {}),
              ("rebuild-removes-stale-seeds", {"rebuild": True}),
              ("compiler-error", {"fail_target": "fuzz_jsonescape"}),
-             ("missing-corpus", {"missing_corpus": True})]
+             ("stored-json-compiler-error", {"fail_target": "fuzz_stored_json"}),
+             ("missing-corpus", {"missing_corpus": "jsonescape"}),
+             ("missing-stored-json-corpus", {"missing_corpus": "stored-json"})]
     for name, options in cases:
         try:
             results.append(run(name, **options))

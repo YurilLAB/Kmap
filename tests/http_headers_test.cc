@@ -67,6 +67,10 @@ int main() {
         "Server: final" + separator + "Strict-Transport-Security: max-age=60" + separator +
         "Set-Cookie: final=token; HttpOnly" + separator + separator + body;
     expect(field(interim + final, "Server") == "final", "final response follows informational blocks");
+    expect(kmap_http::status_code(interim + final) == 200,
+           "status and headers must describe the same final response");
+    expect(kmap_http::response_body(interim + final) == body,
+           "body starts after the final response headers");
     expect(field(interim + final, "Strict-Transport-Security") == "max-age=60",
            "final response security headers retained");
     expect(field(interim + final, "Link").empty(), "informational-only fields excluded");
@@ -84,6 +88,15 @@ int main() {
   expect(field("HTTP/1.1 101 Switching Protocols\r\nServer: upgrade\r\n\r\n"
                "HTTP/1.1 200 OK\r\nServer: payload\r\n\r\n", "Server") == "upgrade",
          "upgrade payload must not become a final response");
+  for (int status : {101, 103, 204, 304}) {
+    const std::string response = "HTTP/1.1 " + std::to_string(status) +
+        " Fixture\r\n\r\n<title>not HTTP content</title>";
+    expect(kmap_http::status_code(response) == status, "no-content status retained");
+    expect(kmap_http::response_body(response).empty(), "no-content and upgrade payloads excluded");
+  }
+  expect(kmap_http::status_code("HTTP/1.1 200 OK") == 200, "bounded status-only response");
+  expect(kmap_http::response_body("HTTP/1.1 200 OK\nServer: partial").empty(),
+         "partial headers cannot become a body");
 
   // Exercise boundary handling over every byte without relying on text-only
   // examples: the known body is inert regardless of bytes inside the body.

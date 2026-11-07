@@ -126,6 +126,12 @@ HARNESSES = {
     "http_headers_test": Harness("tests/http_headers_test.cc",
                                  coverage="production HTTP header/cookie parser; offline response fixtures",
                                  headers=("http_headers.h",)),
+    "stored_json_test": Harness("tests/stored_json_test.cc",
+                                coverage="production stored JSON depth, escapes and structure; offline byte mutations",
+                                headers=("stored_json.h", "json_escape.h", "third-party/nlohmann/json.hpp")),
+    "net_db_diff_test": Harness("tests/net_db_diff_test.cc", ("net_db.cc",), sqlite=True,
+                                coverage="production CVE diff and stored JSON parser; malformed and equivalent lists",
+                                headers=("net_db.h", "stored_json.h", "json_escape.h", "third-party/nlohmann/json.hpp")),
 }
 
 

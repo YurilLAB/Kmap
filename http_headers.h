@@ -38,13 +38,20 @@ inline int response_status(const std::string &response, size_t start, size_t end
   return code;
 }
 
-struct HeaderBlock { size_t begin, end; };
+struct HeaderBlock {
+  size_t begin, end;
+  size_t body_begin;
+  int status;
+};
 
 inline HeaderBlock header_block(const std::string &response) {
   size_t block_start = 0;
   for (;;) {
     const size_t status_end = response.find('\n', block_start);
-    if (status_end == std::string::npos) return {block_start, response.size()};
+    if (status_end == std::string::npos)
+      return {block_start, response.size(), std::string::npos,
+              response_status(response, block_start, response.size())};
+    const int code = response_status(response, block_start, status_end);
     size_t start = status_end + 1;
     while (start < response.size()) {
       size_t end = response.find('\n', start);
@@ -52,7 +59,6 @@ inline HeaderBlock header_block(const std::string &response) {
       size_t content_end = end;
       if (content_end > start && response[content_end - 1] == '\r') --content_end;
       if (content_end == start) {
-        const int code = response_status(response, block_start, status_end);
         const size_t next = end < response.size() ? end + 1 : response.size();
         // Informational responses have no body. Advance only when another
         // complete status line follows; bounded reads may end in this block.
@@ -62,13 +68,28 @@ inline HeaderBlock header_block(const std::string &response) {
           block_start = next;
           break;
         }
-        return {status_end, start};
+        return {status_end, start, next, code};
       }
-      if (end == response.size()) return {status_end, response.size()};
+      if (end == response.size())
+        return {status_end, response.size(), std::string::npos, code};
       start = end + 1;
     }
-    if (start >= response.size()) return {status_end, response.size()};
+    if (start >= response.size())
+      return {status_end, response.size(), std::string::npos, code};
   }
+}
+
+inline int status_code(const std::string &response) {
+  return header_block(response).status;
+}
+
+inline std::string response_body(const std::string &response) {
+  const HeaderBlock block = header_block(response);
+  // Informational/upgrade and no-content responses do not carry an HTTP body.
+  if (block.body_begin == std::string::npos || block.status < 200 ||
+      block.status == 204 || block.status == 304)
+    return "";
+  return response.substr(block.body_begin);
 }
 
 /* lower_response is a precomputed ASCII-lowercase copy of response. Retaining

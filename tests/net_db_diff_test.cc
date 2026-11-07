@@ -100,6 +100,29 @@ static void test_parse_malformed(void) {
   CHECK(net_db_parse_cve_ids("garbage").empty());
 }
 
+static void test_json_structure(void) {
+  CHECK(vec_eq(net_db_parse_cve_ids("[ { \"id\" : \"CVE-2024-1\" } ]"), {"CVE-2024-1"}));
+  CHECK(vec_eq(net_db_parse_cve_ids("[{\"id\":\"\\u0043VE-2024-1\"}]"), {"CVE-2024-1"}));
+  CHECK(vec_eq(net_db_parse_cve_ids(
+      "[{\"details\":{\"id\":\"wrong\"},\"id\":\"CVE-2024-1\"}]"), {"CVE-2024-1"}));
+  CHECK(net_db_parse_cve_ids("[{\"details\":{\"id\":\"wrong\"}}]").empty());
+  CHECK(net_db_parse_cve_ids("[\"{\\\"id\\\":\\\"wrong\\\"}\"]").empty());
+  CHECK(net_db_parse_cve_ids("{\"id\":\"wrong\"}").empty());
+  CHECK(net_db_parse_cve_ids("[{\"id\":true},{\"id\":3},{\"id\":null}]").empty());
+
+  const std::string previous = "[{\"id\":\"CVE-2024-1\"}]";
+  const NetDbCveDiff unchanged = net_db_cve_diff(previous, "[ { \"id\" : \"CVE-2024-1\" } ]");
+  CHECK(unchanged.patched.empty());
+  CHECK(vec_eq(unchanged.persisting, {"CVE-2024-1"}));
+  // A corrupt current list cannot establish that an old CVE was patched.
+  const NetDbCveDiff corrupt = net_db_cve_diff(previous, "[{\"id\":");
+  CHECK(corrupt.patched.empty());
+  CHECK(!corrupt.valid);
+  CHECK(unchanged.valid);
+  CHECK(!net_db_cve_diff(previous, "[42]").valid);
+  CHECK(!net_db_cve_diff(previous, "[{\"id\":null}]").valid);
+}
+
 static void test_diff_first_scan(void) {
   /* No prior data -- everything in current is "introduced", nothing is
    * "patched". This is the steady state for a host's first enrichment. */
@@ -183,6 +206,7 @@ int main(void) {
   test_parse_with_escaped_quotes();
   test_parse_missing_id();
   test_parse_malformed();
+  test_json_structure();
 
   test_diff_first_scan();
   test_diff_all_patched();

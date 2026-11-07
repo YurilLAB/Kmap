@@ -356,6 +356,7 @@
     <ClInclude Include="..\jarm.h" />
     <ClInclude Include="..\host_tags.h" />
     <ClInclude Include="..\net_report.h" />
+    <ClInclude Include="..\stored_json.h" />
     <ClInclude Include="..\net_query.h" />
     <ClInclude Include="..\asn_lookup.h" />
     <ClInclude Include="..\cloud_map.h" />

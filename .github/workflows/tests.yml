@@ -84,6 +84,12 @@ jobs:
       - name: HTTP metadata boundaries (owned loopback with header-like response bodies)
         run: python3 tests/http_metadata_smoke.py ./kmap --artifacts test-results/http-metadata
 
+      - name: Sync and async enrichment HTTP boundaries (owned loopback)
+        run: python3 tests/enrichment_http_contracts.py ./kmap --artifacts test-results/enrichment-http
+
+      - name: Stored JSON findings and patch comparison contracts (offline)
+        run: python3 tests/report_json_contracts.py ./kmap --artifacts test-results/report-json
+
       - name: Web recon HTTPS, titles, paths and tarpits (owned loopback)
         run: python3 tests/web_recon_contracts.py ./kmap --artifacts test-results/web-recon
 

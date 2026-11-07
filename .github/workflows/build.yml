@@ -285,6 +285,14 @@ jobs:
         if: startsWith(matrix.name,'windows')
         run: python tests/resume_contracts.py mswin32/Release/kmap.exe --artifacts test-results/resume
 
+      - name: Windows sync and async HTTP contracts (owned loopback)
+        if: startsWith(matrix.name,'windows')
+        run: python tests/enrichment_http_contracts.py mswin32/Release/kmap.exe --artifacts test-results/enrichment-http
+
+      - name: Windows stored JSON findings contracts (offline)
+        if: startsWith(matrix.name,'windows')
+        run: python tests/report_json_contracts.py mswin32/Release/kmap.exe --artifacts test-results/report-json
+
       - name: Windows export paths preserve stored data (offline fixtures)
         if: startsWith(matrix.name,'windows')
         run: python tests/export_paths.py mswin32/Release/kmap.exe --artifacts test-results/export-paths

@@ -7,6 +7,7 @@
 #endif
 
 #include "net_db.h"
+#include "stored_json.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -1682,120 +1683,23 @@ int64_t net_db_count_topo_edges(sqlite3 *db) {
   return c;
 }
 
-/* -----------------------------------------------------------------------
- * CVE id parser + diff helpers
- *
- * The CVE column is a JSON array written by net_enrich's cves_to_json,
- * shaped like [{"id":"CVE-2024-...","cvss":...,"severity":"...",
- * "desc":"..."},...]. For patch-status we only need the IDs, so a full
- * JSON parse is overkill. The walk below is intentionally state-machine
- * lite: it scans for the literal "id":" prefix at the start of each
- * object and reads characters until the closing quote, treating any
- * "id" inside the desc field as a non-issue because we anchor the
- * search to immediately after a '{' (which a desc field cannot contain
- * unescaped per net_enrich's json_escape).
- *
- * Tolerant of whitespace between tokens, "[]" empty arrays, NULL/empty
- * input, and missing fields. Pure -- no DB access -- so it can be
- * unit-tested without a fixture.
- * ----------------------------------------------------------------------- */
-
-/* Find the matching '}' that closes the JSON object starting at `start`
- * (which must point at '{').  State machine: tracks brace depth while
- * skipping over JSON string literals, honoring backslash escapes inside
- * strings.  Needed because net_enrich's json_escape does NOT escape '{'
- * or '}' (JSON spec does not require it), so a literal '}' inside a CVE
- * description used to defeat the previous find('}') here -- it landed
- * on the description's '}' instead of the object terminator, then the
- * "id":" search inside the truncated substring missed the id and the
- * entry was silently dropped.  Returns npos if the input is malformed. */
-static size_t db_json_find_object_end(const std::string &json, size_t start) {
-  if (start >= json.size() || json[start] != '{') return std::string::npos;
-  int  depth        = 0;
-  bool in_string    = false;
-  bool escape_next  = false;
-  for (size_t i = start; i < json.size(); i++) {
-    char c = json[i];
-    if (escape_next) { escape_next = false; continue; }
-    if (in_string) {
-      if (c == '\\')      escape_next = true;
-      else if (c == '"')  in_string = false;
-      continue;
-    }
-    if (c == '"')       in_string = true;
-    else if (c == '{')  depth++;
-    else if (c == '}') {
-      depth--;
-      if (depth == 0) return i;
-    }
-  }
-  return std::string::npos;
-}
-
+/* Parse array elements structurally; nested keys and quoted examples are not
+ * CVE entries. Preserve input order here; the diff below sorts and dedupes. */
 std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json) {
-  std::vector<std::string> ids;
-  if (cves_json.empty() || cves_json == "[]") return ids;
-
-  size_t pos = 0;
-  while (pos < cves_json.size()) {
-    /* Find next object opener.  The '{' we want is always at the start
-       of an array element; '{' inside a quoted string is skipped over
-       by db_json_find_object_end below, so this find() only ever lands
-       on a real opener. */
-    size_t obj_start = cves_json.find('{', pos);
-    if (obj_start == std::string::npos) break;
-
-    /* Find the matching '}'.  Use the string-aware finder so a '}' inside
-       a description (CVE prose contains braces in code snippets, regex
-       examples, set-builder notation) does not truncate the object and
-       drop the entry from the parse. */
-    size_t obj_end = db_json_find_object_end(cves_json, obj_start);
-    if (obj_end == std::string::npos) break;
-
-    /* Within this entry, look for "id":" then read up to the next
-       unescaped quote. We respect the same odd/even backslash rule
-       json_extract_string in net_report uses for full correctness on
-       descriptions containing literal backslashes -- though IDs
-       themselves never contain a backslash, the parser must not get
-       desynchronized by one in a sibling field that comes BEFORE id. */
-    static const char id_key[] = "\"id\":\"";
-    size_t key = cves_json.find(id_key, obj_start);
-    if (key == std::string::npos || key > obj_end) {
-      pos = obj_end + 1;
-      continue;
-    }
-    size_t id_start = key + sizeof(id_key) - 1;
-    size_t id_end = id_start;
-    while (id_end < obj_end) {
-      id_end = cves_json.find('"', id_end);
-      if (id_end == std::string::npos || id_end > obj_end) break;
-      /* Count the run of consecutive backslashes immediately preceding
-         this quote. An odd run means the quote is escaped (every
-         backslash pairs except one, which escapes the quote); an even
-         run means the backslashes pair off and the quote terminates
-         the string. The mod-2 form is used in place of `bs & 1u` to
-         avoid any signed/unsigned mismatch warnings under MSVC's
-         default Level 2 diagnostics. */
-      size_t bs = 0;
-      size_t k = id_end;
-      while (k > id_start && cves_json[k - 1] == '\\') { bs++; k--; }
-      if ((bs % 2) == 0) break;  /* unescaped quote */
-      id_end++;
-    }
-    if (id_end != std::string::npos && id_end > id_start && id_end <= obj_end) {
-      ids.emplace_back(cves_json.substr(id_start, id_end - id_start));
-    }
-    pos = obj_end + 1;
-  }
-  return ids;
+  return kmap_stored_cve_ids(kmap_stored_json_array(cves_json));
 }
 
 NetDbCveDiff net_db_cve_diff(const std::string &prev_cves_json,
                              const std::string &current_cves_json) {
   NetDbCveDiff out;
 
-  std::vector<std::string> prev_ids = net_db_parse_cve_ids(prev_cves_json);
-  std::vector<std::string> cur_ids  = net_db_parse_cve_ids(current_cves_json);
+  const auto previous = kmap_stored_json_array(prev_cves_json);
+  const auto current = kmap_stored_json_array(current_cves_json);
+  bool previous_valid = false, current_valid = false;
+  std::vector<std::string> prev_ids = kmap_stored_cve_ids(previous, &previous_valid);
+  std::vector<std::string> cur_ids = kmap_stored_cve_ids(current, &current_valid);
+  out.valid = previous_valid && current_valid;
+  if (!out.valid) return out;
 
   /* Sort + dedupe each side so set arithmetic is O(n+m) rather than
      O(n*m). Stable order also gives reproducible report output. The

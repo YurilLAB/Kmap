@@ -20,7 +20,7 @@
 # The storage target fuzz_enrichment_store needs instrumented SQLite and
 # production database linkage; .github/workflows/fuzz.yml builds and runs it.
 
-TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape fuzz_proto fuzz_hassh fuzz_banner"
+TARGETS="fuzz_dns fuzz_cidr fuzz_jsonescape fuzz_proto fuzz_hassh fuzz_banner fuzz_stored_json"
 
 for t in $TARGETS; do
   echo "Building $t"
@@ -35,5 +35,7 @@ done
 # removed seeds cannot survive a local rebuild that reuses OUT.
 rm -f "$OUT/fuzz_jsonescape_seed_corpus.zip"
 zip -q -j "$OUT/fuzz_jsonescape_seed_corpus.zip" fuzz/corpus/jsonescape/*
+rm -f "$OUT/fuzz_stored_json_seed_corpus.zip"
+zip -q -j "$OUT/fuzz_stored_json_seed_corpus.zip" fuzz/corpus/stored-json/*
 
 echo "Built: $TARGETS"

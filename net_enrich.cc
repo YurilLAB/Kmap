@@ -974,14 +974,7 @@ static std::string extract_html_title(const std::string &body) {
 }
 
 static int extract_status(const std::string &resp) {
-  if (resp.size() < 12) return 0;
-  if (resp.substr(0, 4) != "HTTP") return 0;
-  size_t sp = resp.find(' ');
-  if (sp == std::string::npos || sp + 3 >= resp.size()) return 0;
-  char c1 = resp[sp + 1], c2 = resp[sp + 2], c3 = resp[sp + 3];
-  if (c1 < '0' || c1 > '9' || c2 < '0' || c2 > '9' || c3 < '0' || c3 > '9')
-    return 0;
-  return (c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0');
+  return kmap_http::status_code(resp);
 }
 
 /* Fetch /favicon.ico over plaintext HTTP and return its Shodan-style hash
@@ -1024,9 +1017,7 @@ static std::string probe_favicon_mmh3(const char *ip, int port, int timeout_ms) 
   if (response.empty()) return "";
   int status = extract_status(response);
   if (status < 200 || status >= 300) return "";
-  size_t body_start = response.find("\r\n\r\n");
-  if (body_start == std::string::npos) return "";
-  std::string body = response.substr(body_start + 4);
+  std::string body = kmap_http::response_body(response);
   if (body.empty()) return "";
   return favicon_mmh3(body);
 }
@@ -1085,9 +1076,7 @@ static WebResult probe_http(const char *ip, int port, int timeout_ms,
   if (response.empty()) return wr;
 
   /* Parse response */
-  size_t body_start = response.find("\r\n\r\n");
-  std::string body = (body_start != std::string::npos)
-                     ? response.substr(body_start + 4) : "";
+  std::string body = kmap_http::response_body(response);
 
   wr.title = extract_html_title(body);
 

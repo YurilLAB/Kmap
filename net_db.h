@@ -455,12 +455,9 @@ std::string net_db_lookup_string(sqlite3 *db, int64_t id);
  * surfaces as "what was patched", "what is still vulnerable", and
  * "what is new since last scan".
  *
- * The JSON parser is intentionally permissive and only extracts the
- * "id" field of each entry -- it does not allocate a full JSON tree.
- * The format it accepts is the one written by net_enrich's cves_to_json
- * (`[{"id":"CVE-...","cvss":...,...},...]`); other shapes return an
- * empty list rather than throwing, so a corrupt prev_cves cell never
- * blocks a report run.
+ * Only direct string "id" members of array objects count as CVEs. JSON
+ * whitespace and escapes are supported; malformed or deeply nested cells
+ * cannot establish a patch delta and do not block report generation.
  * ----------------------------------------------------------------------- */
 
 /* Parse a CVE JSON-array string into the bare list of CVE IDs. Empty
@@ -470,6 +467,7 @@ std::vector<std::string> net_db_parse_cve_ids(const std::string &cves_json);
 /* Diff result returned by net_db_cve_diff. Each list is sorted ascending
    by CVE ID for stable, grep-friendly output. */
 struct NetDbCveDiff {
+  bool valid = true;                /* false if either stored list is malformed */
   std::vector<std::string> persisting; /* in both prev and current */
   std::vector<std::string> introduced; /* in current only (new this scan) */
   std::vector<std::string> patched;    /* in prev only (gone this scan) */

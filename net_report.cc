@@ -11,6 +11,7 @@
 #include "kmap_winconfig.h"
 #endif
 
+#include "stored_json.h"
 #include "net_report.h"
 #include "net_db.h"
 #include "KmapOps.h"
@@ -27,6 +28,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <cerrno>
+#include <cmath>
 #include <sstream>
 #include <sys/stat.h>
 
@@ -87,88 +89,32 @@ static std::string format_date(int64_t ts) {
   return buf;
 }
 
-/* Minimal JSON string value extraction:
- * find "key":"value" and return value. */
-static std::string json_extract_string(const std::string &json,
-                                       const char *key) {
-  std::string search = std::string("\"") + key + "\":\"";
-  size_t pos = json.find(search);
-  if (pos == std::string::npos) return "";
-  pos += search.size();
-  /* Find the unescaped closing quote. A quote is escaped only when preceded
-   * by an ODD number of consecutive backslashes; an even count means each
-   * pair is itself an escaped backslash (\\) and the quote terminates the
-   * string. The previous "json[end-1] == '\\\\'" check got this wrong and
-   * skipped past valid string ends in CVE descriptions containing literal
-   * backslashes. */
-  size_t end = pos;
-  while (end < json.size()) {
-    end = json.find('"', end);
-    if (end == std::string::npos) return "";
-    size_t bs_count = 0;
-    size_t i = end;
-    while (i > pos && json[i - 1] == '\\') { bs_count++; i--; }
-    if ((bs_count & 1u) == 0) break; /* unescaped quote */
-    end++; /* escaped — keep looking */
-  }
-  if (end >= json.size() || end == std::string::npos) return "";
-  return json.substr(pos, end - pos);
+/* Escape decoded controls so stored values cannot create report headings or
+ * terminal escape sequences. Unicode escapes still display as readable UTF-8. */
+static std::string json_extract_string(const nlohmann::json &entry, const char *key) {
+  const auto value = entry.find(key);
+  return value != entry.end() && value->is_string()
+      ? kmap_json_escape(value->get_ref<const std::string &>()) : "";
 }
 
-/* Find the end of a JSON object that starts at `start` (which must point
- * at '{').  Returns the position of the matching '}', or npos if the
- * input is malformed.
- *
- * Needed because CVE / web-path JSON values often contain literal '{' or
- * '}' inside string values (CVE descriptions in particular -- prose with
- * code snippets, regex examples, set-builder notation).  A naive
- * find('}', start) lands on the first '}' it sees, which may be inside
- * a description string instead of the actual object terminator, and
- * truncates the parse so the entry's id / cvss / desc come out wrong or
- * the entry is silently dropped from the report.
- *
- * State machine: track brace depth while skipping over JSON string
- * literals.  Backslash escapes inside strings are honored so a \" does
- * not prematurely close the string. */
-static size_t json_find_object_end(const std::string &json, size_t start) {
-  if (start >= json.size() || json[start] != '{') return std::string::npos;
-  int  depth        = 0;
-  bool in_string    = false;
-  bool escape_next  = false;
-  for (size_t i = start; i < json.size(); i++) {
-    char c = json[i];
-    if (escape_next) { escape_next = false; continue; }
-    if (in_string) {
-      if (c == '\\')      escape_next = true;
-      else if (c == '"')  in_string = false;
-      continue;
-    }
-    if (c == '"')       in_string = true;
-    else if (c == '{')  depth++;
-    else if (c == '}') {
-      depth--;
-      if (depth == 0) return i;
-    }
-  }
-  return std::string::npos;
+static std::string json_extract_score(const nlohmann::json &entry,
+                                      const char *key, double maximum) {
+  const auto value = entry.find(key);
+  if (value == entry.end() || !value->is_number()) return "";
+  const double score = value->get<double>();
+  return std::isfinite(score) && score >= 0 && score <= maximum ? value->dump() : "";
 }
 
-/* Extract a numeric value from JSON: "key":NNN */
-static std::string json_extract_number(const std::string &json,
-                                       const char *key) {
-  std::string search = std::string("\"") + key + "\":";
-  size_t pos = json.find(search);
-  if (pos == std::string::npos) return "";
-  pos += search.size();
-  /* Skip whitespace */
-  while (pos < json.size() && json[pos] == ' ') pos++;
-  size_t end = pos;
-  while (end < json.size() &&
-         (isdigit(static_cast<unsigned char>(json[end])) ||
-          json[end] == '.' || json[end] == '-'))
-    end++;
-  if (end == pos) return "";
-  return json.substr(pos, end - pos);
+static std::string json_extract_flag(const nlohmann::json &entry, const char *key) {
+  const auto value = entry.find(key);
+  if (value == entry.end()) return "";
+  if (value->is_boolean()) return value->get<bool>() ? "1" : "0";
+  if (value->is_number()) {
+    const double flag = value->get<double>();
+    if (flag == 1) return "1";
+    if (flag == 0) return "0";
+  }
+  return "";
 }
 
 /* -----------------------------------------------------------------------
@@ -274,26 +220,22 @@ static void write_host_section(FILE *fp, const std::string &ip,
 
       /* Parse CVE JSON array — iterate over entries.
        * Format: [{"id":"CVE-...","cvss":8.1,"severity":"HIGH","desc":"..."}] */
-      std::string cves_str = p.cves;
-      size_t search_pos = 0;
-      while (true) {
-        size_t obj_start = cves_str.find('{', search_pos);
-        if (obj_start == std::string::npos) break;
-        size_t obj_end = json_find_object_end(cves_str, obj_start);
-        if (obj_end == std::string::npos) break;
-
-        std::string obj = cves_str.substr(obj_start,
-                                          obj_end - obj_start + 1);
-        search_pos = obj_end + 1;
+      const auto entries = kmap_stored_json_array(p.cves);
+      if (entries.is_discarded()) {
+        fprintf(fp, "    (malformed stored CVE data)\n");
+        continue;
+      }
+      for (const auto &obj : entries) {
+        if (!obj.is_object()) continue;
 
         std::string cve_id   = json_extract_string(obj, "id");
-        std::string cvss_str = json_extract_number(obj, "cvss");
+        std::string cvss_str = json_extract_score(obj, "cvss", 10.0);
         std::string severity = json_extract_string(obj, "severity");
         std::string desc     = json_extract_string(obj, "desc");
-        std::string remote   = json_extract_number(obj, "remote");
-        std::string epss     = json_extract_number(obj, "epss");
-        std::string kev      = json_extract_number(obj, "kev");
-        std::string ransom   = json_extract_number(obj, "ransomware");
+        std::string remote   = json_extract_flag(obj, "remote");
+        std::string epss     = json_extract_score(obj, "epss", 1.0);
+        std::string kev      = json_extract_flag(obj, "kev");
+        std::string ransom   = json_extract_flag(obj, "ransomware");
 
         if (cve_id.empty()) continue;
         summary.cves_found++;
@@ -402,6 +344,10 @@ static void write_host_section(FILE *fp, const std::string &ip,
       }
 
       NetDbCveDiff d = net_db_cve_diff(p.prev_cves, p.cves);
+      if (!d.valid) {
+        fprintf(fp, "    STATUS:    CVE comparison unavailable (malformed stored CVE data)\n");
+        continue;
+      }
       summary.patched_cves    += static_cast<int64_t>(d.patched.size());
       summary.persisting_cves += static_cast<int64_t>(d.persisting.size());
       summary.introduced_cves += static_cast<int64_t>(d.introduced.size());
@@ -414,7 +360,7 @@ static void write_host_section(FILE *fp, const std::string &ip,
            a host has dozens of CVEs (legacy appliances commonly do). */
         const size_t per_line = 6;
         for (size_t k = 0; k < v.size(); k++) {
-          fprintf(fp, "%s%s", v[k].c_str(),
+          fprintf(fp, "%s%s", kmap_json_escape(v[k]).c_str(),
                   (k + 1 < v.size()) ? ", " : "\n");
           if ((k + 1) % per_line == 0 && k + 1 < v.size())
             fprintf(fp, "\n               ");
@@ -459,19 +405,17 @@ static void write_host_section(FILE *fp, const std::string &ip,
 
       /* Parse web_paths JSON for path results */
       if (!p.web_paths.empty() && p.web_paths != "[]") {
-        std::string paths = p.web_paths;
-        size_t spos = 0;
-        while (true) {
-          size_t ostart = paths.find('{', spos);
-          if (ostart == std::string::npos) break;
-          size_t oend = json_find_object_end(paths, ostart);
-          if (oend == std::string::npos) break;
-
-          std::string obj = paths.substr(ostart, oend - ostart + 1);
-          spos = oend + 1;
+        const auto paths = kmap_stored_json_array(p.web_paths);
+        if (!paths.is_array()) continue;
+        for (const auto &obj : paths) {
+          if (!obj.is_object()) continue;
+          const auto code = obj.find("status");
+          if (code == obj.end() || !code->is_number_integer() ||
+              code->get<double>() < 100 || code->get<double>() > 599)
+            continue;
 
           std::string path   = json_extract_string(obj, "path");
-          std::string status = json_extract_number(obj, "status");
+          std::string status = code->dump();
           std::string title  = json_extract_string(obj, "title");
           std::string redir  = json_extract_string(obj, "redirect_to");
 

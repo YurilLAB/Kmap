@@ -17,7 +17,7 @@
 #include "net_db.h"
 #include "store_output.h"
 #include "json_escape.h"
-#include "third-party/nlohmann/json.hpp"
+#include "stored_json.h"
 #include "KmapOps.h"
 #include "host_tags.h"
 #include "kmap.h"
@@ -178,17 +178,7 @@ static bool cve_flag(const nlohmann::json &entry, const char *key) {
 static CveMetadata parse_cves(const std::string &raw) {
   CveMetadata result;
   if (raw.empty() || raw == "[]") return result;
-  /* Serializing a value back out is recursive, so nesting far beyond any CVE
-     list (a corrupt row) is treated as malformed rather than overflowing the
-     stack; it is then emitted as an escaped string like other bad values. */
-  bool too_deep = false;
-  const nlohmann::json::parser_callback_t limit =
-      [&](int depth, nlohmann::json::parse_event_t, nlohmann::json &) {
-        if (depth > 64) too_deep = true;
-        return !too_deep;
-      };
-  result.parsed = nlohmann::json::parse(kmap_json_repair_utf8(raw), limit, false);
-  if (too_deep) result.parsed = nlohmann::json();
+  result.parsed = kmap_stored_json_array(raw);
   if (!result.parsed.is_array()) return result;
   for (const auto &entry : result.parsed) {
     if (!entry.is_object()) continue;
