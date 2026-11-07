@@ -30,7 +30,7 @@ on:
       - "**/*.toml"
       - "libpcre/src/*.sym"
     branches:
-      - master
+      - main
   pull_request:
   workflow_dispatch:
     inputs:

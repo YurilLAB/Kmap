@@ -20,7 +20,7 @@ on:
       - "scripts/add_cves.py"
       - "ncat/test/test-addrset.sh"
     branches:
-      - master
+      - main
   pull_request:
   workflow_dispatch:
 

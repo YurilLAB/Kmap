@@ -146,7 +146,7 @@ All three phases run in parallel via sub-agents:
 - **Sub-agent 2** → Phase 2
 - **Main agent** → Phase 3
 
-Each agent works in an isolated git worktree on its own branch. After all three complete, branches are merged into `master`.
+Work and commit directly on `main`. Do not create branches or branch-based worktrees; coordinate changes in the existing checkout.
 
 ## Verification
 

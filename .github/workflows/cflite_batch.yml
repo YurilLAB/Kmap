@@ -1,7 +1,7 @@
 name: ClusterFuzzLite batch fuzzing
 
 # Batch fuzzing of the libFuzzer targets built via .clusterfuzzlite/. Runs on
-# relevant master changes, daily, and on demand. The PR workflow separately
+# relevant main changes, daily, and on demand. The PR workflow separately
 # exercises proposed changes in code-change mode.
 #
 # The same fuzz/ossfuzz/*.cc + .clusterfuzzlite/build.sh are reused, so there
@@ -12,7 +12,7 @@ name: ClusterFuzzLite batch fuzzing
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - ".github/workflows/cflite_batch.yml"
       - ".clusterfuzzlite/**"

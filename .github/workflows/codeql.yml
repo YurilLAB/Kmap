@@ -13,7 +13,7 @@ name: CodeQL
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - "**/*.cc"
       - "**/*.c"
@@ -26,7 +26,7 @@ on:
       - "**/*.h"
   schedule:
     # Weekly full re-scan (Mondays 07:23 UTC) so newly-published CodeQL queries
-    # run against master even when the code has not changed.
+    # run against main even when the code has not changed.
     - cron: "23 7 * * 1"
   workflow_dispatch:
 
